@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".diagnostic.DiagnosticActivity">
+
+    <TextView
+        android:id="@+id/diagnosticTitleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Diagnostic Tools"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@+id/buttonLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/diagnosticTitleTextView">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Device Information Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Device Information"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/deviceInfoTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Loading device information..."
+                android:textIsSelectable="true" />
+
+            <!-- Performance Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Performance Metrics"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/performanceTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No performance data collected yet"
+                android:textIsSelectable="true" />
+
+            <!-- Test Results Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Test Results"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/testResultsTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No tests run yet"
+                android:textIsSelectable="true" />
+                
+            <!-- Workflow Validation Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Workflow Validation"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/workflowValidationTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No workflow validation run yet"
+                android:textIsSelectable="true" />
+
+            <!-- Log Output Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Log Output"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/logOutputTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No logs collected"
+                android:textIsSelectable="true" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/buttonLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/runTestsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:text="Run Tests" />
+
+            <Button
+                android:id="@+id/collectPerformanceButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:text="Collect Performance" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/validateWorkflowsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Validate Workflows" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/shareReportButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Share Report"
+        app:layout_constraintBottom_toTopOf="@+id/buttonLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

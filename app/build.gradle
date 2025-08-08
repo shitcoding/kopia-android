@@ -1,0 +1,193 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+}
+
+// Load keystore properties from external file
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    compileSdkVersion 33
+    namespace 'com.kopia.android'
+    
+    defaultConfig {
+        applicationId "com.kopia.android"
+        minSdkVersion 26  // Android 8.0
+        targetSdkVersion 33
+        versionCode 1
+        versionName "1.0"
+        
+        // Use custom test runner for instrumented tests
+        testInstrumentationRunner "com.kopia.android.KopiaTestRunner"
+        
+        // Configure for ARM64 architecture
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+        
+        // Test arguments
+        testInstrumentationRunnerArguments clearPackageData: 'true'
+    }
+    
+    // Enable NDK support
+    ndkVersion "25.2.9519653"
+    
+    // Signing configurations
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            
+            // Enable R8 full mode for better optimization
+            // This will optimize the APK size further
+            buildConfigField "boolean", "ENABLE_CRASH_REPORTING", "true"
+            buildConfigField "boolean", "DEBUG_MODE", "false"
+        }
+        
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            debuggable true
+            buildConfigField "boolean", "ENABLE_CRASH_REPORTING", "false"
+            buildConfigField "boolean", "DEBUG_MODE", "true"
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    
+    buildFeatures {
+        viewBinding true
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            // Required for Mockito Inline/ByteBuddy on JDK 17
+            jvmArgs(
+                '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
+                '--add-opens=java.base/java.io=ALL-UNNAMED',
+                '--add-opens=java.base/java.util=ALL-UNNAMED'
+            )
+        }
+    }
+
+
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.webkit:webkit:1.6.0'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    
+    // Unit testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-inline:4.11.0'
+    testImplementation 'androidx.arch.core:core-testing:2.2.0'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4'
+    testImplementation 'androidx.test.ext:junit:1.1.5'
+    testImplementation 'androidx.test:core:1.5.0'
+    testImplementation 'androidx.test:core-ktx:1.5.0'
+    testImplementation 'com.google.truth:truth:1.1.3'
+
+    // Robolectric for running Android-dependent tests on the JVM
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+
+    
+    // Instrumented testing dependencies
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
+    
+    // Espresso dependencies
+    androidTestImplementation 'androidx.test.espresso:espresso-web:3.5.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.5.1'
+    
+    // UI Automator for system-level interactions
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.2.0'
+    androidTestImplementation 'org.mockito:mockito-android:5.0.0'
+}
+
+// Custom task to generate combined test report
+tasks.register('testReport') {
+    description 'Generates a combined test report for both unit and instrumented tests'
+    group 'Reporting'
+    
+    dependsOn 'testDebugUnitTest', 'connectedDebugAndroidTest'
+    
+    doLast {
+        def reportDir = file("${buildDir}/reports/combined-tests")
+        reportDir.mkdirs()
+        
+        // Create index.html with links to both reports
+        def indexFile = file("${reportDir}/index.html")
+        indexFile.text = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Kopia Android - Combined Test Reports</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #4285F4; }
+                .report-section { margin-bottom: 30px; }
+                .report-link { display: block; margin: 10px 0; }
+                .status { padding: 5px 10px; border-radius: 3px; display: inline-block; margin-left: 10px; }
+                .pass { background-color: #0F9D58; color: white; }
+                .fail { background-color: #DB4437; color: white; }
+            </style>
+        </head>
+        <body>
+            <h1>Kopia Android - Combined Test Reports</h1>
+            <p>Generated on ${new Date()}</p>
+            
+            <div class="report-section">
+                <h2>Unit Tests</h2>
+                <a class="report-link" href="../tests/testDebugUnitTest/index.html">View Unit Test Report</a>
+            </div>
+            
+            <div class="report-section">
+                <h2>Instrumented Tests</h2>
+                <a class="report-link" href="../androidTests/connected/index.html">View Instrumented Test Report</a>
+            </div>
+        </body>
+        </html>
+        """
+        
+        println "Combined test report generated at: ${reportDir}/index.html"
+    }
+}

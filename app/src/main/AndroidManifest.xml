@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Internet permission for WebView and Kopia server -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Notifications permission required on Android 13+ for foreground service notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Storage permissions -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" /> <!-- Not needed for Android 10+ due to scoped storage -->
+    
+    <!-- Foreground service permission for running Kopia server -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.KopiaAndroid"
+        android:extractNativeLibs="true"
+        android:usesCleartextTraffic="true"> <!-- Required for WebView to access localhost -->
+        
+        <activity
+            android:name="com.kopia.android.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <activity
+            android:name="com.kopia.android.settings.SettingsActivity"
+            android:exported="false" />
+            
+        <activity
+            android:name="com.kopia.android.diagnostic.DiagnosticActivity"
+            android:exported="false" />
+            
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        
+        <!-- Service for running Kopia server in the background -->
+        <service
+            android:name="com.kopia.android.service.KopiaServerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+    </application>
+
+</manifest>
