@@ -13,9 +13,21 @@ echo
 
 # Check if Android SDK is properly set up
 if [ -z "$ANDROID_HOME" ]; then
-  echo -e "${RED}Error: ANDROID_HOME environment variable is not set.${NC}"
-  echo "Please set ANDROID_HOME to your Android SDK location."
-  exit 1
+  # Try to read from local.properties
+  if [ -f "local.properties" ]; then
+    SDK_DIR=$(grep "sdk.dir" local.properties | cut -d'=' -f2)
+    if [ -n "$SDK_DIR" ]; then
+      export ANDROID_HOME="$SDK_DIR"
+      echo -e "${YELLOW}Using SDK from local.properties: $ANDROID_HOME${NC}"
+    fi
+  fi
+
+  # If still not set, error out
+  if [ -z "$ANDROID_HOME" ]; then
+    echo -e "${RED}Error: ANDROID_HOME environment variable is not set.${NC}"
+    echo "Please set ANDROID_HOME to your Android SDK location."
+    exit 1
+  fi
 fi
 
 # Directory of this script
@@ -48,9 +60,15 @@ echo
 EMULATOR_RUNNING=$(adb devices | grep -v "List" | grep "emulator" | wc -l)
 if [ $EMULATOR_RUNNING -eq 0 ]; then
   echo -e "${YELLOW}No emulator detected. Starting emulator...${NC}"
-  # Start an emulator in the background
-  # Note: You may need to adjust this command based on your AVD name
-  emulator -avd Pixel_API_30 -no-audio -no-boot-anim -no-window &
+  # Start the Pixel_9 emulator in the background
+  # Using specific path to emulator from SDK
+  EMULATOR_BIN="$ANDROID_HOME/emulator/emulator"
+  if [ ! -f "$EMULATOR_BIN" ]; then
+    echo -e "${RED}Error: Emulator binary not found at $EMULATOR_BIN${NC}"
+    exit 1
+  fi
+
+  $EMULATOR_BIN -avd Pixel_9 -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect &
   EMULATOR_PID=$!
   
   # Wait for emulator to boot
