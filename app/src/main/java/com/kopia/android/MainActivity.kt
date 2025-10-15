@@ -27,6 +27,7 @@ import com.kopia.android.util.ErrorHandlingUtility
 import com.kopia.android.util.FileUtils
 import com.kopia.android.util.OptimizationUtility
 import com.kopia.android.util.ProgressManager
+import com.kopia.android.util.WebViewJavaScriptInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,11 +43,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var optimizationUtility: OptimizationUtility
     private var lastTriedUiPathRoot = true
     private lateinit var errorHandler: ErrorHandlingUtility
-    
+    private lateinit var jsInterface: WebViewJavaScriptInterface
+
     private var serverPort = 51515
     private var serverUrl = "http://127.0.0.1:$serverPort/"
     private var repositoryUri: Uri? = null
     private var autoStartServer = true
+
+    // Track current file picker request from WebView
+    private var currentPickerRequestId: String? = null
 
     // Shared preferences for storing settings
     private val sharedPrefs by lazy {
@@ -118,6 +123,29 @@ class MainActivity : AppCompatActivity() {
             )
             // Handle restore operation with the selected location
             // This would be implemented based on user selection of snapshot
+        }
+    }
+
+    // Register for WebView file picker requests
+    private val webViewFilePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        val requestId = currentPickerRequestId
+        if (requestId != null) {
+            if (uri != null) {
+                // Persist permission to access this directory
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                // Convert content URI to a real path if possible
+                val path = FileUtils.getPathFromUri(this, uri) ?: uri.toString()
+                jsInterface.sendPathToWebView(requestId, path)
+            } else {
+                // User cancelled
+                jsInterface.sendPathToWebView(requestId, null)
+            }
+            currentPickerRequestId = null
         }
     }
 
@@ -233,9 +261,30 @@ class MainActivity : AppCompatActivity() {
                 cm.setAcceptThirdPartyCookies(binding.webView, true)
             }
         } catch (_: Throwable) { }
-        
+
         // Apply WebView optimizations
         optimizationUtility.optimizeWebView(binding.webView)
+
+        // Initialize JavaScript interface for native Android features
+        jsInterface = WebViewJavaScriptInterface(
+            context = this,
+            webView = binding.webView,
+            filePickerCallback = { request ->
+                currentPickerRequestId = request.requestId
+                when (request.type) {
+                    WebViewJavaScriptInterface.FilePickerType.DIRECTORY,
+                    WebViewJavaScriptInterface.FilePickerType.SNAPSHOT_SOURCE -> {
+                        webViewFilePickerLauncher.launch(null)
+                    }
+                    WebViewJavaScriptInterface.FilePickerType.FILE -> {
+                        // For now, use directory picker for files as well
+                        // Can be enhanced with OpenDocument launcher later
+                        webViewFilePickerLauncher.launch(null)
+                    }
+                }
+            }
+        )
+        binding.webView.addJavascriptInterface(jsInterface, "KopiaAndroid")
 
         binding.webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -247,6 +296,9 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 binding.statusText.visibility = View.GONE
                 binding.webView.visibility = View.VISIBLE
+
+                // Inject JavaScript to enable file picker integration
+                injectFilePickerJavaScript()
             }
 
             override fun onReceivedHttpError(
@@ -281,6 +333,154 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun injectFilePickerJavaScript() {
+        val jsCode = """
+            (function() {
+                // Skip injection if already injected
+                if (window.KopiaAndroidInjected) return;
+                window.KopiaAndroidInjected = true;
+
+                // Store callbacks for path selection
+                window.KopiaAndroid = window.KopiaAndroid || {};
+                window.KopiaAndroid.pendingRequests = {};
+
+                // Callback from Android when path is selected
+                window.KopiaAndroid.onPathSelected = function(requestId, path) {
+                    console.log('Path selected:', requestId, path);
+                    const request = window.KopiaAndroid.pendingRequests[requestId];
+                    if (request && request.inputElement) {
+                        const input = request.inputElement;
+
+                        // Set the value using React's descriptor if available
+                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype,
+                            'value'
+                        ).set;
+
+                        if (nativeInputValueSetter) {
+                            nativeInputValueSetter.call(input, path);
+                        } else {
+                            input.value = path;
+                        }
+
+                        // Trigger events that React listens to
+                        const inputEvent = new Event('input', { bubbles: true });
+                        const changeEvent = new Event('change', { bubbles: true });
+
+                        // Dispatch events
+                        input.dispatchEvent(inputEvent);
+                        input.dispatchEvent(changeEvent);
+
+                        // Also trigger focus/blur to ensure React updates
+                        input.focus();
+                        input.blur();
+
+                        console.log('Path set to input field:', path);
+                    }
+                    delete window.KopiaAndroid.pendingRequests[requestId];
+                };
+
+                // Callback from Android when picker is cancelled
+                window.KopiaAndroid.onPathCancelled = function(requestId) {
+                    console.log('Path selection cancelled:', requestId);
+                    delete window.KopiaAndroid.pendingRequests[requestId];
+                };
+
+                // Helper to add file picker button next to input fields
+                function addFilePickerButton(input) {
+                    // Skip if already enhanced
+                    if (input.dataset.kopiaAndroidEnhanced) return;
+                    input.dataset.kopiaAndroidEnhanced = 'true';
+
+                    // Create a folder icon button
+                    const button = document.createElement('button');
+                    button.innerHTML = '\uD83D\uDCC2'; // Folder emoji
+                    button.type = 'button';
+                    button.style.cssText = 'margin-left: 4px; padding: 4px 8px; cursor: pointer;';
+                    button.title = 'Choose directory';
+
+                    button.onclick = function(e) {
+                        e.preventDefault();
+                        const requestId = 'picker_' + Date.now();
+                        window.KopiaAndroid.pendingRequests[requestId] = { inputElement: input };
+
+                        // Determine picker type based on input attributes
+                        let pickerType = 'directory';
+                        const name = input.name || input.id || '';
+                        if (name.includes('snapshot') || name.includes('source')) {
+                            pickerType = 'snapshot_source';
+                        }
+
+                        // Call Android native file picker
+                        KopiaAndroid.openFilePicker(requestId, pickerType, input.value || null);
+                    };
+
+                    // Insert button after the input
+                    input.parentNode.insertBefore(button, input.nextSibling);
+                }
+
+                // Look for path-related input fields and enhance them
+                function enhancePathInputs() {
+                    // Look for all input fields, including those without explicit type
+                    const inputs = document.querySelectorAll('input[type="text"], input:not([type]), input[type=""]');
+                    console.log('Kopia Android: Found ' + inputs.length + ' input fields to check');
+
+                    let enhanced = 0;
+                    inputs.forEach(input => {
+                        // Get context from multiple sources
+                        const label = input.labels && input.labels[0] ? input.labels[0].textContent : '';
+                        const name = input.name || input.id || '';
+                        const placeholder = input.placeholder || '';
+                        const ariaLabel = input.getAttribute('aria-label') || '';
+                        const value = input.value || '';
+
+                        // Also check parent elements for context
+                        const parentText = input.parentElement ? input.parentElement.textContent.substring(0, 100) : '';
+
+                        // Check if this looks like a path input
+                        const pathKeywords = ['path', 'directory', 'folder', 'location', 'repository', 'snapshot', 'config', 'file', 'source', 'destination', 'target'];
+                        const searchText = (label + name + placeholder + ariaLabel + parentText).toLowerCase();
+
+                        const hasPathKeyword = pathKeywords.some(keyword => searchText.includes(keyword));
+                        const looksLikePath = value.includes('/') || value.includes('\\');
+
+                        if (hasPathKeyword || looksLikePath) {
+                            console.log('Kopia Android: Enhancing input - name:', name, 'placeholder:', placeholder, 'label:', label);
+                            addFilePickerButton(input);
+                            enhanced++;
+                        }
+                    });
+                    console.log('Kopia Android: Enhanced ' + enhanced + ' input fields');
+                }
+
+                // Run enhancement on page load
+                enhancePathInputs();
+
+                // Re-run after a delay for React apps
+                setTimeout(enhancePathInputs, 500);
+                setTimeout(enhancePathInputs, 1000);
+                setTimeout(enhancePathInputs, 2000);
+
+                // Re-run when DOM changes (for React/dynamic content)
+                let enhanceTimeout = null;
+                const observer = new MutationObserver(() => {
+                    // Debounce to avoid running too frequently
+                    if (enhanceTimeout) clearTimeout(enhanceTimeout);
+                    enhanceTimeout = setTimeout(enhancePathInputs, 300);
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+
+                console.log('Kopia Android file picker integration ready');
+            })();
+        """.trimIndent()
+
+        binding.webView.evaluateJavascript(jsCode, null)
     }
 
     private suspend fun extractKopiaBinary(): Boolean {
