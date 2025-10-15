@@ -22,17 +22,23 @@ object FileUtils {
      */
     fun copyFromSafToInternal(context: Context, sourceUri: Uri, destFile: File): Boolean {
         return try {
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+            val inputStream = context.contentResolver.openInputStream(sourceUri)
+            if (inputStream == null) {
+                android.util.Log.e("FileUtils", "Failed to open input stream for URI: $sourceUri")
+                return false
+            }
+
+            inputStream.use { input ->
                 FileOutputStream(destFile).use { outputStream ->
                     val buffer = ByteArray(4 * 1024) // 4KB buffer
                     var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
                         outputStream.write(buffer, 0, bytesRead)
                     }
                 }
             }
             true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             android.util.Log.e("FileUtils", "Error copying from SAF to internal: ${e.message}")
             false
         }
@@ -48,17 +54,23 @@ object FileUtils {
      */
     fun copyFromInternalToSaf(context: Context, sourceFile: File, destUri: Uri): Boolean {
         return try {
-            context.contentResolver.openOutputStream(destUri)?.use { outputStream ->
+            val outputStream = context.contentResolver.openOutputStream(destUri)
+            if (outputStream == null) {
+                android.util.Log.e("FileUtils", "Failed to open output stream for URI: $destUri")
+                return false
+            }
+
+            outputStream.use { output ->
                 sourceFile.inputStream().use { inputStream ->
                     val buffer = ByteArray(4 * 1024) // 4KB buffer
                     var bytesRead: Int
                     while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
+                        output.write(buffer, 0, bytesRead)
                     }
                 }
             }
             true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             android.util.Log.e("FileUtils", "Error copying from internal to SAF: ${e.message}")
             false
         }
@@ -75,15 +87,15 @@ object FileUtils {
     fun copyDirectoryFromSafToInternal(context: Context, sourceUri: Uri, destDir: File): Boolean {
         try {
             val sourceDoc = DocumentFile.fromTreeUri(context, sourceUri) ?: return false
-            
+
             if (!destDir.exists()) {
                 destDir.mkdirs()
             }
-            
+
             // Copy all files in the directory
             for (file in sourceDoc.listFiles()) {
                 val destFile = File(destDir, file.name ?: continue)
-                
+
                 if (file.isDirectory) {
                     // Recursively copy subdirectories
                     copyDirectoryFromSafToInternal(context, file.uri, destFile)
@@ -92,9 +104,9 @@ object FileUtils {
                     copyFromSafToInternal(context, file.uri, destFile)
                 }
             }
-            
+
             return true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             android.util.Log.e("FileUtils", "Error copying directory: ${e.message}")
             return false
         }
@@ -111,11 +123,17 @@ object FileUtils {
     fun copyDirectoryFromInternalToSaf(context: Context, sourceDir: File, destUri: Uri): Boolean {
         try {
             val destDoc = DocumentFile.fromTreeUri(context, destUri) ?: return false
-            
+
             // Copy all files in the directory
-            for (file in sourceDir.listFiles() ?: return true) {
+            val files = sourceDir.listFiles()
+            if (files == null) {
+                android.util.Log.e("FileUtils", "Failed to list files in directory: $sourceDir")
+                return false
+            }
+
+            for (file in files) {
                 val destFile = destDoc.createFile("*/*", file.name) ?: continue
-                
+
                 if (file.isDirectory) {
                     // Create subdirectory in destination
                     val newDir = destDoc.createDirectory(file.name) ?: continue
@@ -126,9 +144,9 @@ object FileUtils {
                     copyFromInternalToSaf(context, file, destFile.uri)
                 }
             }
-            
+
             return true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             android.util.Log.e("FileUtils", "Error copying directory to SAF: ${e.message}")
             return false
         }

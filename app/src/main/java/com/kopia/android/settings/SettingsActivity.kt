@@ -3,7 +3,9 @@ package com.kopia.android.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.kopia.android.R
 import com.kopia.android.databinding.ActivitySettingsBinding
 import com.kopia.android.repository.RepositoryManager
+import com.kopia.android.util.FilesystemPermissionManager
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -46,14 +49,37 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
         repositoryManager = RepositoryManager(this)
-        
+
         // Load saved settings
         loadSettings()
-        
+
+        // Update filesystem permission status
+        updateFilesystemPermissionStatus()
+
         // Set up UI listeners
         setupListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Update permission status when returning from settings
+        updateFilesystemPermissionStatus()
+    }
+
+    private fun updateFilesystemPermissionStatus() {
+        val hasAccess = FilesystemPermissionManager.hasFullFilesystemAccess(this)
+        val statusMessage = FilesystemPermissionManager.getPermissionStatusMessage(this)
+
+        binding.filesystemStatusTextView.text = statusMessage
+
+        // Show/hide the permission request button based on current status
+        if (hasAccess) {
+            binding.requestFilesystemAccessButton.visibility = View.GONE
+        } else {
+            binding.requestFilesystemAccessButton.visibility = View.VISIBLE
+        }
     }
     
     private fun loadSettings() {
@@ -75,6 +101,24 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     private fun setupListeners() {
+        // Request filesystem access button
+        binding.requestFilesystemAccessButton.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                FilesystemPermissionManager.requestFilesystemPermission(this)
+                Toast.makeText(
+                    this,
+                    "Please enable 'Allow access to manage all files' in the next screen",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Your Android version has full filesystem access by default",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
         // Select repository button
         binding.selectRepositoryButton.setOnClickListener {
             selectRepositoryLauncher.launch(null)

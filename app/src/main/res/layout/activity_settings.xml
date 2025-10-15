@@ -74,6 +74,37 @@
                 android:checked="true"
                 android:text="Auto-start server on app launch" />
 
+            <!-- Filesystem Access Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Filesystem Access"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/filesystemStatusTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Checking filesystem access..."
+                android:textColor="@color/secondary_text"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/requestFilesystemAccessButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Grant Full Filesystem Access" />
+
             <!-- Repository Settings Section -->
             <TextView
                 android:layout_width="match_parent"

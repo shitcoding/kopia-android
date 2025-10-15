@@ -2,21 +2,38 @@ package com.kopia.android.repository
 
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
 import androidx.documentfile.provider.DocumentFile
 import com.kopia.android.util.FileUtils
+import com.kopia.android.util.FilesystemPermissionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
 /**
- * Manager class for Kopia repository operations
+ * Manager class for Kopia repository operations.
+ * Supports both internal storage and external filesystem paths.
  */
 class RepositoryManager(private val context: Context) {
-    
+
     private val kopiaPath: String = File(context.filesDir, "kopia").absolutePath
     private val repoDir: File = File(context.filesDir, "repo")
     private val configDir: File = File(context.filesDir, ".kopia")
+
+    /**
+     * Check if a path can be accessed for repository operations.
+     */
+    fun canAccessPath(path: String): Boolean {
+        return FilesystemPermissionManager.canAccessPath(context, path)
+    }
+
+    /**
+     * Get a list of recommended repository locations.
+     */
+    fun getRecommendedLocations(): List<FilesystemPermissionManager.AccessibleDirectory> {
+        return FilesystemPermissionManager.getAccessibleDirectories(context)
+    }
     
     /**
      * Initialize a new repository at the specified location
