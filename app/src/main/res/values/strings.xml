@@ -14,4 +14,39 @@
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="diagnostic_tools">Diagnostic Tools</string>
+
+    <!-- Repository Selection Screen -->
+    <string name="repository_selection_subtitle">Get started by creating a new repository or opening an existing one</string>
+    <string name="create_new_repository">Create New Repository</string>
+    <string name="open_existing_repository">Open Existing Repository</string>
+    <string name="repository_selection_help">A repository is where Kopia stores your encrypted backup data</string>
+    <string name="creating_repository">Creating repository...</string>
+    <string name="opening_repository">Opening repository...</string>
+    <string name="repository_created_success">Repository created successfully!</string>
+    <string name="repository_opened_success">Repository opened successfully!</string>
+    <string name="repository_error">Repository operation failed</string>
+    <string name="select_repository_location">Select a folder for your repository</string>
+    <string name="change_repository">Change Repository</string>
+
+    <!-- Repository Configuration Screen -->
+    <string name="configure_repository">Configure Repository</string>
+    <string name="repository_config_subtitle">Set up your new encrypted backup repository</string>
+    <string name="repository_location">Location</string>
+    <string name="repository_name">Repository Name (optional)</string>
+    <string name="repository_password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="password_help_text">Choose a strong password. You will need this password to access your backups.</string>
+    <string name="create_repository_button">Create Repository</string>
+    <string name="password_mismatch">Passwords do not match</string>
+    <string name="password_too_short">Password must be at least 8 characters</string>
+    <string name="password_required">Password is required</string>
+    <string name="open_repository_button">Open Repository</string>
+    <string name="enter_repository_password">Enter Repository Password</string>
+    <string name="password_incorrect">Incorrect password. Please try again.</string>
+
+    <!-- Server Status -->
+    <string name="server_status_disconnected">Server: Disconnected</string>
+    <string name="server_status_connecting">Server: Connecting...</string>
+    <string name="server_status_connected">Server: Connected</string>
+    <string name="server_status_error">Server: Error</string>
 </resources>
