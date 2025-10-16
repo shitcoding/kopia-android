@@ -42,6 +42,14 @@
         <activity
             android:name="com.kopia.android.diagnostic.DiagnosticActivity"
             android:exported="false" />
+
+        <activity
+            android:name="com.kopia.android.repository.RepositorySelectionActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.kopia.android.repository.RepositoryConfigActivity"
+            android:exported="false" />
             
         <provider
             android:name="androidx.core.content.FileProvider"
