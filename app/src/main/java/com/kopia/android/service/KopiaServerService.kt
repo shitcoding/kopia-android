@@ -75,7 +75,7 @@ class KopiaServerService : Service() {
         // Get server port if provided
         serverPort = intent?.getIntExtra("SERVER_PORT", 51515) ?: 51515
         android.util.Log.d("KopiaServer", "Using serverPort=$serverPort")
-        
+
         // Get security settings
         allowInsecure = intent?.getBooleanExtra("ALLOW_INSECURE", true) ?: true
         android.util.Log.d("KopiaServer", "allowInsecure=$allowInsecure")
@@ -84,6 +84,11 @@ class KopiaServerService : Service() {
         val repositoryUriString = intent?.getStringExtra("REPOSITORY_URI")
         val repositoryUri = if (repositoryUriString != null) Uri.parse(repositoryUriString) else null
         android.util.Log.d("KopiaServer", "repositoryUri=$repositoryUri")
+
+        // Update server status manager
+        val statusManager = ServerStatusManager.getInstance(this)
+        statusManager.setStatus(ServerStatusManager.ServerStatus.CONNECTING)
+        statusManager.setPort(serverPort)
 
         serviceScope.launch {
             android.util.Log.d("KopiaServer", "Launching startKopiaServer() coroutine")
@@ -133,11 +138,30 @@ class KopiaServerService : Service() {
                 stopSelf()
                 return
             }
-            
-            // Ensure necessary directories exist
-            val repoDir = File(filesDir, "repo")
+
+            // Get repository path from SharedPreferences
+            val sharedPrefs = getSharedPreferences("kopia_settings", Context.MODE_PRIVATE)
+            val repositoryPath = sharedPrefs.getString("repository_path", null)
+
+            android.util.Log.d("KopiaServer", "Repository path from SharedPreferences: $repositoryPath")
+
+            // Use user-selected path if available, otherwise fall back to internal storage
+            val repoDir = if (!repositoryPath.isNullOrBlank()) {
+                File(repositoryPath)
+            } else {
+                File(filesDir, "repo")
+            }
+
+            android.util.Log.d("KopiaServer", "Using repository directory: ${repoDir.absolutePath}")
+
+            // Ensure repository directory exists (try to create it if needed)
             if (!repoDir.exists()) {
-                repoDir.mkdirs()
+                try {
+                    repoDir.mkdirs()
+                    android.util.Log.d("KopiaServer", "Created repository directory: ${repoDir.absolutePath}")
+                } catch (e: Exception) {
+                    android.util.Log.w("KopiaServer", "Could not create repository directory (may be SAF-managed): ${e.message}")
+                }
             }
             
             val configDir = File(filesDir, ".kopia")
@@ -195,12 +219,21 @@ class KopiaServerService : Service() {
                     val hasData = repoDir.exists() && (repoDir.listFiles()?.isNotEmpty() == true)
                     if (hasData) {
                         android.util.Log.d("KopiaServer", "Existing data detected in ${repoDir.absolutePath}, attempting connect")
-                        val (cxExit, _) = runKopia(listOf("repository", "connect", "filesystem", "--path=${repoDir.absolutePath}"))
+                        val (cxExit, cxOut) = runKopia(listOf("repository", "connect", "filesystem", "--path=${repoDir.absolutePath}"))
                         if (cxExit != 0 && !repoConfig.exists()) {
+                            // Check if the error is due to invalid password
+                            val statusManager = ServerStatusManager.getInstance(this)
+                            if (cxOut.contains("invalid repository password", ignoreCase = true)) {
+                                android.util.Log.e("KopiaServer", "Invalid repository password")
+                                statusManager.setError("Incorrect repository password")
+                                stopSelf(); return
+                            }
+
                             android.util.Log.d("KopiaServer", "Connect failed, will try create new repository")
-                            val (crExit, _) = runKopia(listOf("repository", "create", "filesystem", "--path=${repoDir.absolutePath}"))
+                            val (crExit, crOut) = runKopia(listOf("repository", "create", "filesystem", "--path=${repoDir.absolutePath}"))
                             if (crExit != 0 && !repoConfig.exists()) {
                                 android.util.Log.e("KopiaServer", "Repository create failed. Aborting.")
+                                statusManager.setError("Repository configuration error: ${crOut.take(100)}")
                                 stopSelf(); return
                             }
                         }
