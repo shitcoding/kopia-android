@@ -73,16 +73,16 @@ class BuildVerificationTest {
 
     @Test
     fun `CompressionAlgorithm enum has expected values`() {
-        assertThat(CompressionAlgorithm.DEFAULT).isEqualTo(CompressionAlgorithm.ZSTD)
+        assertThat(CompressionAlgorithm.DEFAULT).isEqualTo(CompressionAlgorithm.ZSTD_DEFAULT)
         assertThat(CompressionAlgorithm.NONE.headerId).isEqualTo(0)
-        assertThat(CompressionAlgorithm.GZIP.headerId).isEqualTo(1)
-        assertThat(CompressionAlgorithm.ZSTD.headerId).isEqualTo(3)
-        assertThat(CompressionAlgorithm.LZ4.headerId).isEqualTo(4)
+        assertThat(CompressionAlgorithm.GZIP_DEFAULT.headerId).isEqualTo(0x1000)
+        assertThat(CompressionAlgorithm.ZSTD_DEFAULT.headerId).isEqualTo(0x1100)
+        assertThat(CompressionAlgorithm.LZ4_DEFAULT.headerId).isEqualTo(0x1400)
 
         assertThat(CompressionAlgorithm.fromId("zstd"))
-            .isEqualTo(CompressionAlgorithm.ZSTD)
-        assertThat(CompressionAlgorithm.fromHeaderId(3))
-            .isEqualTo(CompressionAlgorithm.ZSTD)
+            .isEqualTo(CompressionAlgorithm.ZSTD_DEFAULT)
+        assertThat(CompressionAlgorithm.fromHeaderId(0x1100))
+            .isEqualTo(CompressionAlgorithm.ZSTD_DEFAULT)
     }
 
     @Test

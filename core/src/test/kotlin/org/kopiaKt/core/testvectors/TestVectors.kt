@@ -140,7 +140,7 @@ data class CompressionVectors(
 data class CompressionHeaderCase(
     val algorithm: String,
     val headerHex: String,
-    val headerId: UInt
+    val headerId: Int
 ) {
     val header: ByteArray get() = headerHex.hexToByteArray()
 }
