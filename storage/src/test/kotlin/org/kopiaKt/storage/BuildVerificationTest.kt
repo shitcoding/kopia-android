@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.io.path.ExperimentalPathApi::class)
+
 package org.kopiaKt.storage
 
 import com.google.common.truth.Truth.assertThat

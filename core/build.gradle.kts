@@ -38,3 +38,19 @@ tasks.test {
         showStackTraces = true
     }
 }
+
+// Create a configuration for test classes that can be consumed by other modules
+val testArchive by configurations.creating {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+
+// Create a jar containing test classes
+val testJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("tests")
+    from(sourceSets.test.get().output)
+}
+
+artifacts {
+    add("testArchive", testJar)
+}

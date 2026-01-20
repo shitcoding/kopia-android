@@ -77,7 +77,7 @@ class InMemoryBlobStorage(
 
         blobs[blobId] = StoredBlob(
             data = data.copyOf(),
-            timestamp = options.getModTime ?: Instant.now()
+            timestamp = options.setModTime ?: options.getModTime ?: Instant.now()
         )
     }
 

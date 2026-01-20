@@ -106,6 +106,7 @@ interface BlobReader {
      * @param length Number of bytes to read (-1 for all remaining bytes)
      * @return The blob data
      * @throws BlobNotFoundException if the blob does not exist
+     * @throws InvalidBlobRangeException if offset/length is out of bounds
      */
     suspend fun getBlob(blobId: BlobId, offset: Long = 0, length: Long = -1): ByteArray
 
@@ -124,27 +125,6 @@ interface BlobReader {
      * @return Flow of blob metadata
      */
     suspend fun listBlobs(prefix: String): Flow<BlobMetadata>
-}
-
-/**
- * Full interface for blob storage with read and write operations.
- */
-interface BlobStorage : BlobReader {
-    /**
-     * Puts a blob to storage.
-     *
-     * @param blobId The ID for the blob
-     * @param data The blob data
-     * @param options Options for the put operation
-     */
-    suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions = PutBlobOptions())
-
-    /**
-     * Deletes a blob from storage.
-     *
-     * @param blobId The ID of the blob to delete
-     */
-    suspend fun deleteBlob(blobId: BlobId)
 
     /**
      * Gets connection information about the storage backend.
@@ -158,6 +138,97 @@ interface BlobStorage : BlobReader {
 }
 
 /**
+ * Interface for storage backends that support volume capacity queries.
+ */
+interface BlobVolume {
+    /**
+     * Gets the capacity of this storage volume.
+     *
+     * @return Capacity information
+     * @throws UnsupportedOperationException if this backend doesn't support capacity queries
+     */
+    suspend fun getCapacity(): Capacity
+}
+
+/**
+ * Full interface for blob storage with read and write operations.
+ */
+interface BlobStorage : BlobReader {
+    /**
+     * Puts a blob to storage.
+     *
+     * @param blobId The ID for the blob
+     * @param data The blob data
+     * @param options Options for the put operation
+     * @throws BlobAlreadyExistsException if blob exists and options.dontOverwrite is true
+     *         (only for implementations that support this check)
+     */
+    suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions = PutBlobOptions())
+
+    /**
+     * Deletes a blob from storage.
+     * Does not throw if the blob doesn't exist.
+     *
+     * @param blobId The ID of the blob to delete
+     */
+    suspend fun deleteBlob(blobId: BlobId)
+
+    /**
+     * Extends the retention period for a blob.
+     * Only supported by backends with object locking capability.
+     *
+     * @param blobId The ID of the blob
+     * @param options Options for the retention extension
+     * @throws UnsupportedOperationException if this backend doesn't support object locking
+     */
+    suspend fun extendBlobRetention(blobId: BlobId, options: ExtendBlobRetentionOptions) {
+        throw UnsupportedOperationException("Object locking not supported by this backend")
+    }
+
+    /**
+     * Flushes any local caches associated with this storage.
+     * Call this to ensure all data has been persisted.
+     */
+    suspend fun flushCaches() {
+        // Default implementation does nothing
+    }
+
+    /**
+     * Closes this storage and releases any associated resources.
+     * After calling this method, the storage should not be used.
+     */
+    suspend fun close() {
+        // Default implementation does nothing
+    }
+
+    /**
+     * Returns whether this storage is in read-only mode.
+     * When in read-only mode, all mutation operations (put, delete) will fail.
+     */
+    fun isReadOnly(): Boolean = false
+}
+
+/**
  * Exception thrown when a blob is not found.
  */
 class BlobNotFoundException(blobId: BlobId) : Exception("Blob not found: $blobId")
+
+/**
+ * Exception thrown when a blob already exists (for dontOverwrite option).
+ */
+class BlobAlreadyExistsException(blobId: BlobId) : Exception("Blob already exists: $blobId")
+
+/**
+ * Exception thrown when an invalid blob range is requested.
+ */
+class InvalidBlobRangeException(message: String) : Exception(message)
+
+/**
+ * Exception thrown when storage credentials are invalid or expired.
+ */
+class InvalidCredentialsException(message: String = "The provided token has expired") : Exception(message)
+
+/**
+ * Exception thrown when a put option is not supported by the backend.
+ */
+class UnsupportedPutOptionException(option: String) : Exception("Unsupported put option: $option")

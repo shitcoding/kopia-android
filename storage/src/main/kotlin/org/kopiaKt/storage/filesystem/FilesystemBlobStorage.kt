@@ -9,9 +9,10 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.blob.BlobVolume
+import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.PutBlobOptions
-import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -35,8 +36,9 @@ import kotlin.io.path.readBytes
  * files in a single directory.
  */
 class FilesystemBlobStorage(
-    private val basePath: Path
-) : BlobStorage {
+    private val basePath: Path,
+    private val readOnly: Boolean = false
+) : BlobStorage, BlobVolume {
 
     /**
      * Number of characters from blob ID to use for sharding.
@@ -144,6 +146,16 @@ class FilesystemBlobStorage(
 
     override fun displayName(): String = basePath.toString()
 
+    override fun isReadOnly(): Boolean = readOnly
+
+    override suspend fun getCapacity(): Capacity = withContext(Dispatchers.IO) {
+        val fileStore = Files.getFileStore(basePath)
+        Capacity(
+            sizeBytes = fileStore.totalSpace,
+            freeBytes = fileStore.usableSpace
+        )
+    }
+
     /**
      * Gets the filesystem path for a blob ID.
      *
@@ -161,12 +173,13 @@ class FilesystemBlobStorage(
          *
          * @param path Path to the storage directory
          * @param create If true, create the directory if it doesn't exist
+         * @param readOnly If true, the storage will be in read-only mode
          */
-        fun create(path: Path, create: Boolean = false): FilesystemBlobStorage {
+        fun create(path: Path, create: Boolean = false, readOnly: Boolean = false): FilesystemBlobStorage {
             if (create && !path.exists()) {
                 path.createDirectories()
             }
-            return FilesystemBlobStorage(path)
+            return FilesystemBlobStorage(path, readOnly)
         }
     }
 }

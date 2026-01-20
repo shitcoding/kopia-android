@@ -4,12 +4,12 @@ plugins {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 dependencies {
@@ -36,6 +36,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing.unit)
+    testImplementation(project(":core", "testArchive"))
     testRuntimeOnly(libs.junit5.engine)
 }
 
