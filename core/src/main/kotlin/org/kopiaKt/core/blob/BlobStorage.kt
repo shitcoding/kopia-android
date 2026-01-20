@@ -1,6 +1,7 @@
 package org.kopiaKt.core.blob
 
 import kotlinx.coroutines.flow.Flow
+import java.time.Duration
 import java.time.Instant
 
 /**
@@ -18,11 +19,18 @@ data class BlobMetadata(
 data class PutBlobOptions(
     /**
      * If true, don't overwrite existing blobs.
+     * PutBlob will return without error if blob already exists.
      */
     val dontOverwrite: Boolean = false,
 
     /**
-     * Optional getter for the same blob ID to check for dedup.
+     * If set, use this timestamp for the blob instead of server-assigned time.
+     * Only supported by some backends; others will ignore this.
+     */
+    val setModTime: Instant? = null,
+
+    /**
+     * If non-null, will be populated with the actual modification time after put.
      */
     val getModTime: Instant? = null,
 
@@ -32,9 +40,24 @@ data class PutBlobOptions(
     val retentionMode: RetentionMode = RetentionMode.NONE,
 
     /**
-     * Retention period in days (for supported backends).
+     * Retention period for the blob (for supported backends).
      */
-    val retentionPeriodDays: Int = 0
+    val retentionPeriod: Duration = Duration.ZERO
+)
+
+/**
+ * Options for extending blob retention.
+ */
+data class ExtendBlobRetentionOptions(
+    /**
+     * Retention mode for the blob.
+     */
+    val retentionMode: RetentionMode = RetentionMode.NONE,
+
+    /**
+     * New retention period for the blob.
+     */
+    val retentionPeriod: Duration = Duration.ZERO
 )
 
 /**
@@ -43,8 +66,25 @@ data class PutBlobOptions(
 enum class RetentionMode {
     NONE,
     GOVERNANCE,
-    COMPLIANCE
+    COMPLIANCE,
+    /** Locked policy mode (Azure-specific) */
+    LOCKED
 }
+
+/**
+ * Information about storage capacity.
+ */
+data class Capacity(
+    /**
+     * Total size of the volume in bytes.
+     */
+    val sizeBytes: Long,
+
+    /**
+     * Available (writable) space in bytes.
+     */
+    val freeBytes: Long
+)
 
 /**
  * Information about the storage connection.
