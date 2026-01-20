@@ -283,27 +283,54 @@ object PackIndexV1 {
 
     /**
      * Converts bytes back to a content ID.
+     *
+     * Content ID encoding:
+     * - With prefix: [prefix_char (1 byte)] [hash_bytes (N bytes)]
+     * - Without prefix: [hash_bytes (N bytes)]
+     *
+     * The caller must determine if there's a prefix based on the key size:
+     * - If keySize > expected hash size, first byte is a prefix
+     * - Otherwise, all bytes are hash
+     *
+     * @param bytes The key bytes from the index
+     * @param hasPrefix Whether the first byte is a prefix character
      */
-    internal fun bytesToContentId(bytes: ByteArray): ContentId {
+    internal fun bytesToContentId(bytes: ByteArray, hasPrefix: Boolean = false): ContentId {
         if (bytes.isEmpty()) {
             return ContentId.Empty
         }
 
-        // Check if first byte could be a prefix (g-z or 0-9 for content, but g-z for prefix)
-        val firstByte = bytes[0].toInt() and 0xFF
-        val possiblePrefix = firstByte.toChar()
-
-        // If first byte is in prefix range (g-z) and remaining bytes look like hash
-        // The original Go code checks if the content ID string length is odd
-        // In bytes, prefix adds 1 byte, so odd string length means prefix present
-        // We need to determine from context - this is a simplified heuristic
-        return if (possiblePrefix in 'g'..'z' && bytes.size > 1) {
-            // Has prefix
-            ContentId.fromHash(possiblePrefix, bytes.copyOfRange(1, bytes.size))
+        return if (hasPrefix && bytes.size > 1) {
+            // First byte is prefix
+            val prefix = (bytes[0].toInt() and 0xFF).toChar()
+            ContentId.fromHash(prefix, bytes.copyOfRange(1, bytes.size))
         } else {
-            // No prefix - first byte is part of hash
+            // No prefix - all bytes are hash
             ContentId.fromHash(null, bytes)
         }
+    }
+
+    /**
+     * Determines if the first byte of key bytes is a prefix character.
+     *
+     * This is determined by checking if the first byte is in the valid prefix range ('g'-'z')
+     * AND the key size is larger than typical hash sizes (suggesting a prefix is present).
+     *
+     * @param keyBytes The key bytes
+     * @param keySize The key size from the index header
+     * @return true if the first byte should be treated as a prefix
+     */
+    internal fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
+        if (keyBytes.isEmpty() || keySize <= 0) return false
+
+        val firstByte = keyBytes[0].toInt() and 0xFF
+        val possiblePrefix = firstByte.toChar()
+
+        // Valid prefixes are 'g' to 'z'
+        // If first byte is in that range, check if keySize suggests prefix
+        // Common hash sizes: 16, 32 bytes
+        // With prefix: 17, 33 bytes
+        return possiblePrefix in 'g'..'z' && (keySize == 17 || keySize == 33)
     }
 
     private fun buildEmptyIndex(): ByteArray {
@@ -459,7 +486,8 @@ private class PackIndexV1Impl(
         for (i in startPosition until header.entryCount) {
             val entryOffset = PackIndexV1.HEADER_SIZE + stride * i
             val keyBytes = data.copyOfRange(entryOffset, entryOffset + header.keySize)
-            val contentId = PackIndexV1.bytesToContentId(keyBytes)
+            val hasPrefix = PackIndexV1.hasPrefixFromKeySize(keyBytes, header.keySize)
+            val contentId = PackIndexV1.bytesToContentId(keyBytes, hasPrefix)
 
             // Check end boundary
             if (endId != null && contentId.toString() >= endId.toString()) {

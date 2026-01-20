@@ -113,8 +113,13 @@ class IndexBlobEncryption(
             return if (contentIdHex.isEmpty()) {
                 ContentId.Empty
             } else {
-                // Pad with zeros if needed to ensure valid ContentId
-                val paddedHex = contentIdHex.padStart(2, '0')
+                // Pad to even length and at least 2 chars for valid ContentId
+                val evenHex = if (contentIdHex.length % 2 == 1) {
+                    "0$contentIdHex"
+                } else {
+                    contentIdHex
+                }
+                val paddedHex = if (evenHex.isEmpty()) "00" else evenHex
                 ContentId.parse(paddedHex.lowercase())
             }
         }
