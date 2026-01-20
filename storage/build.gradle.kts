@@ -1,0 +1,50 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    // Module dependencies
+    implementation(project(":core"))
+
+    // Kotlin
+    implementation(libs.kotlin.stdlib)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
+
+    // Networking (for remote storage backends)
+    implementation(libs.okhttp)
+    implementation(libs.bundles.ktor)
+
+    // AWS S3
+    implementation(libs.aws.s3)
+
+    // WebDAV
+    implementation(libs.sardine)
+
+    // SFTP
+    implementation(libs.sshj)
+
+    // Testing
+    testImplementation(libs.bundles.testing.unit)
+    testRuntimeOnly(libs.junit5.engine)
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+}
