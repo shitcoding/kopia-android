@@ -8,7 +8,8 @@ import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentIdPrefix
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.hashing.HashAlgorithm
-import org.kopiaKt.core.splitter.SplitterAlgorithm
+import org.kopiaKt.core.splitter.SplitterAlgorithms
+import org.kopiaKt.core.splitter.DefaultSplitterFactory
 import com.google.common.truth.Truth.assertThat
 
 /**
@@ -86,25 +87,30 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `SplitterAlgorithm enum has expected values`() {
-        assertThat(SplitterAlgorithm.DEFAULT).isEqualTo(SplitterAlgorithm.DYNAMIC_4M_BUZHASH)
+    fun `SplitterAlgorithms has expected values`() {
+        assertThat(SplitterAlgorithms.DEFAULT_ALGORITHM)
+            .isEqualTo("DYNAMIC-4M-BUZHASH")
 
-        val fixed = SplitterAlgorithm.FIXED_1M
-        assertThat(fixed.isFixed).isTrue()
-        assertThat(fixed.isDynamic).isFalse()
-        assertThat(fixed.minSize).isEqualTo(fixed.avgSize)
-        assertThat(fixed.avgSize).isEqualTo(fixed.maxSize)
+        // Test size constants
+        assertThat(SplitterAlgorithms.SIZE_1M).isEqualTo(1024 * 1024)
+        assertThat(SplitterAlgorithms.SIZE_4M).isEqualTo(4 * 1024 * 1024)
 
-        val dynamic = SplitterAlgorithm.DYNAMIC_4M_BUZHASH
-        assertThat(dynamic.isFixed).isFalse()
-        assertThat(dynamic.isDynamic).isTrue()
-        assertThat(dynamic.usesBuilzhash).isTrue()
-        assertThat(dynamic.usesRabinKarp).isFalse()
-        assertThat(dynamic.minSize).isLessThan(dynamic.avgSize)
-        assertThat(dynamic.avgSize).isLessThan(dynamic.maxSize)
+        // Test algorithm names
+        assertThat(SplitterAlgorithms.FIXED_1M).isEqualTo("FIXED-1M")
+        assertThat(SplitterAlgorithms.DYNAMIC_4M_BUZHASH).isEqualTo("DYNAMIC-4M-BUZHASH")
+        assertThat(SplitterAlgorithms.DYNAMIC_4M_RABINKARP).isEqualTo("DYNAMIC-4M-RABINKARP")
 
-        assertThat(SplitterAlgorithm.fromId("DYNAMIC-4M-BUZHASH"))
-            .isEqualTo(SplitterAlgorithm.DYNAMIC_4M_BUZHASH)
+        // Test factory
+        val factory = DefaultSplitterFactory.getFactory(SplitterAlgorithms.DYNAMIC_4M_BUZHASH)
+        assertThat(factory).isNotNull()
+        val splitter = factory!!.create()
+        assertThat(splitter.maxSegmentSize()).isEqualTo(SplitterAlgorithms.SIZE_4M * 2)
+
+        // Test supported algorithms list
+        val supported = SplitterAlgorithms.supportedAlgorithms()
+        assertThat(supported).contains("FIXED-1M")
+        assertThat(supported).contains("DYNAMIC-4M-BUZHASH")
+        assertThat(supported).contains("DYNAMIC-4M-RABINKARP")
     }
 
     @Test
