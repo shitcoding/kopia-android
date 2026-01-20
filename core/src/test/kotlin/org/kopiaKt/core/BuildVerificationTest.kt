@@ -34,20 +34,18 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `ContentId can be created`() {
-        val contentId = ContentId("kabc123")
-        assertThat(contentId.value).isEqualTo("kabc123")
+    fun `ContentId can be created and parsed`() {
+        val contentId = ContentId.parse("kabc12345")  // 9 chars = odd = prefix 'k'
+        assertThat(contentId.toString()).isEqualTo("kabc12345")
         assertThat(contentId.prefix).isEqualTo('k')
-        assertThat(contentId.isPacked).isTrue()
+        assertThat(contentId.hasPrefix).isTrue()
     }
 
     @Test
     fun `ContentId prefix constants are defined`() {
         assertThat(ContentIdPrefix.MANIFEST).isEqualTo('m')
-        assertThat(ContentIdPrefix.PACKED).isEqualTo('p')
-        assertThat(ContentIdPrefix.INDEX).isEqualTo('i')
-        assertThat(ContentIdPrefix.DIRECTORY).isEqualTo('d')
-        assertThat(ContentIdPrefix.REGULAR).isEqualTo('k')
+        assertThat(ContentIdPrefix.PACK_REGULAR).isEqualTo('p')
+        assertThat(ContentIdPrefix.PACK_SPECIAL).isEqualTo('q')
     }
 
     @Test

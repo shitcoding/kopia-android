@@ -258,7 +258,7 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = "Hello, World!".toByteArray()
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor.encrypt(plaintext, contentId)
             val decrypted = encryptor.decrypt(ciphertext, contentId)
@@ -273,7 +273,7 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = ByteArray(1000) { it.toByte() }
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor.encrypt(plaintext, contentId)
 
@@ -288,7 +288,7 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = "Hello, World!".toByteArray()
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext1 = encryptor.encrypt(plaintext, contentId)
             val ciphertext2 = encryptor.encrypt(plaintext, contentId)
@@ -308,8 +308,8 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = "Hello, World!".toByteArray()
-            val contentId1 = ContentId("k0102030405060708090a0b0c0d0e0f")
-            val contentId2 = ContentId("kf0e0d0c0b0a09080706050403020100")
+            val contentId1 = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
+            val contentId2 = ContentId.parse("kf0e0d0c0b0a09080706050403020100")
 
             val ciphertext1 = encryptor.encrypt(plaintext, contentId1)
             val ciphertext2 = encryptor.encrypt(plaintext, contentId2)
@@ -334,7 +334,7 @@ class Aes256GcmEncryptorTest {
             val encryptor2 = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey2)
 
             val plaintext = "Hello, World!".toByteArray()
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor1.encrypt(plaintext, contentId)
 
@@ -354,7 +354,7 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = ByteArray(0)
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor.encrypt(plaintext, contentId)
             val decrypted = encryptor.decrypt(ciphertext, contentId)
@@ -371,7 +371,7 @@ class Aes256GcmEncryptorTest {
 
             // 1MB plaintext
             val plaintext = ByteArray(1024 * 1024) { (it % 256).toByte() }
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor.encrypt(plaintext, contentId)
             val decrypted = encryptor.decrypt(ciphertext, contentId)
@@ -385,7 +385,7 @@ class Aes256GcmEncryptorTest {
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             // Ciphertext shorter than nonce + tag
             val shortCiphertext = ByteArray(10)
@@ -402,7 +402,7 @@ class Aes256GcmEncryptorTest {
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
 
             val plaintext = "Hello, World!".toByteArray()
-            val contentId = ContentId("k0102030405060708090a0b0c0d0e0f")
+            val contentId = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
 
             val ciphertext = encryptor.encrypt(plaintext, contentId).copyOf()
             // Corrupt a byte in the middle

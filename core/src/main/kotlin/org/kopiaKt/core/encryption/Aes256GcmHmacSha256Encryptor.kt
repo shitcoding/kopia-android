@@ -55,7 +55,7 @@ class Aes256GcmHmacSha256Encryptor(
         secureRandom.nextBytes(nonce)
 
         // Content ID bytes are used as AAD
-        val aad = contentId.value.toByteArray(Charsets.UTF_8)
+        val aad = contentId.toString().toByteArray(Charsets.UTF_8)
 
         // Encrypt with nonce prepended
         return Aes256GcmCipher.encryptWithPrependedNonce(contentKey, nonce, plaintext, aad)
@@ -66,7 +66,7 @@ class Aes256GcmHmacSha256Encryptor(
         val contentKey = deriveContentKey(contentId)
 
         // Content ID bytes are used as AAD
-        val aad = contentId.value.toByteArray(Charsets.UTF_8)
+        val aad = contentId.toString().toByteArray(Charsets.UTF_8)
 
         // Decrypt (nonce is prepended to ciphertext)
         return Aes256GcmCipher.decryptWithPrependedNonce(contentKey, ciphertext, aad)
@@ -85,7 +85,7 @@ class Aes256GcmHmacSha256Encryptor(
     private fun deriveContentKey(contentId: ContentId): ByteArray {
         val mac = Mac.getInstance(HMAC_ALGORITHM)
         mac.init(SecretKeySpec(keyDerivationSecret, HMAC_ALGORITHM))
-        mac.update(contentId.value.toByteArray(Charsets.UTF_8))
+        mac.update(contentId.toString().toByteArray(Charsets.UTF_8))
         return mac.doFinal()
     }
 
