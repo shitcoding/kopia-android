@@ -246,12 +246,17 @@ class ContentManager(
         return compressorFactory.decompressByHeader(decrypted)
     }
 
+    // Track prefix type of current pack (null means no pack, true = has prefix, false = no prefix)
+    private var currentPackHasPrefix: Boolean? = null
+
     private suspend fun addToPackUnlocked(
         contentId: ContentId,
         encryptedData: ByteArray,
         originalLength: UInt,
         compressionHeaderId: Int
     ) {
+        val contentHasPrefix = contentId.prefix != null
+
         // Create pack builder if needed
         if (currentPackBuilder == null) {
             currentPackBlobId = generatePackBlobId(contentId.prefix)
@@ -260,12 +265,17 @@ class ContentManager(
                 encryptionOverhead = encryptor.overhead,
                 timestampSeconds = System.currentTimeMillis() / 1000
             )
+            currentPackHasPrefix = contentHasPrefix
         }
 
         val builder = currentPackBuilder!!
 
-        // Check if we need to flush before adding
-        if (builder.currentSize() + encryptedData.size > maxPackSize) {
+        // Check if prefix type changed - must flush and start new pack
+        // V1 index requires all entries to have same key size
+        val prefixMismatch = currentPackHasPrefix != contentHasPrefix
+
+        // Check if we need to flush before adding (size limit or prefix mismatch)
+        if (builder.currentSize() + encryptedData.size > maxPackSize || prefixMismatch) {
             flushCurrentPackUnlocked()
             // Create new pack
             currentPackBlobId = generatePackBlobId(contentId.prefix)
@@ -274,6 +284,7 @@ class ContentManager(
                 encryptionOverhead = encryptor.overhead,
                 timestampSeconds = System.currentTimeMillis() / 1000
             )
+            currentPackHasPrefix = contentHasPrefix
         }
 
         // Add content to pack
@@ -322,20 +333,28 @@ class ContentManager(
         // Reset current pack
         currentPackBuilder = null
         currentPackBlobId = null
+        currentPackHasPrefix = null
     }
 
     private suspend fun flushIndexUnlocked() {
         if (writtenContents.isEmpty()) return
 
-        // Build index blob
-        val indexEntries = writtenContents.values.toList()
-        val indexData = PackIndexV1.build(indexEntries)
+        // Group entries by whether they have a prefix (needed for V1 index format
+        // which requires all entries to have the same key size)
+        val entriesByPrefixType = writtenContents.values.groupBy { it.contentId.prefix != null }
 
-        // Generate index blob ID
-        val indexBlobId = generateIndexBlobId()
+        for ((_, entries) in entriesByPrefixType) {
+            if (entries.isEmpty()) continue
 
-        // Write index blob to storage
-        storage.putBlob(indexBlobId, indexData)
+            // Build index blob for this group
+            val indexData = PackIndexV1.build(entries)
+
+            // Generate index blob ID
+            val indexBlobId = generateIndexBlobId()
+
+            // Write index blob to storage
+            storage.putBlob(indexBlobId, indexData)
+        }
 
         // Move written to committed
         for ((contentId, info) in writtenContents) {
