@@ -182,6 +182,52 @@ class ContentManager(
     }
 
     /**
+     * Iterates over all content IDs with a specific prefix.
+     *
+     * This is used by ManifestManager to find all manifest content.
+     *
+     * @param prefix The content ID prefix to filter by (e.g., 'm' for manifests)
+     * @param callback Called for each content ID matching the prefix
+     */
+    suspend fun iterateContents(
+        prefix: Char,
+        callback: suspend (ContentId) -> Unit
+    ) {
+        // Collect content IDs under the lock
+        val contentIds = mutex.withLock {
+            val ids = mutableListOf<ContentId>()
+
+            // Iterate pending contents
+            for ((contentId, _) in pendingContents) {
+                if (contentId.prefix == prefix) {
+                    ids.add(contentId)
+                }
+            }
+
+            // Iterate written contents
+            for ((contentId, _) in writtenContents) {
+                if (contentId.prefix == prefix) {
+                    ids.add(contentId)
+                }
+            }
+
+            // Iterate committed contents
+            for ((contentId, _) in committedContents) {
+                if (contentId.prefix == prefix) {
+                    ids.add(contentId)
+                }
+            }
+
+            ids
+        }
+
+        // Call callback outside the lock to avoid deadlock
+        for (contentId in contentIds) {
+            callback(contentId)
+        }
+    }
+
+    /**
      * Flushes all pending content to storage.
      *
      * This writes the current pack blob and index to storage.
