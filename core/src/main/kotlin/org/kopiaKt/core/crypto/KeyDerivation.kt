@@ -168,3 +168,45 @@ private fun ensureBouncyCastleProvider() {
         Security.addProvider(BouncyCastleProvider())
     }
 }
+
+/**
+ * Derives a key from a password using the specified algorithm.
+ *
+ * Supported algorithms:
+ * - "scrypt-65536-8-1" (default, most secure)
+ * - "pbkdf2-sha256-600000"
+ *
+ * @param password The password string
+ * @param salt Salt bytes (typically 32 bytes)
+ * @param keyLength Desired key length in bytes
+ * @param algorithm Algorithm identifier string
+ * @return Derived key bytes
+ */
+fun deriveKeyFromPassword(
+    password: String,
+    salt: ByteArray,
+    keyLength: Int,
+    algorithm: String
+): ByteArray {
+    val passwordBytes = password.toByteArray(Charsets.UTF_8)
+
+    return when {
+        algorithm.startsWith("scrypt-") -> {
+            // Parse scrypt parameters from algorithm string: "scrypt-N-r-p"
+            val parts = algorithm.removePrefix("scrypt-").split("-")
+            require(parts.size == 3) { "Invalid scrypt algorithm format: $algorithm" }
+
+            val n = parts[0].toInt()
+            val r = parts[1].toInt()
+            val p = parts[2].toInt()
+
+            ScryptKeyDerivation().derive(passwordBytes, salt, n, r, p, keyLength)
+        }
+        algorithm.startsWith("pbkdf2-sha256-") -> {
+            // Parse PBKDF2 iterations from algorithm string: "pbkdf2-sha256-iterations"
+            val iterations = algorithm.removePrefix("pbkdf2-sha256-").toInt()
+            Pbkdf2KeyDerivation().derive(passwordBytes, salt, iterations, keyLength)
+        }
+        else -> throw IllegalArgumentException("Unknown key derivation algorithm: $algorithm")
+    }
+}

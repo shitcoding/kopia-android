@@ -1,0 +1,249 @@
+package org.kopiaKt.core.format
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.kopiaKt.core.crypto.deriveKeyFromPassword
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+/**
+ * The plaintext JSON structure stored in the kopia.repository blob.
+ *
+ * This contains metadata about the repository and the encrypted configuration.
+ * The actual repository configuration (containing sensitive keys) is stored
+ * encrypted in [encryptedBlockFormat].
+ */
+@Serializable
+data class KopiaRepositoryJson(
+    /** Tool identifier (always "kopia"). */
+    val tool: String = TOOL_NAME,
+
+    /** Kopia version that created this repository. */
+    val buildVersion: String = "",
+
+    /** Build information. */
+    val buildInfo: String = "",
+
+    /** Unique per-repository salt (32 bytes). */
+    @Serializable(with = ByteArrayBase64Serializer::class)
+    val uniqueID: ByteArray = ByteArray(0),
+
+    /** Key derivation algorithm ("scrypt" or "pbkdf2"). */
+    @SerialName("keyAlgo")
+    val keyDerivationAlgorithm: String = DEFAULT_KEY_DERIVATION_ALGORITHM,
+
+    /** Encryption algorithm for the format blob (always "AES256_GCM"). */
+    val encryption: String = AES256_GCM_ENCRYPTION,
+
+    /** Encrypted repository configuration. */
+    @SerialName("encryptedBlockFormat")
+    @Serializable(with = ByteArrayBase64Serializer::class)
+    val encryptedBlockFormat: ByteArray = ByteArray(0)
+) {
+    /**
+     * Derives the format encryption key from a password.
+     *
+     * @param password The repository password
+     * @return 32-byte encryption key
+     */
+    fun deriveFormatEncryptionKeyFromPassword(password: String): ByteArray {
+        return deriveKeyFromPassword(
+            password = password,
+            salt = uniqueID,
+            keyLength = FORMAT_BLOB_ENCRYPTION_KEY_SIZE,
+            algorithm = keyDerivationAlgorithm
+        )
+    }
+
+    /**
+     * Decrypts the repository configuration using the master key.
+     *
+     * @param masterKey The derived encryption key
+     * @return The decrypted repository configuration
+     * @throws IllegalStateException if decryption fails
+     */
+    fun decryptRepositoryConfig(masterKey: ByteArray): RepositoryConfig {
+        require(encryption == AES256_GCM_ENCRYPTION) {
+            "Unknown encryption algorithm: '$encryption'"
+        }
+
+        val plainText = decryptRepositoryBlobBytesAes256Gcm(
+            encryptedBlockFormat,
+            masterKey,
+            uniqueID
+        ) ?: throw IllegalStateException("Unable to decrypt repository format")
+
+        val erc = json.decodeFromString<EncryptedRepositoryConfig>(plainText.decodeToString())
+        return erc.format
+    }
+
+    /**
+     * Encrypts the repository configuration and stores it in encryptedBlockFormat.
+     *
+     * @param config The repository configuration to encrypt
+     * @param masterKey The encryption key
+     * @return A new KopiaRepositoryJson with the encrypted config
+     */
+    fun encryptRepositoryConfig(config: RepositoryConfig, masterKey: ByteArray): KopiaRepositoryJson {
+        require(encryption == AES256_GCM_ENCRYPTION) {
+            "Unknown encryption algorithm: '$encryption'"
+        }
+
+        val data = json.encodeToString(EncryptedRepositoryConfig(config))
+        val encrypted = encryptRepositoryBlobBytesAes256Gcm(
+            data.toByteArray(Charsets.UTF_8),
+            masterKey,
+            uniqueID
+        )
+
+        return copy(encryptedBlockFormat = encrypted)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is KopiaRepositoryJson) return false
+
+        if (tool != other.tool) return false
+        if (buildVersion != other.buildVersion) return false
+        if (buildInfo != other.buildInfo) return false
+        if (!uniqueID.contentEquals(other.uniqueID)) return false
+        if (keyDerivationAlgorithm != other.keyDerivationAlgorithm) return false
+        if (encryption != other.encryption) return false
+        if (!encryptedBlockFormat.contentEquals(other.encryptedBlockFormat)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = tool.hashCode()
+        result = 31 * result + buildVersion.hashCode()
+        result = 31 * result + buildInfo.hashCode()
+        result = 31 * result + uniqueID.contentHashCode()
+        result = 31 * result + keyDerivationAlgorithm.hashCode()
+        result = 31 * result + encryption.hashCode()
+        result = 31 * result + encryptedBlockFormat.contentHashCode()
+        return result
+    }
+
+    companion object {
+        const val TOOL_NAME = "kopia"
+        const val AES256_GCM_ENCRYPTION = "AES256_GCM"
+        const val DEFAULT_KEY_DERIVATION_ALGORITHM = "scrypt-65536-8-1"
+        const val FORMAT_BLOB_ENCRYPTION_KEY_SIZE = 32
+
+        /** Blob ID for the repository format blob. */
+        const val FORMAT_BLOB_ID = "kopia.repository"
+
+        private val json = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+        }
+
+        /**
+         * Parses the kopia.repository blob JSON.
+         *
+         * @param data The raw blob data
+         * @return Parsed KopiaRepositoryJson
+         */
+        fun parse(data: ByteArray): KopiaRepositoryJson {
+            return json.decodeFromString(data.decodeToString())
+        }
+
+        /**
+         * Creates a new KopiaRepositoryJson for a new repository.
+         *
+         * @param buildVersion The Kopia version string
+         * @param keyDerivationAlgorithm The key derivation algorithm to use
+         * @return A new KopiaRepositoryJson with a fresh uniqueID
+         */
+        fun create(
+            buildVersion: String = "",
+            keyDerivationAlgorithm: String = DEFAULT_KEY_DERIVATION_ALGORITHM
+        ): KopiaRepositoryJson {
+            val uniqueID = ByteArray(32)
+            SecureRandom().nextBytes(uniqueID)
+
+            return KopiaRepositoryJson(
+                buildVersion = buildVersion,
+                uniqueID = uniqueID,
+                keyDerivationAlgorithm = keyDerivationAlgorithm
+            )
+        }
+
+        /**
+         * Serializes this to JSON bytes.
+         */
+        fun KopiaRepositoryJson.toJson(): ByteArray {
+            return json.encodeToString(this).toByteArray(Charsets.UTF_8)
+        }
+    }
+}
+
+// AES-256-GCM encryption/decryption for repository format blob
+
+private const val GCM_NONCE_SIZE = 12
+private const val GCM_TAG_SIZE = 128 // bits
+
+/**
+ * Decrypts repository blob bytes using AES-256-GCM.
+ *
+ * @param ciphertext The encrypted data (nonce + ciphertext + tag)
+ * @param key The 32-byte encryption key
+ * @param associatedData Additional authenticated data (uniqueID)
+ * @return The decrypted plaintext, or null if decryption fails
+ */
+private fun decryptRepositoryBlobBytesAes256Gcm(
+    ciphertext: ByteArray,
+    key: ByteArray,
+    associatedData: ByteArray
+): ByteArray? {
+    if (ciphertext.size < GCM_NONCE_SIZE) {
+        return null
+    }
+
+    return try {
+        val nonce = ciphertext.copyOfRange(0, GCM_NONCE_SIZE)
+        val encryptedData = ciphertext.copyOfRange(GCM_NONCE_SIZE, ciphertext.size)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val keySpec = SecretKeySpec(key, "AES")
+        val gcmSpec = GCMParameterSpec(GCM_TAG_SIZE, nonce)
+
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec)
+        cipher.updateAAD(associatedData)
+        cipher.doFinal(encryptedData)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/**
+ * Encrypts repository blob bytes using AES-256-GCM.
+ *
+ * @param plaintext The data to encrypt
+ * @param key The 32-byte encryption key
+ * @param associatedData Additional authenticated data (uniqueID)
+ * @return The encrypted data (nonce + ciphertext + tag)
+ */
+private fun encryptRepositoryBlobBytesAes256Gcm(
+    plaintext: ByteArray,
+    key: ByteArray,
+    associatedData: ByteArray
+): ByteArray {
+    val nonce = ByteArray(GCM_NONCE_SIZE)
+    SecureRandom().nextBytes(nonce)
+
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    val keySpec = SecretKeySpec(key, "AES")
+    val gcmSpec = GCMParameterSpec(GCM_TAG_SIZE, nonce)
+
+    cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec)
+    cipher.updateAAD(associatedData)
+    val encrypted = cipher.doFinal(plaintext)
+
+    return nonce + encrypted
+}
