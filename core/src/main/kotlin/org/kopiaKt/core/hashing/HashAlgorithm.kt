@@ -37,6 +37,11 @@ enum class HashAlgorithm(val id: String, val outputSize: Int) {
          */
         fun fromId(id: String): HashAlgorithm? =
             entries.find { it.id == id }
+
+        /**
+         * Finds algorithm by ID string (alias for fromId).
+         */
+        fun fromString(id: String): HashAlgorithm? = fromId(id)
     }
 }
 

@@ -34,6 +34,11 @@ enum class EncryptionAlgorithm(val id: String) {
          */
         fun fromId(id: String): EncryptionAlgorithm? =
             entries.find { it.id == id }
+
+        /**
+         * Finds algorithm by ID string (alias for fromId).
+         */
+        fun fromString(id: String): EncryptionAlgorithm? = fromId(id)
     }
 }
 

@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.serializer
 import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentManager
@@ -85,6 +86,24 @@ class ManifestManager(
         return putInternal(labels, jsonPayload)
     }
 
+    /**
+     * Stores a manifest with the given labels using a serializer.
+     *
+     * @param labels Labels for the manifest (must include "type")
+     * @param payload The data to store
+     * @param serializer The serializer for the payload type
+     * @return The manifest ID
+     * @throws IllegalArgumentException if "type" label is missing
+     */
+    suspend fun <T> putWithSerializer(labels: Map<String, String>, payload: T, serializer: kotlinx.serialization.KSerializer<T>): ManifestId {
+        require(labels.containsKey(TYPE_LABEL_KEY)) {
+            "'$TYPE_LABEL_KEY' label is required"
+        }
+
+        val jsonPayload = json.encodeToJsonElement(serializer, payload)
+        return putInternal(labels, jsonPayload)
+    }
+
     @PublishedApi
     internal suspend fun putInternal(labels: Map<String, String>, jsonPayload: JsonElement): ManifestId =
         mutex.withLock {
@@ -110,6 +129,20 @@ class ManifestManager(
     suspend inline fun <reified T> get(id: ManifestId): Pair<T, EntryMetadata> {
         val (contentJson, metadata) = getEntryContent(id) ?: throw ManifestNotFoundException(id)
         val payload = json.decodeFromJsonElement(kotlinx.serialization.serializer<T>(), contentJson)
+        return payload to metadata
+    }
+
+    /**
+     * Retrieves a manifest by ID with a serializer (for cases where reified types can't be used).
+     *
+     * @param id The manifest ID
+     * @param serializer The serializer for the payload type
+     * @return Pair of (payload, metadata)
+     * @throws ManifestNotFoundException if manifest doesn't exist
+     */
+    suspend fun <T> getWithSerializer(id: ManifestId, serializer: kotlinx.serialization.KSerializer<T>): Pair<T, EntryMetadata> {
+        val (contentJson, metadata) = getEntryContent(id) ?: throw ManifestNotFoundException(id)
+        val payload = json.decodeFromJsonElement(serializer, contentJson)
         return payload to metadata
     }
 
