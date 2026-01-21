@@ -106,8 +106,10 @@ class BuildVerificationTest {
     fun `Policy defaults are sensible`() {
         val policy = Policy()
 
-        assertThat(policy.compression.compressorName).isEqualTo("zstd")
-        assertThat(policy.splitter.algorithm).isEqualTo("DYNAMIC-4M-BUZHASH")
+        // Default compression policy has empty string (defaults are applied during merge)
+        assertThat(policy.compressionPolicy.compressorName).isEqualTo("")
+        // Default splitter policy has empty string (defaults are applied during merge)
+        assertThat(policy.splitterPolicy.algorithm).isEqualTo("")
         assertThat(policy.noParent).isFalse()
     }
 

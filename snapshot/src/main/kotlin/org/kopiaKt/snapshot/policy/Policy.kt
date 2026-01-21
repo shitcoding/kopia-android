@@ -2,160 +2,164 @@ package org.kopiaKt.snapshot.policy
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.kopiaKt.snapshot.model.SourceInfo
 
 /**
  * Complete policy for a backup source.
  *
  * Policies control retention, file selection, compression, and scheduling.
  * The structure must match the Go implementation for cross-compatibility.
+ *
+ * Go type: policy.Policy
  */
 @Serializable
 data class Policy(
-    val retention: RetentionPolicy = RetentionPolicy(),
-    val files: FilesPolicy = FilesPolicy(),
-    val errorHandling: ErrorHandlingPolicy = ErrorHandlingPolicy(),
-    val scheduling: SchedulingPolicy = SchedulingPolicy(),
-    val compression: CompressionPolicy = CompressionPolicy(),
-    val splitter: SplitterPolicy = SplitterPolicy(),
-    val upload: UploadPolicy = UploadPolicy(),
-    val actions: ActionsPolicy = ActionsPolicy(),
-    val logging: LoggingPolicy = LoggingPolicy(),
-    @SerialName("noParent") val noParent: Boolean = false
-)
+    /**
+     * Labels are not serialized in JSON but used for policy identification.
+     * Go field: Labels map[string]string `json:"-"`
+     */
+    @kotlinx.serialization.Transient
+    val labels: Map<String, String> = emptyMap(),
 
-/**
- * Retention policy controlling how many snapshots to keep.
- */
-@Serializable
-data class RetentionPolicy(
-    val keepLatest: Int? = null,
-    val keepHourly: Int? = null,
-    val keepDaily: Int? = null,
-    val keepWeekly: Int? = null,
-    val keepMonthly: Int? = null,
-    val keepAnnual: Int? = null,
-    val ignoreIdenticalSnapshots: Boolean? = null
-)
+    @SerialName("retention")
+    val retentionPolicy: RetentionPolicy = RetentionPolicy(),
 
-/**
- * File selection policy controlling what files to include/exclude.
- */
-@Serializable
-data class FilesPolicy(
-    @SerialName("ignore") val ignoreRules: List<String> = emptyList(),
-    @SerialName("ignoreDotFiles") val ignoreDotFiles: List<String> = emptyList(),
-    val maxFileSize: Long? = null,
-    @SerialName("noParentIgnore") val noParentIgnore: Boolean = false,
-    @SerialName("noParentDotFiles") val noParentDotFiles: Boolean = false,
-    @SerialName("oneFileSystem") val oneFileSystem: Boolean? = null
-)
+    @SerialName("files")
+    val filesPolicy: FilesPolicy = FilesPolicy(),
 
-/**
- * Error handling policy controlling how to handle errors during backup.
- */
-@Serializable
-data class ErrorHandlingPolicy(
-    val ignoreFileErrors: Boolean? = null,
-    val ignoreDirectoryErrors: Boolean? = null,
-    val ignoreUnknownTypes: Boolean? = null
-)
+    @SerialName("errorHandling")
+    val errorHandlingPolicy: ErrorHandlingPolicy = ErrorHandlingPolicy(),
 
-/**
- * Scheduling policy for automated backups.
- */
-@Serializable
-data class SchedulingPolicy(
-    val intervalSeconds: Long? = null,
-    val timesOfDay: List<TimeOfDay>? = null,
-    val manual: Boolean = false,
-    val runMissed: Boolean? = null,
-    val cron: String? = null
-)
+    @SerialName("scheduling")
+    val schedulingPolicy: SchedulingPolicy = SchedulingPolicy(),
 
-/**
- * Time of day for scheduled backups.
- */
-@Serializable
-data class TimeOfDay(
-    val hour: Int,
-    val minute: Int = 0
-)
+    @SerialName("compression")
+    val compressionPolicy: CompressionPolicy = CompressionPolicy(),
 
-/**
- * Compression policy controlling compression algorithm and when to compress.
- */
-@Serializable
-data class CompressionPolicy(
-    val compressorName: String = "zstd",
-    val onlyCompress: List<String>? = null,
-    val neverCompress: List<String>? = null,
-    val minSize: Long? = null,
-    val maxSize: Long? = null
-)
+    @SerialName("metadataCompression")
+    val metadataCompressionPolicy: MetadataCompressionPolicy = MetadataCompressionPolicy(),
 
-/**
- * Splitter policy controlling content chunking.
- */
-@Serializable
-data class SplitterPolicy(
-    val algorithm: String = "DYNAMIC-4M-BUZHASH"
-)
+    @SerialName("splitter")
+    val splitterPolicy: SplitterPolicy = SplitterPolicy(),
 
-/**
- * Upload policy controlling upload behavior.
- */
-@Serializable
-data class UploadPolicy(
-    val maxParallelSnapshots: Int? = null,
-    val maxParallelFileReads: Int? = null
-)
+    @SerialName("actions")
+    val actionsPolicy: ActionsPolicy = ActionsPolicy(),
 
-/**
- * Actions policy for pre/post backup hooks.
- */
-@Serializable
-data class ActionsPolicy(
-    val beforeSnapshotRoot: ActionCommand? = null,
-    val afterSnapshotRoot: ActionCommand? = null,
-    val beforeFolder: ActionCommand? = null,
-    val afterFolder: ActionCommand? = null
-)
+    @SerialName("osSnapshots")
+    val osSnapshotPolicy: OSSnapshotPolicy = OSSnapshotPolicy(),
 
-/**
- * Command to execute as a hook action.
- */
-@Serializable
-data class ActionCommand(
-    val path: String,
-    val args: List<String> = emptyList(),
-    val timeout: Long? = null, // seconds
-    val mode: ActionMode = ActionMode.ESSENTIAL
-)
+    @SerialName("logging")
+    val loggingPolicy: LoggingPolicy = LoggingPolicy(),
 
-/**
- * Mode for action command execution.
- */
-@Serializable
-enum class ActionMode {
-    @SerialName("essential") ESSENTIAL, // Fail backup if action fails
-    @SerialName("optional") OPTIONAL,   // Continue backup if action fails
-    @SerialName("async") ASYNC          // Run action asynchronously
+    @SerialName("upload")
+    val uploadPolicy: UploadPolicy = UploadPolicy(),
+
+    @SerialName("noParent")
+    val noParent: Boolean = false
+) {
+    /**
+     * Returns the globally unique identifier of the policy.
+     */
+    fun id(): String? = labels["id"]
+
+    /**
+     * Returns the SourceInfo describing username, host and path targeted by the policy.
+     */
+    fun target(): SourceInfo = SourceInfo(
+        host = labels["hostname"] ?: "",
+        userName = labels["username"] ?: "",
+        path = labels["path"] ?: ""
+    )
+
+    companion object {
+        /**
+         * Policy type label value.
+         */
+        const val POLICY_TYPE = "policy"
+
+        /**
+         * Global policy source info (empty source).
+         */
+        val GlobalPolicySourceInfo = SourceInfo(host = "", userName = "", path = "")
+
+        /**
+         * Creates labels for a policy targeting the given source.
+         */
+        fun labelsForSource(source: SourceInfo): Map<String, String> {
+            val labels = mutableMapOf(
+                "type" to POLICY_TYPE
+            )
+
+            if (source.host.isEmpty() && source.userName.isEmpty() && source.path.isEmpty()) {
+                labels["policyType"] = "global"
+            } else if (source.path.isEmpty()) {
+                labels["policyType"] = if (source.userName.isEmpty()) "host" else "user"
+                labels["hostname"] = source.host
+                if (source.userName.isNotEmpty()) {
+                    labels["username"] = source.userName
+                }
+            } else {
+                labels["policyType"] = "path"
+                labels["hostname"] = source.host
+                labels["username"] = source.userName
+                labels["path"] = source.path
+            }
+
+            return labels
+        }
+    }
 }
 
 /**
- * Logging policy controlling backup log verbosity.
+ * Definition corresponds 1:1 to Policy and each field specifies the SourceInfo
+ * where a particular policy field was specified.
+ *
+ * Go type: policy.Definition
  */
 @Serializable
-data class LoggingPolicy(
-    val directories: LogDetail? = null,
-    val entries: LogDetail? = null
+data class PolicyDefinition(
+    @SerialName("retention")
+    var retentionPolicy: RetentionPolicyDefinition = RetentionPolicyDefinition(),
+
+    @SerialName("files")
+    var filesPolicy: FilesPolicyDefinition = FilesPolicyDefinition(),
+
+    @SerialName("errorHandling")
+    var errorHandlingPolicy: ErrorHandlingPolicyDefinition = ErrorHandlingPolicyDefinition(),
+
+    @SerialName("scheduling")
+    var schedulingPolicy: SchedulingPolicyDefinition = SchedulingPolicyDefinition(),
+
+    @SerialName("compression")
+    var compressionPolicy: CompressionPolicyDefinition = CompressionPolicyDefinition(),
+
+    @SerialName("metadataCompression")
+    var metadataCompressionPolicy: MetadataCompressionPolicyDefinition = MetadataCompressionPolicyDefinition(),
+
+    @SerialName("splitter")
+    var splitterPolicy: SplitterPolicyDefinition = SplitterPolicyDefinition(),
+
+    @SerialName("actions")
+    var actionsPolicy: ActionsPolicyDefinition = ActionsPolicyDefinition(),
+
+    @SerialName("osSnapshots")
+    var osSnapshotPolicy: OSSnapshotPolicyDefinition = OSSnapshotPolicyDefinition(),
+
+    @SerialName("logging")
+    var loggingPolicy: LoggingPolicyDefinition = LoggingPolicyDefinition(),
+
+    @SerialName("upload")
+    var uploadPolicy: UploadPolicyDefinition = UploadPolicyDefinition()
 )
 
 /**
- * Log detail level.
+ * Wraps a policy with its target and ID.
+ *
+ * Go type: policy.TargetWithPolicy
  */
 @Serializable
-data class LogDetail(
-    val snapshotted: Int? = null,
-    val cached: Int? = null
+data class TargetWithPolicy(
+    val id: String,
+    val target: SourceInfo,
+    val policy: Policy
 )
