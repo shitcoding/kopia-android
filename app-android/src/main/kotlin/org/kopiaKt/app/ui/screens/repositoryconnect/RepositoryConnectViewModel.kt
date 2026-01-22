@@ -66,6 +66,12 @@ class RepositoryConnectViewModel @Inject constructor(
         }
     }
 
+    fun updateLocalConfig(path: String) {
+        _uiState.update {
+            it.copy(localConfig = it.localConfig.copy(path = path))
+        }
+    }
+
     fun updatePassword(password: String) {
         _uiState.update { it.copy(password = password) }
     }
@@ -78,6 +84,9 @@ class RepositoryConnectViewModel @Inject constructor(
         val state = _uiState.value
 
         val config: ConnectionConfig = when (state.selectedStorageType) {
+            StorageType.LOCAL_FILESYSTEM -> ConnectionConfig.LocalFilesystem(
+                path = state.localConfig.path
+            )
             StorageType.S3 -> ConnectionConfig.S3(
                 bucket = state.s3Config.bucket,
                 endpoint = state.s3Config.endpoint,
@@ -124,7 +133,8 @@ class RepositoryConnectViewModel @Inject constructor(
 }
 
 data class RepositoryConnectUiState(
-    val selectedStorageType: StorageType = StorageType.S3,
+    val selectedStorageType: StorageType = StorageType.LOCAL_FILESYSTEM,
+    val localConfig: LocalFormState = LocalFormState(),
     val s3Config: S3FormState = S3FormState(),
     val webDavConfig: WebDavFormState = WebDavFormState(),
     val sftpConfig: SftpFormState = SftpFormState(),
@@ -151,4 +161,8 @@ data class SftpFormState(
     val port: Int = 22,
     val username: String = "",
     val path: String = ""
+)
+
+data class LocalFormState(
+    val path: String = "/storage/emulated/0/Android/data/org.kopiaKt.app/files/kopia_repo/kopia_test_repo"
 )

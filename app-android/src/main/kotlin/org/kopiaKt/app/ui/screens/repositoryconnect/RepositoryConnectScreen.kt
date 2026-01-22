@@ -46,15 +46,15 @@ fun RepositoryConnectScreen(
                 .padding(16.dp)
         ) {
             // Storage type tabs
-            val storageTypes = listOf(StorageType.S3, StorageType.WEBDAV, StorageType.SFTP)
+            val storageTypes = listOf(StorageType.LOCAL_FILESYSTEM, StorageType.S3, StorageType.WEBDAV, StorageType.SFTP)
             val selectedIndex = storageTypes.indexOf(uiState.selectedStorageType).coerceAtLeast(0)
 
-            TabRow(selectedTabIndex = selectedIndex) {
+            ScrollableTabRow(selectedTabIndex = selectedIndex) {
                 storageTypes.forEachIndexed { index, type ->
                     Tab(
                         selected = selectedIndex == index,
                         onClick = { viewModel.updateStorageType(type) },
-                        text = { Text(type.name) }
+                        text = { Text(if (type == StorageType.LOCAL_FILESYSTEM) "Local" else type.name) }
                     )
                 }
             }
@@ -63,6 +63,10 @@ fun RepositoryConnectScreen(
 
             // Storage-specific form fields
             when (uiState.selectedStorageType) {
+                StorageType.LOCAL_FILESYSTEM -> LocalForm(
+                    state = uiState.localConfig,
+                    onUpdate = viewModel::updateLocalConfig
+                )
                 StorageType.S3 -> S3Form(
                     state = uiState.s3Config,
                     onUpdate = viewModel::updateS3Config
@@ -136,6 +140,27 @@ fun RepositoryConnectScreen(
             }
         }
     }
+}
+
+@Composable
+private fun LocalForm(
+    state: LocalFormState,
+    onUpdate: (path: String) -> Unit
+) {
+    OutlinedTextField(
+        value = state.path,
+        onValueChange = onUpdate,
+        label = { Text("Repository Path") },
+        placeholder = { Text("/sdcard/kopia_repo") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = "Enter the full path to the Kopia repository directory on the device.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
