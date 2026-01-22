@@ -55,11 +55,17 @@ android {
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/**"
+            excludes += "META-INF/INDEX.LIST"
+            // Merge Netty version files
+            pickFirsts += "META-INF/io.netty.versions.properties"
         }
     }
 }
 
 dependencies {
+    // Fix for Hilt JavaPoet compatibility
+    ksp("com.squareup:javapoet:1.13.0")
+
     // KopiaKt modules
     implementation(project(":core"))
     implementation(project(":snapshot"))
