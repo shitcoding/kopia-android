@@ -1,91 +1,386 @@
 package org.kopiaKt.android.worker
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.annotation.DrawableRes
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.kopiaKt.android.notification.BackupNotificationIds
+import org.kopiaKt.android.notification.BackupNotificationManager
+import org.kopiaKt.core.repository.DirectRepository
+import org.kopiaKt.snapshot.upload.UploadCounters
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * WorkManager worker for executing backups.
  *
  * Supports both one-time and periodic backups with constraints
- * for battery, network, and charging state.
+ * for battery, network, and charging state. Integrates with
+ * the snapshot layer for actual backup operations and provides
+ * foreground notifications for long-running operations.
+ *
+ * Features:
+ * - Progress notifications with cancel action
+ * - Checkpoint persistence for process death recovery
+ * - Automatic retry with exponential backoff
+ * - Constraint-based scheduling (WiFi, charging, battery)
  */
 class BackupWorker(
     context: Context,
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    private val notificationManager: BackupNotificationManager by lazy {
+        val iconRes = inputData.getInt(KEY_NOTIFICATION_ICON, android.R.drawable.ic_popup_sync)
+        BackupNotificationManager(applicationContext, iconRes)
+    }
+
+    private val checkpointStore: CheckpointStore by lazy {
+        CheckpointStore(applicationContext)
+    }
+
+    private val currentSession = AtomicReference<BackupSession?>(null)
+
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Parse input data
         val sourceId = inputData.getString(KEY_SOURCE_ID)
-            ?: return Result.failure(
-                Data.Builder()
-                    .putString(KEY_ERROR, "Missing source ID")
-                    .build()
+            ?: return@withContext Result.failure(
+                workDataOf(KEY_ERROR to "Missing source ID")
             )
 
-        return try {
-            // Mark as running in foreground for long operations
-            setForeground(createForegroundInfo())
+        val sourcePath = inputData.getString(KEY_SOURCE_PATH)
+            ?: return@withContext Result.failure(
+                workDataOf(KEY_ERROR to "Missing source path")
+            )
 
-            performBackup(sourceId)
+        val configJson = inputData.getString(KEY_CONFIG)
+        val config = if (configJson != null) {
+            try {
+                Json.decodeFromString<BackupWorkerConfig>(configJson)
+            } catch (e: Exception) {
+                BackupWorkerConfig()
+            }
+        } else {
+            BackupWorkerConfig()
+        }
 
-            Result.success()
+        val notificationId = BackupNotificationIds.forSource(sourceId)
+
+        try {
+            // Ensure notification channels exist
+            notificationManager.createNotificationChannels()
+
+            // Set foreground with initial notification
+            setForeground(createInitialForegroundInfo(notificationId, sourcePath))
+
+            // Check for existing checkpoint
+            val checkpointResult = checkpointStore.getCheckpoint(sourceId)
+            val existingCheckpoint = when (checkpointResult) {
+                is CheckpointResult.Found -> checkpointResult.checkpoint
+                is CheckpointResult.Stale -> {
+                    // Clear stale checkpoint
+                    checkpointStore.clearCheckpoint(sourceId)
+                    null
+                }
+                CheckpointResult.NotFound -> null
+            }
+
+            // Open repository and run backup
+            val result = runBackup(
+                sourceId = sourceId,
+                sourcePath = sourcePath,
+                config = config,
+                notificationId = notificationId,
+                existingCheckpoint = existingCheckpoint
+            )
+
+            // Handle result
+            when (result) {
+                is BackupSessionResult.Success -> {
+                    showCompletionNotification(
+                        sourcePath = sourcePath,
+                        counters = result.counters,
+                        durationMillis = result.durationMillis
+                    )
+                    Result.success(
+                        workDataOf(
+                            KEY_MANIFEST_ID to result.manifestId.value,
+                            KEY_FILES_COUNT to (result.counters.totalCachedFiles + result.counters.totalHashedFiles),
+                            KEY_BYTES_TOTAL to (result.counters.totalCachedBytes + result.counters.totalHashedBytes),
+                            KEY_DURATION_MILLIS to result.durationMillis
+                        )
+                    )
+                }
+
+                is BackupSessionResult.Cancelled -> {
+                    // Don't show error for cancellation
+                    Result.failure(
+                        workDataOf(KEY_ERROR to "Backup cancelled")
+                    )
+                }
+
+                is BackupSessionResult.Failed -> {
+                    if (runAttemptCount < MAX_RETRY_COUNT && result.checkpointSaved) {
+                        // Retry with checkpoint
+                        Result.retry()
+                    } else {
+                        showErrorNotification(sourcePath, result.error.message ?: "Unknown error")
+                        Result.failure(
+                            workDataOf(KEY_ERROR to result.error.message)
+                        )
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            // WorkManager cancellation - session should have saved checkpoint
+            Result.failure(workDataOf(KEY_ERROR to "Backup cancelled"))
         } catch (e: Exception) {
             if (runAttemptCount < MAX_RETRY_COUNT) {
                 Result.retry()
             } else {
-                Result.failure(
-                    Data.Builder()
-                        .putString(KEY_ERROR, e.message)
-                        .build()
-                )
+                showErrorNotification(sourcePath, e.message ?: "Unknown error")
+                Result.failure(workDataOf(KEY_ERROR to e.message))
             }
         }
     }
 
-    private suspend fun performBackup(sourceId: String) {
-        // TODO: Implement actual backup logic using repository
-        // This will be implemented when the full snapshot system is ready
+    private suspend fun runBackup(
+        sourceId: String,
+        sourcePath: String,
+        config: BackupWorkerConfig,
+        notificationId: Int,
+        existingCheckpoint: BackupCheckpoint?
+    ): BackupSessionResult {
+        // Get repository from the repository provider
+        // Note: In a real implementation, this would come from a RepositoryProvider
+        // that handles repository opening/caching. For now, we throw if not configured.
+        val repository = getRepository()
+            ?: throw IllegalStateException("Repository not configured. Call BackupWorker.setRepositoryProvider first.")
+
+        val sessionConfig = BackupSessionConfig(
+            sourcePath = sourcePath,
+            sourceId = sourceId,
+            description = config.description,
+            tags = config.tags,
+            parallelUploads = config.parallelUploads,
+            forceHashPercentage = config.forceHashPercentage,
+            checkpointOptions = CheckpointOptions(
+                intervalMillis = config.checkpointIntervalMillis,
+                minBytesBeforeCheckpoint = config.minBytesBeforeCheckpoint
+            )
+        )
+
+        val callback = object : BackupSessionCallback {
+            override fun onProgress(counters: UploadCounters) {
+                updateProgressNotification(
+                    notificationId = notificationId,
+                    sourceId = sourceId,
+                    sourcePath = sourcePath,
+                    counters = counters
+                )
+            }
+
+            override fun onCheckpointSaved(checkpoint: BackupCheckpoint) {
+                // Checkpoint saved - nothing special to do
+            }
+
+            override fun onComplete(result: BackupSessionResult) {
+                // Completion handled in doWork
+            }
+        }
+
+        val session = BackupSession(
+            repository = repository,
+            config = sessionConfig,
+            checkpointStore = checkpointStore,
+            callback = callback
+        )
+        currentSession.set(session)
+
+        try {
+            return session.run(existingCheckpoint)
+        } finally {
+            currentSession.set(null)
+        }
     }
 
-    private fun createForegroundInfo(): androidx.work.ForegroundInfo {
-        // TODO: Create proper notification for foreground service
-        // This requires the notification channel to be set up
-        throw NotImplementedError("Foreground notification not yet implemented")
+    private fun getRepository(): DirectRepository? {
+        return repositoryProvider?.invoke(applicationContext)
+    }
+
+    private fun createInitialForegroundInfo(notificationId: Int, sourcePath: String): ForegroundInfo {
+        val cancelIntent = createCancelIntent(inputData.getString(KEY_SOURCE_ID) ?: "")
+
+        val notification = notificationManager.buildProgressNotification(
+            sourceId = inputData.getString(KEY_SOURCE_ID) ?: "",
+            sourcePath = sourcePath,
+            currentFile = null,
+            progress = null,
+            cancelIntent = cancelIntent
+        )
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                notificationId,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            ForegroundInfo(notificationId, notification)
+        }
+    }
+
+    private fun updateProgressNotification(
+        notificationId: Int,
+        sourceId: String,
+        sourcePath: String,
+        counters: UploadCounters
+    ) {
+        val totalBytes = counters.totalCachedBytes + counters.totalHashedBytes
+        val estimatedBytes = counters.estimatedBytes
+
+        val progress = if (estimatedBytes > 0) {
+            ((totalBytes * 100) / estimatedBytes).toInt().coerceIn(0, 99)
+        } else {
+            null
+        }
+
+        val cancelIntent = createCancelIntent(sourceId)
+
+        val notification = notificationManager.buildProgressNotification(
+            sourceId = sourceId,
+            sourcePath = sourcePath,
+            currentFile = counters.currentDirectory.takeIf { it.isNotEmpty() },
+            progress = progress,
+            processedBytes = totalBytes,
+            totalBytes = estimatedBytes,
+            processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
+            cancelIntent = cancelIntent
+        )
+
+        notificationManager.notify(notificationId, notification)
+    }
+
+    private fun showCompletionNotification(
+        sourcePath: String,
+        counters: UploadCounters,
+        durationMillis: Long
+    ) {
+        val notification = notificationManager.buildCompletionNotification(
+            sourcePath = sourcePath,
+            filesCount = counters.totalCachedFiles + counters.totalHashedFiles,
+            totalBytes = counters.totalCachedBytes + counters.totalHashedBytes,
+            duration = durationMillis
+        )
+        notificationManager.notify(BackupNotificationIds.BACKUP_COMPLETE, notification)
+    }
+
+    private fun showErrorNotification(sourcePath: String, errorMessage: String) {
+        val retryIntent = createRetryIntent()
+
+        val notification = notificationManager.buildErrorNotification(
+            sourcePath = sourcePath,
+            errorMessage = errorMessage,
+            retryIntent = retryIntent
+        )
+        notificationManager.notify(BackupNotificationIds.BACKUP_ERROR, notification)
+    }
+
+    private fun createCancelIntent(sourceId: String): PendingIntent {
+        val intent = Intent(applicationContext, BackupCancelReceiver::class.java).apply {
+            action = ACTION_CANCEL_BACKUP
+            putExtra(KEY_SOURCE_ID, sourceId)
+        }
+        return PendingIntent.getBroadcast(
+            applicationContext,
+            sourceId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun createRetryIntent(): PendingIntent? {
+        // Create an intent to retry the backup
+        // This would typically open the app to the backup screen
+        // For now, return null - apps can implement their own retry mechanism
+        return null
     }
 
     companion object {
         const val KEY_SOURCE_ID = "source_id"
+        const val KEY_SOURCE_PATH = "source_path"
+        const val KEY_CONFIG = "config"
+        const val KEY_NOTIFICATION_ICON = "notification_icon"
         const val KEY_ERROR = "error"
+        const val KEY_MANIFEST_ID = "manifest_id"
+        const val KEY_FILES_COUNT = "files_count"
+        const val KEY_BYTES_TOTAL = "bytes_total"
+        const val KEY_DURATION_MILLIS = "duration_millis"
+
+        const val ACTION_CANCEL_BACKUP = "org.kopiaKt.android.CANCEL_BACKUP"
+
         private const val MAX_RETRY_COUNT = 3
         private const val UNIQUE_WORK_PREFIX = "backup_"
+        private const val BACKOFF_DELAY_MINUTES = 5L
+
+        /**
+         * Repository provider function.
+         *
+         * Must be set before scheduling backups. The provider is called with the
+         * application context and should return an opened DirectRepository.
+         */
+        @Volatile
+        var repositoryProvider: ((Context) -> DirectRepository?)? = null
 
         /**
          * Schedules a one-time backup for the given source.
+         *
+         * @param context Application context
+         * @param sourceId Unique identifier for the backup source
+         * @param sourcePath Path to the directory to back up
+         * @param config Backup configuration
+         * @param constraints Execution constraints
+         * @param notificationIcon Resource ID for notification icon
          */
         fun scheduleOneTime(
             context: Context,
             sourceId: String,
-            constraints: BackupConstraints = BackupConstraints()
+            sourcePath: String,
+            config: BackupWorkerConfig = BackupWorkerConfig(),
+            constraints: BackupConstraints = BackupConstraints(),
+            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync
         ) {
             val workConstraints = constraints.toWorkConstraints()
 
+            val inputData = Data.Builder()
+                .putString(KEY_SOURCE_ID, sourceId)
+                .putString(KEY_SOURCE_PATH, sourcePath)
+                .putString(KEY_CONFIG, Json.encodeToString(config))
+                .putInt(KEY_NOTIFICATION_ICON, notificationIcon)
+                .build()
+
             val request = OneTimeWorkRequestBuilder<BackupWorker>()
-                .setInputData(
-                    Data.Builder()
-                        .putString(KEY_SOURCE_ID, sourceId)
-                        .build()
-                )
+                .setInputData(inputData)
                 .setConstraints(workConstraints)
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
@@ -104,24 +399,38 @@ class BackupWorker(
 
         /**
          * Schedules periodic backups for the given source.
+         *
+         * @param context Application context
+         * @param sourceId Unique identifier for the backup source
+         * @param sourcePath Path to the directory to back up
+         * @param intervalHours Interval between backups in hours
+         * @param config Backup configuration
+         * @param constraints Execution constraints
+         * @param notificationIcon Resource ID for notification icon
          */
         fun schedulePeriodic(
             context: Context,
             sourceId: String,
+            sourcePath: String,
             intervalHours: Long,
-            constraints: BackupConstraints = BackupConstraints()
+            config: BackupWorkerConfig = BackupWorkerConfig(),
+            constraints: BackupConstraints = BackupConstraints(),
+            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync
         ) {
             val workConstraints = constraints.toWorkConstraints()
+
+            val inputData = Data.Builder()
+                .putString(KEY_SOURCE_ID, sourceId)
+                .putString(KEY_SOURCE_PATH, sourcePath)
+                .putString(KEY_CONFIG, Json.encodeToString(config))
+                .putInt(KEY_NOTIFICATION_ICON, notificationIcon)
+                .build()
 
             val request = PeriodicWorkRequestBuilder<BackupWorker>(
                 intervalHours,
                 TimeUnit.HOURS
             )
-                .setInputData(
-                    Data.Builder()
-                        .putString(KEY_SOURCE_ID, sourceId)
-                        .build()
-                )
+                .setInputData(inputData)
                 .setConstraints(workConstraints)
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
@@ -148,9 +457,45 @@ class BackupWorker(
                 .cancelUniqueWork("${UNIQUE_WORK_PREFIX}periodic_$sourceId")
         }
 
-        private const val BACKOFF_DELAY_MINUTES = 5L
+        /**
+         * Cancels all scheduled backups.
+         */
+        fun cancelAll(context: Context) {
+            WorkManager.getInstance(context).cancelAllWorkByTag(UNIQUE_WORK_PREFIX)
+        }
+
+        /**
+         * Gets the work info for a backup source.
+         */
+        fun getWorkInfo(context: Context, sourceId: String) =
+            WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWorkLiveData("$UNIQUE_WORK_PREFIX$sourceId")
     }
 }
+
+/**
+ * Configuration for backup worker operations.
+ */
+@Serializable
+data class BackupWorkerConfig(
+    /** Description for the snapshot. */
+    val description: String = "",
+
+    /** Tags to attach to the snapshot. */
+    val tags: Map<String, String> = emptyMap(),
+
+    /** Number of parallel uploads (1-8). */
+    val parallelUploads: Int = Runtime.getRuntime().availableProcessors().coerceIn(1, 4),
+
+    /** Percentage of files to force re-hash for validation (0-100). */
+    val forceHashPercentage: Int = 0,
+
+    /** Checkpoint interval in milliseconds. */
+    val checkpointIntervalMillis: Long = CheckpointOptions.DEFAULT_CHECKPOINT_INTERVAL_MILLIS,
+
+    /** Minimum bytes before creating first checkpoint. */
+    val minBytesBeforeCheckpoint: Long = CheckpointOptions.DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT
+)
 
 /**
  * Constraints for backup execution.

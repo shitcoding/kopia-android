@@ -27,4 +27,15 @@
     <!-- Boot completed for rescheduling backups -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <application>
+        <!-- Receiver for backup cancellation from notification -->
+        <receiver
+            android:name=".worker.BackupCancelReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.kopiaKt.android.CANCEL_BACKUP" />
+            </intent-filter>
+        </receiver>
+    </application>
+
 </manifest>
