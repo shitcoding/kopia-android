@@ -1,0 +1,368 @@
+package org.kopiaKt.storage.s3
+
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.BlobNotFoundException
+import org.kopiaKt.core.blob.InvalidCredentialsException
+import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import software.amazon.awssdk.core.ResponseBytes
+import software.amazon.awssdk.core.async.AsyncRequestBody
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
+import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectResponse
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.model.PutObjectResponse
+import software.amazon.awssdk.services.s3.model.S3Exception
+import java.time.Instant
+import java.util.concurrent.CompletableFuture
+
+/**
+ * Unit tests for S3BlobStorage using mocked S3 client.
+ *
+ * These tests verify the S3 storage implementation without requiring
+ * an actual S3 service. Integration tests with MinIO are in S3BlobStorageIntegrationTest.
+ */
+class S3BlobStorageTest {
+
+    private lateinit var mockClient: S3AsyncClient
+    private lateinit var storage: S3BlobStorage
+    private val testBucket = "test-bucket"
+    private val testPrefix = "test-prefix/"
+
+    @BeforeEach
+    fun setUp() {
+        mockClient = mockk(relaxed = true)
+        storage = S3BlobStorage.createWithClient(
+            client = mockClient,
+            options = S3Options(
+                bucketName = testBucket,
+                prefix = testPrefix
+            )
+        )
+    }
+
+    @Nested
+    @DisplayName("getBlob")
+    inner class GetBlobTests {
+
+        @Test
+        fun `should retrieve blob successfully`() = runTest {
+            val blobId = BlobId("test-blob")
+            val expectedData = "Hello, World!".toByteArray()
+
+            val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
+            every { responseBytes.asByteArray() } returns expectedData
+
+            coEvery {
+                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.completedFuture(responseBytes)
+
+            val result = storage.getBlob(blobId)
+
+            assertArrayEquals(expectedData, result)
+        }
+
+        @Test
+        fun `should throw BlobNotFoundException when blob does not exist`() = runTest {
+            val blobId = BlobId("non-existent")
+
+            coEvery {
+                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.failedFuture(
+                NoSuchKeyException.builder().message("Key not found").build()
+            )
+
+            assertThrows<BlobNotFoundException> {
+                storage.getBlob(blobId)
+            }
+        }
+
+        @Test
+        fun `should return empty array for zero-length read`() = runTest {
+            val blobId = BlobId("test-blob")
+
+            val result = storage.getBlob(blobId, offset = 0, length = 0)
+
+            assertEquals(0, result.size)
+        }
+
+        @Test
+        fun `should set range header for partial read with offset`() = runTest {
+            val blobId = BlobId("test-blob")
+            val requestSlot = slot<GetObjectRequest>()
+
+            val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
+            every { responseBytes.asByteArray() } returns "partial".toByteArray()
+
+            coEvery {
+                mockClient.getObject(capture(requestSlot), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.completedFuture(responseBytes)
+
+            storage.getBlob(blobId, offset = 10, length = 5)
+
+            assertEquals("bytes=10-14", requestSlot.captured.range())
+        }
+
+        @Test
+        fun `should set open-ended range for offset without length`() = runTest {
+            val blobId = BlobId("test-blob")
+            val requestSlot = slot<GetObjectRequest>()
+
+            val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
+            every { responseBytes.asByteArray() } returns "rest".toByteArray()
+
+            coEvery {
+                mockClient.getObject(capture(requestSlot), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.completedFuture(responseBytes)
+
+            storage.getBlob(blobId, offset = 100, length = -1)
+
+            assertEquals("bytes=100-", requestSlot.captured.range())
+        }
+    }
+
+    @Nested
+    @DisplayName("getBlobMetadata")
+    inner class GetBlobMetadataTests {
+
+        @Test
+        fun `should return metadata for existing blob`() = runTest {
+            val blobId = BlobId("test-blob")
+            val timestamp = Instant.now()
+
+            val response = HeadObjectResponse.builder()
+                .contentLength(1024L)
+                .lastModified(timestamp)
+                .build()
+
+            coEvery {
+                mockClient.headObject(any<HeadObjectRequest>())
+            } returns CompletableFuture.completedFuture(response)
+
+            val metadata = storage.getBlobMetadata(blobId)
+
+            assertNotNull(metadata)
+            assertEquals(blobId, metadata!!.blobId)
+            assertEquals(1024L, metadata.length)
+            assertEquals(timestamp, metadata.timestamp)
+        }
+
+        @Test
+        fun `should return null for non-existent blob`() = runTest {
+            val blobId = BlobId("non-existent")
+
+            coEvery {
+                mockClient.headObject(any<HeadObjectRequest>())
+            } returns CompletableFuture.failedFuture(
+                NoSuchKeyException.builder().message("Not found").build()
+            )
+
+            val metadata = storage.getBlobMetadata(blobId)
+
+            assertNull(metadata)
+        }
+    }
+
+    @Nested
+    @DisplayName("putBlob")
+    inner class PutBlobTests {
+
+        @Test
+        fun `should put blob successfully`() = runTest {
+            val blobId = BlobId("new-blob")
+            val data = "test data".toByteArray()
+            val requestSlot = slot<PutObjectRequest>()
+
+            coEvery {
+                mockClient.putObject(capture(requestSlot), any<AsyncRequestBody>())
+            } returns CompletableFuture.completedFuture(PutObjectResponse.builder().build())
+
+            storage.putBlob(blobId, data)
+
+            assertEquals(testBucket, requestSlot.captured.bucket())
+            assertEquals("${testPrefix}new-blob", requestSlot.captured.key())
+            assertEquals("application/x-kopia", requestSlot.captured.contentType())
+            assertEquals(data.size.toLong(), requestSlot.captured.contentLength())
+        }
+
+        @Test
+        fun `should skip put when dontOverwrite is true and blob exists`() = runTest {
+            val blobId = BlobId("existing-blob")
+            val data = "test data".toByteArray()
+
+            // Mock metadata check to return existing blob
+            coEvery {
+                mockClient.headObject(any<HeadObjectRequest>())
+            } returns CompletableFuture.completedFuture(
+                HeadObjectResponse.builder()
+                    .contentLength(100L)
+                    .lastModified(Instant.now())
+                    .build()
+            )
+
+            storage.putBlob(blobId, data, PutBlobOptions(dontOverwrite = true))
+
+            // putObject should not be called
+            coVerify(exactly = 0) {
+                mockClient.putObject(any<PutObjectRequest>(), any<AsyncRequestBody>())
+            }
+        }
+
+        @Test
+        fun `should throw UnsupportedPutOptionException for setModTime`() = runTest {
+            val blobId = BlobId("test-blob")
+            val data = "test data".toByteArray()
+
+            assertThrows<UnsupportedPutOptionException> {
+                storage.putBlob(blobId, data, PutBlobOptions(setModTime = Instant.now()))
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteBlob")
+    inner class DeleteBlobTests {
+
+        @Test
+        fun `should delete blob successfully`() = runTest {
+            val blobId = BlobId("to-delete")
+            val requestSlot = slot<DeleteObjectRequest>()
+
+            coEvery {
+                mockClient.deleteObject(capture(requestSlot))
+            } returns CompletableFuture.completedFuture(DeleteObjectResponse.builder().build())
+
+            storage.deleteBlob(blobId)
+
+            assertEquals(testBucket, requestSlot.captured.bucket())
+            assertEquals("${testPrefix}to-delete", requestSlot.captured.key())
+        }
+
+        @Test
+        fun `should not throw when deleting non-existent blob`() = runTest {
+            val blobId = BlobId("non-existent")
+
+            coEvery {
+                mockClient.deleteObject(any<DeleteObjectRequest>())
+            } returns CompletableFuture.failedFuture(
+                NoSuchKeyException.builder().message("Not found").build()
+            )
+
+            // Should not throw
+            storage.deleteBlob(blobId)
+        }
+    }
+
+    @Nested
+    @DisplayName("connectionInfo and displayName")
+    inner class InfoTests {
+
+        @Test
+        fun `should return correct connection info`() {
+            val info = storage.connectionInfo()
+
+            assertEquals("s3", info.type)
+            assertEquals(testBucket, info.config["bucket"])
+            assertEquals(testPrefix, info.config["prefix"])
+        }
+
+        @Test
+        fun `should return display name with bucket`() {
+            val name = storage.displayName()
+
+            assert(name.contains(testBucket))
+            assert(name.contains("S3"))
+        }
+    }
+
+    @Nested
+    @DisplayName("Error handling")
+    inner class ErrorHandlingTests {
+
+        @Test
+        fun `should throw InvalidCredentialsException for invalid access key`() = runTest {
+            val blobId = BlobId("test-blob")
+
+            coEvery {
+                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.failedFuture(
+                S3Exception.builder()
+                    .message("InvalidAccessKeyId")
+                    .statusCode(403)
+                    .build()
+            )
+
+            assertThrows<InvalidCredentialsException> {
+                storage.getBlob(blobId)
+            }
+        }
+
+        @Test
+        fun `should throw InvalidCredentialsException for expired token`() = runTest {
+            val blobId = BlobId("test-blob")
+
+            coEvery {
+                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns CompletableFuture.failedFuture(
+                S3Exception.builder()
+                    .message("ExpiredToken")
+                    .statusCode(403)
+                    .build()
+            )
+
+            assertThrows<InvalidCredentialsException> {
+                storage.getBlob(blobId)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Storage class configuration")
+    inner class StorageClassTests {
+
+        @Test
+        fun `should use storage class from config for matching prefix`() = runTest {
+            val storageWithConfig = S3BlobStorage.createWithClient(
+                client = mockClient,
+                options = S3Options(bucketName = testBucket, prefix = testPrefix),
+                storageConfig = S3StorageConfig(
+                    blobOptions = listOf(
+                        PrefixAndStorageClass(prefix = "p", storageClass = "GLACIER"),
+                        PrefixAndStorageClass(prefix = "n", storageClass = "STANDARD_IA")
+                    )
+                )
+            )
+
+            val requestSlot = slot<PutObjectRequest>()
+
+            coEvery {
+                mockClient.putObject(capture(requestSlot), any<AsyncRequestBody>())
+            } returns CompletableFuture.completedFuture(PutObjectResponse.builder().build())
+
+            storageWithConfig.putBlob(BlobId("pabc123"), "data".toByteArray())
+
+            assertEquals("GLACIER", requestSlot.captured.storageClass()?.toString())
+        }
+    }
+}

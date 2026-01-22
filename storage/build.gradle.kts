@@ -27,6 +27,7 @@ dependencies {
 
     // AWS S3
     implementation(libs.aws.s3)
+    implementation(libs.aws.netty)
 
     // WebDAV
     implementation(libs.sardine)

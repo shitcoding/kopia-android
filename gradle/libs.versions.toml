@@ -102,6 +102,7 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 
 # AWS S3
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws" }
+aws-netty = { module = "software.amazon.awssdk:netty-nio-client", version.ref = "aws" }
 
 # Storage backends
 sardine = { module = "com.github.lookfirst:sardine", version.ref = "sardine" }
