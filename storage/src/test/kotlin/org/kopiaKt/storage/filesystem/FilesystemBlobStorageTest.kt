@@ -47,17 +47,30 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
         @Test
         fun `should create sharded directory structure`() = runTest {
             val storage = createStorage() as FilesystemBlobStorage
-            val blobId = org.kopiaKt.core.blob.BlobId("pabc123def")
-            val data = "test data".toByteArray()
 
-            storage.putBlob(blobId, data)
+            // Short blob IDs (< 20 chars) are stored at root with .f suffix
+            val shortBlobId = org.kopiaKt.core.blob.BlobId("pabc123def")
+            val shortData = "short data".toByteArray()
+            storage.putBlob(shortBlobId, shortData)
 
-            // Should create sharded path: basePath/p/pabc123def
-            val shardDir = storageDir!!.resolve("p")
-            val blobFile = shardDir.resolve("pabc123def")
+            // Short blob should be at root with .f suffix
+            val shortBlobFile = storageDir!!.resolve("pabc123def.f")
+            assertTrue(shortBlobFile.exists(), "Short blob file should exist at root with .f suffix")
 
-            assertTrue(shardDir.exists(), "Shard directory should exist")
-            assertTrue(blobFile.exists(), "Blob file should exist")
+            // Long blob IDs (>= 20 chars) use sharding [1, 3]
+            // For "pabc123def456789012345", sharding creates: p/abc/123def456789012345.f
+            val longBlobId = org.kopiaKt.core.blob.BlobId("pabc123def456789012345")
+            val longData = "long data".toByteArray()
+            storage.putBlob(longBlobId, longData)
+
+            // Should create sharded path: basePath/p/abc/123def456789012345.f
+            val shardDir1 = storageDir!!.resolve("p")
+            val shardDir2 = shardDir1.resolve("abc")
+            val longBlobFile = shardDir2.resolve("123def456789012345.f")
+
+            assertTrue(shardDir1.exists(), "First shard directory should exist")
+            assertTrue(shardDir2.exists(), "Second shard directory should exist")
+            assertTrue(longBlobFile.exists(), "Long blob file should exist with sharding")
         }
 
         @Test
