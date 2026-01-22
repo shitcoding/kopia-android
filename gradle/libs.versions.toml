@@ -14,6 +14,7 @@ compileSdk = "35"
 # AndroidX
 core-ktx = "1.15.0"
 appcompat = "1.7.0"
+documentfile = "1.0.1"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
 work = "2.10.0"
@@ -44,6 +45,7 @@ sshj = "0.39.0"   # SFTP
 junit5 = "5.11.3"
 mockk = "1.13.14"
 robolectric = "4.14.1"
+robolectric-junit5 = "0.9.0"
 espresso = "3.6.1"
 androidx-test = "1.6.1"
 androidx-test-runner = "1.6.2"
@@ -73,6 +75,7 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 
 # Compose
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
@@ -115,6 +118,7 @@ junit5-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+robolectric-junit5 = { module = "tech.apter.junit5.jupiter:robolectric-extension", version.ref = "robolectric-junit5" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
@@ -145,3 +149,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectric-junit5" }

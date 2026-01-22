@@ -2,6 +2,10 @@ package org.kopiaKt.android.storage
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -12,45 +16,91 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.blob.BlobVolume
+import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
+import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RetentionMode
+import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.time.Instant
 
 /**
  * Storage Access Framework (SAF) based blob storage for Android.
  *
- * This allows storing backups on external SD cards and other
- * storage providers accessible via SAF.
+ * This allows storing backups on external SD cards, USB storage,
+ * and other storage providers accessible via SAF.
+ *
+ * Features:
+ * - Sharded directory structure for performance
+ * - Atomic writes (temp file + rename)
+ * - Storage capacity queries
+ * - Permission persistence support
+ * - Read-only mode
  */
-class SafBlobStorage(
+class SafBlobStorage private constructor(
     private val context: Context,
-    private val rootUri: Uri
-) : BlobStorage {
-
-    /**
-     * Number of characters from blob ID to use for sharding.
-     */
-    private val shardLength = 1
+    private val rootUri: Uri,
+    private val options: SafOptions,
+    private val shardingParams: SafShardingParameters,
+    private val readOnlyMode: Boolean
+) : BlobStorage, BlobVolume {
 
     private val rootDocument: DocumentFile by lazy {
         DocumentFile.fromTreeUri(context, rootUri)
             ?: throw IllegalArgumentException("Invalid root URI: $rootUri")
     }
 
+    /**
+     * Cache of shard directories to avoid repeated lookups.
+     * Maps shard path (e.g., "p" or "p/ack") to DocumentFile.
+     */
+    private val shardDirCache = mutableMapOf<String, DocumentFile>()
+
     override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
         withContext(Dispatchers.IO) {
+            // Validate parameters
+            if (offset < 0) {
+                throw InvalidBlobRangeException("Negative offset not allowed: $offset")
+            }
+            if (length < -1) {
+                throw InvalidBlobRangeException("Invalid length: $length")
+            }
+
             val blobFile = findBlobFile(blobId)
                 ?: throw BlobNotFoundException(blobId)
 
             context.contentResolver.openInputStream(blobFile.uri)?.use { stream ->
                 val bytes = stream.readBytes()
+                val fileSize = bytes.size
 
-                if (offset == 0L && length == -1L) {
-                    bytes
-                } else {
-                    val actualLength = if (length == -1L) bytes.size - offset.toInt() else length.toInt()
-                    bytes.copyOfRange(offset.toInt(), offset.toInt() + actualLength)
+                // Validate range
+                if (offset > fileSize) {
+                    throw InvalidBlobRangeException(
+                        "Offset $offset exceeds file size $fileSize for blob $blobId"
+                    )
+                }
+
+                when {
+                    length == 0L -> byteArrayOf()
+                    offset == 0L && length == -1L -> bytes
+                    else -> {
+                        val actualLength = if (length == -1L) {
+                            fileSize - offset.toInt()
+                        } else {
+                            minOf(length.toInt(), fileSize - offset.toInt())
+                        }
+
+                        if (actualLength < 0) {
+                            throw InvalidBlobRangeException(
+                                "Invalid range: offset=$offset, length=$length, fileSize=$fileSize"
+                            )
+                        }
+
+                        bytes.copyOfRange(offset.toInt(), offset.toInt() + actualLength)
+                    }
                 }
             } ?: throw IOException("Could not open blob: $blobId")
         }
@@ -67,99 +117,480 @@ class SafBlobStorage(
         }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
-        for (shardDir in rootDocument.listFiles()) {
-            if (!shardDir.isDirectory) continue
+        listBlobsRecursive(rootDocument, prefix, "")
+            .collect { emit(it) }
+    }.flowOn(Dispatchers.IO)
 
-            for (blobFile in shardDir.listFiles()) {
-                val name = blobFile.name ?: continue
-                if (name.startsWith(prefix)) {
+    private fun listBlobsRecursive(
+        dir: DocumentFile,
+        prefix: String,
+        currentPath: String
+    ): Flow<BlobMetadata> = flow {
+        for (file in dir.listFiles()) {
+            val fileName = file.name ?: continue
+
+            if (file.isDirectory) {
+                // Recurse into subdirectories
+                listBlobsRecursive(file, prefix, "$currentPath$fileName/")
+                    .collect { emit(it) }
+            } else if (fileName.endsWith(COMPLETE_BLOB_SUFFIX)) {
+                // Remove suffix to get blob ID
+                val blobId = fileName.removeSuffix(COMPLETE_BLOB_SUFFIX)
+                val fullBlobId = reconstructBlobId(currentPath, blobId)
+
+                if (fullBlobId.startsWith(prefix)) {
                     emit(
                         BlobMetadata(
-                            blobId = BlobId(name),
-                            length = blobFile.length(),
-                            timestamp = Instant.ofEpochMilli(blobFile.lastModified())
+                            blobId = BlobId(fullBlobId),
+                            length = file.length(),
+                            timestamp = Instant.ofEpochMilli(file.lastModified())
                         )
                     )
                 }
             }
         }
-    }.flowOn(Dispatchers.IO)
+    }
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
         withContext(Dispatchers.IO) {
+            if (readOnlyMode) {
+                throw IOException("Storage is in read-only mode")
+            }
+
+            // Check for unsupported options
+            if (options.retentionMode != RetentionMode.NONE) {
+                throw UnsupportedPutOptionException("retentionMode")
+            }
+
             val existingFile = findBlobFile(blobId)
 
             if (options.dontOverwrite && existingFile != null) {
                 return@withContext
             }
 
-            // Get or create shard directory
-            val shardName = getShardName(blobId)
-            val shardDir = rootDocument.findFile(shardName)
-                ?: rootDocument.createDirectory(shardName)
-                ?: throw IOException("Could not create shard directory: $shardName")
+            // Get or create shard directory structure
+            val (shardDir, fileName) = getBlobPathComponents(blobId)
+            val targetDir = getOrCreateShardDir(shardDir)
 
             // Delete existing file if present
             existingFile?.delete()
 
-            // Create new file
-            val blobFile = shardDir.createFile("application/octet-stream", blobId.value)
-                ?: throw IOException("Could not create blob file: $blobId")
+            if (this@SafBlobStorage.options.atomicWrites) {
+                // Atomic write: create temp file, write, then rename
+                val tempFileName = "$fileName.tmp.${System.nanoTime()}"
+                val tempFile = targetDir.createFile("application/octet-stream", tempFileName)
+                    ?: throw IOException("Could not create temp file: $tempFileName")
 
-            // Write data
-            context.contentResolver.openOutputStream(blobFile.uri)?.use { stream ->
-                stream.write(data)
-            } ?: throw IOException("Could not write to blob: $blobId")
+                try {
+                    // Write data to temp file
+                    context.contentResolver.openOutputStream(tempFile.uri)?.use { stream ->
+                        stream.write(data)
+                    } ?: throw IOException("Could not write to temp file: $tempFileName")
+
+                    // Rename to final name
+                    val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
+                    if (!tempFile.renameTo(finalFileName)) {
+                        throw IOException("Could not rename temp file to: $finalFileName")
+                    }
+
+                    // Set modification time if requested
+                    val modTime = options.setModTime
+                    if (modTime != null) {
+                        // Note: DocumentFile.setLastModified() is not available
+                        // We use DocumentsContract directly for this
+                        setLastModified(tempFile.uri, modTime.toEpochMilli())
+                    }
+                } catch (e: Exception) {
+                    // Clean up temp file on error
+                    tempFile.delete()
+                    throw e
+                }
+            } else {
+                // Direct write (non-atomic)
+                val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
+                val blobFile = targetDir.createFile("application/octet-stream", finalFileName)
+                    ?: throw IOException("Could not create blob file: $finalFileName")
+
+                context.contentResolver.openOutputStream(blobFile.uri)?.use { stream ->
+                    stream.write(data)
+                } ?: throw IOException("Could not write to blob: $blobId")
+
+                // Set modification time if requested
+                val modTime = options.setModTime
+                if (modTime != null) {
+                    setLastModified(blobFile.uri, modTime.toEpochMilli())
+                }
+            }
         }
 
+    /**
+     * Attempts to set the last modified time of a document.
+     * This may fail silently on some storage providers.
+     */
+    private fun setLastModified(uri: Uri, timeMillis: Long) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val values = android.content.ContentValues().apply {
+                    put(DocumentsContract.Document.COLUMN_LAST_MODIFIED, timeMillis)
+                }
+                context.contentResolver.update(uri, values, null, null)
+            }
+        } catch (_: Exception) {
+            // Ignore - not all providers support setting modification time
+        }
+    }
+
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
+        if (readOnlyMode) {
+            throw IOException("Storage is in read-only mode")
+        }
+
         findBlobFile(blobId)?.delete()
         Unit
     }
 
     override fun connectionInfo(): ConnectionInfo = ConnectionInfo(
         type = "saf",
-        config = mapOf("uri" to rootUri.toString())
+        config = mapOf(
+            "uri" to rootUri.toString(),
+            "shards" to shardingParams.default.joinToString(",")
+        )
     )
 
-    override fun displayName(): String = rootUri.path ?: rootUri.toString()
+    override fun displayName(): String = "SAF: ${rootUri.path ?: rootUri.toString()}"
+
+    override fun isReadOnly(): Boolean = readOnlyMode
+
+    @Suppress("DEPRECATION")
+    override suspend fun getCapacity(): Capacity = withContext(Dispatchers.IO) {
+        // Try to get capacity from StorageManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+
+            if (storageManager != null) {
+                val volumes = storageManager.storageVolumes
+                val matchingVolume = findMatchingStorageVolume(volumes)
+
+                if (matchingVolume != null) {
+                    try {
+                        val uuid = matchingVolume.uuid?.let { java.util.UUID.fromString(it) }
+                            ?: StorageManager.UUID_DEFAULT
+
+                        @Suppress("NewApi")
+                        val totalBytes = storageManager.getAllocatableBytes(uuid)
+                        @Suppress("NewApi")
+                        val freeBytes = storageManager.getAllocatableBytes(uuid)
+
+                        return@withContext Capacity(
+                            sizeBytes = totalBytes,
+                            freeBytes = freeBytes
+                        )
+                    } catch (_: Exception) {
+                        // Fall through to alternative method
+                    }
+                }
+            }
+        }
+
+        // Fallback: use DocumentFile-based estimation
+        // This is less accurate but works on older Android versions
+        val rootFile = rootDocument
+        if (rootFile.canRead()) {
+            // We can't accurately determine capacity from SAF alone
+            // Return a placeholder that indicates unknown capacity
+            Capacity(
+                sizeBytes = -1L,
+                freeBytes = -1L
+            )
+        } else {
+            throw IOException("Cannot read from storage")
+        }
+    }
+
+    /**
+     * Finds the StorageVolume that matches our root URI.
+     */
+    private fun findMatchingStorageVolume(volumes: List<StorageVolume>): StorageVolume? {
+        val uriPath = rootUri.path ?: return null
+
+        // Try to match based on path components
+        return volumes.find { volume ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val volumeDir = volume.directory
+                volumeDir != null && uriPath.contains(volumeDir.name)
+            } else {
+                // On older versions, check the description
+                val desc = volume.getDescription(context)
+                desc != null && uriPath.contains(desc, ignoreCase = true)
+            }
+        }
+    }
 
     /**
      * Finds the DocumentFile for a blob, or null if not found.
      */
     private fun findBlobFile(blobId: BlobId): DocumentFile? {
-        val shardName = getShardName(blobId)
-        val shardDir = rootDocument.findFile(shardName) ?: return null
-        return shardDir.findFile(blobId.value)
+        val (shardPath, fileName) = getBlobPathComponents(blobId)
+        val shardDir = findShardDir(shardPath) ?: return null
+        return shardDir.findFile("$fileName$COMPLETE_BLOB_SUFFIX")
     }
 
     /**
-     * Gets the shard directory name for a blob ID.
+     * Gets the shard path and file name for a blob ID.
+     *
+     * For example, with shards [1, 3] and blob ID "pack-abc123":
+     * - If length > maxNonShardedLength: shardPath = "p/ack", fileName = "-abc123"
+     * - Otherwise: shardPath = "", fileName = "pack-abc123"
      */
-    private fun getShardName(blobId: BlobId): String {
+    private fun getBlobPathComponents(blobId: BlobId): Pair<String, String> {
         val id = blobId.value
-        return if (id.length > shardLength) id.substring(0, shardLength) else id
+
+        // Check for prefix-specific sharding
+        val shards = shardingParams.overrides
+            .find { id.startsWith(it.prefix) }
+            ?.shards
+            ?: shardingParams.default
+
+        // Short blob IDs are not sharded
+        if (id.length <= shardingParams.maxNonShardedLength) {
+            return "" to id
+        }
+
+        // Build shard path
+        val shardParts = mutableListOf<String>()
+        var consumed = 0
+
+        for (shardLen in shards) {
+            if (consumed + shardLen > id.length) break
+            shardParts.add(id.substring(consumed, consumed + shardLen))
+            consumed += shardLen
+        }
+
+        val shardPath = shardParts.joinToString("/")
+        val fileName = id.substring(consumed)
+
+        return shardPath to fileName
+    }
+
+    /**
+     * Reconstructs the full blob ID from shard path and file name.
+     */
+    private fun reconstructBlobId(shardPath: String, fileName: String): String {
+        return if (shardPath.isEmpty()) {
+            fileName
+        } else {
+            shardPath.replace("/", "") + fileName
+        }
+    }
+
+    /**
+     * Finds a shard directory by path, or null if not found.
+     */
+    private fun findShardDir(shardPath: String): DocumentFile? {
+        if (shardPath.isEmpty()) {
+            return rootDocument
+        }
+
+        // Check cache first
+        val cached = shardDirCache[shardPath]
+        if (cached != null) {
+            return cached
+        }
+
+        // Navigate through the path
+        var current: DocumentFile = rootDocument
+        for (part in shardPath.split("/")) {
+            val next = current.findFile(part) ?: return null
+            if (!next.isDirectory) return null
+            current = next
+        }
+
+        // Cache the result
+        shardDirCache[shardPath] = current
+        return current
+    }
+
+    /**
+     * Gets or creates a shard directory by path.
+     */
+    private fun getOrCreateShardDir(shardPath: String): DocumentFile {
+        if (shardPath.isEmpty()) {
+            return rootDocument
+        }
+
+        // Check cache first
+        val cached = shardDirCache[shardPath]
+        if (cached != null) {
+            return cached
+        }
+
+        // Navigate/create through the path
+        var current: DocumentFile = rootDocument
+        val parts = shardPath.split("/")
+        var currentPath = ""
+
+        for (part in parts) {
+            currentPath = if (currentPath.isEmpty()) part else "$currentPath/$part"
+
+            // Check cache for this intermediate path
+            val cachedIntermediate = shardDirCache[currentPath]
+            if (cachedIntermediate != null) {
+                current = cachedIntermediate
+            } else {
+                val existing = current.findFile(part)
+                current = if (existing?.isDirectory == true) {
+                    existing
+                } else {
+                    current.createDirectory(part)
+                        ?: throw IOException("Could not create shard directory: $currentPath")
+                }
+
+                // Cache the intermediate result
+                shardDirCache[currentPath] = current
+            }
+        }
+
+        return current
+    }
+
+    /**
+     * Clears the shard directory cache.
+     * Call this if external changes may have modified the directory structure.
+     */
+    fun clearCache() {
+        shardDirCache.clear()
+    }
+
+    override suspend fun flushCaches() {
+        clearCache()
     }
 
     companion object {
+        /**
+         * Suffix added to blob files to indicate they are complete.
+         * This matches the WebDAV implementation.
+         */
+        private const val COMPLETE_BLOB_SUFFIX = ".f"
+
         /**
          * Creates SAF blob storage from a granted tree URI.
          *
          * The URI should be obtained via Intent.ACTION_OPEN_DOCUMENT_TREE
          * and persisted via ContentResolver.takePersistableUriPermission().
+         *
+         * @param context Android context
+         * @param treeUri Tree URI for the storage location
+         * @param options Configuration options
+         * @throws SecurityException if the app doesn't have persisted permission for the URI
+         * @throws IllegalArgumentException if the URI is invalid
          */
-        fun create(context: Context, treeUri: Uri): SafBlobStorage {
+        fun create(
+            context: Context,
+            treeUri: Uri,
+            options: SafOptions = SafOptions(treeUri = treeUri)
+        ): SafBlobStorage {
             // Verify we have permission
             val permissions = context.contentResolver.persistedUriPermissions
-            val hasPermission = permissions.any {
-                it.uri == treeUri && it.isReadPermission && it.isWritePermission
+            val hasReadPermission = permissions.any { it.uri == treeUri && it.isReadPermission }
+            val hasWritePermission = permissions.any { it.uri == treeUri && it.isWritePermission }
+
+            if (!hasReadPermission) {
+                throw SecurityException("No persisted read permission for URI: $treeUri")
             }
 
-            if (!hasPermission) {
-                throw SecurityException("No persisted permission for URI: $treeUri")
+            if (!hasWritePermission && !options.readOnly) {
+                throw SecurityException("No persisted write permission for URI: $treeUri (use readOnly=true)")
             }
 
-            return SafBlobStorage(context, treeUri)
+            // Load or create sharding parameters
+            val shardingParams = loadShardingParams(context, treeUri)
+                ?: SafShardingParameters(
+                    default = options.directoryShards,
+                    maxNonShardedLength = options.maxNonShardedLength
+                )
+
+            return SafBlobStorage(
+                context = context,
+                rootUri = treeUri,
+                options = options,
+                shardingParams = shardingParams,
+                readOnlyMode = options.readOnly
+            )
+        }
+
+        /**
+         * Creates SAF blob storage for testing with custom sharding parameters.
+         */
+        internal fun createForTesting(
+            context: Context,
+            treeUri: Uri,
+            options: SafOptions,
+            shardingParams: SafShardingParameters,
+            skipPermissionCheck: Boolean = false
+        ): SafBlobStorage {
+            if (!skipPermissionCheck) {
+                val permissions = context.contentResolver.persistedUriPermissions
+                val hasReadPermission = permissions.any { it.uri == treeUri && it.isReadPermission }
+
+                if (!hasReadPermission) {
+                    throw SecurityException("No persisted read permission for URI: $treeUri")
+                }
+            }
+
+            return SafBlobStorage(
+                context = context,
+                rootUri = treeUri,
+                options = options,
+                shardingParams = shardingParams,
+                readOnlyMode = options.readOnly
+            )
+        }
+
+        /**
+         * Loads sharding parameters from the .shards file in the storage root.
+         */
+        private fun loadShardingParams(context: Context, treeUri: Uri): SafShardingParameters? {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+            val shardsFile = root.findFile(".shards") ?: return null
+
+            return try {
+                context.contentResolver.openInputStream(shardsFile.uri)?.use { stream ->
+                    val json = stream.bufferedReader().readText()
+                    kotlinx.serialization.json.Json.decodeFromString(
+                        SafShardingParameters.serializer(),
+                        json
+                    )
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /**
+         * Saves sharding parameters to the .shards file in the storage root.
+         */
+        suspend fun saveShardingParams(
+            context: Context,
+            treeUri: Uri,
+            params: SafShardingParameters
+        ) = withContext(Dispatchers.IO) {
+            val root = DocumentFile.fromTreeUri(context, treeUri)
+                ?: throw IllegalArgumentException("Invalid root URI: $treeUri")
+
+            // Delete existing file if present
+            root.findFile(".shards")?.delete()
+
+            // Create new file
+            val shardsFile = root.createFile("application/json", ".shards")
+                ?: throw IOException("Could not create .shards file")
+
+            context.contentResolver.openOutputStream(shardsFile.uri)?.use { stream ->
+                val json = kotlinx.serialization.json.Json.encodeToString(
+                    SafShardingParameters.serializer(),
+                    params
+                )
+                stream.write(json.toByteArray())
+            } ?: throw IOException("Could not write .shards file")
         }
     }
 }

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.robolectric.junit5)
 }
 
 android {
@@ -58,6 +59,7 @@ dependencies {
     implementation(libs.bundles.lifecycle)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.documentfile)
 
     // Cryptography (Android)
     implementation(libs.bundles.bouncycastle)
@@ -68,6 +70,7 @@ dependencies {
     // Unit Testing
     testImplementation(libs.bundles.testing.unit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.robolectric.junit5)
     testImplementation(libs.androidx.work.testing)
     testRuntimeOnly(libs.junit5.engine)
 
