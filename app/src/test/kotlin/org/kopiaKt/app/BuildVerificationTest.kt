@@ -3,11 +3,12 @@ package org.kopiaKt.app
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.kopiaKt.core.blob.BlobId
-import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.snapshot.model.SourceInfo
+import org.kopiaKt.snapshot.policy.CompressionPolicy
 import org.kopiaKt.snapshot.policy.Policy
+import org.kopiaKt.snapshot.policy.SplitterPolicy
 
 /**
  * Build verification tests for the app module.
@@ -23,7 +24,6 @@ class BuildVerificationTest {
 
         assertThat(HashAlgorithm.DEFAULT).isEqualTo(HashAlgorithm.BLAKE2B_256_128)
         assertThat(EncryptionAlgorithm.DEFAULT).isEqualTo(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256)
-        assertThat(CompressionAlgorithm.DEFAULT).isEqualTo(CompressionAlgorithm.ZSTD)
     }
 
     @Test
@@ -32,7 +32,8 @@ class BuildVerificationTest {
         assertThat(source.toString()).isEqualTo("user@host:/path")
 
         val policy = Policy()
-        assertThat(policy.compression.compressorName).isEqualTo("zstd")
+        // Default compression policy has empty compressor name (inherits from parent policy)
+        assertThat(policy.compressionPolicy.compressorName).isEqualTo("")
     }
 
     @Test
@@ -47,16 +48,16 @@ class BuildVerificationTest {
         )
 
         val policy = Policy(
-            compression = org.kopiaKt.snapshot.policy.CompressionPolicy(
-                compressorName = CompressionAlgorithm.ZSTD.id
+            compressionPolicy = CompressionPolicy(
+                compressorName = "zstd"
             ),
-            splitter = org.kopiaKt.snapshot.policy.SplitterPolicy(
-                algorithm = org.kopiaKt.core.splitter.SplitterAlgorithm.DYNAMIC_4M_BUZHASH.id
+            splitterPolicy = SplitterPolicy(
+                algorithm = "DYNAMIC-4M-BUZHASH"
             )
         )
 
         assertThat(source.host).isEqualTo("android-device")
-        assertThat(policy.compression.compressorName).isEqualTo("zstd")
-        assertThat(policy.splitter.algorithm).isEqualTo("DYNAMIC-4M-BUZHASH")
+        assertThat(policy.compressionPolicy.compressorName).isEqualTo("zstd")
+        assertThat(policy.splitterPolicy.algorithm).isEqualTo("DYNAMIC-4M-BUZHASH")
     }
 }
