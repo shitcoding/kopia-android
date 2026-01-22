@@ -23,10 +23,12 @@ data class RepositoryConfig(
     /** Space overhead percentage for ECC. */
     val eccOverheadPercent: Int = 0,
 
-    /** HMAC secret used to generate encryption keys. */
+    /** HMAC secret used to generate encryption keys. Go stores this as base64. */
+    @Serializable(with = ByteArrayBase64Serializer::class)
     val secret: ByteArray = ByteArray(0),
 
-    /** Master encryption key. */
+    /** Master encryption key. Go stores this as base64. */
+    @Serializable(with = ByteArrayBase64Serializer::class)
     val masterKey: ByteArray = ByteArray(0),
 
     /** Format version number. */

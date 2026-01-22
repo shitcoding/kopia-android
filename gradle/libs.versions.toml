@@ -126,6 +126,7 @@ turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test-runner" }
 androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidx-test" }
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version = "1.2.1" }
 espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 
 [bundles]
@@ -135,7 +136,7 @@ compose-debug = ["compose-ui-tooling", "compose-ui-test-manifest"]
 lifecycle = ["androidx-lifecycle-runtime-ktx", "androidx-lifecycle-viewmodel-ktx", "androidx-lifecycle-viewmodel-compose"]
 ktor = ["ktor-client-core", "ktor-client-okhttp", "ktor-client-content-negotiation", "ktor-serialization-json"]
 testing-unit = ["junit5-api", "junit5-params", "mockk", "truth", "kotlinx-coroutines-test", "turbine"]
-testing-android = ["androidx-test-core", "androidx-test-runner", "androidx-test-rules", "espresso-core", "mockk-android"]
+testing-android = ["androidx-test-core", "androidx-test-runner", "androidx-test-rules", "androidx-test-ext-junit", "espresso-core", "mockk-android"]
 bouncycastle = ["bouncycastle-provider", "bouncycastle-pkix"]
 compression = ["zstd-jni", "lz4-java"]
 

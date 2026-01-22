@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -32,7 +31,6 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Nested
     @DisplayName("Go Creates, Kotlin Opens")
-    @Disabled("Requires encryption/key derivation compatibility with Go - see InvalidPasswordException")
     inner class GoCreatesKotlinOpens {
 
         @Test
@@ -43,18 +41,8 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
             // Create repository with Go
             createRepositoryWithGo()
 
-            // Debug: print the format blob
-            val formatBlobPath = repoDir.resolve("kopia.repository.f")
-            println("Format blob path: $formatBlobPath")
-            println("Format blob exists: ${formatBlobPath.exists()}")
-            if (formatBlobPath.exists()) {
-                val formatBlobContent = formatBlobPath.toFile().readText()
-                println("Format blob content (first 500 chars): ${formatBlobContent.take(500)}")
-            }
-            println("Test password being used: '$testPassword'")
-
             // Verify repository files exist (Go Kopia uses .f suffix)
-            assertThat(formatBlobPath.exists()).isTrue()
+            assertThat(repoDir.resolve("kopia.repository.f").exists()).isTrue()
 
             // Open with Kotlin
             val repo = openRepositoryWithKotlin()
@@ -169,7 +157,6 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Nested
     @DisplayName("Object Operations")
-    @Disabled("Requires encryption/key derivation compatibility with Go - see InvalidPasswordException")
     inner class ObjectOperations {
 
         @Test
@@ -245,7 +232,6 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Nested
     @DisplayName("Manifest Operations")
-    @Disabled("Requires encryption/key derivation compatibility with Go - see InvalidPasswordException")
     inner class ManifestOperations {
 
         @Test
@@ -319,7 +305,6 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should fail gracefully with wrong password")
-        @Disabled("Requires encryption/key derivation compatibility with Go")
         fun wrongPassword() = runTest {
             requireGoKopia()
 

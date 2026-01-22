@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.kopiaKt.core.crypto.HkdfSha256KeyDerivation
 import org.kopiaKt.core.crypto.deriveKeyFromPassword
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -184,37 +185,82 @@ data class KopiaRepositoryJson(
 }
 
 // AES-256-GCM encryption/decryption for repository format blob
+//
+// Go Kopia uses a two-level key derivation:
+// 1. Password -> MasterKey (via scrypt or pbkdf2)
+// 2. MasterKey -> AES Key (via HKDF with info="AES")
+// 3. MasterKey -> AuthData (via HKDF with info="CHECKSUM")
+//
+// The salt for HKDF is the uniqueID (repositoryID).
 
 private const val GCM_NONCE_SIZE = 12
 private const val GCM_TAG_SIZE = 128 // bits
+private const val HKDF_KEY_LENGTH = 32
+
+// Purpose strings matching Go Kopia's constants
+private const val PURPOSE_AES_KEY = "AES"
+private const val PURPOSE_AUTH_DATA = "CHECKSUM"
+
+/**
+ * Derives the AES key and authentication data from master key using HKDF.
+ *
+ * @param masterKey The derived master key (from password)
+ * @param salt The salt (uniqueID/repositoryID)
+ * @return Pair of (aesKey, authData)
+ */
+private fun deriveAesKeyAndAuthData(masterKey: ByteArray, salt: ByteArray): Pair<ByteArray, ByteArray> {
+    val hkdf = HkdfSha256KeyDerivation()
+
+    val aesKey = hkdf.derive(
+        masterKey = masterKey,
+        salt = salt,
+        info = PURPOSE_AES_KEY.toByteArray(Charsets.UTF_8),
+        length = HKDF_KEY_LENGTH
+    )
+
+    val authData = hkdf.derive(
+        masterKey = masterKey,
+        salt = salt,
+        info = PURPOSE_AUTH_DATA.toByteArray(Charsets.UTF_8),
+        length = HKDF_KEY_LENGTH
+    )
+
+    return aesKey to authData
+}
 
 /**
  * Decrypts repository blob bytes using AES-256-GCM.
  *
+ * Go Kopia derives the actual AES key and auth data from the master key
+ * using HKDF before performing decryption.
+ *
  * @param ciphertext The encrypted data (nonce + ciphertext + tag)
- * @param key The 32-byte encryption key
- * @param associatedData Additional authenticated data (uniqueID)
+ * @param masterKey The 32-byte master key (derived from password)
+ * @param salt The salt (uniqueID) used for HKDF derivation
  * @return The decrypted plaintext, or null if decryption fails
  */
 private fun decryptRepositoryBlobBytesAes256Gcm(
     ciphertext: ByteArray,
-    key: ByteArray,
-    associatedData: ByteArray
+    masterKey: ByteArray,
+    salt: ByteArray
 ): ByteArray? {
     if (ciphertext.size < GCM_NONCE_SIZE) {
         return null
     }
 
     return try {
+        // Derive AES key and auth data using HKDF (matching Go Kopia)
+        val (aesKey, authData) = deriveAesKeyAndAuthData(masterKey, salt)
+
         val nonce = ciphertext.copyOfRange(0, GCM_NONCE_SIZE)
         val encryptedData = ciphertext.copyOfRange(GCM_NONCE_SIZE, ciphertext.size)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val keySpec = SecretKeySpec(key, "AES")
+        val keySpec = SecretKeySpec(aesKey, "AES")
         val gcmSpec = GCMParameterSpec(GCM_TAG_SIZE, nonce)
 
         cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec)
-        cipher.updateAAD(associatedData)
+        cipher.updateAAD(authData)
         cipher.doFinal(encryptedData)
     } catch (e: Exception) {
         null
@@ -224,25 +270,31 @@ private fun decryptRepositoryBlobBytesAes256Gcm(
 /**
  * Encrypts repository blob bytes using AES-256-GCM.
  *
+ * Go Kopia derives the actual AES key and auth data from the master key
+ * using HKDF before performing encryption.
+ *
  * @param plaintext The data to encrypt
- * @param key The 32-byte encryption key
- * @param associatedData Additional authenticated data (uniqueID)
+ * @param masterKey The 32-byte master key (derived from password)
+ * @param salt The salt (uniqueID) used for HKDF derivation
  * @return The encrypted data (nonce + ciphertext + tag)
  */
 private fun encryptRepositoryBlobBytesAes256Gcm(
     plaintext: ByteArray,
-    key: ByteArray,
-    associatedData: ByteArray
+    masterKey: ByteArray,
+    salt: ByteArray
 ): ByteArray {
+    // Derive AES key and auth data using HKDF (matching Go Kopia)
+    val (aesKey, authData) = deriveAesKeyAndAuthData(masterKey, salt)
+
     val nonce = ByteArray(GCM_NONCE_SIZE)
     SecureRandom().nextBytes(nonce)
 
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-    val keySpec = SecretKeySpec(key, "AES")
+    val keySpec = SecretKeySpec(aesKey, "AES")
     val gcmSpec = GCMParameterSpec(GCM_TAG_SIZE, nonce)
 
     cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec)
-    cipher.updateAAD(associatedData)
+    cipher.updateAAD(authData)
     val encrypted = cipher.doFinal(plaintext)
 
     return nonce + encrypted

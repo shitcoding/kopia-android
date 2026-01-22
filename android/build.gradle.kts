@@ -39,6 +39,28 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+
+        // Configure instrumented tests
+        animationsDisabled = true
+
+        // Manage device test options
+        managedDevices {
+            localDevices {
+                // For local testing with managed devices
+                // These can be uncommented when running with managed devices
+                // create("pixel2api30") {
+                //     device = "Pixel 2"
+                //     apiLevel = 30
+                //     systemImageSource = "aosp"
+                // }
+            }
+        }
+    }
+
+    // Configure test execution timeout
+    @Suppress("UnstableApiUsage")
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 }
 
@@ -77,6 +99,9 @@ dependencies {
     // Android Instrumented Testing
     androidTestImplementation(libs.bundles.testing.android)
     androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
 }
 
 tasks.withType<Test> {
