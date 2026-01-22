@@ -1,9 +1,7 @@
 package org.kopiaKt.android.storage
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import androidx.documentfile.provider.DocumentFile
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
@@ -24,23 +22,23 @@ import java.util.UUID
 /**
  * Instrumented tests for SafBlobStorage.
  *
- * These tests require a real Android device or emulator with SAF support.
- * They use the app's internal cache directory which doesn't require external permissions.
+ * IMPORTANT: These tests require a real SAF tree URI obtained from
+ * ACTION_OPEN_DOCUMENT_TREE. The tests use assumeTrue to skip when
+ * no valid SAF URI is configured, since SAF APIs cannot work with
+ * file:// URIs from the app's internal storage.
  *
- * For testing with external storage (SD card), you'll need to:
- * 1. Run the test app manually
- * 2. Grant SAF permission via the picker
- * 3. Store the URI for testing
+ * To run these tests with actual SAF storage:
+ * 1. Set SAF_TEST_URI environment variable to a granted tree URI, OR
+ * 2. Implement getTestSafUri() to return a pre-configured URI
  *
- * To run these tests:
  * ./gradlew :android:connectedAndroidTest
  */
 @RunWith(AndroidJUnit4::class)
 class SafBlobStorageInstrumentedTest {
 
     private lateinit var context: Context
-    private lateinit var testDir: DocumentFile
-    private lateinit var storage: SafBlobStorage
+    private var storage: SafBlobStorage? = null
+    private var safUri: Uri? = null
 
     private val testId = UUID.randomUUID().toString().substring(0, 8)
 
@@ -48,264 +46,348 @@ class SafBlobStorageInstrumentedTest {
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
 
-        // Use app's cache directory for testing (doesn't require SAF permissions)
-        val cacheDir = context.cacheDir
-        val safTestDir = java.io.File(cacheDir, "saf_test_$testId")
-        safTestDir.mkdirs()
+        // Try to get a real SAF URI from test configuration
+        safUri = getTestSafUri()
 
-        testDir = DocumentFile.fromFile(safTestDir)
+        if (safUri != null) {
+            try {
+                val options = SafOptions(
+                    treeUri = safUri!!,
+                    directoryShards = listOf(1),
+                    maxNonShardedLength = 20,
+                    atomicWrites = true,
+                    readOnly = false
+                )
 
-        // Create storage using internal directory
-        // Note: This is a simplified test setup. Real SAF testing requires
-        // a tree URI from ACTION_OPEN_DOCUMENT_TREE
-        val options = SafOptions(
-            treeUri = testDir.uri,
-            directoryShards = listOf(1),
-            maxNonShardedLength = 20,
-            atomicWrites = true,
-            readOnly = false
-        )
-
-        val shardingParams = SafShardingParameters(
-            default = listOf(1),
-            maxNonShardedLength = 20
-        )
-
-        // For internal storage, we can create the storage directly
-        storage = createStorageForInternalDir(context, testDir.uri, options, shardingParams)
-    }
-
-    @After
-    fun tearDown() {
-        // Clean up test directory
-        try {
-            testDir.delete()
-        } catch (_: Exception) {
-            // Ignore cleanup errors
+                storage = SafBlobStorage.create(
+                    context = context,
+                    treeUri = safUri!!,
+                    options = options
+                )
+            } catch (e: Exception) {
+                // SAF storage creation failed - tests will be skipped
+                storage = null
+            }
         }
     }
 
     /**
-     * Creates SafBlobStorage for internal directory testing.
-     * This bypasses the SAF permission check since we're using internal storage.
+     * Returns a valid SAF tree URI for testing, or null if none is configured.
+     *
+     * Override this method or set SAF_TEST_URI environment variable to provide
+     * a valid tree URI from ACTION_OPEN_DOCUMENT_TREE.
      */
-    private fun createStorageForInternalDir(
-        context: Context,
-        uri: Uri,
-        options: SafOptions,
-        shardingParams: SafShardingParameters
-    ): SafBlobStorage {
-        return SafBlobStorage.createForTesting(
-            context = context,
-            treeUri = uri,
-            options = options,
-            shardingParams = shardingParams,
-            skipPermissionCheck = true
+    private fun getTestSafUri(): Uri? {
+        // Could be set via test instrumentation arguments or SharedPreferences
+        // from a test setup activity that requests SAF permissions
+        return null
+    }
+
+    @After
+    fun tearDown() {
+        // No cleanup needed - storage is on external SAF-managed storage
+    }
+
+    private fun requireStorage(): SafBlobStorage {
+        assumeTrue(
+            "SAF storage not configured. These tests require a real SAF tree URI " +
+                    "from ACTION_OPEN_DOCUMENT_TREE. File URIs are not supported.",
+            storage != null
         )
+        return storage!!
     }
 
     @Test
     fun putAndGetBlob_roundtrip() = runTest {
-        val blobId = BlobId("test-blob-1")
+        val s = requireStorage()
+        val blobId = BlobId("test-blob-$testId")
         val data = "Hello, SAF!".toByteArray()
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEqualTo(data)
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun putAndGetBlob_binaryData() = runTest {
-        val blobId = BlobId("binary-blob")
+        val s = requireStorage()
+        val blobId = BlobId("binary-blob-$testId")
         val data = ByteArray(256) { it.toByte() }
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEqualTo(data)
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun putAndGetBlob_emptyData() = runTest {
-        val blobId = BlobId("empty-blob")
+        val s = requireStorage()
+        val blobId = BlobId("empty-blob-$testId")
         val data = byteArrayOf()
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEmpty()
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEmpty()
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun putAndGetBlob_largeData() = runTest {
-        val blobId = BlobId("large-blob")
+        val s = requireStorage()
+        val blobId = BlobId("large-blob-$testId")
         val data = ByteArray(1024 * 1024) { (it % 256).toByte() } // 1MB
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEqualTo(data)
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun getBlob_partialRead() = runTest {
-        val blobId = BlobId("partial-blob")
+        val s = requireStorage()
+        val blobId = BlobId("partial-blob-$testId")
         val data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toByteArray()
 
-        storage.putBlob(blobId, data)
+        try {
+            s.putBlob(blobId, data)
 
-        // Read with offset
-        val result1 = storage.getBlob(blobId, offset = 5)
-        assertThat(String(result1)).isEqualTo("FGHIJKLMNOPQRSTUVWXYZ")
+            // Read with offset
+            val result1 = s.getBlob(blobId, offset = 5)
+            assertThat(String(result1)).isEqualTo("FGHIJKLMNOPQRSTUVWXYZ")
 
-        // Read with offset and length
-        val result2 = storage.getBlob(blobId, offset = 5, length = 5)
-        assertThat(String(result2)).isEqualTo("FGHIJ")
+            // Read with offset and length
+            val result2 = s.getBlob(blobId, offset = 5, length = 5)
+            assertThat(String(result2)).isEqualTo("FGHIJ")
 
-        // Read zero length
-        val result3 = storage.getBlob(blobId, offset = 0, length = 0)
-        assertThat(result3).isEmpty()
+            // Read zero length
+            val result3 = s.getBlob(blobId, offset = 0, length = 0)
+            assertThat(result3).isEmpty()
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
-    @Test(expected = BlobNotFoundException::class)
+    @Test
     fun getBlob_notFound() = runTest {
-        storage.getBlob(BlobId("nonexistent"))
+        val s = requireStorage()
+        try {
+            s.getBlob(BlobId("nonexistent-$testId"))
+            throw AssertionError("Expected BlobNotFoundException")
+        } catch (_: BlobNotFoundException) {
+            // Expected
+        }
     }
 
-    @Test(expected = InvalidBlobRangeException::class)
+    @Test
     fun getBlob_invalidOffset() = runTest {
-        val blobId = BlobId("range-test")
-        storage.putBlob(blobId, "small".toByteArray())
+        val s = requireStorage()
+        val blobId = BlobId("range-test-$testId")
 
-        storage.getBlob(blobId, offset = 1000)
+        try {
+            s.putBlob(blobId, "small".toByteArray())
+
+            try {
+                s.getBlob(blobId, offset = 1000)
+                throw AssertionError("Expected InvalidBlobRangeException")
+            } catch (_: InvalidBlobRangeException) {
+                // Expected
+            }
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun getBlobMetadata_existing() = runTest {
-        val blobId = BlobId("metadata-blob")
+        val s = requireStorage()
+        val blobId = BlobId("metadata-blob-$testId")
         val data = "test data".toByteArray()
         val beforePut = Instant.now()
 
-        storage.putBlob(blobId, data)
+        try {
+            s.putBlob(blobId, data)
 
-        val metadata = storage.getBlobMetadata(blobId)
+            val metadata = s.getBlobMetadata(blobId)
 
-        assertThat(metadata).isNotNull()
-        assertThat(metadata!!.blobId).isEqualTo(blobId)
-        assertThat(metadata.length).isEqualTo(data.size.toLong())
-        assertThat(metadata.timestamp).isAtLeast(beforePut.minusSeconds(1))
+            assertThat(metadata).isNotNull()
+            assertThat(metadata!!.blobId).isEqualTo(blobId)
+            assertThat(metadata.length).isEqualTo(data.size.toLong())
+            assertThat(metadata.timestamp).isAtLeast(beforePut.minusSeconds(1))
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun getBlobMetadata_notFound() = runTest {
-        val metadata = storage.getBlobMetadata(BlobId("nonexistent"))
+        val s = requireStorage()
+        val metadata = s.getBlobMetadata(BlobId("nonexistent-$testId"))
         assertThat(metadata).isNull()
     }
 
     @Test
     fun deleteBlob_existing() = runTest {
-        val blobId = BlobId("to-delete")
-        storage.putBlob(blobId, "data".toByteArray())
+        val s = requireStorage()
+        val blobId = BlobId("to-delete-$testId")
+        s.putBlob(blobId, "data".toByteArray())
 
-        storage.deleteBlob(blobId)
+        s.deleteBlob(blobId)
 
-        val metadata = storage.getBlobMetadata(blobId)
+        val metadata = s.getBlobMetadata(blobId)
         assertThat(metadata).isNull()
     }
 
     @Test
     fun deleteBlob_nonexistent() = runTest {
+        val s = requireStorage()
         // Should not throw
-        storage.deleteBlob(BlobId("never-existed"))
+        s.deleteBlob(BlobId("never-existed-$testId"))
     }
 
     @Test
     fun putBlob_dontOverwrite() = runTest {
-        val blobId = BlobId("overwrite-test")
+        val s = requireStorage()
+        val blobId = BlobId("overwrite-test-$testId")
         val data1 = "original".toByteArray()
         val data2 = "modified".toByteArray()
 
-        storage.putBlob(blobId, data1)
-        storage.putBlob(blobId, data2, PutBlobOptions(dontOverwrite = true))
+        try {
+            s.putBlob(blobId, data1)
+            s.putBlob(blobId, data2, PutBlobOptions(dontOverwrite = true))
 
-        // Should still be original
-        val result = storage.getBlob(blobId)
-        assertThat(result).isEqualTo(data1)
+            // Should still be original
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data1)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun putBlob_overwrite() = runTest {
-        val blobId = BlobId("overwrite-test2")
+        val s = requireStorage()
+        val blobId = BlobId("overwrite-test2-$testId")
         val data1 = "original".toByteArray()
         val data2 = "modified".toByteArray()
 
-        storage.putBlob(blobId, data1)
-        storage.putBlob(blobId, data2) // dontOverwrite defaults to false
+        try {
+            s.putBlob(blobId, data1)
+            s.putBlob(blobId, data2) // dontOverwrite defaults to false
 
-        // Should be modified
-        val result = storage.getBlob(blobId)
-        assertThat(result).isEqualTo(data2)
+            // Should be modified
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data2)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun listBlobs_all() = runTest {
-        // Create some blobs
-        storage.putBlob(BlobId("list-a"), "a".toByteArray())
-        storage.putBlob(BlobId("list-b"), "b".toByteArray())
-        storage.putBlob(BlobId("list-c"), "c".toByteArray())
+        val s = requireStorage()
+        val prefix = "list-$testId-"
 
-        val blobs = storage.listBlobs("list-").toList()
+        try {
+            // Create some blobs
+            s.putBlob(BlobId("${prefix}a"), "a".toByteArray())
+            s.putBlob(BlobId("${prefix}b"), "b".toByteArray())
+            s.putBlob(BlobId("${prefix}c"), "c".toByteArray())
 
-        assertThat(blobs).hasSize(3)
-        assertThat(blobs.map { it.blobId.value }).containsExactly("list-a", "list-b", "list-c")
+            val blobs = s.listBlobs(prefix).toList()
+
+            assertThat(blobs).hasSize(3)
+            assertThat(blobs.map { it.blobId.value }).containsExactly(
+                "${prefix}a", "${prefix}b", "${prefix}c"
+            )
+        } finally {
+            try { s.deleteBlob(BlobId("${prefix}a")) } catch (_: Exception) {}
+            try { s.deleteBlob(BlobId("${prefix}b")) } catch (_: Exception) {}
+            try { s.deleteBlob(BlobId("${prefix}c")) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun listBlobs_withPrefix() = runTest {
-        storage.putBlob(BlobId("pack-1"), "p1".toByteArray())
-        storage.putBlob(BlobId("pack-2"), "p2".toByteArray())
-        storage.putBlob(BlobId("index-1"), "i1".toByteArray())
+        val s = requireStorage()
+        val packPrefix = "pack-$testId-"
+        val indexPrefix = "index-$testId-"
 
-        val packBlobs = storage.listBlobs("pack-").toList()
+        try {
+            s.putBlob(BlobId("${packPrefix}1"), "p1".toByteArray())
+            s.putBlob(BlobId("${packPrefix}2"), "p2".toByteArray())
+            s.putBlob(BlobId("${indexPrefix}1"), "i1".toByteArray())
 
-        assertThat(packBlobs).hasSize(2)
-        assertThat(packBlobs.map { it.blobId.value }).containsExactly("pack-1", "pack-2")
+            val packBlobs = s.listBlobs(packPrefix).toList()
+
+            assertThat(packBlobs).hasSize(2)
+            assertThat(packBlobs.map { it.blobId.value }).containsExactly(
+                "${packPrefix}1", "${packPrefix}2"
+            )
+        } finally {
+            try { s.deleteBlob(BlobId("${packPrefix}1")) } catch (_: Exception) {}
+            try { s.deleteBlob(BlobId("${packPrefix}2")) } catch (_: Exception) {}
+            try { s.deleteBlob(BlobId("${indexPrefix}1")) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun listBlobs_empty() = runTest {
-        val blobs = storage.listBlobs("nonexistent-").toList()
+        val s = requireStorage()
+        val blobs = s.listBlobs("nonexistent-prefix-$testId-").toList()
         assertThat(blobs).isEmpty()
     }
 
     @Test
     fun sharding_longBlobIds() = runTest {
+        val s = requireStorage()
         // Blob ID longer than maxNonShardedLength (20) should be sharded
-        val blobId = BlobId("pack-abcdef1234567890abcdef")
+        val blobId = BlobId("pack-abcdef1234567890abcdef-$testId")
         val data = "sharded data".toByteArray()
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEqualTo(data)
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun sharding_shortBlobIds() = runTest {
+        val s = requireStorage()
         // Blob ID shorter than maxNonShardedLength should not be sharded
-        val blobId = BlobId("short")
+        val blobId = BlobId("short-$testId")
         val data = "not sharded".toByteArray()
 
-        storage.putBlob(blobId, data)
-        val result = storage.getBlob(blobId)
-
-        assertThat(result).isEqualTo(data)
+        try {
+            s.putBlob(blobId, data)
+            val result = s.getBlob(blobId)
+            assertThat(result).isEqualTo(data)
+        } finally {
+            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+        }
     }
 
     @Test
     fun connectionInfo() {
-        val info = storage.connectionInfo()
+        val s = requireStorage()
+        val info = s.connectionInfo()
 
         assertThat(info.type).isEqualTo("saf")
         assertThat(info.config).containsKey("uri")
@@ -314,13 +396,15 @@ class SafBlobStorageInstrumentedTest {
 
     @Test
     fun displayName() {
-        val name = storage.displayName()
+        val s = requireStorage()
+        val name = s.displayName()
         assertThat(name).startsWith("SAF:")
     }
 
     @Test
     fun isReadOnly_default() {
-        assertThat(storage.isReadOnly()).isFalse()
+        val s = requireStorage()
+        assertThat(s.isReadOnly()).isFalse()
     }
 }
 

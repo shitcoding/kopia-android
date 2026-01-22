@@ -46,7 +46,10 @@ tasks.test {
     environment("KOPIA_BINARY", rootProject.projectDir.resolve("../kopia-go/kopia").absolutePath)
 
     // E2E tests can take longer
-    systemProperty("junit.jupiter.execution.timeout.default", "5m")
+    systemProperty("junit.jupiter.execution.timeout.default", "10m")
+
+    // Increase heap for benchmark tests
+    maxHeapSize = "2g"
 
     // Run E2E tests only when explicitly requested or in CI
     val runE2E = System.getenv("RUN_E2E_TESTS")?.toBoolean() ?: false
@@ -61,5 +64,27 @@ tasks.test {
         showExceptions = true
         showCauses = true
         showStackTraces = true
+        showStandardStreams = true
+    }
+}
+
+// Dedicated task for running only benchmark tests
+tasks.register<Test>("benchmark") {
+    useJUnitPlatform {
+        includeTags("benchmark")
+    }
+
+    description = "Runs performance benchmark tests"
+    group = "verification"
+
+    environment("KOPIA_BINARY", rootProject.projectDir.resolve("../kopia-go/kopia").absolutePath)
+
+    // Benchmark tests need more time and memory
+    systemProperty("junit.jupiter.execution.timeout.default", "30m")
+    maxHeapSize = "4g"
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
     }
 }
