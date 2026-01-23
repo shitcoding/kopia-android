@@ -47,45 +47,61 @@ class Aes256GcmHmacSha256Encryptor(
     override val overhead: Int = OVERHEAD
 
     override suspend fun encrypt(plaintext: ByteArray, contentId: ContentId): ByteArray {
+        // Go Kopia uses the last 16 bytes of the hash (no prefix) for encryption
+        // See getPackedContentIV in content_manager_lock_free.go
+        val encryptionIV = contentId.toEncryptionIV()
+
         // Derive per-content AES key using HMAC-SHA256
-        val contentKey = deriveContentKey(contentId)
+        val contentKey = deriveContentKeyFromBytes(encryptionIV)
 
         // Generate random nonce
         val nonce = ByteArray(Aes256GcmCipher.NONCE_SIZE)
         secureRandom.nextBytes(nonce)
 
-        // Content ID bytes are used as AAD
-        val aad = contentId.toString().toByteArray(Charsets.UTF_8)
-
-        // Encrypt with nonce prepended
-        return Aes256GcmCipher.encryptWithPrependedNonce(contentKey, nonce, plaintext, aad)
+        // encryptionIV is used as AAD
+        return Aes256GcmCipher.encryptWithPrependedNonce(contentKey, nonce, plaintext, encryptionIV)
     }
 
     override suspend fun decrypt(ciphertext: ByteArray, contentId: ContentId): ByteArray {
+        // Go Kopia uses the last 16 bytes of the hash (no prefix) for encryption
+        // See getPackedContentIV in content_manager_lock_free.go:
+        //   func getPackedContentIV(output []byte, contentID ID) []byte {
+        //       h := contentID.Hash()
+        //       return append(output, h[len(h)-aes.BlockSize:]...)
+        //   }
+        val encryptionIV = contentId.toEncryptionIV()
+
         // Derive per-content AES key using HMAC-SHA256
-        val contentKey = deriveContentKey(contentId)
+        val contentKey = deriveContentKeyFromBytes(encryptionIV)
 
-        // Content ID bytes are used as AAD
-        val aad = contentId.toString().toByteArray(Charsets.UTF_8)
+        // encryptionIV is used as AAD
+        return Aes256GcmCipher.decryptWithPrependedNonce(contentKey, ciphertext, encryptionIV)
+    }
 
-        // Decrypt (nonce is prepended to ciphertext)
-        return Aes256GcmCipher.decryptWithPrependedNonce(contentKey, ciphertext, aad)
+    override suspend fun decryptWithRawId(ciphertext: ByteArray, encryptionIV: ByteArray): ByteArray {
+        // encryptionIV should already be the last 16 bytes of the hash (from toEncryptionIV())
+        // Derive per-content AES key using HMAC-SHA256
+        val contentKey = deriveContentKeyFromBytes(encryptionIV)
+
+        // encryptionIV is used as AAD
+        return Aes256GcmCipher.decryptWithPrependedNonce(contentKey, ciphertext, encryptionIV)
     }
 
     /**
-     * Derives the per-content AES-256 key using HMAC-SHA256.
+     * Derives the per-content AES-256 key using HMAC-SHA256 from raw bytes.
      *
-     * This matches Go's behavior:
+     * This matches Go Kopia's behavior where the content ID's raw binary
+     * representation is used for HMAC key derivation:
      * ```go
      * h := hmac.New(sha256.New, keyDerivationSecret)
-     * h.Write(contentID)
+     * h.Write(contentID)  // raw bytes, not hex string
      * key := h.Sum(nil) // 32 bytes
      * ```
      */
-    private fun deriveContentKey(contentId: ContentId): ByteArray {
+    private fun deriveContentKeyFromBytes(contentIdBytes: ByteArray): ByteArray {
         val mac = Mac.getInstance(HMAC_ALGORITHM)
         mac.init(SecretKeySpec(keyDerivationSecret, HMAC_ALGORITHM))
-        mac.update(contentId.toString().toByteArray(Charsets.UTF_8))
+        mac.update(contentIdBytes)
         return mac.doFinal()
     }
 

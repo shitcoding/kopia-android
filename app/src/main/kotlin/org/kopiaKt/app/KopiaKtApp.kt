@@ -2,7 +2,6 @@ package org.kopiaKt.app
 
 import android.app.Application
 import androidx.work.Configuration
-import androidx.work.WorkManager
 
 /**
  * Main application class for KopiaKt demo app.
@@ -11,9 +10,7 @@ class KopiaKtApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-
-        // Initialize WorkManager
-        WorkManager.initialize(this, workManagerConfiguration)
+        // WorkManager is initialized automatically via Configuration.Provider
     }
 
     override val workManagerConfiguration: Configuration

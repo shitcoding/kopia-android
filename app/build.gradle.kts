@@ -57,6 +57,9 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
             excludes += "/META-INF/NOTICE*"
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
+            excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
 

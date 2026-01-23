@@ -164,5 +164,5 @@ data class SftpFormState(
 )
 
 data class LocalFormState(
-    val path: String = "/storage/emulated/0/Android/data/org.kopiaKt.app/files/kopia_repo/kopia_test_repo"
+    val path: String = "/data/data/org.kopiaKt.app/files/kopia_repo/kopia_test_repo"
 )

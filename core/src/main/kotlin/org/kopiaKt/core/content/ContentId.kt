@@ -44,6 +44,59 @@ class ContentId private constructor(
         return if (prefix != null) "$prefix$hexHash" else hexHash
     }
 
+    /**
+     * Returns the raw binary representation of this content ID.
+     *
+     * This matches Go Kopia's internal binary format:
+     * - If prefix exists: [prefix byte] + [hash bytes]
+     * - If no prefix: just [hash bytes]
+     *
+     * NOTE: This is NOT what Go Kopia uses for encryption! For encryption,
+     * use [toEncryptionIV] which returns only the last 16 bytes of the hash.
+     */
+    fun toBytes(): ByteArray {
+        if (this === Empty || (prefix == null && hashBytes.isEmpty())) {
+            return ByteArray(0)
+        }
+        return if (prefix != null) {
+            ByteArray(1 + hashBytes.size).also {
+                it[0] = prefix.code.toByte()
+                hashBytes.copyInto(it, 1)
+            }
+        } else {
+            hashBytes.copyOf()
+        }
+    }
+
+    /**
+     * Returns the encryption IV/contentID bytes used for pack content encryption.
+     *
+     * This matches Go Kopia's getPackedContentIV function which returns
+     * the LAST 16 bytes of the hash (no prefix). This is used for:
+     * - HMAC key derivation to get the per-content encryption key
+     * - AAD (Additional Authenticated Data) for AES-GCM encryption
+     *
+     * From Go source (content_manager_lock_free.go):
+     * ```go
+     * func getPackedContentIV(output []byte, contentID ID) []byte {
+     *     h := contentID.Hash()
+     *     return append(output, h[len(h)-aes.BlockSize:]...)
+     * }
+     * ```
+     */
+    fun toEncryptionIV(): ByteArray {
+        if (this === Empty || hashBytes.isEmpty()) {
+            return ByteArray(0)
+        }
+        // Return last 16 bytes of hash (AES block size)
+        val blockSize = 16
+        return if (hashBytes.size <= blockSize) {
+            hashBytes.copyOf()
+        } else {
+            hashBytes.copyOfRange(hashBytes.size - blockSize, hashBytes.size)
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ContentId) return false

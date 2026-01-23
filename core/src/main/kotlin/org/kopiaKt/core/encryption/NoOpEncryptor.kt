@@ -20,4 +20,8 @@ object NoOpEncryptor : Encryptor {
     override suspend fun decrypt(ciphertext: ByteArray, contentId: ContentId): ByteArray {
         return ciphertext.copyOf()
     }
+
+    override suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray {
+        return ciphertext.copyOf()
+    }
 }

@@ -54,8 +54,11 @@ class IndexBlobEncryption(
      */
     suspend fun decrypt(encryptedData: ByteArray, blobId: BlobId): ByteArray {
         return if (encryptor != null) {
-            val contentId = deriveContentIdFromBlobId(blobId)
-            encryptor.decrypt(encryptedData, contentId)
+            // Get raw IV bytes from blob ID (16 bytes)
+            val ivBytes = deriveIvBytesFromBlobId(blobId)
+            println("DEBUG: IndexBlobEncryption.decrypt - blobId=$blobId, ivBytes=${ivBytes.joinToString("") { "%02x".format(it) }}")
+            // Use decryptWithRawId which passes raw bytes to HMAC and as AAD
+            encryptor.decryptWithRawId(encryptedData, ivBytes)
         } else {
             encryptedData
         }
@@ -68,60 +71,55 @@ class IndexBlobEncryption(
         private const val AES_BLOCK_SIZE = 16
 
         /**
-         * Derives a content ID from a blob ID for nonce derivation.
+         * Derives raw IV bytes from a blob ID.
          *
-         * The Go implementation derives the IV by taking the last 32 hex characters
-         * (16 bytes = AES block size) from the blob ID before any dash separator.
+         * The Go implementation derives the IV by extracting hex characters from the
+         * blob ID before any dash separator, taking the last 32 hex characters
+         * (16 bytes = AES block size), and decoding them as hex to get 16 raw bytes.
          *
-         * For example, for blob ID "n1234567890abcdef1234567890abcdef-s12345":
-         * - Remove prefix 'n': "1234567890abcdef1234567890abcdef-s12345"
-         * - Take part before dash: "1234567890abcdef1234567890abcdef"
-         * - Take last 32 hex chars: "1234567890abcdef1234567890abcdef"
-         * - Convert to ContentId
+         * For example, for blob ID "xn0_86e1a966f4faa78b4155dbe7f1866fa8-sc05c6694229ca11e13d-c1":
+         * - Take part before first dash: "xn0_86e1a966f4faa78b4155dbe7f1866fa8"
+         * - Extract only hex chars: "086e1a966f4faa78b4155dbe7f1866fa8"
+         * - Take last 32 hex chars: "86e1a966f4faa78b4155dbe7f1866fa8"
+         * - Decode as hex to get 16 bytes
          *
          * @param blobId The blob ID to derive from
-         * @return The derived content ID for encryption nonce
+         * @return The raw IV bytes (16 bytes)
          */
-        fun deriveContentIdFromBlobId(blobId: BlobId): ContentId {
+        fun deriveIvBytesFromBlobId(blobId: BlobId): ByteArray {
             val id = blobId.value
 
-            // Remove the prefix (e.g., "n", "p", "q")
-            val withoutPrefix = if (id.isNotEmpty() && id[0] in 'a'..'z') {
-                id.substring(1)
+            // Take part before first dash (if any) - no prefix removal
+            val dashIndex = id.indexOf('-')
+            val beforeDash = if (dashIndex >= 0) {
+                id.substring(0, dashIndex)
             } else {
                 id
             }
 
-            // Take part before dash (if any)
-            val dashIndex = withoutPrefix.indexOf('-')
-            val hexPart = if (dashIndex >= 0) {
-                withoutPrefix.substring(0, dashIndex)
-            } else {
-                withoutPrefix
+            // Extract only hex characters from the string (filter out prefixes like 'x', 'n0_' etc.)
+            val hexChars = beforeDash.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+
+            // Take last 32 hex characters (16 bytes = AES block size)
+            if (hexChars.length < AES_BLOCK_SIZE * 2) {
+                return ByteArray(AES_BLOCK_SIZE) // Return zeros if too short
             }
 
-            // Validate hex characters
-            val validHex = hexPart.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+            val last32 = hexChars.takeLast(AES_BLOCK_SIZE * 2)
 
-            // Take last 32 hex chars (16 bytes = AES block size) or all if shorter
-            val contentIdHex = if (validHex.length > AES_BLOCK_SIZE * 2) {
-                validHex.takeLast(AES_BLOCK_SIZE * 2)
-            } else {
-                validHex
-            }
+            return last32.lowercase().hexToByteArray()
+        }
 
-            return if (contentIdHex.isEmpty()) {
-                ContentId.Empty
-            } else {
-                // Pad to even length and at least 2 chars for valid ContentId
-                val evenHex = if (contentIdHex.length % 2 == 1) {
-                    "0$contentIdHex"
-                } else {
-                    contentIdHex
-                }
-                val paddedHex = if (evenHex.isEmpty()) "00" else evenHex
-                ContentId.parse(paddedHex.lowercase())
+        /**
+         * Derives a content ID from a blob ID for nonce derivation.
+         * (Kept for backwards compatibility but prefer deriveIvBytesFromBlobId)
+         */
+        fun deriveContentIdFromBlobId(blobId: BlobId): ContentId {
+            val ivBytes = deriveIvBytesFromBlobId(blobId)
+            if (ivBytes.all { it == 0.toByte() }) {
+                return ContentId.Empty
             }
+            return ContentId.parse(ivBytes.joinToString("") { "%02x".format(it) })
         }
 
         /**

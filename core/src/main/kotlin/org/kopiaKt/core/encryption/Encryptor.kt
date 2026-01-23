@@ -80,6 +80,19 @@ interface Encryptor {
      * @throws DecryptionException if decryption fails
      */
     suspend fun decrypt(ciphertext: ByteArray, contentId: ContentId): ByteArray
+
+    /**
+     * Decrypts ciphertext data using raw bytes as the content ID.
+     *
+     * This is used for index blob decryption where the content ID is derived
+     * directly from the blob ID as raw bytes, not a hex-encoded string.
+     *
+     * @param ciphertext The data to decrypt
+     * @param contentIdBytes The raw content ID bytes for key derivation and AAD
+     * @return The plaintext
+     * @throws DecryptionException if decryption fails
+     */
+    suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray
 }
 
 /**

@@ -246,5 +246,18 @@ class IndexBlobEncryptionTest {
                 ciphertext
             }
         }
+
+        override suspend fun decryptWithRawId(
+            ciphertext: ByteArray,
+            contentIdBytes: ByteArray
+        ): ByteArray {
+            decryptCalled = true
+            // Remove mock overhead
+            return if (ciphertext.size > overhead) {
+                ciphertext.copyOfRange(0, ciphertext.size - overhead)
+            } else {
+                ciphertext
+            }
+        }
     }
 }

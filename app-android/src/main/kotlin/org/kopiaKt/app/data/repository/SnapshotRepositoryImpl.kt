@@ -57,16 +57,21 @@ class SnapshotRepositoryImpl @Inject constructor(
             labels[ManifestLabels.PATH] = it.path
         }
 
+        android.util.Log.d("SnapshotRepo", "Finding manifests with labels: $labels")
         val manifests = repo.findManifests(labels)
+        android.util.Log.d("SnapshotRepo", "Found ${manifests.size} manifests")
 
         manifests.mapNotNull { metadata ->
             try {
+                android.util.Log.d("SnapshotRepo", "Loading manifest: ${metadata.id}")
                 val (manifest, _) = repo.getManifest(
                     metadata.id,
                     SnapshotManifest.serializer()
                 )
+                android.util.Log.d("SnapshotRepo", "Loaded manifest: ${manifest.id}")
                 manifest.toSnapshotInfo()
             } catch (e: Exception) {
+                android.util.Log.e("SnapshotRepo", "Error loading manifest: ${e.message}", e)
                 null
             }
         }

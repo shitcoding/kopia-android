@@ -13,10 +13,12 @@ import org.kopiaKt.core.encryption.EncryptorFactory
 import org.kopiaKt.core.hashing.ContentHasher
 import org.kopiaKt.core.hashing.ContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
+import org.kopiaKt.core.index.IndexBlobEncryption
 import org.kopiaKt.core.pack.PackBlobBuilder
 import org.kopiaKt.core.pack.PackBlobPostamble
 import org.kopiaKt.core.pack.PackBlobReader
 import org.kopiaKt.core.pack.PackIndex
+import org.kopiaKt.core.pack.PackIndexFactory
 import org.kopiaKt.core.pack.PackIndexV1
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicLong
@@ -72,6 +74,7 @@ class ContentManager(
 ) {
     private val hasher: ContentHasher = hasherFactory.create(hashAlgorithm, hashSecret)
     private val encryptor: Encryptor = encryptorFactory.create(encryptionAlgorithm, encryptionKey)
+    private val indexBlobEncryption: IndexBlobEncryption = IndexBlobEncryption(encryptor)
 
     private val mutex = Mutex()
 
@@ -161,8 +164,12 @@ class ContentManager(
 
         // Check committed indexes
         committedContents[contentId]?.let { info ->
+            println("DEBUG getContent: contentId=$contentId, toBytes=${contentId.toBytes().toList()}")
+            println("DEBUG getContent: packBlobId=${info.packBlobId}, offset=${info.packOffset}, packedLen=${info.packedLength}")
             val packData = fetchPackBlob(info.packBlobId)
+            println("DEBUG getContent: packData.size=${packData.size}")
             val encryptedData = PackBlobReader.extractContent(packData, info)
+            println("DEBUG getContent: encryptedData.size=${encryptedData.size}, first16=${encryptedData.take(16).map { it.toInt() and 0xFF }}")
             return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
         }
 
@@ -193,9 +200,11 @@ class ContentManager(
         prefix: Char,
         callback: suspend (ContentId) -> Unit
     ) {
+        println("DEBUG: iterateContents - looking for prefix '$prefix'")
         // Collect content IDs under the lock
         val contentIds = mutex.withLock {
             val ids = mutableListOf<ContentId>()
+            println("DEBUG: iterateContents - committedContents has ${committedContents.size} entries")
 
             // Iterate pending contents
             for ((contentId, _) in pendingContents) {
@@ -216,6 +225,12 @@ class ContentManager(
                 if (contentId.prefix == prefix) {
                     ids.add(contentId)
                 }
+            }
+
+            println("DEBUG: iterateContents - found ${ids.size} content IDs with prefix '$prefix'")
+            // Print first few content IDs with their prefixes
+            committedContents.keys.take(10).forEach { cid ->
+                println("DEBUG:   - $cid (prefix='${cid.prefix}')")
             }
 
             ids
@@ -398,8 +413,11 @@ class ContentManager(
             // Generate index blob ID
             val indexBlobId = generateIndexBlobId()
 
-            // Write index blob to storage
-            storage.putBlob(indexBlobId, indexData)
+            // Encrypt index blob before writing
+            val encryptedIndexData = indexBlobEncryption.encrypt(indexData, indexBlobId)
+
+            // Write encrypted index blob to storage
+            storage.putBlob(indexBlobId, encryptedIndexData)
         }
 
         // Move written to committed
@@ -416,21 +434,37 @@ class ContentManager(
         committedIndexes.clear()
         committedContents.clear()
 
+        println("DEBUG: loadCommittedIndexes - listing blobs with prefix '$INDEX_BLOB_PREFIX'")
+
         // Load index blobs from storage
         storage.listBlobs(INDEX_BLOB_PREFIX).collect { metadata ->
+            println("DEBUG: Found index blob: ${metadata.blobId}")
             try {
-                val indexData = storage.getBlob(metadata.blobId)
-                val index = PackIndexV1.open(indexData, encryptor.overhead.toUInt())
+                val encryptedIndexData = storage.getBlob(metadata.blobId)
+                println("DEBUG: Index blob size: ${encryptedIndexData.size}")
+
+                // Decrypt the index blob before parsing
+                val indexData = indexBlobEncryption.decrypt(encryptedIndexData, metadata.blobId)
+                println("DEBUG: Decrypted index size: ${indexData.size}")
+
+                val index = PackIndexFactory.open(indexData, encryptor.overhead.toUInt())
                 committedIndexes.add(index)
 
                 // Build lookup map
+                var count = 0
                 index.iterate().forEach { info ->
                     committedContents[info.contentId] = info
+                    count++
                 }
+                println("DEBUG: Loaded $count content entries from index ${metadata.blobId}")
             } catch (e: Exception) {
                 // Skip invalid index blobs
+                println("DEBUG: Error loading index ${metadata.blobId}: ${e.message}")
+                e.printStackTrace()
             }
         }
+
+        println("DEBUG: loadCommittedIndexes - total committed contents: ${committedContents.size}")
     }
 
     private suspend fun fetchPackBlob(packBlobId: BlobId): ByteArray {
@@ -473,7 +507,7 @@ class ContentManager(
         const val DEFAULT_MAX_PACK_SIZE = 20 * 1024 * 1024 // 20MB
         const val PACK_BLOB_PREFIX_REGULAR = "p"
         const val PACK_BLOB_PREFIX_SPECIAL = "q"
-        const val INDEX_BLOB_PREFIX = "n"
+        const val INDEX_BLOB_PREFIX = "x"
 
         private val SPECIAL_PREFIXES = setOf('m', 'x') // manifest, index content
 
