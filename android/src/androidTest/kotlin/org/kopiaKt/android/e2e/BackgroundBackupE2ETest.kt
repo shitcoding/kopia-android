@@ -90,7 +90,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun scheduleOneTimeBackup() = runBlocking {
+    fun scheduleOneTimeBackup(): Unit = runBlocking {
         Log.i(TAG, "Test: scheduleOneTimeBackup on ${getDeviceInfo()}")
 
         // Create test data
@@ -121,11 +121,12 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             Log.i(TAG, "Backup scheduled successfully")
         } finally {
             repository.close()
+            Unit
         }
     }
 
     @Test
-    fun schedulePeriodicBackup() = runBlocking {
+    fun schedulePeriodicBackup(): Unit = runBlocking {
         Log.i(TAG, "Test: schedulePeriodicBackup on ${getDeviceInfo()}")
 
         // Create test data
@@ -148,11 +149,12 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             Log.i(TAG, "Periodic backup scheduled")
         } finally {
             repository.close()
+            Unit
         }
     }
 
     @Test
-    fun cancelScheduledBackup() = runBlocking {
+    fun cancelScheduledBackup(): Unit = runBlocking {
         Log.i(TAG, "Test: cancelScheduledBackup on ${getDeviceInfo()}")
 
         createSimpleTestData()
@@ -177,11 +179,12 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             Log.i(TAG, "Backup cancelled successfully")
         } finally {
             repository.close()
+            Unit
         }
     }
 
     @Test
-    fun backupWorkerInputDataCreation() = runBlocking {
+    fun backupWorkerInputDataCreation(): Unit = runBlocking {
         Log.i(TAG, "Test: backupWorkerInputDataCreation on ${getDeviceInfo()}")
 
         // Create test data
@@ -213,7 +216,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun checkpointPersistence() = runBlocking {
+    fun checkpointPersistence(): Unit = runBlocking {
         Log.i(TAG, "Test: checkpointPersistence on ${getDeviceInfo()}")
 
         // Verify checkpoint store works
@@ -249,7 +252,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun checkpointStaleDetection() = runBlocking {
+    fun checkpointStaleDetection(): Unit = runBlocking {
         Log.i(TAG, "Test: checkpointStaleDetection on ${getDeviceInfo()}")
 
         // Create an old checkpoint (simulated by old timestamp)
@@ -365,7 +368,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun multipleSourcesIndependent() = runBlocking {
+    fun multipleSourcesIndependent(): Unit = runBlocking {
         Log.i(TAG, "Test: multipleSourcesIndependent on ${getDeviceInfo()}")
 
         // Create multiple sources
@@ -400,6 +403,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             Log.i(TAG, "Multiple sources scheduled and cancelled independently")
         } finally {
             repository.close()
+            Unit
         }
     }
 
@@ -431,7 +435,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun fullBackgroundBackupCycle() = runBlocking {
+    fun fullBackgroundBackupCycle(): Unit = runBlocking {
         Log.i(TAG, "Test: fullBackgroundBackupCycle on ${getDeviceInfo()}")
 
         // This test simulates a full backup cycle through the BackupSession
@@ -478,11 +482,12 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             assertThat(checkpointAfter).isEqualTo(org.kopiaKt.android.worker.CheckpointResult.NotFound)
         } finally {
             repository.close()
+            Unit
         }
     }
 
     @Test
-    fun backupSessionCancellation() = runBlocking {
+    fun backupSessionCancellation(): Unit = runBlocking {
         Log.i(TAG, "Test: backupSessionCancellation on ${getDeviceInfo()}")
 
         // Create larger data to have time to cancel
@@ -514,6 +519,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             assertThat(session.isCancelled()).isTrue()
         } finally {
             repository.close()
+            Unit
         }
     }
 }

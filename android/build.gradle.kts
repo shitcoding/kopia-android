@@ -80,10 +80,11 @@ android {
     }
 
     // Configure test execution timeout
-    @Suppress("UnstableApiUsage")
-    testOptions {
-        execution = "ANDROIDX_TEST_ORCHESTRATOR"
-    }
+    // Note: Orchestrator disabled for simpler test execution
+    // @Suppress("UnstableApiUsage")
+    // testOptions {
+    //     execution = "ANDROIDX_TEST_ORCHESTRATOR"
+    // }
 }
 
 dependencies {

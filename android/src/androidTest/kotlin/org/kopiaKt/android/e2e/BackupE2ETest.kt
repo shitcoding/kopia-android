@@ -31,7 +31,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun backupSimpleFiles() = runBlocking {
+    fun backupSimpleFiles(): Unit = runBlocking {
         Log.i(TAG, "Test: backupSimpleFiles on ${getDeviceInfo()}")
 
         // Create test data
@@ -56,10 +56,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupComplexFiles() = runBlocking {
+    fun backupComplexFiles(): Unit = runBlocking {
         Log.i(TAG, "Test: backupComplexFiles on ${getDeviceInfo()}")
 
         // Need more storage for this test
@@ -92,10 +93,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupEmptyFile() = runBlocking {
+    fun backupEmptyFile(): Unit = runBlocking {
         Log.i(TAG, "Test: backupEmptyFile on ${getDeviceInfo()}")
 
         // Create just an empty file
@@ -111,10 +113,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupLargeBinaryFile() = runBlocking {
+    fun backupLargeBinaryFile(): Unit = runBlocking {
         Log.i(TAG, "Test: backupLargeBinaryFile on ${getDeviceInfo()}")
 
         // Need more storage
@@ -142,10 +145,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupCompressibleContent() = runBlocking {
+    fun backupCompressibleContent(): Unit = runBlocking {
         Log.i(TAG, "Test: backupCompressibleContent on ${getDeviceInfo()}")
 
         // Create compressible file
@@ -162,10 +166,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupWithDeduplication() = runBlocking {
+    fun backupWithDeduplication(): Unit = runBlocking {
         Log.i(TAG, "Test: backupWithDeduplication on ${getDeviceInfo()}")
 
         // Create identical files for dedup testing
@@ -197,10 +202,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupDeepNestedDirectories() = runBlocking {
+    fun backupDeepNestedDirectories(): Unit = runBlocking {
         Log.i(TAG, "Test: backupDeepNestedDirectories on ${getDeviceInfo()}")
 
         // Create deeply nested structure
@@ -222,10 +228,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupManySmallFiles() = runBlocking {
+    fun backupManySmallFiles(): Unit = runBlocking {
         Log.i(TAG, "Test: backupManySmallFiles on ${getDeviceInfo()}")
 
         requireStorage(20 * 1024 * 1024) // 20 MB
@@ -254,10 +261,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupWithDifferentHashAlgorithms() = runBlocking {
+    fun backupWithDifferentHashAlgorithms(): Unit = runBlocking {
         Log.i(TAG, "Test: backupWithDifferentHashAlgorithms on ${getDeviceInfo()}")
 
         // Create test file
@@ -285,10 +293,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 repository.close()
             }
         }
+        Unit
     }
 
     @Test
-    fun backupIncrementalUnchanged() = runBlocking {
+    fun backupIncrementalUnchanged(): Unit = runBlocking {
         Log.i(TAG, "Test: backupIncrementalUnchanged on ${getDeviceInfo()}")
 
         // Create initial test data
@@ -326,10 +335,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupRepositoryReopenAndContinue() = runBlocking {
+    fun backupRepositoryReopenAndContinue(): Unit = runBlocking {
         Log.i(TAG, "Test: backupRepositoryReopenAndContinue on ${getDeviceInfo()}")
 
         // Create test data
@@ -371,6 +381,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 repository.close()
             }
         }
+        Unit
     }
 
     // ===================

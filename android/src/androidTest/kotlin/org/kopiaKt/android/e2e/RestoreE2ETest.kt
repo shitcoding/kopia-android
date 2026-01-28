@@ -41,7 +41,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
     }
 
     @Test
-    fun restoreSimpleFiles() = runBlocking {
+    fun restoreSimpleFiles(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreSimpleFiles on ${getDeviceInfo()}")
 
         // Create and backup test data
@@ -73,10 +73,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreComplexFiles() = runBlocking {
+    fun restoreComplexFiles(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreComplexFiles on ${getDeviceInfo()}")
 
         requireStorage(10 * 1024 * 1024) // 10 MB
@@ -107,10 +108,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreLargeBinaryFile() = runBlocking {
+    fun restoreLargeBinaryFile(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreLargeBinaryFile on ${getDeviceInfo()}")
 
         requireStorage(50 * 1024 * 1024) // 50 MB
@@ -136,10 +138,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreEmptyDirectory() = runBlocking {
+    fun restoreEmptyDirectory(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreEmptyDirectory on ${getDeviceInfo()}")
 
         // Create empty directories
@@ -167,10 +170,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreWithOverwrite() = runBlocking {
+    fun restoreWithOverwrite(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreWithOverwrite on ${getDeviceInfo()}")
 
         // Create and backup
@@ -206,10 +210,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreIncrementalSkipUnchanged() = runBlocking {
+    fun restoreIncrementalSkipUnchanged(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreIncrementalSkipUnchanged on ${getDeviceInfo()}")
 
         // Create and backup
@@ -246,10 +251,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreParallel() = runBlocking {
+    fun restoreParallel(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreParallel on ${getDeviceInfo()}")
 
         requireStorage(20 * 1024 * 1024) // 20 MB
@@ -282,10 +288,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreSpecificSnapshot() = runBlocking {
+    fun restoreSpecificSnapshot(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreSpecificSnapshot on ${getDeviceInfo()}")
 
         val repository = createRepository()
@@ -319,10 +326,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun restoreDeepNestedStructure() = runBlocking {
+    fun restoreDeepNestedStructure(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreDeepNestedStructure on ${getDeviceInfo()}")
 
         // Create deeply nested structure
@@ -362,10 +370,11 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun backupAndRestoreRoundTrip() = runBlocking {
+    fun backupAndRestoreRoundTrip(): Unit = runBlocking {
         Log.i(TAG, "Test: backupAndRestoreRoundTrip on ${getDeviceInfo()}")
 
         requireStorage(5 * 1024 * 1024) // 5 MB
@@ -406,6 +415,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     // ===================

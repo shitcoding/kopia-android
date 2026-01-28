@@ -67,7 +67,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
     // ====================
 
     @Test
-    fun internalStorageAccess() = runBlocking {
+    fun internalStorageAccess(): Unit = runBlocking {
         Log.i(TAG, "Test: internalStorageAccess on API ${Build.VERSION.SDK_INT}")
 
         // Internal storage should work on all versions
@@ -79,6 +79,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         assertThat(testFile.delete()).isTrue()
 
         Log.i(TAG, "Internal storage access works on API ${Build.VERSION.SDK_INT}")
+        Unit
     }
 
     @Test
@@ -285,7 +286,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
     // ====================
 
     @Test
-    fun cryptoAPIsAvailable() = runBlocking {
+    fun cryptoAPIsAvailable(): Unit = runBlocking {
         Log.i(TAG, "Test: cryptoAPIsAvailable on API ${Build.VERSION.SDK_INT}")
 
         // Test that our crypto implementations work on this API level
@@ -324,10 +325,11 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     @Test
-    fun differentEncryptionAlgorithms() = runBlocking {
+    fun differentEncryptionAlgorithms(): Unit = runBlocking {
         Log.i(TAG, "Test: differentEncryptionAlgorithms on API ${Build.VERSION.SDK_INT}")
 
         File(sourceDir, "test.txt").writeText("Test for encryption")
@@ -380,6 +382,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     // ====================
@@ -410,7 +413,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
     // ====================
 
     @Test
-    fun fullBackupRestoreOnCurrentApiLevel() = runBlocking {
+    fun fullBackupRestoreOnCurrentApiLevel(): Unit = runBlocking {
         Log.i(TAG, "Test: fullBackupRestoreOnCurrentApiLevel on API ${Build.VERSION.SDK_INT}")
 
         requireStorage(5 * 1024 * 1024) // 5 MB
@@ -490,6 +493,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         } finally {
             repository.close()
         }
+        Unit
     }
 
     // ====================
