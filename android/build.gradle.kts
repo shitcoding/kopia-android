@@ -88,10 +88,16 @@ android {
 }
 
 dependencies {
-    // Module dependencies
-    implementation(project(":core"))
-    implementation(project(":snapshot"))
-    implementation(project(":storage"))
+    // Module dependencies (exclude zstd JAR, use AAR instead for Android native support)
+    implementation(project(":core")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
+    implementation(project(":snapshot")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
+    implementation(project(":storage")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
 
     // Kotlin
     implementation(libs.kotlin.stdlib)
@@ -109,8 +115,9 @@ dependencies {
     // Cryptography (Android)
     implementation(libs.bundles.bouncycastle)
 
-    // Compression
-    implementation(libs.bundles.compression)
+    // Compression - use AAR for Android native support
+    implementation(libs.lz4.java)
+    implementation("com.github.luben:zstd-jni:1.5.6-8@aar")
 
     // Unit Testing
     testImplementation(libs.bundles.testing.unit)
