@@ -56,7 +56,6 @@ class IndexBlobEncryption(
         return if (encryptor != null) {
             // Get raw IV bytes from blob ID (16 bytes)
             val ivBytes = deriveIvBytesFromBlobId(blobId)
-            println("DEBUG: IndexBlobEncryption.decrypt - blobId=$blobId, ivBytes=${ivBytes.joinToString("") { "%02x".format(it) }}")
             // Use decryptWithRawId which passes raw bytes to HMAC and as AAD
             encryptor.decryptWithRawId(encryptedData, ivBytes)
         } else {

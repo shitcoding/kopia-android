@@ -198,21 +198,55 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
         return a.size - b.size
     }
 
+    /**
+     * Converts a content ID to its byte representation for V2 index format.
+     *
+     * Go Kopia V2 index format (keySize 17 or 33):
+     * - First byte: marker (0x00 if no prefix, otherwise prefix char 'g'-'z')
+     * - Remaining bytes: hash bytes
+     */
     private fun contentIdToBytes(contentId: ContentId): ByteArray {
         val hashBytes = contentId.hashBytes
-        return if (contentId.prefix != null) ByteArray(1 + hashBytes.size).apply { this[0] = contentId.prefix.code.toByte(); hashBytes.copyInto(this, 1) }
-        else hashBytes.copyOf()
+        // Always include marker byte: 0x00 for no prefix, or prefix char
+        return ByteArray(1 + hashBytes.size).apply {
+            this[0] = if (contentId.prefix != null) contentId.prefix.code.toByte() else 0x00
+            hashBytes.copyInto(this, 1)
+        }
     }
 
-    private fun bytesToContentId(bytes: ByteArray, hasPrefix: Boolean): ContentId {
+    /**
+     * Converts bytes back to a content ID.
+     *
+     * Content ID encoding in Go Kopia V2 index (keySize = 17 or 33):
+     * - First byte is ALWAYS a marker:
+     *   - 0x00 = no prefix (remaining bytes are hash)
+     *   - 'g'-'z' = prefix character (remaining bytes are hash)
+     */
+    private fun bytesToContentId(bytes: ByteArray, hasMarkerByte: Boolean): ContentId {
         if (bytes.isEmpty()) return ContentId.Empty
-        return if (hasPrefix && bytes.size > 1) ContentId.fromHash((bytes[0].toInt() and 0xFF).toChar(), bytes.copyOfRange(1, bytes.size))
-        else ContentId.fromHash(null, bytes)
+        return if (hasMarkerByte && bytes.size > 1) {
+            val markerByte = bytes[0].toInt() and 0xFF
+            if (markerByte == 0) {
+                // 0x00 means no prefix - remaining bytes are hash
+                ContentId.fromHash(null, bytes.copyOfRange(1, bytes.size))
+            } else {
+                // Non-zero means prefix character
+                ContentId.fromHash(markerByte.toChar(), bytes.copyOfRange(1, bytes.size))
+            }
+        } else {
+            ContentId.fromHash(null, bytes)
+        }
     }
 
+    /**
+     * Determines if the first byte of key bytes is a marker byte.
+     *
+     * In Go Kopia V2 index format:
+     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes
+     * - The marker byte can be 0x00 (no prefix) or 'g'-'z' (prefix char)
+     */
     private fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        if (keyBytes.isEmpty() || keySize <= 0) return false
-        val possiblePrefix = (keyBytes[0].toInt() and 0xFF).toChar()
-        return possiblePrefix in 'g'..'z' && (keySize == 17 || keySize == 33)
+        // KeySize 17 or 33 means there's always a marker byte at the front
+        return keySize == 17 || keySize == 33
     }
 }

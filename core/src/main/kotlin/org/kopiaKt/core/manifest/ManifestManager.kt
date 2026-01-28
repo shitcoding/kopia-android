@@ -378,29 +378,18 @@ class ManifestManager(
         // First refresh the content manager to load new indexes
         contentManager.refresh()
 
-        println("DEBUG ManifestManager: Loading committed manifests...")
-
         // Iterate all manifest content (prefix 'm')
         contentManager.iterateContents(CONTENT_PREFIX) { contentId ->
-            println("DEBUG ManifestManager: Processing content ID: $contentId")
             try {
                 val compressedData = contentManager.getContent(contentId)
-                println("DEBUG ManifestManager: Got compressed data, size=${compressedData.size}")
-
                 val jsonData = gzipDecompress(compressedData)
-                println("DEBUG ManifestManager: Decompressed to ${jsonData.size} bytes")
-
                 val jsonString = jsonData.toString(Charsets.UTF_8)
-                println("DEBUG ManifestManager: JSON string (first 500 chars): ${jsonString.take(500)}")
-
                 val container = json.decodeFromString<ManifestContainer>(jsonString)
-                println("DEBUG ManifestManager: Parsed container with ${container.entries.size} entries")
 
                 committedContentIds.add(contentId)
 
                 // Merge entries (newer entries override older ones)
                 for (entry in container.entries) {
-                    println("DEBUG ManifestManager: Entry id=${entry.id}, labels=${entry.labels}, deleted=${entry.deleted}")
                     val manifestId = ManifestId(entry.id)
                     val existing = committedEntries[manifestId]
 
@@ -412,8 +401,6 @@ class ManifestManager(
             } catch (e: Exception) {
                 // Skip malformed manifest content
                 // In Go, there's KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS env var
-                println("DEBUG ManifestManager: ERROR processing content $contentId: ${e.javaClass.name}: ${e.message}")
-                e.printStackTrace()
             }
         }
 

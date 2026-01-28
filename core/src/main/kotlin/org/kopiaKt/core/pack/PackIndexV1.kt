@@ -261,76 +261,81 @@ object PackIndexV1 {
     }
 
     /**
-     * Converts a content ID to its byte representation.
+     * Converts a content ID to its byte representation for V1 index format.
      *
-     * Format:
-     * - First byte: prefix indicator (0 if no prefix, otherwise prefix char)
+     * Go Kopia V1 index format (keySize 17 or 33):
+     * - First byte: marker (0x00 if no prefix, otherwise prefix char 'g'-'z')
      * - Remaining bytes: hash bytes
+     *
+     * This always includes the marker byte to match the index storage format.
      */
     internal fun contentIdToBytes(contentId: ContentId): ByteArray {
         val hashBytes = contentId.hashBytes
-        return if (contentId.prefix != null) {
-            // Prefix byte followed by hash
-            ByteArray(1 + hashBytes.size).apply {
-                this[0] = contentId.prefix.code.toByte()
-                hashBytes.copyInto(this, 1)
+        // Always include marker byte: 0x00 for no prefix, or prefix char
+        return ByteArray(1 + hashBytes.size).apply {
+            this[0] = if (contentId.prefix != null) {
+                contentId.prefix.code.toByte()
+            } else {
+                0x00 // Marker byte for no prefix
             }
-        } else {
-            // Just the hash bytes
-            hashBytes.copyOf()
+            hashBytes.copyInto(this, 1)
         }
     }
 
     /**
      * Converts bytes back to a content ID.
      *
-     * Content ID encoding:
-     * - With prefix: [prefix_char (1 byte)] [hash_bytes (N bytes)]
-     * - Without prefix: [hash_bytes (N bytes)]
+     * Content ID encoding in Go Kopia V1 index (keySize = 17 or 33):
+     * - First byte is ALWAYS a marker:
+     *   - 0x00 = no prefix (remaining bytes are hash)
+     *   - 'g'-'z' = prefix character (remaining bytes are hash)
      *
-     * The caller must determine if there's a prefix based on the key size:
-     * - If keySize > expected hash size, first byte is a prefix
-     * - Otherwise, all bytes are hash
+     * For keySize = 16 or 32 (legacy/unusual):
+     * - All bytes are hash, no prefix
      *
      * @param bytes The key bytes from the index
-     * @param hasPrefix Whether the first byte is a prefix character
+     * @param hasMarkerByte Whether the first byte is a prefix/marker byte (keySize=17 or 33)
      */
-    internal fun bytesToContentId(bytes: ByteArray, hasPrefix: Boolean = false): ContentId {
+    internal fun bytesToContentId(bytes: ByteArray, hasMarkerByte: Boolean = false): ContentId {
         if (bytes.isEmpty()) {
             return ContentId.Empty
         }
 
-        return if (hasPrefix && bytes.size > 1) {
-            // First byte is prefix
-            val prefix = (bytes[0].toInt() and 0xFF).toChar()
-            ContentId.fromHash(prefix, bytes.copyOfRange(1, bytes.size))
+        return if (hasMarkerByte && bytes.size > 1) {
+            // First byte is a marker: either 0x00 (no prefix) or a prefix char
+            val markerByte = bytes[0].toInt() and 0xFF
+            if (markerByte == 0) {
+                // 0x00 means no prefix - remaining bytes are hash
+                ContentId.fromHash(null, bytes.copyOfRange(1, bytes.size))
+            } else {
+                // Non-zero means prefix character
+                val prefix = markerByte.toChar()
+                ContentId.fromHash(prefix, bytes.copyOfRange(1, bytes.size))
+            }
         } else {
-            // No prefix - all bytes are hash
+            // No marker byte - all bytes are hash
             ContentId.fromHash(null, bytes)
         }
     }
 
     /**
-     * Determines if the first byte of key bytes is a prefix character.
+     * Determines if the first byte of key bytes is a marker/prefix byte.
      *
-     * This is determined by checking if the first byte is in the valid prefix range ('g'-'z')
-     * AND the key size is larger than typical hash sizes (suggesting a prefix is present).
+     * In Go Kopia V1 index format:
+     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes
+     * - KeySize 16 or 32 = pure hash bytes (no marker)
      *
-     * @param keyBytes The key bytes
+     * The marker byte can be:
+     * - 0x00 = no prefix (remaining bytes are hash)
+     * - 'g'-'z' = prefix character
+     *
+     * @param keyBytes The key bytes (not used, but kept for API compatibility)
      * @param keySize The key size from the index header
-     * @return true if the first byte should be treated as a prefix
+     * @return true if the first byte should be treated as a marker byte
      */
     internal fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        if (keyBytes.isEmpty() || keySize <= 0) return false
-
-        val firstByte = keyBytes[0].toInt() and 0xFF
-        val possiblePrefix = firstByte.toChar()
-
-        // Valid prefixes are 'g' to 'z'
-        // If first byte is in that range, check if keySize suggests prefix
-        // Common hash sizes: 16, 32 bytes
-        // With prefix: 17, 33 bytes
-        return possiblePrefix in 'g'..'z' && (keySize == 17 || keySize == 33)
+        // KeySize 17 or 33 means there's always a marker byte at the front
+        return keySize == 17 || keySize == 33
     }
 
     private fun buildEmptyIndex(): ByteArray {
