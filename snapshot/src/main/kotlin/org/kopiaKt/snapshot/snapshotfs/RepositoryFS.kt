@@ -1,6 +1,5 @@
 package org.kopiaKt.snapshot.snapshotfs
 
-import kotlinx.serialization.json.Json
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.Repository
 import org.kopiaKt.snapshot.fs.DeviceInfo
@@ -227,7 +226,7 @@ internal class RepositoryDirectory(
         val data = base.repo.readObject(objectId)
         val jsonStr = data.toString(Charsets.UTF_8)
 
-        val dirManifest = Json.decodeFromString(DirManifest.serializer(), jsonStr)
+        val dirManifest = DirManifest.fromJson(jsonStr)
 
         if (!dirManifest.isValidDirectoryStream()) {
             throw IOException("Invalid directory stream type: ${dirManifest.streamType}")

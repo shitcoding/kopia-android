@@ -1,0 +1,113 @@
+# E2E Test: Restore files from edge_case_repo snapshot
+# Repository: /sdcard/testrepo (copy of edge_case_repo)
+# Password: test123
+# Expected: Navigate to restore screen, select destination, complete restore
+#
+# This test validates the complete restore flow including file content reading.
+
+appId: org.kopiaKt.app
+
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- assertVisible: "Connect to Repository"
+- tapOn: "Connect to Repository"
+- assertVisible: "Connect Repository"
+
+- tapOn:
+    id: "repo_path_field"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    id: "password_field"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn:
+    id: "connect_button"
+
+# Wait for snapshot list - 76 files, ~5 MB total
+- extendedWaitUntil:
+    visible:
+      text: "76 files.*"
+    timeout: 15000
+
+# Tap on snapshot to browse files
+- tapOn:
+    text: "76 files.*"
+
+# Verify file browser loaded
+- extendedWaitUntil:
+    visible: ".hidden_dir"
+    timeout: 10000
+
+# Tap restore button (in top bar)
+- tapOn:
+    id: "restore_button"
+
+# Verify restore screen appeared
+- extendedWaitUntil:
+    visible: "Select Destination"
+    timeout: 5000
+
+# Verify source path shown
+- assertVisible: "Source"
+
+# Tap Select Destination to open SAF picker
+- tapOn:
+    id: "select_destination_button"
+
+# Wait for SAF picker to appear
+- extendedWaitUntil:
+    visible:
+      text: "Download|Documents"
+    timeout: 10000
+
+# Navigate to Download folder
+- tapOn: "Download"
+
+# Wait for Download folder to load
+- extendedWaitUntil:
+    visible:
+      text: "restore_dest|edge_restored|CREATE NEW FOLDER"
+    timeout: 5000
+
+# Navigate into restore_dest subfolder (can't use Download directly due to Android restrictions)
+- tapOn: "restore_dest"
+
+# Now we should be able to use this folder
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+
+- tapOn: "USE THIS FOLDER"
+
+# Handle ALLOW permission dialog if shown
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# After selecting destination, should see Start Restore button enabled
+- extendedWaitUntil:
+    visible: "Start Restore"
+    timeout: 10000
+
+# Start restore
+- tapOn:
+    id: "start_restore_button"
+
+# Wait for restore to complete (76 files from edge_case_repo)
+- extendedWaitUntil:
+    visible: "76 files restored"
+    timeout: 180000
+
+# Tap Done
+- tapOn: "Done"
+
+# Should be back at file browser
+- assertVisible: ".hidden_dir"

@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,7 +61,10 @@ fun FileBrowserScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onRestore(initialPath) }) {
+                    IconButton(
+                        onClick = { onRestore(initialPath) },
+                        modifier = Modifier.testTag("restore_button")
+                    ) {
                         Icon(Icons.Default.Download, "Restore this folder")
                     }
                 }
@@ -209,7 +213,9 @@ private fun FileEntryItem(
     modifier: Modifier = Modifier
 ) {
     ListItem(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier
+            .testTag("file_entry_${entry.name}")
+            .clickable(onClick = onClick),
         leadingContent = {
             Icon(
                 imageVector = getIconForEntry(entry),

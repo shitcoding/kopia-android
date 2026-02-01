@@ -423,22 +423,40 @@ class ContentManager(
         committedContents.clear()
 
         // Load index blobs from storage
-        storage.listBlobs(INDEX_BLOB_PREFIX).collect { metadata ->
-            try {
-                val encryptedIndexData = storage.getBlob(metadata.blobId)
+        // Support both old 'n' prefix and new 'x' prefix for backward compatibility
+        for (prefix in INDEX_BLOB_PREFIXES) {
+            storage.listBlobs(prefix).collect { metadata ->
+                try {
+                    val encryptedIndexData = storage.getBlob(metadata.blobId)
 
-                // Decrypt the index blob before parsing
-                val indexData = indexBlobEncryption.decrypt(encryptedIndexData, metadata.blobId)
+                    // Decrypt the index blob before parsing
+                    val indexData = indexBlobEncryption.decrypt(encryptedIndexData, metadata.blobId)
 
-                val index = PackIndexFactory.open(indexData, encryptor.overhead.toUInt())
-                committedIndexes.add(index)
+                    val index = PackIndexFactory.open(indexData, encryptor.overhead.toUInt())
+                    committedIndexes.add(index)
 
-                // Build lookup map
-                index.iterate().forEach { info ->
-                    committedContents[info.contentId] = info
+                    // Build lookup map with timestamp-based supersession
+                    // This implements Kopia's "last writer wins" semantics:
+                    // - If same contentId appears in multiple indexes, keep the one with highest timestamp
+                    // - Skip deleted entries (tombstones)
+                    index.iterate().forEach { info ->
+                        // Skip deleted entries - they are tombstones marking content as removed
+                        if (info.deleted) {
+                            // Remove from map if it exists (the deletion supersedes any prior entry)
+                            committedContents.remove(info.contentId)
+                            return@forEach
+                        }
+
+                        val existing = committedContents[info.contentId]
+                        if (existing == null || info.timestampSeconds > existing.timestampSeconds) {
+                            // New entry or newer timestamp - use this one
+                            committedContents[info.contentId] = info
+                        }
+                        // Otherwise keep existing (it has higher or equal timestamp)
+                    }
+                } catch (e: Exception) {
+                    // Skip invalid index blobs - log to stderr for debugging if needed
                 }
-            } catch (e: Exception) {
-                // Skip invalid index blobs - log to stderr for debugging if needed
             }
         }
     }
@@ -484,6 +502,10 @@ class ContentManager(
         const val PACK_BLOB_PREFIX_REGULAR = "p"
         const val PACK_BLOB_PREFIX_SPECIAL = "q"
         const val INDEX_BLOB_PREFIX = "x"
+        const val INDEX_BLOB_PREFIX_OLD = "n"  // Old format (pre-epoch) uses 'n' prefix
+
+        // Both prefixes for reading (backward compatibility)
+        private val INDEX_BLOB_PREFIXES = listOf(INDEX_BLOB_PREFIX, INDEX_BLOB_PREFIX_OLD)
 
         private val SPECIAL_PREFIXES = setOf('m', 'x') // manifest, index content
 

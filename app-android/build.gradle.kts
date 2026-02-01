@@ -66,10 +66,16 @@ dependencies {
     // Fix for Hilt JavaPoet compatibility
     ksp("com.squareup:javapoet:1.13.0")
 
-    // KopiaKt modules
-    implementation(project(":core"))
-    implementation(project(":snapshot"))
-    implementation(project(":storage"))
+    // KopiaKt modules (exclude zstd-jni JAR, android module provides AAR)
+    implementation(project(":core")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
+    implementation(project(":snapshot")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
+    implementation(project(":storage")) {
+        exclude(group = "com.github.luben", module = "zstd-jni")
+    }
     implementation(project(":android"))
 
     // Compose BOM

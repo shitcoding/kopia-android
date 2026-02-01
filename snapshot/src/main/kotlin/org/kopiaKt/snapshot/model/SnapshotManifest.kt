@@ -304,6 +304,23 @@ data class DirManifest(
 ) {
     companion object {
         const val DIRECTORY_STREAM_TYPE = "kopia:directory"
+
+        /**
+         * JSON instance configured to handle null values in non-nullable fields.
+         * Kopia can return "entries":null for empty directories, which would fail
+         * with the default Json parser. This instance coerces null to the default value.
+         */
+        val json = kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+        }
+
+        /**
+         * Parse a DirManifest from JSON string, handling null entries gracefully.
+         */
+        fun fromJson(jsonStr: String): DirManifest {
+            return json.decodeFromString(serializer(), jsonStr)
+        }
     }
 
     /**

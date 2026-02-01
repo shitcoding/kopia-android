@@ -145,8 +145,16 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
     }
 
     private fun parseEntry(contentId: ContentId, dataOffset: Int): ContentInfo? {
+        // Validate minimum entry length is available
         if (dataOffset + PackIndexV2.ENTRY_MIN_LENGTH > data.size) return null
-        val entryData = data.copyOfRange(dataOffset, minOf(dataOffset + header.entrySize, data.size))
+
+        // Copy entry data, but validate we got enough bytes
+        val entryEndOffset = minOf(dataOffset + header.entrySize, data.size)
+        val entryData = data.copyOfRange(dataOffset, entryEndOffset)
+
+        // Reject truncated entries - must have at least ENTRY_MIN_LENGTH bytes
+        if (entryData.size < PackIndexV2.ENTRY_MIN_LENGTH) return null
+
         val relativeTimestamp = decodeBigEndianUint32(entryData, PackIndexV2.ENTRY_OFFSET_TIMESTAMP)
         val timestampSeconds = relativeTimestamp.toLong() + header.baseTimestamp
         val packOffsetAndFlags = decodeBigEndianUint32(entryData, PackIndexV2.ENTRY_OFFSET_PACK_OFFSET_AND_FLAGS)
@@ -184,13 +192,19 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
     override fun close() {}
 
     private fun decodeBigEndianUint32(data: ByteArray, offset: Int): UInt =
-        ((data[offset].toInt() and 0xFF) shl 24 or (data[offset + 1].toInt() and 0xFF) shl 16 or (data[offset + 2].toInt() and 0xFF) shl 8 or (data[offset + 3].toInt() and 0xFF)).toUInt()
+        (((data[offset].toInt() and 0xFF) shl 24) or
+         ((data[offset + 1].toInt() and 0xFF) shl 16) or
+         ((data[offset + 2].toInt() and 0xFF) shl 8) or
+         (data[offset + 3].toInt() and 0xFF)).toUInt()
 
     private fun decodeBigEndianUint24(data: ByteArray, offset: Int): UInt =
-        ((data[offset].toInt() and 0xFF) shl 16 or (data[offset + 1].toInt() and 0xFF) shl 8 or (data[offset + 2].toInt() and 0xFF)).toUInt()
+        (((data[offset].toInt() and 0xFF) shl 16) or
+         ((data[offset + 1].toInt() and 0xFF) shl 8) or
+         (data[offset + 2].toInt() and 0xFF)).toUInt()
 
     private fun decodeBigEndianUint16(data: ByteArray, offset: Int): UInt =
-        ((data[offset].toInt() and 0xFF) shl 8 or (data[offset + 1].toInt() and 0xFF)).toUInt()
+        (((data[offset].toInt() and 0xFF) shl 8) or
+         (data[offset + 1].toInt() and 0xFF)).toUInt()
 
     private fun compareBytes(a: ByteArray, b: ByteArray): Int {
         val minLen = minOf(a.size, b.size)

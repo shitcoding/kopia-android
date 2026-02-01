@@ -227,7 +227,7 @@ class SnapshotGC(
         if (isDirectoryObject(objectId)) {
             val dirManifest = try {
                 val data = repository.readObject(objectId)
-                kotlinx.serialization.json.Json.decodeFromString(DirManifest.serializer(), data.decodeToString())
+                DirManifest.fromJson(data.decodeToString())
             } catch (e: Exception) {
                 return
             }

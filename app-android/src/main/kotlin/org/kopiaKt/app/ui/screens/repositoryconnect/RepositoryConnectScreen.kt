@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -93,7 +94,9 @@ fun RepositoryConnectScreen(
                 label = { Text("Repository Password") },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("password_field"),
                 singleLine = true
             )
 
@@ -127,7 +130,9 @@ fun RepositoryConnectScreen(
             Button(
                 onClick = { viewModel.connect(onConnected) },
                 enabled = !uiState.isConnecting,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("connect_button")
             ) {
                 if (uiState.isConnecting) {
                     CircularProgressIndicator(
@@ -152,8 +157,14 @@ private fun LocalForm(
         onValueChange = onUpdate,
         label = { Text("Repository Path") },
         placeholder = { Text("/sdcard/kopia_repo") },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("repo_path_field"),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            autoCorrect = false,
+            keyboardType = KeyboardType.Uri
+        )
     )
     Spacer(modifier = Modifier.height(8.dp))
     Text(

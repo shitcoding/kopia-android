@@ -1,0 +1,38 @@
+# E2E Test: Connect to v1_test_repo (V1 index format) and verify connection
+# Repository: /sdcard/v1repo (V1 format repo)
+# Password: test123
+# Expected: Successfully connect and see snapshot list
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for home screen and navigate to Connect
+- assertVisible: "Connect to Repository"
+- tapOn: "Connect to Repository"
+
+# Wait for Connect Repository screen
+- assertVisible: "Connect Repository"
+
+# Enter path
+- tapOn:
+    id: "repo_path_field"
+- inputText: "/sdcard/v1repo"
+
+# Enter password
+- tapOn:
+    id: "password_field"
+- inputText: "test123"
+
+# Hide keyboard and tap Connect button
+- hideKeyboard
+- tapOn:
+    id: "connect_button"
+
+# Wait for connection and verify success
+- extendedWaitUntil:
+    visible:
+      text: "Snapshots|snapshot"
+    timeout: 15000

@@ -1,0 +1,65 @@
+# E2E Test: Browse files in edge_case_repo snapshot
+# Repository: /sdcard/testrepo (copy of edge_case_repo)
+# Password: test123
+# Expected: Navigate through directories, verify file listing
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- assertVisible: "Connect to Repository"
+- tapOn: "Connect to Repository"
+- assertVisible: "Connect Repository"
+
+- tapOn:
+    id: "repo_path_field"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    id: "password_field"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn:
+    id: "connect_button"
+
+# Wait for snapshot list - 76 files, ~5 MB total
+- extendedWaitUntil:
+    visible:
+      text: "76 files.*"
+    timeout: 15000
+
+# Tap on snapshot to browse files
+- tapOn:
+    text: "76 files.*"
+
+# Verify file browser loaded - should see root directory contents
+- extendedWaitUntil:
+    visible:
+      text: ".hidden_dir|empty_dir1|level1|many_files"
+    timeout: 10000
+
+# Navigate into unicode directory (if present) or another folder
+- tapOn: "level1"
+
+# Verify nested navigation
+- extendedWaitUntil:
+    visible: "level2"
+    timeout: 5000
+
+# Go back
+- back
+
+# Verify we're back at root
+- assertVisible: "level1"
+
+# Navigate into many_files directory
+- tapOn: "many_files"
+
+# Verify files are listed - many_files contains file_001.txt through file_050.txt
+- extendedWaitUntil:
+    visible: "file_001.txt"
+    timeout: 5000

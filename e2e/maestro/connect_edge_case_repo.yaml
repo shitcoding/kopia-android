@@ -1,0 +1,39 @@
+# E2E Test: Connect to edge_case_repo and verify connection
+# Repository: /sdcard/testrepo (copy of edge_case_repo)
+# Password: test123
+# Expected: Successfully connect and see file browser
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for home screen and navigate to Connect
+- assertVisible: "Connect to Repository"
+- tapOn: "Connect to Repository"
+
+# Wait for Connect Repository screen
+- assertVisible: "Connect Repository"
+
+# Enter path (field is empty by default now)
+- tapOn:
+    id: "repo_path_field"
+- inputText: "/sdcard/testrepo"
+
+# Enter password
+- tapOn:
+    id: "password_field"
+- inputText: "test123"
+
+# Hide keyboard and tap Connect button
+- hideKeyboard
+- tapOn:
+    id: "connect_button"
+
+# Wait for connection and verify success
+# Should see snapshot list or browse screen
+- extendedWaitUntil:
+    visible:
+      text: "Snapshots|snapshot|Browse|Files|source"
+    timeout: 15000

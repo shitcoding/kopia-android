@@ -1,0 +1,42 @@
+# E2E Test: View V1 format repo snapshot details
+# Repository: /sdcard/v1repo (V1 format repo)
+# Password: test123
+# Expected: Successfully list snapshot and browse its files
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- assertVisible: "Connect to Repository"
+- tapOn: "Connect to Repository"
+- assertVisible: "Connect Repository"
+
+- tapOn:
+    id: "repo_path_field"
+- inputText: "/sdcard/v1repo"
+
+- tapOn:
+    id: "password_field"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn:
+    id: "connect_button"
+
+# Wait for snapshot list - V1 repo has a snapshot
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Verify snapshot is shown (1 file, 13 B - from V1 repo)
+# This proves the V1 index format is properly supported
+- extendedWaitUntil:
+    visible: "1 files, 13 B"
+    timeout: 10000
+
+# Note: This V1 repo snapshot's root is a single file, not a directory
+# The key test here is that V1 format repos correctly list their snapshots
+# (Previously this showed "0 manifests" due to 'n' vs 'x' index prefix bug)

@@ -1,10 +1,14 @@
 package org.kopiaKt.app.data.repository
 
+import android.content.Context
+import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
+import org.kopiaKt.android.restore.SafRestoreOutput
 import org.kopiaKt.app.domain.model.FileEntry
 import org.kopiaKt.app.domain.model.FileEntryType
 import org.kopiaKt.app.domain.model.RestoreProgress
@@ -16,16 +20,23 @@ import org.kopiaKt.app.domain.repository.RestoreOptions
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.snapshot.fs.Directory
+import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
+import org.kopiaKt.snapshot.restore.RestoreStats
+import org.kopiaKt.snapshot.restore.SnapshotRestorer
 import org.kopiaKt.snapshot.snapshotfs.snapshotRoot
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.kopiaKt.snapshot.restore.RestoreOptions as CoreRestoreOptions
 
 @Singleton
 class SnapshotRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repositoryManager: KopiaRepositoryManagerImpl
 ) : SnapshotRepository {
+
+    private var currentRestorer: SnapshotRestorer? = null
 
     @Volatile
     private var restoreCancelled = false
@@ -68,8 +79,8 @@ class SnapshotRepositoryImpl @Inject constructor(
                     metadata.id,
                     SnapshotManifest.serializer()
                 )
-                android.util.Log.d("SnapshotRepo", "Loaded manifest: ${manifest.id}")
-                manifest.toSnapshotInfo()
+                android.util.Log.d("SnapshotRepo", "Loaded manifest with manifestId: ${metadata.id.value}")
+                manifest.toSnapshotInfo(metadata.id.value)
             } catch (e: Exception) {
                 android.util.Log.e("SnapshotRepo", "Error loading manifest: ${e.message}", e)
                 null
@@ -87,7 +98,7 @@ class SnapshotRepositoryImpl @Inject constructor(
                 manifestId,
                 SnapshotManifest.serializer()
             )
-            manifest.toSnapshotInfo()
+            manifest.toSnapshotInfo(snapshotId)
         } catch (e: Exception) {
             null
         }
@@ -153,11 +164,115 @@ class SnapshotRepositoryImpl @Inject constructor(
         ))
 
         try {
-            // TODO: Implement actual restore using SnapshotRestorer
-            // This is a placeholder that needs to be connected to the existing restore infrastructure
+            val repo = repositoryManager.getRepository()
+                ?: throw IllegalStateException("Not connected to repository")
+
+            // Load snapshot manifest
+            val manifestId = ManifestId.invoke(snapshotId)
+            val (manifest, _) = repo.getManifest(
+                manifestId,
+                SnapshotManifest.serializer()
+            )
+
+            // Navigate to source path within snapshot
+            var currentEntry: Entry = snapshotRoot(repo, manifest)
+            if (sourcePath.isNotEmpty() && sourcePath != "/") {
+                val pathParts = sourcePath.trim('/').split('/')
+                for (part in pathParts) {
+                    if (part.isEmpty()) continue
+                    val dir = currentEntry as? Directory
+                        ?: throw IllegalArgumentException("$part is not a directory")
+                    currentEntry = dir.child(part)
+                        ?: throw IllegalArgumentException("$part not found")
+                }
+            }
+
+            // Create SAF output for destination
+            val destUri = Uri.parse(destinationUri)
+            val safOutput = SafRestoreOutput(context, destUri)
+
+            // Create progress tracker
+            val progressTracker = object : org.kopiaKt.snapshot.restore.RestoreProgress {
+                private var totalFiles = 0L
+                private var restoredFiles = 0L
+                private var totalBytes = 0L
+                private var restoredBytes = 0L
+                private var currentFile: String? = null
+
+                override fun directoryEnqueued() {}
+                override fun directoryRestored() {}
+                override fun directoryDeleted() {}
+
+                override fun fileEnqueued(size: Long) {
+                    totalFiles++
+                    totalBytes += size
+                    trySend(makeProgress(RestoreState.IN_PROGRESS))
+                }
+
+                override fun fileProgress(bytesWritten: Long) {
+                    restoredBytes += bytesWritten
+                    trySend(makeProgress(RestoreState.IN_PROGRESS))
+                }
+
+                override fun fileRestored() {
+                    restoredFiles++
+                    trySend(makeProgress(RestoreState.IN_PROGRESS))
+                }
+
+                override fun fileSkipped(size: Long) {
+                    restoredFiles++
+                    restoredBytes += size
+                }
+
+                override fun fileDeleted() {}
+
+                override fun symlinkEnqueued() {
+                    totalFiles++
+                }
+
+                override fun symlinkRestored() {
+                    restoredFiles++
+                }
+
+                override fun symlinkDeleted() {}
+
+                override fun errorIgnored() {}
+
+                override fun snapshot(): RestoreStats {
+                    return RestoreStats(
+                        restoredTotalFileSize = restoredBytes,
+                        restoredFileCount = restoredFiles.toInt(),
+                        skippedTotalFileSize = 0,
+                        skippedCount = 0,
+                        enqueuedTotalFileSize = totalBytes,
+                        enqueuedFileCount = totalFiles.toInt()
+                    )
+                }
+
+                private fun makeProgress(state: RestoreState) = RestoreProgress(
+                    state = state,
+                    totalFiles = totalFiles,
+                    restoredFiles = restoredFiles,
+                    totalBytes = totalBytes,
+                    restoredBytes = restoredBytes,
+                    currentFile = currentFile,
+                    errorMessage = null
+                )
+            }
+
+            // Create restorer and run restore
+            val coreOptions = CoreRestoreOptions(
+                parallel = 1, // SAF is not thread-safe
+                incremental = options.incremental,
+                deleteExtra = false,
+                ignoreErrors = false
+            )
+
+            val restorer = SnapshotRestorer(safOutput, coreOptions, progressTracker)
+            currentRestorer = restorer
 
             send(RestoreProgress(
-                state = RestoreState.COMPLETED,
+                state = RestoreState.IN_PROGRESS,
                 totalFiles = 0,
                 restoredFiles = 0,
                 totalBytes = 0,
@@ -165,7 +280,23 @@ class SnapshotRepositoryImpl @Inject constructor(
                 currentFile = null,
                 errorMessage = null
             ))
+
+            // Run restore
+            withContext(Dispatchers.IO) {
+                val stats = restorer.restore(currentEntry)
+
+                send(RestoreProgress(
+                    state = RestoreState.COMPLETED,
+                    totalFiles = stats.enqueuedFileCount.toLong(),
+                    restoredFiles = stats.restoredFileCount.toLong(),
+                    totalBytes = stats.enqueuedTotalFileSize,
+                    restoredBytes = stats.restoredTotalFileSize,
+                    currentFile = null,
+                    errorMessage = null
+                ))
+            }
         } catch (e: Exception) {
+            android.util.Log.e("SnapshotRepo", "Restore failed", e)
             send(RestoreProgress(
                 state = RestoreState.FAILED,
                 totalFiles = 0,
@@ -173,8 +304,10 @@ class SnapshotRepositoryImpl @Inject constructor(
                 totalBytes = 0,
                 restoredBytes = 0,
                 currentFile = null,
-                errorMessage = e.message
+                errorMessage = e.message ?: "Unknown error"
             ))
+        } finally {
+            currentRestorer = null
         }
 
         awaitClose { restoreCancelled = true }
@@ -182,11 +315,12 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override fun cancelRestore() {
         restoreCancelled = true
+        currentRestorer?.cancel()
     }
 
-    private fun SnapshotManifest.toSnapshotInfo(): SnapshotInfo {
+    private fun SnapshotManifest.toSnapshotInfo(manifestId: String): SnapshotInfo {
         return SnapshotInfo(
-            id = id,
+            id = manifestId,
             source = SourceInfo(source.host, source.userName, source.path),
             startTime = startTime,
             endTime = endTime,
