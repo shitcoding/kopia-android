@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/home_screen.dart';
+import 'router.dart';
 import 'theme/kopia_theme.dart';
 
 /// Entry point for standalone Flutter execution (development/testing).
@@ -14,13 +14,13 @@ class KopiaKtApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'KopiaKt',
       debugShowCheckedModeBanner: false,
       theme: KopiaTheme.lightTheme,
       darkTheme: KopiaTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      routerConfig: kopiaRouter,
     );
   }
 }

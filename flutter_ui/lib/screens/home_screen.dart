@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../services/kopia_service.dart';
 
 /// Home screen for KopiaKt Flutter UI.
-/// Includes bridge connectivity test.
+/// Includes bridge connectivity test and navigation to connect screen.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -56,7 +57,17 @@ class _HomeScreenState extends State<HomeScreen> {
               'KopiaKt Flutter UI',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
+
+            // Connect Repository button
+            FilledButton.icon(
+              onPressed: () => context.go('/connect'),
+              icon: const Icon(Icons.storage),
+              label: const Text('Connect Repository'),
+            ),
+            const SizedBox(height: 32),
+
+            // Bridge test card
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 32),
               child: Padding(
@@ -81,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                    OutlinedButton(
                       onPressed: _isTesting ? null : _testBridge,
                       child: _isTesting
                           ? const SizedBox(
