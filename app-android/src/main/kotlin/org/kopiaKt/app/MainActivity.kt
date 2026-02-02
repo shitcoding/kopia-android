@@ -12,15 +12,24 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import dagger.hilt.android.AndroidEntryPoint
+import org.kopiaKt.app.bridge.FlutterEngineProvider
+import org.kopiaKt.app.bridge.KopiaBridgeHandler
 import org.kopiaKt.app.navigation.KopiaNavHost
 import org.kopiaKt.app.ui.theme.KopiaKtTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private var bridgeHandler: KopiaBridgeHandler? = null
+
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Set up Flutter bridge
+        setupFlutterBridge()
+
         setContent {
             KopiaKtTheme {
                 Surface(
@@ -32,6 +41,17 @@ class MainActivity : ComponentActivity() {
                     KopiaNavHost()
                 }
             }
+        }
+    }
+
+    private fun setupFlutterBridge() {
+        val engine = FlutterEngineProvider.getEngine() ?: return
+
+        bridgeHandler = KopiaBridgeHandler(
+            context = applicationContext,
+            activity = this
+        ).also { handler ->
+            handler.setUp(engine.dartExecutor.binaryMessenger)
         }
     }
 }

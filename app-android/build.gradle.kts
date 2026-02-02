@@ -78,6 +78,10 @@ dependencies {
     }
     implementation(project(":android"))
 
+    // Flutter UI module (AAR built via `flutter build aar` in flutter_ui/)
+    debugImplementation("org.kopiaKt.flutter_ui:flutter_debug:1.0")
+    releaseImplementation("org.kopiaKt.flutter_ui:flutter_release:1.0")
+
     // Compose BOM
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

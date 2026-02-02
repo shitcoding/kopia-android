@@ -1,0 +1,46 @@
+name: flutter_ui
+description: "KopiaKt Flutter UI module for Android add-to-app integration."
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # UI Components
+  cupertino_icons: ^1.0.8
+
+  # Utilities
+  intl: ^0.20.2
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Code Generation
+  pigeon: ^25.3.0
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.4
+  freezed: ^2.5.8
+  freezed_annotation: ^2.4.4
+  json_serializable: ^6.9.4
+
+flutter:
+  uses-material-design: true
+
+  module:
+    androidX: true
+    androidPackage: org.kopiaKt.flutter_ui
+    iosBundleIdentifier: org.kopiaKt.flutterUi
