@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'screens/file_browser_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/repository_connect_screen.dart';
+import 'screens/restore_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/snapshot_list_screen.dart';
+import 'screens/welcome_screen.dart';
 
 /// Router configuration for KopiaKt Flutter UI.
 /// Handles navigation between screens within the Flutter module.
@@ -10,6 +14,10 @@ final kopiaRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
+      builder: (context, state) => const WelcomeScreen(),
+    ),
+    GoRoute(
+      path: '/dev',
       builder: (context, state) => const HomeScreen(),
     ),
     GoRoute(
@@ -21,66 +29,33 @@ final kopiaRouter = GoRouter(
     ),
     GoRoute(
       path: '/snapshots',
-      builder: (context, state) => const _PlaceholderScreen(
-        title: 'Snapshots',
-        message: 'Snapshot list will be implemented in Phase 3',
-      ),
+      builder: (context, state) => const SnapshotListScreen(),
     ),
     GoRoute(
-      path: '/files',
-      builder: (context, state) => const _PlaceholderScreen(
-        title: 'Files',
-        message: 'File browser will be implemented in Phase 3',
-      ),
+      path: '/files/:snapshotId',
+      builder: (context, state) {
+        final snapshotId = state.pathParameters['snapshotId'] ?? '';
+        final path = state.uri.queryParameters['path'] ?? '';
+        return FileBrowserScreen(
+          snapshotId: snapshotId,
+          initialPath: path,
+        );
+      },
     ),
     GoRoute(
       path: '/settings',
-      builder: (context, state) => const _PlaceholderScreen(
-        title: 'Settings',
-        message: 'Settings will be implemented later',
-      ),
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/restore/:snapshotId',
+      builder: (context, state) {
+        final snapshotId = state.pathParameters['snapshotId'] ?? '';
+        final path = state.extra as String? ?? '';
+        return RestoreScreen(
+          snapshotId: snapshotId,
+          sourcePath: path,
+        );
+      },
     ),
   ],
 );
-
-/// Placeholder screen for routes not yet implemented.
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({
-    required this.title,
-    required this.message,
-  });
-
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.construction,
-              size: 64,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
