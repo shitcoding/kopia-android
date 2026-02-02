@@ -1,5 +1,6 @@
 package org.kopiaKt.app.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -7,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import org.kopiaKt.app.bridge.FlutterScreen
 import org.kopiaKt.app.ui.screens.filebrowser.FileBrowserScreen
 import org.kopiaKt.app.ui.screens.repositoryconnect.RepositoryConnectScreen
 import org.kopiaKt.app.ui.screens.restore.RestoreScreen
@@ -86,8 +88,15 @@ fun KopiaNavHost(
                     navController.navigate(Destination.Welcome) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onFlutterDemo = {
+                    navController.navigate(Destination.FlutterHome)
                 }
             )
+        }
+
+        composable<Destination.FlutterHome> {
+            FlutterScreen(modifier = Modifier.fillMaxSize())
         }
     }
 }

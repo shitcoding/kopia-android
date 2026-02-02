@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     onBack: () -> Unit,
     onDisconnect: () -> Unit,
+    onFlutterDemo: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -36,6 +37,15 @@ fun SettingsScreen(
             Text("Settings UI - TODO")
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            OutlinedButton(
+                onClick = onFlutterDemo,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Flutter UI Demo")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = onDisconnect,
