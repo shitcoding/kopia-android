@@ -282,7 +282,17 @@ class KopiaBridgeHandler(
         }
 
         fun emit(progress: RestoreProgress) {
-            sink?.success(progress.toList())
+            // Convert to a list with primitive types for EventChannel
+            // (EventChannel doesn't use Pigeon's custom codec, so enum must be sent as int)
+            sink?.success(listOf(
+                progress.state.raw,
+                progress.totalFiles,
+                progress.restoredFiles,
+                progress.totalBytes,
+                progress.restoredBytes,
+                progress.currentFile,
+                progress.errorMessage
+            ))
         }
 
         fun endOfStream() {

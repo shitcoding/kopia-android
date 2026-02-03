@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/kopia_bridge.g.dart';
 import '../bridge/kopia_bridge.g.dart' as bridge;
@@ -54,6 +55,8 @@ class RestoreNotifier extends StateNotifier<RestoreState> {
   final String snapshotId;
   final String sourcePath;
 
+  StreamSubscription<RestoreProgress>? _progressSubscription;
+
   Future<void> pickDestination() async {
     try {
       final result = await KopiaService.instance.pickRestoreDestination();
@@ -88,6 +91,31 @@ class RestoreNotifier extends StateNotifier<RestoreState> {
       clearError: true,
     );
 
+    // Cancel any existing subscription
+    await _progressSubscription?.cancel();
+
+    // Subscribe to progress stream before starting restore
+    _progressSubscription = KopiaService.instance.restoreProgressStream.listen(
+      (progress) {
+        state = state.copyWith(progress: progress);
+      },
+      onError: (error) {
+        state = state.copyWith(
+          progress: RestoreProgress(
+            state: bridge.RestoreState.failed,
+            totalFiles: state.progress?.totalFiles ?? 0,
+            restoredFiles: state.progress?.restoredFiles ?? 0,
+            totalBytes: state.progress?.totalBytes ?? 0,
+            restoredBytes: state.progress?.restoredBytes ?? 0,
+            errorMessage: error.toString(),
+          ),
+        );
+      },
+      onDone: () {
+        _progressSubscription = null;
+      },
+    );
+
     try {
       await KopiaService.instance.startRestore(
         RestoreRequest(
@@ -96,19 +124,10 @@ class RestoreNotifier extends StateNotifier<RestoreState> {
           destinationUri: state.destinationUri!,
         ),
       );
-
-      // TODO: Listen to progress stream via EventChannel
-      // For now, simulate completion
-      state = state.copyWith(
-        progress: RestoreProgress(
-          state: bridge.RestoreState.completed,
-          totalFiles: 0,
-          restoredFiles: 0,
-          totalBytes: 0,
-          restoredBytes: 0,
-        ),
-      );
+      // Progress updates come via the stream, no need to set completion here
     } catch (e) {
+      await _progressSubscription?.cancel();
+      _progressSubscription = null;
       state = state.copyWith(
         progress: RestoreProgress(
           state: bridge.RestoreState.failed,
@@ -124,7 +143,11 @@ class RestoreNotifier extends StateNotifier<RestoreState> {
 
   Future<void> cancelRestore() async {
     try {
+      await _progressSubscription?.cancel();
+      _progressSubscription = null;
       await KopiaService.instance.cancelRestore();
+      // The cancelled state will be emitted by the native layer via the stream,
+      // but since we cancelled the subscription, set it manually
       state = state.copyWith(
         progress: RestoreProgress(
           state: bridge.RestoreState.cancelled,
@@ -140,10 +163,18 @@ class RestoreNotifier extends StateNotifier<RestoreState> {
   }
 
   void reset() {
+    _progressSubscription?.cancel();
+    _progressSubscription = null;
     state = state.copyWith(
       progress: null,
       clearError: true,
     );
+  }
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
   }
 }
 

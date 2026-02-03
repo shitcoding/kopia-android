@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import '../bridge/kopia_bridge.g.dart';
 
 /// Service wrapper for the Kopia native bridge.
@@ -8,6 +9,8 @@ class KopiaService {
   static final KopiaService instance = KopiaService._();
 
   final _api = KopiaHostApi();
+
+  static const _restoreProgressChannel = EventChannel('org.kopiaKt.app/restore_progress');
 
   /// Pings the native bridge to verify communication.
   /// Returns "pong" if the bridge is working correctly.
@@ -81,5 +84,22 @@ class KopiaService {
       read: read,
       write: write,
     ));
+  }
+
+  /// Returns a stream of restore progress updates from the native layer.
+  /// The stream emits [RestoreProgress] objects as the restore operation proceeds.
+  Stream<RestoreProgress> get restoreProgressStream {
+    return _restoreProgressChannel.receiveBroadcastStream().map((event) {
+      final list = event as List<Object?>;
+      return RestoreProgress(
+        state: RestoreState.values[list[0] as int],
+        totalFiles: list[1] as int,
+        restoredFiles: list[2] as int,
+        totalBytes: list[3] as int,
+        restoredBytes: list[4] as int,
+        currentFile: list[5] as String?,
+        errorMessage: list[6] as String?,
+      );
+    });
   }
 }
