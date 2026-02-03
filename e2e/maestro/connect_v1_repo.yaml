@@ -2,6 +2,9 @@
 # Repository: /sdcard/v1repo (V1 format repo)
 # Password: test123
 # Expected: Successfully connect and see snapshot list
+#
+# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
+# services, so we use text-based selectors instead of id-based ones.
 
 appId: org.kopiaKt.app
 ---
@@ -18,21 +21,19 @@ appId: org.kopiaKt.app
 
 # Enter path
 - tapOn:
-    id: "repo_path_field"
+    text: "Repository Path"
 - inputText: "/sdcard/v1repo"
 
 # Enter password
 - tapOn:
-    id: "password_field"
+    text: "Repository Password"
 - inputText: "test123"
 
 # Hide keyboard and tap Connect button
 - hideKeyboard
-- tapOn:
-    id: "connect_button"
+- tapOn: "Connect"
 
 # Wait for connection and verify success
 - extendedWaitUntil:
-    visible:
-      text: "Snapshots|snapshot"
+    visible: "Snapshots"
     timeout: 15000

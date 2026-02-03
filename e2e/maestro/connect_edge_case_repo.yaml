@@ -1,7 +1,10 @@
 # E2E Test: Connect to edge_case_repo and verify connection
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
-# Expected: Successfully connect and see file browser
+# Expected: Successfully connect and see snapshot list
+#
+# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
+# services, so we use text-based selectors instead of id-based ones.
 
 appId: org.kopiaKt.app
 ---
@@ -16,24 +19,27 @@ appId: org.kopiaKt.app
 # Wait for Connect Repository screen
 - assertVisible: "Connect Repository"
 
-# Enter path (field is empty by default now)
+# Enter path
 - tapOn:
-    id: "repo_path_field"
+    text: "Repository Path"
 - inputText: "/sdcard/testrepo"
 
 # Enter password
 - tapOn:
-    id: "password_field"
+    text: "Repository Password"
 - inputText: "test123"
 
 # Hide keyboard and tap Connect button
 - hideKeyboard
-- tapOn:
-    id: "connect_button"
+- tapOn: "Connect"
 
-# Wait for connection and verify success
-# Should see snapshot list or browse screen
+# Wait for connection and verify success - should see snapshot list
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Verify snapshot is loaded (76 files from edge_case_repo)
 - extendedWaitUntil:
     visible:
-      text: "Snapshots|snapshot|Browse|Files|source"
-    timeout: 15000
+      text: ".*76 files.*"
+    timeout: 10000

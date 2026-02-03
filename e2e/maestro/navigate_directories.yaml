@@ -1,16 +1,10 @@
-# E2E Test: Browse files in edge_case_repo snapshot
+# E2E Test: Navigate into nested directories
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
-# Expected: Connect to repo, view snapshot list, browse root file listing
-#
-# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
-# services, so we use text-based selectors instead of id-based ones.
-#
-# KNOWN BUG: Directory navigation (tapping folders) updates the title bar but
-# doesn't actually navigate into the subdirectory. This test currently only
-# validates root-level file browsing.
+# Expected: Navigate from root -> nested/level1 -> level2 and verify contents
 
 appId: org.kopiaKt.app
+
 ---
 # Clear app state and start fresh
 - clearState
@@ -39,7 +33,7 @@ appId: org.kopiaKt.app
     visible: "Snapshots"
     timeout: 15000
 
-# Verify snapshot data loaded (76 files)
+# Wait for data to load
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
@@ -49,27 +43,40 @@ appId: org.kopiaKt.app
 - tapOn:
     text: ".*76 files.*"
 
-# Wait for file browser screen to load
+# Wait for file browser screen to load (root level)
 - extendedWaitUntil:
     visible:
-      text: ".*hidden_dir.*"
+      text: ".*level1.*"
     timeout: 15000
 
-# Verify root directory listing shows expected edge case entries
-- assertVisible:
-    text: ".*hidden_dir.*"
-
-- assertVisible:
-    text: ".*many_files.*"
-
+# Verify we see the level1 folder at root level
 - assertVisible:
     text: ".*level1.*"
 
-# Scroll down to see more files
-- scroll
+# Tap on level1 folder to navigate into it
+- tapOn:
+    text: ".*level1.*"
 
-# Verify we can see more edge case files after scrolling
+# Wait for level2 to appear (proving we navigated into level1)
 - extendedWaitUntil:
     visible:
-      text: ".*double_dot.*"
-    timeout: 5000
+      text: ".*level2.*"
+    timeout: 10000
+
+# Verify we navigated into level1 (now shows level2 inside)
+- assertVisible:
+    text: ".*level2.*"
+
+# Continue deeper - tap on level2
+- tapOn:
+    text: ".*level2.*"
+
+# Wait for level3 to appear
+- extendedWaitUntil:
+    visible:
+      text: ".*level3.*"
+    timeout: 10000
+
+# Verify we navigated into level2 (shows level3)
+- assertVisible:
+    text: ".*level3.*"
