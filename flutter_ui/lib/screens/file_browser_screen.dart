@@ -103,7 +103,10 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
   Widget _buildContent(BuildContext context, FileBrowserState state) {
     // Loading state (initial)
     if (state.isLoading && state.entries.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Semantics(
+        identifier: 'file_browser_loading',
+        child: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     // Error state
@@ -153,32 +156,35 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     }
 
     // List of entries
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: state.entries.length + (state.hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == state.entries.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+    return Semantics(
+      identifier: 'file_browser_ready',
+      child: ListView.builder(
+        controller: _scrollController,
+        itemCount: state.entries.length + (state.hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == state.entries.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
 
-        final entry = state.entries[index];
-        return _FileEntryItem(
-          entry: entry,
-          onTap: () {
-            if (entry.type == FileEntryType.directory) {
-              final newPath = state.currentPath.isEmpty
-                  ? entry.name
-                  : '${state.currentPath}/${entry.name}';
-              context.go('/files/${widget.snapshotId}?path=$newPath');
-            }
-          },
-        );
-      },
+          final entry = state.entries[index];
+          return _FileEntryItem(
+            entry: entry,
+            onTap: () {
+              if (entry.type == FileEntryType.directory) {
+                final newPath = state.currentPath.isEmpty
+                    ? entry.name
+                    : '${state.currentPath}/${entry.name}';
+                context.go('/files/${widget.snapshotId}?path=$newPath');
+              }
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -241,39 +247,43 @@ class _FileEntryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        _getIcon(),
-        color: _getIconColor(context),
-      ),
-      title: Text(
-        entry.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Row(
-        children: [
-          if (entry.type == FileEntryType.file) ...[
-            Text(
-              _formatSize(entry.size),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 16),
+    return Semantics(
+      identifier: 'file_entry_${entry.name}',
+      label: entry.name,  // For screen readers
+      child: ListTile(
+        leading: Icon(
+          _getIcon(),
+          color: _getIconColor(context),
+        ),
+        title: Text(
+          entry.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Row(
+          children: [
+            if (entry.type == FileEntryType.file) ...[
+              Text(
+                _formatSize(entry.size),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(width: 16),
+            ],
+            if (entry.modTimeEpochMs != null)
+              Text(
+                _formatDateTime(entry.modTimeEpochMs!),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
           ],
-          if (entry.modTimeEpochMs != null)
-            Text(
-              _formatDateTime(entry.modTimeEpochMs!),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-        ],
+        ),
+        trailing: entry.type == FileEntryType.directory
+            ? Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              )
+            : null,
+        onTap: onTap,
       ),
-      trailing: entry.type == FileEntryType.directory
-          ? Icon(
-              Icons.chevron_right,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            )
-          : null,
-      onTap: onTap,
     );
   }
 

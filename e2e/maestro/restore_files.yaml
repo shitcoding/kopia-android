@@ -29,20 +29,28 @@ appId: org.kopiaKt.app
 - tapOn:
     id: "connect_button"
 
-# Wait for snapshot list - 76 files, ~5 MB total
+# Wait for snapshot list to be ready
 - extendedWaitUntil:
     visible:
-      text: "76 files.*"
+      id: "snapshot_list_ready"
     timeout: 15000
 
-# Tap on snapshot to browse files
-- tapOn:
-    text: "76 files.*"
+# Verify Snapshots title is visible
+- assertVisible: "Snapshots"
 
-# Verify file browser loaded
+# Tap on snapshot card (first card in list)
+- tapOn:
+    point: "50%,30%"
+
+# Wait for file browser to be ready
 - extendedWaitUntil:
-    visible: ".hidden_dir"
+    visible:
+      id: "file_browser_ready"
     timeout: 10000
+
+# Verify .hidden_dir is visible using semantic identifier
+- assertVisible:
+    id: "file_entry_.hidden_dir"
 
 # Tap restore button (in top bar)
 - tapOn:
@@ -110,4 +118,5 @@ appId: org.kopiaKt.app
 - tapOn: "Done"
 
 # Should be back at file browser
-- assertVisible: ".hidden_dir"
+- assertVisible:
+    id: "file_entry_.hidden_dir"

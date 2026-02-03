@@ -26,40 +26,66 @@ appId: org.kopiaKt.app
 - tapOn:
     id: "connect_button"
 
-# Wait for snapshot list - 76 files, ~5 MB total
+# Wait for snapshot list to be ready
 - extendedWaitUntil:
     visible:
-      text: "76 files.*"
+      id: "snapshot_list_ready"
     timeout: 15000
 
-# Tap on snapshot to browse files
-- tapOn:
-    text: "76 files.*"
+# Verify Snapshots title is visible
+- assertVisible: "Snapshots"
 
-# Verify file browser loaded - should see root directory contents
+# Tap on snapshot card (first card in list)
+- tapOn:
+    point: "50%,30%"
+
+# Wait for file browser to be ready (state-based semantics)
 - extendedWaitUntil:
     visible:
-      text: ".hidden_dir|empty_dir1|level1|many_files"
-    timeout: 10000
+      id: "file_browser_ready"
+    timeout: 15000
 
-# Navigate into unicode directory (if present) or another folder
-- tapOn: "level1"
+# Verify level1 folder is visible
+- assertVisible:
+    id: "file_entry_level1"
 
-# Verify nested navigation
+# Navigate into level1 folder using semantic identifier
+- tapOn:
+    id: "file_entry_level1"
+
+# Wait for nested directory to load
 - extendedWaitUntil:
-    visible: "level2"
+    visible:
+      id: "file_browser_ready"
     timeout: 5000
+
+# Verify level2 is visible
+- assertVisible:
+    id: "file_entry_level2"
 
 # Go back
 - back
 
+# Wait for parent directory to reload
+- extendedWaitUntil:
+    visible:
+      id: "file_browser_ready"
+    timeout: 5000
+
 # Verify we're back at root
-- assertVisible: "level1"
+- assertVisible:
+    id: "file_entry_level1"
 
 # Navigate into many_files directory
-- tapOn: "many_files"
+- tapOn:
+    id: "file_entry_many_files"
+
+# Wait for file browser to load
+- extendedWaitUntil:
+    visible:
+      id: "file_browser_ready"
+    timeout: 5000
 
 # Verify files are listed - many_files contains file_001.txt through file_050.txt
-- extendedWaitUntil:
-    visible: "file_001.txt"
-    timeout: 5000
+- assertVisible:
+    id: "file_entry_file_001.txt"

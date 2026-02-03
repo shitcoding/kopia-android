@@ -44,7 +44,10 @@ class SnapshotListScreen extends ConsumerWidget {
   ) {
     // Loading state (initial load)
     if (state.isLoading && state.snapshots.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Semantics(
+        identifier: 'snapshot_list_loading',
+        child: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     // Error state (no data)
@@ -113,31 +116,34 @@ class SnapshotListScreen extends ConsumerWidget {
     }
 
     // List of snapshots
-    return Stack(
-      children: [
-        ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: state.snapshots.length,
-          itemBuilder: (context, index) {
-            final snapshot = state.snapshots[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: _SnapshotCard(
-                snapshot: snapshot,
-                onTap: () => context.go('/files/${snapshot.id}'),
-              ),
-            );
-          },
-        ),
-        // Show loading indicator at top when refreshing
-        if (state.isLoading && state.snapshots.isNotEmpty)
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: LinearProgressIndicator(),
+    return Semantics(
+      identifier: 'snapshot_list_ready',
+      child: Stack(
+        children: [
+          ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: state.snapshots.length,
+            itemBuilder: (context, index) {
+              final snapshot = state.snapshots[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SnapshotCard(
+                  snapshot: snapshot,
+                  onTap: () => context.go('/files/${snapshot.id}'),
+                ),
+              );
+            },
           ),
-      ],
+          // Show loading indicator at top when refreshing
+          if (state.isLoading && state.snapshots.isNotEmpty)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -154,71 +160,79 @@ class _SnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Source path + incomplete indicator
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _formatSource(snapshot.source),
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    final statsText = snapshot.stats != null
+        ? '${snapshot.stats!.totalFileCount} files, ${_formatSize(snapshot.stats!.totalFileSize)}'
+        : '';
+
+    return Semantics(
+      identifier: 'snapshot_card_${snapshot.id}',
+      label: '${_formatSource(snapshot.source)}, $statsText',  // For screen readers
+      child: Card(
+        elevation: 2,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Source path + incomplete indicator
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _formatSource(snapshot.source),
+                        style: Theme.of(context).textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  if (snapshot.isIncomplete) ...[
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.warning,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                    if (snapshot.isIncomplete) ...[
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.warning,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ],
                   ],
+                ),
+                const SizedBox(height: 4),
+
+                // Timestamp
+                Text(
+                  _formatDateTime(snapshot.startTimeEpochMs),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+
+                // Stats
+                if (snapshot.stats != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    statsText,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
                 ],
-              ),
-              const SizedBox(height: 4),
 
-              // Timestamp
-              Text(
-                _formatDateTime(snapshot.startTimeEpochMs),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-
-              // Stats
-              if (snapshot.stats != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '${snapshot.stats!.totalFileCount} files, ${_formatSize(snapshot.stats!.totalFileSize)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
+                // Description
+                if (snapshot.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    snapshot.description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
-
-              // Description
-              if (snapshot.description.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  snapshot.description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
