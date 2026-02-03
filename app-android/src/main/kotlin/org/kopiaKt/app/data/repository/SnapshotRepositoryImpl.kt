@@ -295,6 +295,8 @@ class SnapshotRepositoryImpl @Inject constructor(
                     errorMessage = null
                 ))
             }
+            // Close the channel to signal completion
+            close()
         } catch (e: Exception) {
             android.util.Log.e("SnapshotRepo", "Restore failed", e)
             send(RestoreProgress(
@@ -306,6 +308,8 @@ class SnapshotRepositoryImpl @Inject constructor(
                 currentFile = null,
                 errorMessage = e.message ?: "Unknown error"
             ))
+            // Close the channel to signal failure completion
+            close()
         } finally {
             currentRestorer = null
         }

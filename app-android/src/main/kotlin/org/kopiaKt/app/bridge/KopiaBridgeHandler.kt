@@ -183,6 +183,7 @@ class KopiaBridgeHandler(
         val options = request.options?.toDomain() ?: DomainRestoreOptions()
         restoreJob = scope.launch {
             try {
+                var reachedTerminalState = false
                 snapshotRepository.restore(
                     snapshotId = request.snapshotId,
                     sourcePath = request.sourcePath,
@@ -191,13 +192,18 @@ class KopiaBridgeHandler(
                 ).collect { progress ->
                     restoreStreamHandler.emit(progress.toPigeon())
 
-                    // Close stream on terminal state
+                    // Track terminal state but don't cancel - let flow complete naturally
                     if (progress.state.isTerminal()) {
+                        reachedTerminalState = true
                         restoreStreamHandler.endOfStream()
-                        cancel()
                     }
                 }
+                // Flow completed normally
                 callback(Result.success(Unit))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Job was cancelled externally (e.g., user cancelled)
+                // Don't treat as error - this is expected behavior
+                throw e
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
