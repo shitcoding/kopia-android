@@ -44,9 +44,9 @@ class SnapshotListScreen extends ConsumerWidget {
   ) {
     // Loading state (initial load)
     if (state.isLoading && state.snapshots.isEmpty) {
-      return Semantics(
-        identifier: 'snapshot_list_loading',
-        child: const Center(child: CircularProgressIndicator()),
+      return const Center(
+        key: Key('snapshot_list_loading'),
+        child: CircularProgressIndicator(),
       );
     }
 
@@ -116,34 +116,32 @@ class SnapshotListScreen extends ConsumerWidget {
     }
 
     // List of snapshots
-    return Semantics(
-      identifier: 'snapshot_list_ready',
-      child: Stack(
-        children: [
-          ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: state.snapshots.length,
-            itemBuilder: (context, index) {
-              final snapshot = state.snapshots[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: _SnapshotCard(
-                  snapshot: snapshot,
-                  onTap: () => context.go('/files/${snapshot.id}'),
-                ),
-              );
-            },
+    return Stack(
+      children: [
+        ListView.builder(
+          key: const Key('snapshot_list'),
+          padding: const EdgeInsets.all(16.0),
+          itemCount: state.snapshots.length,
+          itemBuilder: (context, index) {
+            final snapshot = state.snapshots[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: _SnapshotCard(
+                snapshot: snapshot,
+                onTap: () => context.go('/files/${snapshot.id}'),
+              ),
+            );
+          },
+        ),
+        // Show loading indicator at top when refreshing
+        if (state.isLoading && state.snapshots.isNotEmpty)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(),
           ),
-          // Show loading indicator at top when refreshing
-          if (state.isLoading && state.snapshots.isNotEmpty)
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearProgressIndicator(),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -165,9 +163,9 @@ class _SnapshotCard extends StatelessWidget {
         : '';
 
     return Semantics(
-      identifier: 'snapshot_card_${snapshot.id}',
-      label: '${_formatSource(snapshot.source)}, $statsText',  // For screen readers
+      label: '${_formatSource(snapshot.source)}, $statsText',  // For screen readers / Maestro
       child: Card(
+        key: Key('snapshot_card_${snapshot.id}'),
         elevation: 2,
         clipBehavior: Clip.antiAlias,
         child: InkWell(

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/file_browser_screen.dart';
 import 'screens/home_screen.dart';
@@ -36,7 +37,9 @@ final kopiaRouter = GoRouter(
       builder: (context, state) {
         final snapshotId = state.pathParameters['snapshotId'] ?? '';
         final path = state.uri.queryParameters['path'] ?? '';
+        // Use ValueKey to force widget recreation when path changes
         return FileBrowserScreen(
+          key: ValueKey('$snapshotId:$path'),
           snapshotId: snapshotId,
           initialPath: path,
         );

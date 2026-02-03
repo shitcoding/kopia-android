@@ -22,6 +22,9 @@ class FileBrowserScreen extends ConsumerStatefulWidget {
 
 class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
   late final ScrollController _scrollController;
+  // Initialize to a sentinel value that can never match a valid path
+  // This ensures the first loadDirectory call always executes
+  String? _lastLoadedPath;
 
   @override
   void initState() {
@@ -31,10 +34,28 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
 
     // Load initial directory
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDirectoryIfNeeded(widget.initialPath);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant FileBrowserScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload directory when path changes (e.g., from go_router navigation)
+    if (oldWidget.initialPath != widget.initialPath ||
+        oldWidget.snapshotId != widget.snapshotId) {
+      _loadDirectoryIfNeeded(widget.initialPath);
+    }
+  }
+
+  void _loadDirectoryIfNeeded(String path) {
+    // Use nullable _lastLoadedPath so first load (null != path) always triggers
+    if (_lastLoadedPath != path) {
+      _lastLoadedPath = path;
       ref
           .read(fileBrowserProvider(widget.snapshotId).notifier)
-          .loadDirectory(widget.initialPath);
-    });
+          .loadDirectory(path);
+    }
   }
 
   @override
@@ -103,9 +124,9 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
   Widget _buildContent(BuildContext context, FileBrowserState state) {
     // Loading state (initial)
     if (state.isLoading && state.entries.isEmpty) {
-      return Semantics(
-        identifier: 'file_browser_loading',
-        child: const Center(child: CircularProgressIndicator()),
+      return const Center(
+        key: Key('file_browser_loading'),
+        child: CircularProgressIndicator(),
       );
     }
 
@@ -156,35 +177,33 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     }
 
     // List of entries
-    return Semantics(
-      identifier: 'file_browser_ready',
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: state.entries.length + (state.hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == state.entries.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-
-          final entry = state.entries[index];
-          return _FileEntryItem(
-            entry: entry,
-            onTap: () {
-              if (entry.type == FileEntryType.directory) {
-                final newPath = state.currentPath.isEmpty
-                    ? entry.name
-                    : '${state.currentPath}/${entry.name}';
-                context.go('/files/${widget.snapshotId}?path=$newPath');
-              }
-            },
+    return ListView.builder(
+      key: const Key('file_browser_list'),
+      controller: _scrollController,
+      itemCount: state.entries.length + (state.hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == state.entries.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
           );
-        },
-      ),
+        }
+
+        final entry = state.entries[index];
+        return _FileEntryItem(
+          entry: entry,
+          onTap: () {
+            if (entry.type == FileEntryType.directory) {
+              final newPath = state.currentPath.isEmpty
+                  ? entry.name
+                  : '${state.currentPath}/${entry.name}';
+              context.go('/files/${widget.snapshotId}?path=$newPath');
+            }
+          },
+        );
+      },
     );
   }
 }
@@ -248,9 +267,9 @@ class _FileEntryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      identifier: 'file_entry_${entry.name}',
-      label: entry.name,  // For screen readers
+      label: entry.name,  // For screen readers / Maestro accessibility
       child: ListTile(
+        key: Key('file_entry_${entry.name}'),
         leading: Icon(
           _getIcon(),
           color: _getIconColor(context),

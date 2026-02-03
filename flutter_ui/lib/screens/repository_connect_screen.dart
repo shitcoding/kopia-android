@@ -45,18 +45,15 @@ class RepositoryConnectScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Password field
-            Semantics(
-              identifier: 'password_field',
-              child: TextField(
-                key: const Key('password_field'),
-                onChanged: notifier.setPassword,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: const InputDecoration(
-                  labelText: 'Repository Password',
-                  border: OutlineInputBorder(),
-                ),
+            TextField(
+              key: const Key('password_field'),
+              onChanged: notifier.setPassword,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Repository Password',
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
@@ -85,26 +82,23 @@ class RepositoryConnectScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Connect button
-            Semantics(
-              identifier: 'connect_button',
-              child: FilledButton(
-                key: const Key('connect_button'),
-                onPressed: state.isConnecting
-                    ? null
-                    : () async {
-                        final success = await notifier.connect();
-                        if (success) {
-                          onConnected();
-                        }
-                      },
-                child: state.isConnecting
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Connect'),
-              ),
+            FilledButton(
+              key: const Key('connect_button'),
+              onPressed: state.isConnecting
+                  ? null
+                  : () async {
+                      final success = await notifier.connect();
+                      if (success) {
+                        onConnected();
+                      }
+                    },
+              child: state.isConnecting
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Connect'),
             ),
           ],
         ),
@@ -224,21 +218,18 @@ class _LocalFilesystemForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(
-          identifier: 'repo_path_field',
-          child: TextField(
-            key: const Key('repo_path_field'),
-            controller: TextEditingController(text: path)
-              ..selection = TextSelection.collapsed(offset: path.length),
-            onChanged: onPathChanged,
-            autocorrect: false,
-            enableSuggestions: false,
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'Repository Path',
-              hintText: '/sdcard/kopia_repo',
-              border: OutlineInputBorder(),
-            ),
+        TextField(
+          key: const Key('repo_path_field'),
+          controller: TextEditingController(text: path)
+            ..selection = TextSelection.collapsed(offset: path.length),
+          onChanged: onPathChanged,
+          autocorrect: false,
+          enableSuggestions: false,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'Repository Path',
+            hintText: '/sdcard/kopia_repo',
+            border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 8),

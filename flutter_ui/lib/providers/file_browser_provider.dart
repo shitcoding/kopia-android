@@ -63,6 +63,7 @@ class FileBrowserNotifier extends StateNotifier<FileBrowserState> {
       clearError: true,
       currentPath: path,
       pathHistory: _buildPathHistory(path),
+      entries: [], // Clear entries while loading new directory
     );
 
     try {
