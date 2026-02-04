@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.KopiaKt" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.KopiaKt" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Make system bars transparent for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Ensure proper window behavior -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
 </resources>

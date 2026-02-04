@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useDisconnect } from "@/hooks/useKopiaApi";
+import { kopiaBridge } from "@/services/kopiaBridge";
 
 const ACCENT_COLORS = [
   { name: "Blue", hsl: "217 91% 60%" },
@@ -36,6 +37,8 @@ const SettingsScreen = () => {
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains("dark");
     setIsDark(isDarkMode);
+    // Sync status bar with initial theme
+    kopiaBridge.setStatusBarAppearance(isDarkMode);
 
     // Load saved accent color
     const savedAccent = localStorage.getItem("accent-color");
@@ -53,6 +56,8 @@ const SettingsScreen = () => {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Update Android status bar appearance
+    kopiaBridge.setStatusBarAppearance(newIsDark);
   };
 
   const applyAccentColor = (hsl: string) => {

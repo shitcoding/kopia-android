@@ -34,11 +34,24 @@ declare global {
       cancelRestore(): void;
       pickRestoreDestination(): void;
       persistUriPermission(json: string): string;
+      hasStoragePermission(): string;
+      openStoragePermissionSettings(): void;
+      setStatusBarAppearance(isDarkMode: boolean): void;
     };
     KopiaEvents?: {
       onRestoreProgress?: (progress: RestoreProgress) => void;
       onDestinationPicked?: (result: SafPickResult) => void;
     };
+  }
+}
+
+/**
+ * Custom error class that includes an error code for special handling.
+ */
+export class BridgeError extends Error {
+  constructor(message: string, public readonly code?: string) {
+    super(message);
+    this.name = "BridgeError";
   }
 }
 
@@ -53,9 +66,40 @@ class KopiaBridgeService {
   private parse<T>(json: string): T {
     const result: WebResult<T> = JSON.parse(json);
     if (!result.success) {
-      throw new Error(result.error || "Unknown error");
+      throw new BridgeError(result.error || "Unknown error", result.errorCode);
     }
     return result.data as T;
+  }
+
+  /**
+   * Check if the app has storage permission for local filesystem access.
+   */
+  async hasStoragePermission(): Promise<boolean> {
+    if (!this.isAndroid) {
+      return true;
+    }
+    return this.parse<boolean>(window.KopiaBridge!.hasStoragePermission());
+  }
+
+  /**
+   * Open the system settings to grant storage permission.
+   */
+  openStoragePermissionSettings(): void {
+    if (!this.isAndroid) {
+      return;
+    }
+    window.KopiaBridge!.openStoragePermissionSettings();
+  }
+
+  /**
+   * Update the status bar appearance based on the app's theme.
+   * @param isDarkMode true for dark mode (light status bar icons), false for light mode (dark icons)
+   */
+  setStatusBarAppearance(isDarkMode: boolean): void {
+    if (!this.isAndroid) {
+      return;
+    }
+    window.KopiaBridge!.setStatusBarAppearance(isDarkMode);
   }
 
   /**

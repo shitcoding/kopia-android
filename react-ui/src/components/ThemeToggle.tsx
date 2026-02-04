@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { kopiaBridge } from "@/services/kopiaBridge";
 
 const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(false);
@@ -8,17 +9,22 @@ const ThemeToggle = () => {
     // Check initial preference
     const isDarkMode = document.documentElement.classList.contains("dark");
     setIsDark(isDarkMode);
+    // Sync status bar with initial theme
+    kopiaBridge.setStatusBarAppearance(isDarkMode);
   }, []);
 
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    
+
     if (newIsDark) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    // Update Android status bar appearance
+    kopiaBridge.setStatusBarAppearance(newIsDark);
   };
 
   return (

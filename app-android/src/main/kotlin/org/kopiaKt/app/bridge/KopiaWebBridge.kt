@@ -3,6 +3,9 @@ package org.kopiaKt.app.bridge
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -48,6 +51,7 @@ interface WebBridgeEntryPoint {
 class KopiaWebBridge(
     private val context: Context,
     private val activity: ComponentActivity,
+    private val containerView: android.view.View,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 ) {
     private val entryPoint = EntryPointAccessors.fromApplication(
@@ -81,6 +85,73 @@ class KopiaWebBridge(
     }
 
     /**
+     * Update the status bar and navigation bar appearance based on the app's theme.
+     * @param isDarkMode true for dark mode (light icons), false for light mode (dark icons)
+     */
+    @JavascriptInterface
+    fun setStatusBarAppearance(isDarkMode: Boolean) {
+        activity.runOnUiThread {
+            val window = activity.window
+
+            // Background colors matching React CSS exactly:
+            // Light mode: --background: 220 20% 97% = #F7F8FA
+            // Dark mode: --background: 220 25% 10% = #131720
+            val bgColor = if (isDarkMode) {
+                android.graphics.Color.parseColor("#131720")
+            } else {
+                android.graphics.Color.parseColor("#F7F8FA")
+            }
+
+            // Set status bar and navigation bar colors
+            window.statusBarColor = bgColor
+            window.navigationBarColor = bgColor
+
+            // Set the decorView background (this affects the area behind system bars)
+            window.decorView.setBackgroundColor(bgColor)
+
+            // Update status bar and navigation bar icon colors
+            androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !isDarkMode  // Light mode = dark icons, Dark mode = light icons
+                isAppearanceLightNavigationBars = !isDarkMode
+            }
+
+            // Also update the container view background (the WebView's parent)
+            containerView.setBackgroundColor(bgColor)
+        }
+    }
+
+    /**
+     * Check if the app has storage permission for accessing local filesystem.
+     * On Android 11+, this requires MANAGE_EXTERNAL_STORAGE permission.
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun hasStoragePermission(): String {
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            true // Legacy storage is handled by manifest permissions
+        }
+        return json.encodeToString(WebResult.success(hasPermission))
+    }
+
+    /**
+     * Open the system settings to grant storage permission.
+     * On Android 11+, opens the "All files access" settings for this app.
+     */
+    @JavascriptInterface
+    fun openStoragePermissionSettings() {
+        activity.runOnUiThread {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                activity.startActivity(intent)
+            }
+        }
+    }
+
+    /**
      * Connect to a Kopia repository.
      * @param requestJson JSON-encoded WebConnectRequest
      * @return JSON-encoded WebResult<WebRepositoryConnection>
@@ -90,6 +161,19 @@ class KopiaWebBridge(
         return runBlocking {
             try {
                 val request = json.decodeFromString<WebConnectRequest>(requestJson)
+
+                // Check storage permission for local filesystem
+                if (request.config.storageType == "LOCAL_FILESYSTEM") {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                        return@runBlocking json.encodeToString(
+                            WebResult.error<WebRepositoryConnection>(
+                                "Storage permission required. Please grant \"All files access\" permission to access local repositories.",
+                                WebErrorCodes.STORAGE_PERMISSION_REQUIRED
+                            )
+                        )
+                    }
+                }
+
                 val result = repositoryManager.connect(request.config.toDomain(), request.password)
                 result.fold(
                     onSuccess = { json.encodeToString(WebResult.success(it.toWeb())) },

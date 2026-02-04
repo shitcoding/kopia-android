@@ -1,9 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, FolderOpen, ShieldAlert } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { kopiaBridge } from "@/services/kopiaBridge";
+import { kopiaBridge, BridgeError } from "@/services/kopiaBridge";
+import { ErrorCodes } from "@/types/kopia";
 import type { ConnectRequest, StorageType, ConnectionConfig } from "@/types/kopia";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type UIStorageType = "local" | "s3" | "webdav" | "sftp";
 
@@ -14,6 +25,7 @@ const ConnectScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberPassword, setRememberPassword] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
 
   // Form states for different storage types
   const [localPath, setLocalPath] = useState("");
@@ -28,6 +40,23 @@ const ConnectScreen = () => {
   const [sftpUsername, setSftpUsername] = useState("");
   const [sftpPath, setSftpPath] = useState("");
   const [password, setPassword] = useState("");
+
+  // Subscribe to folder picker results
+  useEffect(() => {
+    const unsubscribe = kopiaBridge.onDestinationPicked((result) => {
+      if (result.displayName) {
+        // Convert SAF display name to a path hint
+        // e.g., "primary:testrepo" -> "/sdcard/testrepo"
+        const displayPath = result.displayName;
+        if (displayPath.startsWith("primary:")) {
+          setLocalPath("/sdcard/" + displayPath.substring(8));
+        } else {
+          setLocalPath(displayPath);
+        }
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const tabs: { id: UIStorageType; label: string }[] = [
     { id: "local", label: "Local" },
@@ -125,11 +154,20 @@ const ConnectScreen = () => {
       await kopiaBridge.connect(request);
       navigate("/snapshots");
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to connect to repository";
-      setError(message);
+      if (e instanceof BridgeError && e.code === ErrorCodes.STORAGE_PERMISSION_REQUIRED) {
+        setShowPermissionDialog(true);
+      } else {
+        const message = e instanceof Error ? e.message : "Failed to connect to repository";
+        setError(message);
+      }
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  const handleOpenPermissionSettings = () => {
+    kopiaBridge.openStoragePermissionSettings();
+    setShowPermissionDialog(false);
   };
 
   return (
@@ -169,19 +207,33 @@ const ConnectScreen = () => {
         {storageType === "local" && (
           <div className="space-y-4">
             <div>
-              <input
-                type="text"
-                placeholder="Repository Path"
-                value={localPath}
-                onChange={(e) => setLocalPath(e.target.value)}
-                className="input-md3"
-                disabled={isConnecting}
-                data-testid="repo-path-input"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-              />
+              <div className="flex gap-2 items-stretch">
+                <button
+                  type="button"
+                  onClick={() => {
+                    kopiaBridge.pickRestoreDestination();
+                  }}
+                  disabled={isConnecting}
+                  className="shrink-0 w-14 rounded-xl border border-border bg-card hover:bg-accent flex items-center justify-center transition-colors disabled:opacity-50"
+                  title="Browse for directory"
+                  data-testid="browse-folder-button"
+                >
+                  <FolderOpen className="w-5 h-5 text-primary" />
+                </button>
+                <input
+                  type="text"
+                  placeholder="Repository Path"
+                  value={localPath}
+                  onChange={(e) => setLocalPath(e.target.value)}
+                  className="input-md3 flex-1"
+                  disabled={isConnecting}
+                  data-testid="repo-path-input"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                />
+              </div>
               <p className="text-sm text-muted-foreground mt-2 px-1">
                 Enter the full path to the Kopia repository directory on the device.
               </p>
@@ -366,6 +418,34 @@ const ConnectScreen = () => {
           )}
         </button>
       </div>
+
+      {/* Storage Permission Dialog */}
+      <AlertDialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
+        <AlertDialogContent className="max-w-[90%] rounded-xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-full bg-warning/10">
+                <ShieldAlert className="w-6 h-6 text-warning" />
+              </div>
+              <AlertDialogTitle>Storage Permission Required</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-left">
+              To access local repositories, KopiaKt needs permission to manage all files on your device.
+              {"\n\n"}
+              Please enable <span className="font-medium text-foreground">"Allow access to manage all files"</span> in the next screen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel className="flex-1 mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="flex-1"
+              onClick={handleOpenPermissionSettings}
+            >
+              Open Settings
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

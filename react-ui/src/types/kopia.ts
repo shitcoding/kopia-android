@@ -165,4 +165,11 @@ export interface WebResult<T> {
   success: boolean;
   data?: T;
   error?: string;
+  errorCode?: string;
 }
+
+// ===== Error Codes =====
+
+export const ErrorCodes = {
+  STORAGE_PERMISSION_REQUIRED: "STORAGE_PERMISSION_REQUIRED",
+} as const;

@@ -21,12 +21,21 @@ import org.kopiaKt.app.domain.repository.RestoreOptions
 data class WebResult<T>(
     val success: Boolean,
     val data: T? = null,
-    val error: String? = null
+    val error: String? = null,
+    val errorCode: String? = null
 ) {
     companion object {
         fun <T> success(data: T): WebResult<T> = WebResult(success = true, data = data)
-        fun <T> error(message: String): WebResult<T> = WebResult(success = false, error = message)
+        fun <T> error(message: String, code: String? = null): WebResult<T> =
+            WebResult(success = false, error = message, errorCode = code)
     }
+}
+
+/**
+ * Error codes for specific error types that the UI can handle specially.
+ */
+object WebErrorCodes {
+    const val STORAGE_PERMISSION_REQUIRED = "STORAGE_PERMISSION_REQUIRED"
 }
 
 // ===== Request Models =====
