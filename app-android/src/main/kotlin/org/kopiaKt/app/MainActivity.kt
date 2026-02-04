@@ -2,7 +2,11 @@ package org.kopiaKt.app
 
 import android.os.Bundle
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import dagger.hilt.android.AndroidEntryPoint
 import org.kopiaKt.app.bridge.KopiaWebBridge
 import org.kopiaKt.app.bridge.configureForKopia
@@ -19,6 +23,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupWebView() {
+        // Create a container that will handle system bar insets
+        val container = FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.WHITE)
+        }
+
         webView = WebView(this).apply {
             // Configure WebView settings for app-like behavior
             configureForKopia()
@@ -36,7 +45,24 @@ class MainActivity : ComponentActivity() {
             loadUrl("file:///android_asset/react/index.html")
         }
 
-        setContentView(webView)
+        container.addView(webView, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+
+        // Apply window insets to the container for proper safe area handling
+        ViewCompat.setOnApplyWindowInsetsListener(container) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom,
+                left = insets.left,
+                right = insets.right
+            )
+            WindowInsetsCompat.CONSUMED
+        }
+
+        setContentView(container)
     }
 
     @Deprecated("Deprecated in Java")
