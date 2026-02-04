@@ -1,35 +1,57 @@
 package org.kopiaKt.app
 
-import io.flutter.embedding.android.FlutterFragmentActivity
-import io.flutter.embedding.engine.FlutterEngine
+import android.os.Bundle
+import android.webkit.WebView
+import androidx.activity.ComponentActivity
 import dagger.hilt.android.AndroidEntryPoint
-import org.kopiaKt.app.bridge.FlutterEngineProvider
-import org.kopiaKt.app.bridge.KopiaBridgeHandler
+import org.kopiaKt.app.bridge.KopiaWebBridge
+import org.kopiaKt.app.bridge.configureForKopia
 
 @AndroidEntryPoint
-class MainActivity : FlutterFragmentActivity() {
+class MainActivity : ComponentActivity() {
 
-    private var bridgeHandler: KopiaBridgeHandler? = null
+    private var webBridge: KopiaWebBridge? = null
+    private var webView: WebView? = null
 
-    override fun provideFlutterEngine(context: android.content.Context): FlutterEngine? {
-        // Use the pre-warmed engine from FlutterEngineProvider
-        return FlutterEngineProvider.getEngine()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setupWebView()
     }
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
+    private fun setupWebView() {
+        webView = WebView(this).apply {
+            // Configure WebView settings for app-like behavior
+            configureForKopia()
 
-        // Set up Flutter bridge
-        bridgeHandler = KopiaBridgeHandler(
-            context = applicationContext,
-            activity = this
-        ).also { handler ->
-            handler.setUp(flutterEngine.dartExecutor.binaryMessenger)
+            // Create and attach the JavaScript bridge
+            webBridge = KopiaWebBridge(
+                context = applicationContext,
+                activity = this@MainActivity
+            ).also { bridge ->
+                addJavascriptInterface(bridge, "KopiaBridge")
+                bridge.attachWebView(this)
+            }
+
+            // Load the React app from assets
+            loadUrl("file:///android_asset/react/index.html")
+        }
+
+        setContentView(webView)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (webView?.canGoBack() == true) {
+            webView?.goBack()
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
         }
     }
 
-    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
-        bridgeHandler = null
-        super.cleanUpFlutterEngine(flutterEngine)
+    override fun onDestroy() {
+        webBridge?.cleanup()
+        webView?.destroy()
+        super.onDestroy()
     }
 }

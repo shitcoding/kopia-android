@@ -70,9 +70,8 @@ dependencies {
     }
     implementation(project(":android"))
 
-    // Flutter UI module (AAR built via `flutter build aar` in flutter_ui/)
-    debugImplementation("org.kopiaKt.flutter_ui:flutter_debug:1.0")
-    releaseImplementation("org.kopiaKt.flutter_ui:flutter_release:1.0")
+    // WebView
+    implementation("androidx.webkit:webkit:1.12.1")
 
     // Hilt
     implementation(libs.hilt.android)
@@ -93,4 +92,30 @@ dependencies {
     // Testing
     testImplementation(libs.bundles.testing.unit)
     androidTestImplementation(libs.bundles.testing.android)
+}
+
+// Task to build React assets and copy to Android assets folder
+tasks.register<Exec>("buildReactAssets") {
+    workingDir = file("${rootProject.projectDir}/react-ui")
+    commandLine("npm", "install")
+    doLast {
+        exec {
+            workingDir = file("${rootProject.projectDir}/react-ui")
+            commandLine("npm", "run", "build")
+        }
+    }
+}
+
+tasks.register<Copy>("copyReactAssets") {
+    dependsOn("buildReactAssets")
+    from("${rootProject.projectDir}/react-ui/dist")
+    into("${projectDir}/src/main/assets/react")
+}
+
+// Only run React build if react-ui exists and has package.json
+tasks.named("preBuild") {
+    val reactUiDir = file("${rootProject.projectDir}/react-ui")
+    if (reactUiDir.exists() && file("${reactUiDir}/package.json").exists()) {
+        dependsOn("copyReactAssets")
+    }
 }

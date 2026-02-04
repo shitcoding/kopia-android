@@ -76,8 +76,11 @@ lint/tmp/
 # Kotlin
 .kotlin
 
-# Node modules (if any tooling uses it)
+# Node modules
 node_modules/
+
+# React UI build output (copied to Android assets during build)
+kopiaKt/app-android/src/main/assets/react/
 
 # OS files
 .DS_Store
