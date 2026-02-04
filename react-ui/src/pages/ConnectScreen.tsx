@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2, FolderOpen, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, FolderOpen, ShieldAlert, Settings } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { kopiaBridge, BridgeError } from "@/services/kopiaBridge";
 import { ErrorCodes } from "@/types/kopia";
@@ -178,7 +178,9 @@ const ConnectScreen = () => {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Connect Repository</h1>
-        <div className="w-9" /> {/* Spacer for alignment */}
+        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+          <Settings className="w-5 h-5" />
+        </button>
       </header>
 
       {/* Tab Navigation */}

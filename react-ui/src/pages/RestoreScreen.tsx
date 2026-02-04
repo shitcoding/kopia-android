@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Folder, Download, Loader2, Check, X, XCircle } from "lucide-react";
+import { ArrowLeft, Folder, Download, Loader2, Check, X, XCircle, Settings } from "lucide-react";
 import { kopiaBridge } from "@/services/kopiaBridge";
 import { useSnapshot } from "@/hooks/useKopiaApi";
 import type { RestoreProgress, RestoreState, SafPickResult } from "@/types/kopia";
@@ -130,7 +130,9 @@ const RestoreScreen = () => {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Restore</h1>
-        <div className="w-9" />
+        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+          <Settings className="w-5 h-5" />
+        </button>
       </header>
 
       {/* Content */}

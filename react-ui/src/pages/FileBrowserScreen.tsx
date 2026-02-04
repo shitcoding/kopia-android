@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Download, Folder, File, Link2, ChevronRight, Loader2, AlertTriangle, FolderX } from "lucide-react";
+import { ArrowLeft, Download, Folder, File, Link2, ChevronRight, Loader2, AlertTriangle, FolderX, Settings } from "lucide-react";
 import { useDirectory } from "@/hooks/useKopiaApi";
 import type { FileEntry, FileEntryType } from "@/types/kopia";
 
@@ -83,14 +83,19 @@ const FileBrowserScreen = () => {
         <button onClick={handleBack} className="btn-icon -ml-2">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="app-bar-title truncate max-w-[60%]">{currentFolder}</h1>
-        <button
-          onClick={() => navigate(`/restore/${snapshotId}`)}
-          className="btn-icon -mr-2"
-          data-testid="restore-button"
-        >
-          <Download className="w-5 h-5" />
-        </button>
+        <h1 className="app-bar-title truncate max-w-[50%]">{currentFolder}</h1>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => navigate(`/restore/${snapshotId}`)}
+            className="btn-icon"
+            data-testid="restore-button"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {/* Breadcrumb Navigation */}

@@ -1,4 +1,4 @@
-import { CloudUpload } from "lucide-react";
+import { CloudUpload, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const WelcomeScreen = () => {
@@ -6,6 +6,15 @@ const WelcomeScreen = () => {
 
   return (
     <div className="app-container flex flex-col items-center justify-center min-h-screen px-6">
+      {/* Settings Button */}
+      <button
+        onClick={() => navigate("/settings")}
+        className="absolute top-4 right-4 btn-icon"
+        aria-label="Settings"
+      >
+        <Settings className="w-5 h-5" />
+      </button>
+
       {/* App Icon */}
       <div className="animate-scale-in mb-8">
         <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-primary-lg">
