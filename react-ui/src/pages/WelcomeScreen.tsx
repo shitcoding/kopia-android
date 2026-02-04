@@ -42,10 +42,6 @@ const WelcomeScreen = () => {
         Connect to Repository
       </button>
 
-      {/* Subtle decorative element */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-        <div className="w-32 h-1 bg-muted rounded-full" />
-      </div>
     </div>
   );
 };
