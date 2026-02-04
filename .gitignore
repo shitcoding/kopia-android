@@ -59,6 +59,11 @@ captures/
 .externalNativeBuild
 .cxx/
 
+# Android SDK/NDK artifacts (local installations)
+licenses/
+ndk/
+.knownPackages
+
 # Version control
 vcs.xml
 
