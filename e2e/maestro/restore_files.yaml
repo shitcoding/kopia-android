@@ -5,8 +5,7 @@
 #
 # This test validates the complete restore flow including file content reading.
 #
-# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
-# services, so we use text-based selectors instead of id-based ones.
+# UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
 

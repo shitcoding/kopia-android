@@ -1,0 +1,87 @@
+# E2E Test: Settings and Disconnect
+# Verifies settings screen access and repository disconnection
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+# Expected: Navigate to settings, verify options, disconnect, return to welcome
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for snapshot list
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Navigate to settings (gear icon in app bar)
+# The gear icon is approximately at position (93%, 3%) based on screenshot
+- tapOn:
+    point: "93%,4%"
+
+# Verify settings screen appeared
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Verify styling section exists
+- assertVisible:
+    text: ".*Styling.*"
+
+# Verify dark mode toggle exists
+- assertVisible:
+    text: ".*Dark Mode.*"
+
+# Verify accent color option exists
+- assertVisible:
+    text: ".*Accent Color.*"
+
+# Verify about section exists
+- assertVisible: "About"
+- assertVisible: "KopiaKt"
+
+# Tap disconnect (at bottom of settings, ~88% down the screen)
+- tapOn:
+    point: "50%,90%"
+
+# Verify confirmation dialog appears (WebView might not expose dialog text)
+# Wait a moment for dialog to render
+- extendedWaitUntil:
+    visible: "Disconnect Repository?"
+    timeout: 5000
+    optional: true
+
+# Tap Disconnect button in dialog (right button at ~72%, 54%)
+- tapOn:
+    point: "72%,54%"
+
+# Verify we return to welcome screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 5000
+
+- assertVisible: "Connect to Repository"

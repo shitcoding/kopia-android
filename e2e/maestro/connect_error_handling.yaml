@@ -1,0 +1,120 @@
+# E2E Test: Connection Error Handling
+# Verifies proper error handling for invalid credentials and missing repos
+# Expected: Show appropriate error messages without crashing
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Navigate to connect screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# ========================================
+# Test 1: Empty path validation
+# ========================================
+# Try to connect without entering path
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error
+- extendedWaitUntil:
+    visible:
+      text: ".*path.*required.*|.*Repository path.*"
+    timeout: 5000
+
+# ========================================
+# Test 2: Empty password validation
+# ========================================
+# Clear and enter path only
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+# Clear password (select all and delete)
+- tapOn:
+    text: "Repository Password"
+- eraseText: 10
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show password required error
+- extendedWaitUntil:
+    visible:
+      text: ".*password.*required.*|.*Repository password.*"
+    timeout: 5000
+
+# ========================================
+# Test 3: Wrong password
+# ========================================
+- tapOn:
+    text: "Repository Password"
+- inputText: "wrongpassword"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show authentication error
+- extendedWaitUntil:
+    visible:
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*"
+    timeout: 15000
+
+# ========================================
+# Test 4: Non-existent path
+# ========================================
+# Clear existing input
+- tapOn:
+    text: "Repository Path"
+- eraseText: 20
+- inputText: "/sdcard/nonexistent_repo"
+
+- tapOn:
+    text: "Repository Password"
+- eraseText: 15
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show path not found error
+- extendedWaitUntil:
+    visible:
+      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*"
+    timeout: 15000
+
+# ========================================
+# Test 5: Successful connection after errors
+# ========================================
+# Clear and enter correct credentials
+- tapOn:
+    text: "Repository Path"
+- eraseText: 30
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- eraseText: 10
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should successfully connect
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000

@@ -1,0 +1,145 @@
+# E2E Test: Complete Restore Flow
+# Verifies the restore screen, destination picker, and restore operation
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+# Expected: Navigate to restore, select destination, start restore, verify completion
+#
+# PREREQUISITE: Run setup_restore_dir.sh to create /sdcard/Download/restore_dest
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for snapshot list
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+
+# Tap on snapshot to browse files
+- tapOn:
+    text: ".*76 files.*"
+
+# Wait for file browser
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*"
+    timeout: 15000
+
+# Tap restore button (download icon in app bar)
+- tapOn:
+    text: ".*Restore.*"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible: "Select Destination"
+    commands:
+      # Try tapping by icon position (top right)
+      - tapOn:
+          point: "92%,6%"
+
+# Verify restore screen appeared
+- extendedWaitUntil:
+    visible: "Select Destination"
+    timeout: 5000
+
+# Verify source is shown
+- assertVisible:
+    text: ".*Source.*"
+
+# Tap Select Destination to open SAF picker
+- tapOn: "Select Destination"
+
+# Wait for SAF picker to appear (native Android UI)
+- extendedWaitUntil:
+    visible:
+      text: "Download|Documents|Downloads"
+    timeout: 10000
+
+# Navigate to Download folder
+- tapOn:
+    text: "Download"
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+# Wait for Download folder to load
+- extendedWaitUntil:
+    visible:
+      text: "restore_dest|USE THIS FOLDER|CREATE NEW FOLDER"
+    timeout: 5000
+
+# If restore_dest exists, navigate into it
+- runFlow:
+    when:
+      visible: "restore_dest"
+    commands:
+      - tapOn: "restore_dest"
+
+# Use this folder
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+
+- tapOn: "USE THIS FOLDER"
+
+# Handle ALLOW permission dialog if shown
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# After selecting destination, should see Start Restore button
+- extendedWaitUntil:
+    visible: "Start Restore"
+    timeout: 10000
+
+# Start restore
+- tapOn: "Start Restore"
+
+# Wait for restore to start
+- extendedWaitUntil:
+    visible:
+      text: ".*Preparing.*|.*Restoring.*|.*files restored.*"
+    timeout: 15000
+
+# Wait for restore to complete (76 files, may take a while)
+- extendedWaitUntil:
+    visible:
+      text: ".*files restored.*|.*Restore Complete.*|.*Restore Failed.*"
+    timeout: 300000
+
+# Verify success
+- assertVisible:
+    text: ".*files restored.*"

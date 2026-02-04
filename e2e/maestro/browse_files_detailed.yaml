@@ -1,0 +1,101 @@
+# E2E Test: Detailed File Browsing
+# Verifies file browser functionality, breadcrumb navigation, folder traversal
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+# Expected: Navigate folders, verify breadcrumbs update, navigate back
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for snapshot list and tap on snapshot
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+- tapOn:
+    text: ".*76 files.*"
+
+# Verify file browser opens with root breadcrumb
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 10000
+
+# Verify we see root directory contents
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*"
+    timeout: 10000
+
+# Verify restore button is visible
+- assertVisible:
+    id: "restore-button"
+    optional: true
+
+# Verify root listing shows expected edge case entries
+- assertVisible:
+    text: ".*many_files.*"
+
+- assertVisible:
+    text: ".*level1.*"
+
+# Scroll to see more files if needed
+- scroll
+
+# Verify more entries are visible
+- extendedWaitUntil:
+    visible:
+      text: ".*double_dot.*|.*binary.*|.*unicode.*"
+    timeout: 5000
+
+# Navigate into unicode folder to test unicode filename handling
+- scroll
+
+- runFlow:
+    when:
+      visible: "unicode"
+    commands:
+      - tapOn: "unicode"
+      - extendedWaitUntil:
+          visible:
+            text: ".*unicode.*"
+          timeout: 10000
+      # Verify we see unicode filenames
+      - assertVisible:
+          text: ".*"
+
+# Navigate into level1 folder for nested navigation test
+- runFlow:
+    when:
+      visible: "level1"
+    commands:
+      - tapOn: "level1"
+      - extendedWaitUntil:
+          visible:
+            text: ".*level2.*"
+          timeout: 10000

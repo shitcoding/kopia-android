@@ -1,0 +1,60 @@
+# E2E Test: Connect to Local Repository
+# Verifies the complete connection flow for a local filesystem repository
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+# Expected: Connect successfully and see snapshot list with 76 files
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for welcome screen and navigate to Connect
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+
+- tapOn: "Connect to Repository"
+
+# Wait for Connect Repository screen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Verify Local tab is visible (default selected)
+- assertVisible: "Local"
+
+# Verify other storage tabs exist
+- assertVisible: "S3"
+- assertVisible: "WebDAV"
+- assertVisible: "SFTP"
+
+# Enter repository path
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+# Enter password
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+# Hide keyboard before tapping Connect
+- hideKeyboard
+
+# Tap Connect button
+- tapOn: "Connect"
+
+# Wait for connection and verify success - should see Snapshots screen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Verify at least one snapshot is visible with file count
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 10000

@@ -3,8 +3,7 @@
 # Password: test123
 # Expected: Successfully list snapshot and browse its files
 #
-# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
-# services, so we use text-based selectors instead of id-based ones.
+# UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
 ---

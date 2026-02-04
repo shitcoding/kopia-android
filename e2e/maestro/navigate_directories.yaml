@@ -2,6 +2,8 @@
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
 # Expected: Navigate from root -> nested/level1 -> level2 and verify contents
+#
+# UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
 

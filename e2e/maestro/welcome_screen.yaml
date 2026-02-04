@@ -1,0 +1,37 @@
+# E2E Test: Welcome Screen
+# Verifies the app launches correctly and displays the welcome screen
+# Expected: App title visible, Connect button works, navigates to connect screen
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# WebView may need a moment to load
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+
+# Verify app title is visible
+- assertVisible: "KopiaKt"
+
+# Verify tagline is visible
+- assertVisible:
+    text: ".*Browse and restore.*"
+
+# Verify Connect to Repository button is visible
+- assertVisible: "Connect to Repository"
+
+# Tap the connect button
+- tapOn: "Connect to Repository"
+
+# Verify navigation to connect screen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Verify we're on the connect screen (has storage tabs)
+- assertVisible: "Local"

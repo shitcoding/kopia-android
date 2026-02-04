@@ -3,8 +3,7 @@
 # Password: test123
 # Expected: Connect to repo, view snapshot list, browse root file listing
 #
-# NOTE: Flutter Semantics.identifier is not being exposed to Android accessibility
-# services, so we use text-based selectors instead of id-based ones.
+# UI is rendered in WebView (React app).
 #
 # KNOWN BUG: Directory navigation (tapping folders) updates the title bar but
 # doesn't actually navigate into the subdirectory. This test currently only

@@ -1,0 +1,74 @@
+# E2E Test: Browse Snapshots
+# Verifies snapshot list display and navigation to file browser
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+# Expected: See snapshot list, verify snapshot info, tap to browse files
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for snapshot list to appear
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Verify Snapshots title is shown
+- assertVisible: "Snapshots"
+
+# Verify settings button is visible
+- assertVisible:
+    text: ".*settings.*"
+    optional: true
+
+# Wait for snapshot data to load
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 10000
+
+# Verify snapshot card shows source path info (user@host:path format)
+- assertVisible:
+    text: ".*@.*:.*"
+
+# Verify snapshot card shows file count
+- assertVisible:
+    text: ".*76 files.*"
+
+# Tap on the snapshot card to open file browser
+- tapOn:
+    text: ".*76 files.*"
+
+# Verify file browser opens
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*|.*many_files.*|.*level1.*"
+    timeout: 15000
+
+# Verify breadcrumb shows root
+- assertVisible: "/"

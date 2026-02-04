@@ -1,0 +1,265 @@
+# E2E Test: Complete End-to-End Flow
+# Comprehensive test covering the entire user journey:
+#   1. Welcome screen
+#   2. Connect to local repository
+#   3. View snapshot list
+#   4. Browse files
+#   5. Navigate directories
+#   6. Start restore
+#   7. Settings
+#   8. Disconnect
+#   9. Return to welcome
+#
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# PREREQUISITE: Run setup_restore_dir.sh and setup_test_repo.sh
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# ========================================
+# PHASE 1: Welcome Screen
+# ========================================
+- clearState
+- launchApp
+
+# Verify welcome screen elements
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+
+- assertVisible:
+    text: ".*Browse and restore.*"
+
+- assertVisible: "Connect to Repository"
+
+# ========================================
+# PHASE 2: Connect to Repository
+# ========================================
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Verify storage type tabs
+- assertVisible: "Local"
+- assertVisible: "S3"
+
+# Enter credentials
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# ========================================
+# PHASE 3: View Snapshots
+# ========================================
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+# Verify snapshot details
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 10000
+
+# ========================================
+# PHASE 4: Browse Files
+# ========================================
+- tapOn:
+    text: ".*76 files.*"
+
+# Verify file browser loads
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*"
+    timeout: 15000
+
+# Verify breadcrumb
+- assertVisible: "/"
+
+# ========================================
+# PHASE 5: Navigate Directories
+# ========================================
+# Navigate into level1
+- tapOn:
+    text: ".*level1.*"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*level2.*"
+    timeout: 10000
+
+# Navigate deeper into level2
+- tapOn:
+    text: ".*level2.*"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*level3.*"
+    timeout: 10000
+
+# Navigate back to root using back button
+- back
+- back
+
+# Verify back at root (shows hidden_dir etc)
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*"
+    timeout: 10000
+
+# ========================================
+# PHASE 6: Restore Flow
+# ========================================
+# Tap restore button
+- tapOn:
+    text: ".*Restore.*"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible: "Select Destination"
+    commands:
+      - tapOn:
+          point: "92%,6%"
+
+- extendedWaitUntil:
+    visible: "Select Destination"
+    timeout: 5000
+
+# Select destination
+- tapOn: "Select Destination"
+
+- extendedWaitUntil:
+    visible:
+      text: "Download|Documents|Downloads"
+    timeout: 10000
+
+- tapOn:
+    text: "Download"
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+- extendedWaitUntil:
+    visible:
+      text: "restore_dest|USE THIS FOLDER"
+    timeout: 5000
+
+- runFlow:
+    when:
+      visible: "restore_dest"
+    commands:
+      - tapOn: "restore_dest"
+
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+
+- tapOn: "USE THIS FOLDER"
+
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# Start restore
+- extendedWaitUntil:
+    visible: "Start Restore"
+    timeout: 10000
+
+- tapOn: "Start Restore"
+
+# Wait for completion
+- extendedWaitUntil:
+    visible:
+      text: ".*files restored.*|.*Restore Complete.*"
+    timeout: 300000
+
+# Tap Done to return to file browser
+- tapOn:
+    text: "Done"
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Done"
+    commands:
+      - tapOn: "Done"
+
+# ========================================
+# PHASE 7: Settings
+# ========================================
+# Navigate back to snapshots
+- back
+
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 10000
+
+# Go to settings
+- tapOn:
+    text: ".*settings.*"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible: "Settings"
+    commands:
+      - tapOn:
+          point: "95%,6%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Verify settings content
+- assertVisible:
+    text: ".*Dark Mode.*"
+
+# ========================================
+# PHASE 8: Disconnect
+# ========================================
+- scroll
+
+- extendedWaitUntil:
+    visible: "Disconnect Repository"
+    timeout: 5000
+
+- tapOn: "Disconnect Repository"
+
+# Confirm disconnect
+- extendedWaitUntil:
+    visible: "Disconnect Repository?"
+    timeout: 5000
+
+- tapOn:
+    text: "Disconnect"
+    index: 1
+
+# ========================================
+# PHASE 9: Back at Welcome
+# ========================================
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 5000
+
+- assertVisible: "Connect to Repository"
+
+# Full E2E flow completed successfully!
