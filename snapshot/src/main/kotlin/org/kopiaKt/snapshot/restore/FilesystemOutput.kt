@@ -99,13 +99,49 @@ class FilesystemOutput(
 
     override fun parallelizable(): Boolean = true
 
+    /**
+     * Validates that the resolved path does not escape the target restore directory.
+     * This prevents path traversal attacks from maliciously crafted snapshot entries,
+     * including symlink-in-path escapes where an earlier restored symlink redirects
+     * writes outside the restore root.
+     */
+    private fun validatePath(relativePath: String): Path {
+        val resolved = targetPath.resolve(relativePath).normalize()
+        val normalizedTarget = targetPath.normalize()
+        if (!resolved.startsWith(normalizedTarget)) {
+            throw RestoreException(
+                "Path traversal detected: '$relativePath' resolves to '$resolved' which is outside restore root '$normalizedTarget'"
+            )
+        }
+
+        // Check for symlink components that could redirect writes outside the root.
+        // Walk existing path components from the root toward the target.
+        var checkPath = normalizedTarget
+        val relativePart = normalizedTarget.relativize(resolved)
+        for (component in relativePart) {
+            checkPath = checkPath.resolve(component)
+            if (!checkPath.exists(LinkOption.NOFOLLOW_LINKS)) break
+            if (checkPath.isSymbolicLink()) {
+                val realPath = checkPath.toRealPath()
+                val realRoot = normalizedTarget.toRealPath()
+                if (!realPath.startsWith(realRoot)) {
+                    throw RestoreException(
+                        "Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root"
+                    )
+                }
+            }
+        }
+
+        return resolved
+    }
+
     override suspend fun beginDirectory(relativePath: String, entry: DirEntry) {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
         createDirectory(path)
     }
 
     override suspend fun finishDirectory(relativePath: String, entry: DirEntry) {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
         setAttributes(path, entry)
     }
 
@@ -119,7 +155,7 @@ class FilesystemOutput(
         reader: InputStream,
         progressCallback: FileWriteProgress?
     ) {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
 
         // Check if file exists
         if (path.exists(LinkOption.NOFOLLOW_LINKS)) {
@@ -206,7 +242,7 @@ class FilesystemOutput(
     }
 
     override suspend fun fileExists(relativePath: String, entry: DirEntry): Boolean {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
 
         if (!path.exists(LinkOption.NOFOLLOW_LINKS)) {
             return false
@@ -231,7 +267,21 @@ class FilesystemOutput(
     }
 
     override suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String) {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
+
+        // Validate relative symlink targets don't escape the restore root.
+        // Absolute symlink targets are allowed since they only store metadata
+        // (the symlink file itself is inside the restore root).
+        val targetPath = Path.of(target)
+        if (!targetPath.isAbsolute) {
+            val normalizedRoot = this.targetPath.normalize()
+            val resolvedTarget = path.parent.resolve(target).normalize()
+            if (!resolvedTarget.startsWith(normalizedRoot)) {
+                throw RestoreException(
+                    "Symlink target traversal detected: target '$target' from '$relativePath' resolves outside restore root"
+                )
+            }
+        }
 
         // Check if path exists
         if (path.exists(LinkOption.NOFOLLOW_LINKS)) {
@@ -257,7 +307,7 @@ class FilesystemOutput(
     }
 
     override suspend fun symlinkExists(relativePath: String, entry: DirEntry, target: String): Boolean {
-        val path = targetPath.resolve(relativePath)
+        val path = validatePath(relativePath)
 
         if (!path.exists(LinkOption.NOFOLLOW_LINKS)) {
             return false
