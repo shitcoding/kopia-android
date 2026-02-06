@@ -37,6 +37,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
+    testImplementation(project(":core", "testArchive"))
 }
 
 tasks.test {

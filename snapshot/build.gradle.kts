@@ -23,6 +23,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing.unit)
+    testImplementation(project(":core", "testArchive"))
     testRuntimeOnly(libs.junit5.engine)
 }
 

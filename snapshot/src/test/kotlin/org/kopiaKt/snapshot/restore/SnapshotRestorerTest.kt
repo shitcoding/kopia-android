@@ -8,15 +8,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.kopiaKt.snapshot.fs.DeviceInfo
-import org.kopiaKt.snapshot.fs.Directory
-import org.kopiaKt.snapshot.fs.DirectoryIterator
-import org.kopiaKt.snapshot.fs.Entry
-import org.kopiaKt.snapshot.fs.EntryType
-import org.kopiaKt.snapshot.fs.File
-import org.kopiaKt.snapshot.fs.OwnerInfo
-import org.kopiaKt.snapshot.fs.Symlink
-import java.io.InputStream
+import org.kopiaKt.snapshot.testutil.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -314,71 +306,4 @@ class SnapshotRestorerTest {
         assertThat(stats.restoredTotalFileSize).isEqualTo(3000)
     }
 
-    // --- Mock Implementations ---
-
-    private open class MockEntry(
-        override val name: String,
-        override val type: EntryType,
-        override val size: Long = 0,
-        override val modTime: Instant = Instant.now(),
-        override val mode: Int = 420, // 0o644
-        override val owner: OwnerInfo = OwnerInfo.EMPTY,
-        override val device: DeviceInfo = DeviceInfo.EMPTY,
-        override val localFilesystemPath: String = ""
-    ) : Entry
-
-    private class MockFile(
-        name: String,
-        private val content: ByteArray,
-        modTime: Instant = Instant.now(),
-        mode: Int = 420
-    ) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode), File {
-        override suspend fun open(): InputStream = content.inputStream()
-    }
-
-    private class SlowMockFile(
-        name: String,
-        private val content: ByteArray,
-        private val delayMs: Long,
-        modTime: Instant = Instant.now(),
-        mode: Int = 420
-    ) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode), File {
-        override suspend fun open(): InputStream {
-            kotlinx.coroutines.delay(delayMs)
-            return content.inputStream()
-        }
-    }
-
-    private class MockDirectory(
-        name: String,
-        private val entries: List<Entry>,
-        modTime: Instant = Instant.now(),
-        mode: Int = 493 // 0o755
-    ) : MockEntry(name, EntryType.DIRECTORY, 0, modTime, mode), Directory {
-        override suspend fun child(name: String): Entry? = entries.find { it.name == name }
-        override suspend fun iterate(): DirectoryIterator = MockIterator(entries)
-        override fun supportsMultipleIterations(): Boolean = true
-    }
-
-    private class MockSymlink(
-        name: String,
-        private val target: String,
-        modTime: Instant = Instant.now()
-    ) : MockEntry(name, EntryType.SYMLINK, 0, modTime), Symlink {
-        override suspend fun readlink(): String = target
-        override suspend fun resolve(): Entry? = null
-    }
-
-    private class FailingFile(
-        name: String,
-        private val error: Throwable
-    ) : MockEntry(name, EntryType.FILE, 100), File {
-        override suspend fun open(): InputStream = throw error
-    }
-
-    private class MockIterator(entries: List<Entry>) : DirectoryIterator {
-        private val iterator = entries.iterator()
-        override suspend fun next(): Entry? = if (iterator.hasNext()) iterator.next() else null
-        override fun close() {}
-    }
 }
