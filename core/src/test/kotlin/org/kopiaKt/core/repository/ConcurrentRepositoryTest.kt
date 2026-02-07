@@ -10,7 +10,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.kopiaKt.core.blob.InMemoryBlobStorage
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.testutil.TestRepositoryFactory
 
@@ -25,7 +24,6 @@ import org.kopiaKt.core.testutil.TestRepositoryFactory
 class ConcurrentRepositoryTest {
 
     private lateinit var repo: DirectRepositoryImpl
-    private lateinit var storage: InMemoryBlobStorage
 
     @AfterEach
     fun tearDown() {
@@ -44,13 +42,11 @@ class ConcurrentRepositoryTest {
 
         @Test
         fun `should handle concurrent object writes from separate write sessions`() = runTest {
-            val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
+            val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
-            storage = createdStorage
 
             val objectsPerWriter = 5
             val allObjectIds = mutableListOf<Pair<ObjectId, ByteArray>>()
-            val lock = Any()
 
             coroutineScope {
                 val jobs = (0 until 2).map { writerIndex ->
@@ -71,9 +67,7 @@ class ConcurrentRepositoryTest {
 
                 val results = jobs.awaitAll()
                 for (result in results) {
-                    synchronized(lock) {
-                        allObjectIds.addAll(result)
-                    }
+                    allObjectIds.addAll(result)
                 }
             }
 
@@ -93,9 +87,8 @@ class ConcurrentRepositoryTest {
 
         @Test
         fun `should handle concurrent reads while write is in progress`() = runTest {
-            val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
+            val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
-            storage = createdStorage
 
             // Pre-write 5 objects and make them readable
             val preWrittenObjects = mutableListOf<Pair<ObjectId, ByteArray>>()
@@ -159,9 +152,8 @@ class ConcurrentRepositoryTest {
 
         @Test
         fun `should handle concurrent manifest operations`() = runTest {
-            val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
+            val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
-            storage = createdStorage
 
             // Two writers writing objects concurrently -- verify they don't corrupt
             // each other's data
@@ -207,9 +199,8 @@ class ConcurrentRepositoryTest {
 
         @Test
         fun `should not corrupt data under concurrent access`() = runTest {
-            val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
+            val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
-            storage = createdStorage
 
             val writerCount = 5
             val objectsPerWriter = 10

@@ -407,6 +407,14 @@ private class PackIndexV1Impl(
         } else {
             PackIndexV1.HeaderInfo(PackIndexV1.VERSION, 255, 0, 0)
         }
+
+        // Validate entrySize matches V1 fixed entry size to prevent mis-parsing
+        if (header.entryCount > 0) {
+            require(header.entrySize >= PackIndexV1.ENTRY_SIZE) {
+                "Entry size ${header.entrySize} is smaller than minimum ${PackIndexV1.ENTRY_SIZE}"
+            }
+        }
+
         stride = header.keySize + header.entrySize
 
         // Validate that claimed entry count fits within actual data to prevent

@@ -4,6 +4,8 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.time.Duration
 import kotlin.random.Random
 
@@ -212,6 +214,95 @@ class PackIndexFuzzTest {
                             "Truncate at $truncateAt: result should be a list if non-null")
                     }
                 }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Bounds check validation")
+    inner class BoundsCheckTests {
+
+        /**
+         * Builds a V1 index header with the given parameters.
+         */
+        private fun buildV1Header(
+            version: Int = 1,
+            keySize: Int = 17,
+            entrySize: Int = 20,
+            entryCount: Int = 0
+        ): ByteArray {
+            val header = ByteArray(8)
+            header[0] = version.toByte()
+            header[1] = keySize.toByte()
+            ByteBuffer.wrap(header, 2, 2).order(ByteOrder.BIG_ENDIAN).putShort(entrySize.toShort())
+            ByteBuffer.wrap(header, 4, 4).order(ByteOrder.BIG_ENDIAN).putInt(entryCount)
+            return header
+        }
+
+        @Test
+        fun `V1 should reject entryCount exceeding data capacity`() {
+            // Header claims 1000 entries but data is only 8 bytes (header only)
+            val data = buildV1Header(entryCount = 1000)
+            assertThrows<IllegalArgumentException> {
+                PackIndexV1.open(data, 0u)
+            }
+        }
+
+        @Test
+        fun `V1 should reject entrySize smaller than ENTRY_SIZE`() {
+            // Header claims entrySize=5 (less than required 20), with 1 entry
+            // Need enough data for the stride: keySize(17) + entrySize(5) = 22 bytes after header
+            val data = buildV1Header(entrySize = 5, entryCount = 1) + ByteArray(30)
+            assertThrows<IllegalArgumentException> {
+                PackIndexV1.open(data, 0u)
+            }
+        }
+
+        @Test
+        fun `V1 should accept valid header with matching data size`() {
+            // Header claims 1 entry, stride=37, need at least 8+37=45 bytes
+            val data = buildV1Header(entryCount = 1) + ByteArray(37)
+            assertDoesNotThrow {
+                PackIndexV1.open(data, 0u)
+            }
+        }
+
+        @Test
+        fun `V2 should reject zero keySize and entrySize with nonzero entryCount`() {
+            // V2 header with keySize=0, entrySize=0, entryCount=1000 -> stride=0, CPU DoS
+            val data = ByteArray(17)
+            data[0] = 2 // V2 version
+            data[1] = 0 // keySize = 0
+            // entrySize = 0 (bytes 2-3 already 0)
+            ByteBuffer.wrap(data, 4, 4).order(ByteOrder.BIG_ENDIAN).putInt(1000) // entryCount
+            // packCount = 0 (bytes 8-11 already 0)
+            assertThrows<IllegalArgumentException> {
+                PackIndexV2.open(data)
+            }
+        }
+
+        @Test
+        fun `V2 should reject packCount exceeding data capacity`() {
+            val data = ByteArray(17)
+            data[0] = 2 // V2 version
+            data[1] = 17 // keySize
+            ByteBuffer.wrap(data, 2, 2).order(ByteOrder.BIG_ENDIAN).putShort(16) // entrySize
+            // entryCount = 0
+            ByteBuffer.wrap(data, 8, 4).order(ByteOrder.BIG_ENDIAN).putInt(1000000) // packCount
+            assertThrows<IllegalArgumentException> {
+                PackIndexV2.open(data)
+            }
+        }
+
+        @Test
+        fun `V2 should accept zero entryCount with zero stride`() {
+            // Zero entries with zero stride is valid (empty index)
+            val data = ByteArray(17)
+            data[0] = 2 // V2 version
+            data[1] = 0 // keySize = 0
+            // All other fields 0 - empty index
+            assertDoesNotThrow {
+                PackIndexV2.open(data)
             }
         }
     }

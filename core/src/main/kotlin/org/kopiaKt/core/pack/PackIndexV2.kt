@@ -75,8 +75,13 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
         require(entryCount >= 0) { "Invalid entry count: $entryCount" }
         require(packCount >= 0) { "Invalid pack count: $packCount" }
 
-        // Validate claimed counts against actual data size to prevent OOM on corrupted data
+        // Validate key/entry sizes to prevent zero-stride CPU DoS on corrupted data
         val entryStride = keySize + entrySize
+        require(entryStride > 0 || entryCount == 0) {
+            "Invalid key/entry size: keySize=$keySize, entrySize=$entrySize with entryCount=$entryCount"
+        }
+
+        // Validate claimed counts against actual data size to prevent OOM on corrupted data
         val dataAfterHeader = data.size - PackIndexV2.HEADER_SIZE
         if (entryStride > 0 && entryCount > 0) {
             val maxPossibleEntries = dataAfterHeader / entryStride
@@ -97,7 +102,6 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
 
         val formatsOffset = packsOffset + packCount * PackIndexV2.PACK_INFO_SIZE
 
-        // Calculate offsets based on header size and entry counts (matching Go Kopia)
         return V2HeaderInfo(version, keySize, entrySize, entryCount, packCount, numFormatInfos, baseTimestamp, entriesOffset, packsOffset, formatsOffset)
     }
 
