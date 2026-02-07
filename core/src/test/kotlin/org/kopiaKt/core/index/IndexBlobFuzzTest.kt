@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
- * Fuzz tests for IndexBlobReader to ensure the parser never crashes
- * or hangs on arbitrary input. Exceptions are expected and acceptable;
+ * Fuzz tests for IndexBlobReader to ensure the parser never crashes,
+ * hangs, or OOMs on arbitrary input. Exceptions are expected and acceptable;
  * the goal is to verify robustness against malformed data.
  */
 @Timeout(60, unit = TimeUnit.SECONDS)
@@ -36,9 +36,8 @@ class IndexBlobFuzzTest {
             val reader = IndexBlobReader.openUnencrypted(data, blobId)
             exerciseReader(reader)
             reader.close()
-        } catch (_: Throwable) {
-            // Expected for malformed input - catch Throwable to handle
-            // OutOfMemoryError, StackOverflowError, etc.
+        } catch (_: Exception) {
+            // Expected for malformed input
         }
     }
 
@@ -47,9 +46,8 @@ class IndexBlobFuzzTest {
             val reader = IndexBlobReader.openRaw(data, blobId)
             exerciseReader(reader)
             reader.close()
-        } catch (_: Throwable) {
-            // Expected for malformed input - catch Throwable to handle
-            // OutOfMemoryError, StackOverflowError, etc.
+        } catch (_: Exception) {
+            // Expected for malformed input
         }
     }
 

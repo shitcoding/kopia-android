@@ -408,6 +408,16 @@ private class PackIndexV1Impl(
             PackIndexV1.HeaderInfo(PackIndexV1.VERSION, 255, 0, 0)
         }
         stride = header.keySize + header.entrySize
+
+        // Validate that claimed entry count fits within actual data to prevent
+        // OOM from corrupted headers specifying billions of entries
+        if (stride > 0 && header.entryCount > 0) {
+            val maxPossibleEntries = (data.size - PackIndexV1.HEADER_SIZE) / stride
+            require(header.entryCount <= maxPossibleEntries) {
+                "Entry count ${header.entryCount} exceeds data capacity (max $maxPossibleEntries for ${data.size} bytes)"
+            }
+        }
+
         extraDataOffset = PackIndexV1.HEADER_SIZE + header.entryCount * stride
     }
 

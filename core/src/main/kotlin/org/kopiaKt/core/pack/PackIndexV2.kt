@@ -72,12 +72,32 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
         val numFormatInfos = data[12].toInt() and 0xFF
         val baseTimestamp = ByteBuffer.wrap(data, 13, 4).order(ByteOrder.BIG_ENDIAN).int.toLong() and 0xFFFFFFFFL
 
-        // Calculate offsets based on header size and entry counts (matching Go Kopia)
+        require(entryCount >= 0) { "Invalid entry count: $entryCount" }
+        require(packCount >= 0) { "Invalid pack count: $packCount" }
+
+        // Validate claimed counts against actual data size to prevent OOM on corrupted data
         val entryStride = keySize + entrySize
+        val dataAfterHeader = data.size - PackIndexV2.HEADER_SIZE
+        if (entryStride > 0 && entryCount > 0) {
+            val maxPossibleEntries = dataAfterHeader / entryStride
+            require(entryCount <= maxPossibleEntries) {
+                "Entry count $entryCount exceeds data capacity (max $maxPossibleEntries)"
+            }
+        }
+
         val entriesOffset = PackIndexV2.HEADER_SIZE
         val packsOffset = entriesOffset + entryCount * entryStride
+        if (packCount > 0) {
+            val remainingAfterEntries = maxOf(0, data.size - packsOffset)
+            val maxPossiblePacks = remainingAfterEntries / PackIndexV2.PACK_INFO_SIZE
+            require(packCount <= maxPossiblePacks) {
+                "Pack count $packCount exceeds data capacity (max $maxPossiblePacks)"
+            }
+        }
+
         val formatsOffset = packsOffset + packCount * PackIndexV2.PACK_INFO_SIZE
 
+        // Calculate offsets based on header size and entry counts (matching Go Kopia)
         return V2HeaderInfo(version, keySize, entrySize, entryCount, packCount, numFormatInfos, baseTimestamp, entriesOffset, packsOffset, formatsOffset)
     }
 

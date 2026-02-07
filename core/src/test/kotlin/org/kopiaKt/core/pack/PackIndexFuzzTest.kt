@@ -12,19 +12,18 @@ import kotlin.random.Random
  * without hanging on arbitrary input, including random bytes, large inputs,
  * and corrupted valid pack blobs.
  *
- * The parser may return null, return a list, throw an Exception, or in
- * extreme cases throw an OutOfMemoryError when corrupted data causes
- * allocation of huge arrays. All of these are acceptable outcomes
- * for a fuzz test -- the critical invariant is that the parser always
- * terminates within the timeout.
+ * The parser may return null, return a list, or throw an Exception.
+ * All of these are acceptable outcomes for a fuzz test -- the critical
+ * invariant is that the parser always terminates within the timeout
+ * without OOM or infinite loops.
  */
 @Timeout(60)
 class PackIndexFuzzTest {
 
     /**
-     * Safely invokes recoverIndex, catching any Throwable.
+     * Safely invokes recoverIndex, catching any Exception.
      * Returns the result or null if any error was thrown.
-     * The critical property is that this call terminates.
+     * The critical property is that this call terminates without OOM.
      */
     private fun safeRecoverIndex(
         data: ByteArray,
@@ -32,9 +31,7 @@ class PackIndexFuzzTest {
     ): List<*>? {
         return try {
             PackBlobReader.recoverIndex(data, encryptionOverhead)
-        } catch (_: Throwable) {
-            // Any termination (including OOM from corrupted length fields) is acceptable.
-            // The fuzz test verifies the parser does not hang or loop infinitely.
+        } catch (_: Exception) {
             null
         }
     }
