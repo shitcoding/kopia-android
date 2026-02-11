@@ -1,47 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Download, Folder, File, Link2, ChevronRight, Loader2, AlertTriangle, FolderX, Settings } from "lucide-react";
 import { useDirectory } from "@/hooks/useKopiaApi";
-import type { FileEntry, FileEntryType } from "@/types/kopia";
+import { formatFileSize, formatDateTime } from "@/lib/format";
+import type { FileEntry as KopiaFileEntry, FileEntryType } from "@/types/kopia";
+
+interface DisplayFileEntry {
+  name: string;
+  type: "folder" | "file" | "symlink" | "unknown";
+  size: number;
+  modifiedAt?: Date;
+}
 
 const FileBrowserScreen = () => {
   const navigate = useNavigate();
   const { snapshotId } = useParams<{ snapshotId: string }>();
   const [path, setPath] = useState<string[]>([]);
 
-  const currentPath = "/" + path.join("/");
+  // Build current path string
+  const currentPathStr = "/" + path.join("/");
   const currentFolder = path.length > 0 ? path[path.length - 1] : "/";
 
-  const { data: directoryPage, isLoading, error, refetch } = useDirectory(
-    snapshotId ? { snapshotId, path: currentPath } : null
-  );
+  // Fetch directory contents
+  const directoryRequest = snapshotId
+    ? { snapshotId, path: currentPathStr }
+    : null;
 
-  const entries = directoryPage?.entries || [];
+  const { data: directoryPage, isLoading, isError, refetch } = useDirectory(directoryRequest);
 
-  // Refetch when path changes
-  useEffect(() => {
-    if (snapshotId) {
-      refetch();
+  // Convert Kopia FileEntry to display format
+  const mapFileType = (type: FileEntryType): DisplayFileEntry["type"] => {
+    switch (type) {
+      case "DIRECTORY": return "folder";
+      case "FILE": return "file";
+      case "SYMLINK": return "symlink";
+      case "UNKNOWN": return "unknown";
+      default: return "unknown";
     }
-  }, [path, snapshotId, refetch]);
-
-  const formatDate = (epochMs: number | undefined) => {
-    if (!epochMs) return "";
-    return new Date(epochMs).toLocaleDateString("en-US", {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
   };
 
-  const formatSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
-  };
+  const files: DisplayFileEntry[] = directoryPage?.entries.map((entry: KopiaFileEntry) => ({
+    name: entry.name,
+    type: mapFileType(entry.type),
+    size: entry.size,
+    modifiedAt: entry.modTimeEpochMs ? new Date(entry.modTimeEpochMs) : undefined,
+  })) ?? [];
+
+  const isEmpty = !isLoading && !isError && files.length === 0;
 
   const handleFolderClick = (folderName: string) => {
     setPath([...path, folderName]);
@@ -55,23 +60,15 @@ const FileBrowserScreen = () => {
     }
   };
 
-  const handleBack = () => {
-    if (path.length > 0) {
-      setPath(path.slice(0, -1));
-    } else {
-      navigate("/snapshots");
-    }
-  };
-
-  const getFileIcon = (type: FileEntryType) => {
+  const getFileIcon = (type: DisplayFileEntry["type"]) => {
     switch (type) {
-      case "DIRECTORY":
+      case "folder":
         return <Folder className="w-6 h-6 text-folder fill-folder/20" />;
-      case "FILE":
+      case "file":
         return <File className="w-6 h-6 text-file" />;
-      case "SYMLINK":
+      case "symlink":
         return <Link2 className="w-6 h-6 text-symlink" />;
-      default:
+      case "unknown":
         return <File className="w-6 h-6 text-muted-foreground" />;
     }
   };
@@ -80,16 +77,12 @@ const FileBrowserScreen = () => {
     <div className="app-container min-h-screen flex flex-col">
       {/* App Bar */}
       <header className="app-bar">
-        <button onClick={handleBack} className="btn-icon -ml-2">
+        <button onClick={() => path.length > 0 ? setPath(path.slice(0, -1)) : navigate(-1)} className="btn-icon -ml-2">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title truncate max-w-[50%]">{currentFolder}</h1>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate(`/restore/${snapshotId}`)}
-            className="btn-icon"
-            data-testid="restore-button"
-          >
+          <button onClick={() => navigate(`/restore/${snapshotId}`)} className="btn-icon">
             <Download className="w-5 h-5" />
           </button>
           <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
@@ -103,7 +96,6 @@ const FileBrowserScreen = () => {
         <button
           onClick={() => handleBreadcrumbClick(-1)}
           className={path.length === 0 ? "breadcrumb-item-active" : "breadcrumb-item"}
-          data-testid="breadcrumb-root"
         >
           /
         </button>
@@ -113,7 +105,6 @@ const FileBrowserScreen = () => {
             <button
               onClick={() => handleBreadcrumbClick(index)}
               className={index === path.length - 1 ? "breadcrumb-item-active" : "breadcrumb-item"}
-              data-testid={`breadcrumb-${segment}`}
             >
               {segment}
             </button>
@@ -125,21 +116,18 @@ const FileBrowserScreen = () => {
       <div className="flex-1">
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-20" data-testid="loading-indicator">
+          <div className="flex items-center justify-center py-20">
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
           </div>
         )}
 
         {/* Error State */}
-        {error && !isLoading && (
+        {isError && (
           <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
               <AlertTriangle className="w-8 h-8 text-destructive" />
             </div>
-            <p className="text-destructive font-medium mb-2" data-testid="error-message">Failed to load files</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              {error instanceof Error ? error.message : "Unknown error"}
-            </p>
+            <p className="text-destructive font-medium mb-4">Failed to load files</p>
             <button onClick={() => refetch()} className="btn-primary">
               Retry
             </button>
@@ -147,7 +135,7 @@ const FileBrowserScreen = () => {
         )}
 
         {/* Empty State */}
-        {!isLoading && !error && entries.length === 0 && (
+        {isEmpty && (
           <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <FolderX className="w-8 h-8 text-muted-foreground" />
@@ -157,33 +145,29 @@ const FileBrowserScreen = () => {
         )}
 
         {/* Data State - File List */}
-        {!isLoading && !error && entries.length > 0 && (
+        {!isLoading && !isError && !isEmpty && (
           <div className="divide-y divide-border">
-            {entries.map((entry, index) => (
+            {files.map((file, index) => (
               <button
-                key={entry.name}
-                onClick={() => entry.type === "DIRECTORY" && handleFolderClick(entry.name)}
+                key={file.name}
+                onClick={() => file.type === "folder" && handleFolderClick(file.name)}
                 className={`w-full list-item justify-between animate-fade-in ${
-                  entry.type !== "DIRECTORY" ? "cursor-default hover:bg-transparent" : ""
+                  file.type !== "folder" ? "cursor-default hover:bg-transparent" : ""
                 }`}
                 style={{ animationDelay: `${index * 0.02}s` }}
-                data-testid={`entry-${entry.name}`}
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
-                  {getFileIcon(entry.type)}
+                  {getFileIcon(file.type)}
                   <div className="text-left min-w-0 flex-1">
-                    <p className="font-medium text-foreground truncate">{entry.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {entry.type === "FILE" && entry.size > 0 && (
-                        <span>{formatSize(entry.size)} &nbsp;&nbsp;</span>
+                    <p className="font-medium text-foreground truncate">{file.name}</p>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{formatFileSize(file.size)}</span>
+                      {file.modifiedAt && (
+                        <span className="flex-shrink-0 ml-2">{formatDateTime(file.modifiedAt.getTime())}</span>
                       )}
-                      {formatDate(entry.modTimeEpochMs)}
-                    </p>
+                    </div>
                   </div>
                 </div>
-                {entry.type === "DIRECTORY" && (
-                  <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                )}
               </button>
             ))}
           </div>
