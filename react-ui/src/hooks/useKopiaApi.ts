@@ -4,16 +4,20 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { kopiaBridge } from "../services/kopiaBridge";
+import {
+  kopiaBridge,
+  listSourcesWithStats,
+  listSnapshotsWithRetention,
+  deleteSnapshots,
+} from "@/services/kopiaBridge";
 import type {
   ConnectRequest,
+  SourceInfo,
   SnapshotListRequest,
   ListDirectoryRequest,
-} from "../types/kopia";
+  DeleteSnapshotsRequest,
+} from "@/types/kopia";
 
-/**
- * Hook for pinging the bridge to verify communication.
- */
 export function usePing() {
   return useQuery({
     queryKey: ["ping"],
@@ -22,9 +26,6 @@ export function usePing() {
   });
 }
 
-/**
- * Hook for listing snapshot sources.
- */
 export function useSources() {
   return useQuery({
     queryKey: ["sources"],
@@ -32,9 +33,6 @@ export function useSources() {
   });
 }
 
-/**
- * Hook for listing snapshots with optional source filter.
- */
 export function useSnapshots(request: SnapshotListRequest = {}) {
   return useQuery({
     queryKey: ["snapshots", request],
@@ -42,9 +40,6 @@ export function useSnapshots(request: SnapshotListRequest = {}) {
   });
 }
 
-/**
- * Hook for getting a single snapshot by ID.
- */
 export function useSnapshot(snapshotId: string | undefined) {
   return useQuery({
     queryKey: ["snapshot", snapshotId],
@@ -54,9 +49,6 @@ export function useSnapshot(snapshotId: string | undefined) {
   });
 }
 
-/**
- * Hook for listing directory entries with pagination.
- */
 export function useDirectory(request: ListDirectoryRequest | null) {
   return useQuery({
     queryKey: ["directory", request?.snapshotId, request?.path, request?.pageToken],
@@ -66,35 +58,53 @@ export function useDirectory(request: ListDirectoryRequest | null) {
   });
 }
 
-/**
- * Hook for connecting to a repository.
- * Invalidates queries on success.
- */
 export function useConnect() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (request: ConnectRequest) => kopiaBridge.connect(request),
     onSuccess: () => {
-      // Invalidate and refetch relevant queries
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       queryClient.invalidateQueries({ queryKey: ["snapshots"] });
     },
   });
 }
 
-/**
- * Hook for disconnecting from the repository.
- * Clears all queries on success.
- */
 export function useDisconnect() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: () => kopiaBridge.disconnect(),
     onSuccess: () => {
-      // Clear all cached data
       queryClient.clear();
+    },
+  });
+}
+
+// ---------- New grouped snapshot hooks ----------
+
+export function useSourcesWithStats() {
+  return useQuery({
+    queryKey: ["sources-with-stats"],
+    queryFn: listSourcesWithStats,
+    retry: 1,
+  });
+}
+
+export function useSnapshotsWithRetention(source: SourceInfo | null) {
+  return useQuery({
+    queryKey: ["snapshots-with-retention", source],
+    queryFn: () => listSnapshotsWithRetention({ source: source! }),
+    enabled: !!source,
+    retry: 1,
+  });
+}
+
+export function useDeleteSnapshots() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: DeleteSnapshotsRequest) => deleteSnapshots(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["snapshots-with-retention"] });
+      queryClient.invalidateQueries({ queryKey: ["sources-with-stats"] });
     },
   });
 }

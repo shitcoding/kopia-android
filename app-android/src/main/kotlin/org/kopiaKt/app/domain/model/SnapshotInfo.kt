@@ -28,3 +28,16 @@ data class SnapshotStats(
     val totalFileCount: Int,
     val totalDirectoryCount: Int
 )
+
+data class SourceWithStats(
+    val source: SourceInfo,
+    val snapshotCount: Int,
+    val latestSnapshotTime: Instant,
+    val totalFileCount: Int,
+    val totalFileSize: Long
+)
+
+data class SnapshotWithRetention(
+    val snapshot: SnapshotInfo,
+    val retentionReasons: List<String>
+)

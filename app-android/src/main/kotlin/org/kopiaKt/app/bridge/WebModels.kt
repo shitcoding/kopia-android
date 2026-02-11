@@ -149,6 +149,11 @@ data class WebRestoreOptions(
 }
 
 @Serializable
+data class WebDeleteSnapshotsRequest(
+    val snapshotIds: List<String>
+)
+
+@Serializable
 data class WebPersistUriRequest(
     val uri: String,
     val read: Boolean = true,
@@ -230,6 +235,28 @@ data class WebRestoreProgress(
 data class WebSafPickResult(
     val uri: String? = null,
     val displayName: String? = null
+)
+
+@Serializable
+data class WebSourceWithStats(
+    val source: WebSourceInfo,
+    val snapshotCount: Int,
+    val latestSnapshotTime: Long,
+    val totalFileCount: Long,
+    val totalFileSize: Long
+)
+
+@Serializable
+data class WebSnapshotWithRetention(
+    val id: String,
+    val source: WebSourceInfo,
+    val startTimeEpochMs: Long,
+    val endTimeEpochMs: Long? = null,
+    val description: String,
+    val stats: WebSnapshotStats? = null,
+    val isIncomplete: Boolean,
+    val tags: Map<String, String>,
+    val retentionReasons: List<String>
 )
 
 // ===== Domain -> Web Mappings =====

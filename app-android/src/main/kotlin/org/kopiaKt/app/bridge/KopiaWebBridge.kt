@@ -28,6 +28,7 @@ import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Hilt EntryPoint for accessing DI-managed services from the WebView bridge.
@@ -54,6 +55,10 @@ class KopiaWebBridge(
     private val containerView: android.view.View,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 ) {
+    private companion object {
+        const val TAG = "KopiaWebBridge"
+    }
+
     private val entryPoint = EntryPointAccessors.fromApplication(
         context,
         WebBridgeEntryPoint::class.java
@@ -67,6 +72,7 @@ class KopiaWebBridge(
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
+    private val bridgeCallCounter = AtomicInteger(0)
     private var restoreJob: Job? = null
 
     /**
@@ -207,6 +213,93 @@ class KopiaWebBridge(
                 json.encodeToString(WebResult.success(sources.map { it.toWeb() }))
             } catch (e: Exception) {
                 json.encodeToString(WebResult.error<List<WebSourceInfo>>(e.message ?: "Error listing sources"))
+            }
+        }
+    }
+
+    /**
+     * List all snapshot sources with aggregated statistics.
+     * @return JSON-encoded WebResult<List<WebSourceWithStats>>
+     */
+    @JavascriptInterface
+    fun listSourcesWithStats(): String {
+        val callId = bridgeCallCounter.incrementAndGet()
+        android.util.Log.e(TAG, "listSourcesWithStats ENTER callId=$callId thread=${Thread.currentThread().name}")
+        return runBlocking {
+            try {
+                android.util.Log.e(TAG, "listSourcesWithStats RUN callId=$callId")
+                val sources = snapshotRepository.listSourcesWithStats()
+                android.util.Log.e(TAG, "listSourcesWithStats SUCCESS callId=$callId sourceCount=${sources.size}")
+                val webSources = sources.map { src ->
+                    WebSourceWithStats(
+                        source = src.source.toWeb(),
+                        snapshotCount = src.snapshotCount,
+                        latestSnapshotTime = src.latestSnapshotTime.toEpochMilli(),
+                        totalFileCount = src.totalFileCount.toLong(),
+                        totalFileSize = src.totalFileSize
+                    )
+                }
+                json.encodeToString(WebResult.success(webSources))
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "listSourcesWithStats ERROR callId=$callId", e)
+                json.encodeToString(
+                    WebResult.error<List<WebSourceWithStats>>(
+                        "listSourcesWithStats failed (${e::class.java.simpleName}): ${e.message ?: "Unknown error"}"
+                    )
+                )
+            } finally {
+                android.util.Log.e(TAG, "listSourcesWithStats EXIT callId=$callId")
+            }
+        }
+    }
+
+    /**
+     * List snapshots for a source with computed retention reasons.
+     * @param requestJson JSON-encoded WebSnapshotListRequest
+     * @return JSON-encoded WebResult<List<WebSnapshotWithRetention>>
+     */
+    @JavascriptInterface
+    fun listSnapshotsWithRetention(requestJson: String): String {
+        return runBlocking {
+            try {
+                val request = json.decodeFromString<WebSnapshotListRequest>(requestJson)
+                val source = request.source?.toDomain()
+                    ?: throw IllegalArgumentException("Source is required")
+                val results = snapshotRepository.listSnapshotsWithRetention(source)
+                val webResults = results.map { result ->
+                    WebSnapshotWithRetention(
+                        id = result.snapshot.id,
+                        source = result.snapshot.source.toWeb(),
+                        startTimeEpochMs = result.snapshot.startTime.toEpochMilli(),
+                        endTimeEpochMs = result.snapshot.endTime?.toEpochMilli(),
+                        description = result.snapshot.description,
+                        stats = result.snapshot.stats?.toWeb(),
+                        isIncomplete = result.snapshot.isIncomplete,
+                        tags = result.snapshot.tags,
+                        retentionReasons = result.retentionReasons
+                    )
+                }
+                json.encodeToString(WebResult.success(webResults))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<List<WebSnapshotWithRetention>>(e.message ?: "Error listing snapshots with retention"))
+            }
+        }
+    }
+
+    /**
+     * Delete multiple snapshots by their manifest IDs.
+     * @param requestJson JSON-encoded WebDeleteSnapshotsRequest
+     * @return JSON-encoded WebResult<Unit>
+     */
+    @JavascriptInterface
+    fun deleteSnapshots(requestJson: String): String {
+        return runBlocking {
+            try {
+                val request = json.decodeFromString<WebDeleteSnapshotsRequest>(requestJson)
+                snapshotRepository.deleteSnapshots(request.snapshotIds)
+                json.encodeToString(WebResult.success(Unit))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<Unit>(e.message ?: "Error deleting snapshots"))
             }
         }
     }

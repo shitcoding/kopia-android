@@ -15,10 +15,15 @@ import org.kopiaKt.app.domain.model.RestoreProgress
 import org.kopiaKt.app.domain.model.RestoreState
 import org.kopiaKt.app.domain.model.SnapshotInfo
 import org.kopiaKt.app.domain.model.SnapshotStats
+import org.kopiaKt.app.domain.model.SnapshotWithRetention
 import org.kopiaKt.app.domain.model.SourceInfo
+import org.kopiaKt.app.domain.model.SourceWithStats
 import org.kopiaKt.app.domain.repository.RestoreOptions
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.core.manifest.ManifestId
+import org.kopiaKt.snapshot.maintenance.computeRetention
+import org.kopiaKt.snapshot.policy.RetentionPolicy
+import java.time.Instant
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.model.ManifestLabels
@@ -320,6 +325,111 @@ class SnapshotRepositoryImpl @Inject constructor(
     override fun cancelRestore() {
         restoreCancelled = true
         currentRestorer?.cancel()
+    }
+
+    override suspend fun listSourcesWithStats(): List<SourceWithStats> = withContext(Dispatchers.IO) {
+        val repo = repositoryManager.getRepository()
+            ?: throw IllegalStateException("Not connected to repository")
+
+        // Need to load full manifests to get storageStats
+        val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+        val metadataList = repo.findManifests(labels)
+
+        val manifestsWithIds = metadataList.mapNotNull { metadata ->
+            try {
+                val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
+                manifest
+            } catch (e: Exception) {
+                android.util.Log.e("SnapshotRepo", "Error loading manifest for stats: ${e.message}")
+                null
+            }
+        }
+
+        manifestsWithIds
+            .groupBy { SourceInfo(it.source.host, it.source.userName, it.source.path) }
+            .map { (source, snapshots) ->
+                val latest = snapshots.maxByOrNull { it.startTime }!!
+
+                // Debug logging to see what values we have
+                android.util.Log.d("SnapshotRepo", "Source: ${source.path}")
+                android.util.Log.d("SnapshotRepo", "  stats.totalFileSize: ${latest.stats?.totalFileSize}")
+                android.util.Log.d("SnapshotRepo", "  storageStats: ${latest.storageStats}")
+                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.objectBytes: ${latest.storageStats?.runningTotal?.objectBytes}")
+                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.originalContentBytes: ${latest.storageStats?.runningTotal?.originalContentBytes}")
+                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.packedContentBytes: ${latest.storageStats?.runningTotal?.packedContentBytes}")
+
+                SourceWithStats(
+                    source = source,
+                    snapshotCount = snapshots.size,
+                    latestSnapshotTime = latest.startTime,
+                    totalFileCount = latest.stats?.totalFileCount ?: 0,
+                    // Use deduplicated storage size (matches Kopia GUI)
+                    totalFileSize = latest.storageStats?.runningTotal?.objectBytes ?: latest.stats?.totalFileSize ?: 0
+                )
+            }
+            .sortedByDescending { it.latestSnapshotTime }
+    }
+
+    override suspend fun listSnapshotsWithRetention(source: SourceInfo): List<SnapshotWithRetention> = withContext(Dispatchers.IO) {
+        val repo = repositoryManager.getRepository()
+            ?: throw IllegalStateException("Not connected to repository")
+
+        val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+        labels[ManifestLabels.HOST] = source.host
+        labels[ManifestLabels.USERNAME] = source.userName
+        labels[ManifestLabels.PATH] = source.path
+
+        val metadataList = repo.findManifests(labels)
+
+        // Load full manifests paired with their manifest IDs
+        val manifestsWithIds = metadataList.mapNotNull { metadata ->
+            try {
+                val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
+                metadata.id.value to manifest
+            } catch (e: Exception) {
+                android.util.Log.e("SnapshotRepo", "Error loading manifest for retention: ${e.message}")
+                null
+            }
+        }
+
+        // Compute retention using default policy
+        val policy = RetentionPolicy.Default
+        val retentionResults = computeRetention(
+            snapshots = manifestsWithIds.map { it.second },
+            policy = policy,
+            now = Instant.now()
+        )
+
+        // Build retention map: match by startTime since RetentionResult.snapshot
+        // is the original SnapshotManifest (computeRetention sorts internally)
+        val retentionByStartTime = mutableMapOf<Instant, List<String>>()
+        for (result in retentionResults) {
+            retentionByStartTime[result.snapshot.startTime] = result.retentionReasons
+        }
+
+        // Map to domain models
+        manifestsWithIds.map { (manifestId, manifest) ->
+            val snapshotInfo = manifest.toSnapshotInfo(manifestId)
+            SnapshotWithRetention(
+                snapshot = snapshotInfo,
+                retentionReasons = retentionByStartTime[manifest.startTime] ?: emptyList()
+            )
+        }.sortedByDescending { it.snapshot.startTime }
+    }
+
+    override suspend fun deleteSnapshots(snapshotIds: List<String>) = withContext(Dispatchers.IO) {
+        val repo = repositoryManager.getRepository()
+            ?: throw IllegalStateException("Not connected to repository")
+
+        val writer = repo.newDirectWriter()
+        try {
+            for (id in snapshotIds) {
+                writer.deleteManifest(ManifestId(id))
+            }
+            writer.flush()
+        } finally {
+            writer.close()
+        }
     }
 
     private fun SnapshotManifest.toSnapshotInfo(manifestId: String): SnapshotInfo {

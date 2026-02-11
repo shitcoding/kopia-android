@@ -86,6 +86,11 @@ export interface PersistUriRequest {
   write?: boolean;
 }
 
+/** Request to delete multiple snapshots */
+export interface DeleteSnapshotsRequest {
+  snapshotIds: string[];
+}
+
 // ===== Response Types =====
 
 export interface RepositoryConnection {
@@ -114,10 +119,24 @@ export interface SnapshotInfo {
   source: SourceInfo;
   startTimeEpochMs: number;
   endTimeEpochMs?: number;
-  description: string;
+  description?: string;
   stats?: SnapshotStats;
-  isIncomplete: boolean;
-  tags: Record<string, string>;
+  isIncomplete?: boolean;
+  tags?: Record<string, string>;
+}
+
+/** Summary of a backup source with aggregated stats from its latest snapshot */
+export interface SourceWithStats {
+  source: SourceInfo;
+  snapshotCount: number;
+  latestSnapshotTime: number;
+  totalFileCount: number;
+  totalFileSize: number;
+}
+
+/** Snapshot info extended with computed retention reasons */
+export interface SnapshotWithRetention extends SnapshotInfo {
+  retentionReasons: string[];
 }
 
 export type FileEntryType = "FILE" | "DIRECTORY" | "SYMLINK" | "UNKNOWN";

@@ -8,8 +8,11 @@ import type {
   ConnectRequest,
   RepositoryConnection,
   SourceInfo,
+  SourceWithStats,
   SnapshotInfo,
+  SnapshotWithRetention,
   SnapshotListRequest,
+  DeleteSnapshotsRequest,
   ListDirectoryRequest,
   DirectoryPage,
   RestoreRequest,
@@ -28,6 +31,9 @@ declare global {
       disconnect(): void;
       listSources(): string;
       listSnapshots(json: string): string;
+      listSourcesWithStats(): string;
+      listSnapshotsWithRetention(json: string): string;
+      deleteSnapshots(json: string): string;
       getSnapshot(id: string): string;
       listDirectory(json: string): string;
       startRestore(json: string): void;
@@ -55,6 +61,51 @@ export class BridgeError extends Error {
   }
 }
 
+/**
+ * Generic bridge call helper for standalone functions.
+ */
+function callBridge<T>(method: string, arg?: unknown): T {
+  const bridge = window.KopiaBridge;
+  if (!bridge) throw new BridgeError("KopiaBridge not available");
+
+  const fn = (bridge as Record<string, unknown>)[method];
+  if (typeof fn !== "function") {
+    console.error(`[kopiaBridge] Bridge method '${method}' missing or not callable`, {
+      methodType: typeof fn,
+      bridgeKeys: Object.keys(bridge),
+    });
+    throw new BridgeError(`Bridge method '${method}' not found`);
+  }
+
+  // Call with correct 'this' context (the bridge object)
+  let raw: unknown;
+  try {
+    raw = arg ? fn.call(bridge, JSON.stringify(arg)) : fn.call(bridge);
+  } catch (invokeError) {
+    console.error(`[kopiaBridge] Bridge invocation threw for '${method}'`, invokeError);
+    throw invokeError;
+  }
+
+  if (typeof raw !== "string") {
+    console.error(`[kopiaBridge] Bridge method '${method}' returned non-string`, raw);
+    throw new BridgeError(`Bridge method '${method}' returned invalid response`);
+  }
+
+  let result: WebResult<T>;
+  try {
+    result = JSON.parse(raw);
+  } catch (parseError) {
+    console.error(`[kopiaBridge] Failed to parse bridge response for '${method}'`, {
+      raw,
+      parseError,
+    });
+    throw new BridgeError(`Invalid JSON response from bridge method '${method}'`);
+  }
+
+  if (!result.success) throw new BridgeError(result.error ?? "Unknown bridge error");
+  return result.data as T;
+}
+
 class KopiaBridgeService {
   private get isAndroid(): boolean {
     return typeof window.KopiaBridge !== "undefined";
@@ -71,198 +122,174 @@ class KopiaBridgeService {
     return result.data as T;
   }
 
-  /**
-   * Check if the app has storage permission for local filesystem access.
-   */
   async hasStoragePermission(): Promise<boolean> {
-    if (!this.isAndroid) {
-      return true;
-    }
+    if (!this.isAndroid) return true;
     return this.parse<boolean>(window.KopiaBridge!.hasStoragePermission());
   }
 
-  /**
-   * Open the system settings to grant storage permission.
-   */
   openStoragePermissionSettings(): void {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.openStoragePermissionSettings();
   }
 
-  /**
-   * Update the status bar appearance based on the app's theme.
-   * @param isDarkMode true for dark mode (light status bar icons), false for light mode (dark icons)
-   */
   setStatusBarAppearance(isDarkMode: boolean): void {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.setStatusBarAppearance(isDarkMode);
   }
 
-  /**
-   * Ping the bridge to verify communication.
-   */
   async ping(): Promise<string> {
-    if (!this.isAndroid) {
-      return "pong (mock)";
-    }
+    if (!this.isAndroid) return "pong (mock)";
     return this.parse<string>(window.KopiaBridge!.ping());
   }
 
-  /**
-   * Connect to a Kopia repository.
-   */
   async connect(request: ConnectRequest): Promise<RepositoryConnection> {
-    if (!this.isAndroid) {
-      throw new Error("Not running in WebView");
-    }
+    if (!this.isAndroid) throw new Error("Not running in WebView");
     return this.parse(window.KopiaBridge!.connect(JSON.stringify(request)));
   }
 
-  /**
-   * Disconnect from the current repository.
-   */
   async disconnect(): Promise<void> {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.disconnect();
   }
 
-  /**
-   * List all snapshot sources in the repository.
-   */
   async listSources(): Promise<SourceInfo[]> {
-    if (!this.isAndroid) {
-      return [];
-    }
+    if (!this.isAndroid) return [];
     return this.parse(window.KopiaBridge!.listSources());
   }
 
-  /**
-   * List snapshots, optionally filtered by source.
-   */
-  async listSnapshots(
-    request: SnapshotListRequest = {}
-  ): Promise<SnapshotInfo[]> {
-    if (!this.isAndroid) {
-      return [];
-    }
+  async listSnapshots(request: SnapshotListRequest = {}): Promise<SnapshotInfo[]> {
+    if (!this.isAndroid) return [];
     return this.parse(window.KopiaBridge!.listSnapshots(JSON.stringify(request)));
   }
 
-  /**
-   * Get a single snapshot by ID.
-   */
   async getSnapshot(snapshotId: string): Promise<SnapshotInfo | null> {
-    if (!this.isAndroid) {
-      return null;
-    }
+    if (!this.isAndroid) return null;
     return this.parse(window.KopiaBridge!.getSnapshot(snapshotId));
   }
 
-  /**
-   * List directory entries with pagination support.
-   */
   async listDirectory(request: ListDirectoryRequest): Promise<DirectoryPage> {
-    if (!this.isAndroid) {
-      return { entries: [] };
-    }
+    if (!this.isAndroid) return { entries: [] };
     return this.parse(window.KopiaBridge!.listDirectory(JSON.stringify(request)));
   }
 
-  /**
-   * Start a restore operation.
-   * Subscribe to progress via onRestoreProgress().
-   */
   startRestore(request: RestoreRequest): void {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.startRestore(JSON.stringify(request));
   }
 
-  /**
-   * Cancel an in-progress restore operation.
-   */
   cancelRestore(): void {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.cancelRestore();
   }
 
-  /**
-   * Launch the Android SAF folder picker.
-   * Result is delivered via onDestinationPicked().
-   */
   pickRestoreDestination(): void {
-    if (!this.isAndroid) {
-      return;
-    }
+    if (!this.isAndroid) return;
     window.KopiaBridge!.pickRestoreDestination();
   }
 
-  /**
-   * Persist URI permissions for a SAF-selected folder.
-   */
   async persistUriPermission(request: PersistUriRequest): Promise<void> {
-    if (!this.isAndroid) {
-      return;
-    }
-    this.parse<void>(
-      window.KopiaBridge!.persistUriPermission(JSON.stringify(request))
-    );
+    if (!this.isAndroid) return;
+    this.parse<void>(window.KopiaBridge!.persistUriPermission(JSON.stringify(request)));
   }
 
-  /**
-   * Subscribe to restore progress events.
-   * Returns an unsubscribe function.
-   */
   onRestoreProgress(callback: (progress: RestoreProgress) => void): () => void {
-    if (!this.isAndroid) {
-      return () => {};
-    }
-
+    if (!this.isAndroid) return () => {};
     window.KopiaEvents = window.KopiaEvents || {};
     window.KopiaEvents.onRestoreProgress = callback;
-
     return () => {
-      if (window.KopiaEvents) {
-        delete window.KopiaEvents.onRestoreProgress;
-      }
+      if (window.KopiaEvents) delete window.KopiaEvents.onRestoreProgress;
     };
   }
 
-  /**
-   * Subscribe to SAF destination picker results.
-   * Returns an unsubscribe function.
-   */
   onDestinationPicked(callback: (result: SafPickResult) => void): () => void {
-    if (!this.isAndroid) {
-      return () => {};
-    }
-
+    if (!this.isAndroid) return () => {};
     window.KopiaEvents = window.KopiaEvents || {};
     window.KopiaEvents.onDestinationPicked = callback;
-
     return () => {
-      if (window.KopiaEvents) {
-        delete window.KopiaEvents.onDestinationPicked;
-      }
+      if (window.KopiaEvents) delete window.KopiaEvents.onDestinationPicked;
     };
   }
 
-  /**
-   * Check if running in Android WebView.
-   */
   get isInWebView(): boolean {
     return this.isAndroid;
   }
 }
 
-// Export singleton instance
+// Export singleton instance (used by ConnectScreen, FileBrowser, etc.)
 export const kopiaBridge = new KopiaBridgeService();
+
+// ---------- Standalone functions for React Query hooks ----------
+
+function groupSnapshotsBySource(snapshots: SnapshotInfo[]): SourceWithStats[] {
+  const groups = new Map<string, SnapshotInfo[]>();
+  for (const snap of snapshots) {
+    const key = `${snap.source.userName}@${snap.source.host}:${snap.source.path}`;
+    const existing = groups.get(key) || [];
+    existing.push(snap);
+    groups.set(key, existing);
+  }
+  return Array.from(groups.values())
+    .map((snaps) => {
+      const latest = snaps.reduce((a, b) =>
+        a.startTimeEpochMs > b.startTimeEpochMs ? a : b
+      );
+      return {
+        source: latest.source,
+        snapshotCount: snaps.length,
+        latestSnapshotTime: latest.startTimeEpochMs,
+        totalFileCount: latest.stats?.totalFileCount ?? 0,
+        totalFileSize: latest.stats?.totalFileSize ?? 0,
+      };
+    })
+    .sort((a, b) => b.latestSnapshotTime - a.latestSnapshotTime);
+}
+
+export async function listSourcesWithStats(): Promise<SourceWithStats[]> {
+  // Temporary: strict bridge mode for debugging; do not silently fallback.
+  const STRICT_BRIDGE_DEBUG = true;
+
+  console.log("[kopiaBridge] listSourcesWithStats preflight", {
+    hasBridge: !!window.KopiaBridge,
+    methodType: typeof window.KopiaBridge?.listSourcesWithStats,
+  });
+  try {
+    console.log("[kopiaBridge] Calling listSourcesWithStats via bridge");
+    const result = callBridge<SourceWithStats[]>("listSourcesWithStats");
+    console.log("[kopiaBridge] listSourcesWithStats succeeded:", result);
+    return result;
+  } catch (error) {
+    console.error("[kopiaBridge] listSourcesWithStats bridge failure:", {
+      error,
+      hasBridge: !!window.KopiaBridge,
+      methodType: typeof window.KopiaBridge?.listSourcesWithStats,
+    });
+
+    if (STRICT_BRIDGE_DEBUG) {
+      throw error;
+    }
+
+    console.warn("[kopiaBridge] listSourcesWithStats failed, using fallback:", error);
+    // Fallback: fetch all snapshots and group client-side
+    const snapshots = await kopiaBridge.listSnapshots();
+    return groupSnapshotsBySource(snapshots);
+  }
+}
+
+export async function listSnapshotsWithRetention(
+  request: SnapshotListRequest
+): Promise<SnapshotWithRetention[]> {
+  try {
+    return callBridge<SnapshotWithRetention[]>("listSnapshotsWithRetention", request);
+  } catch {
+    // Fallback: fetch snapshots without retention data
+    const snapshots = await kopiaBridge.listSnapshots(request);
+    return snapshots.map((snap) => ({
+      ...snap,
+      retentionReasons: [],
+    }));
+  }
+}
+
+export async function deleteSnapshots(request: DeleteSnapshotsRequest): Promise<void> {
+  callBridge<void>("deleteSnapshots", request);
+}

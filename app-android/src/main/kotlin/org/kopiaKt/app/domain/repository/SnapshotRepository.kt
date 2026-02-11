@@ -4,7 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import org.kopiaKt.app.domain.model.FileEntry
 import org.kopiaKt.app.domain.model.RestoreProgress
 import org.kopiaKt.app.domain.model.SnapshotInfo
+import org.kopiaKt.app.domain.model.SnapshotWithRetention
 import org.kopiaKt.app.domain.model.SourceInfo
+import org.kopiaKt.app.domain.model.SourceWithStats
 
 interface SnapshotRepository {
     suspend fun listSources(): List<SourceInfo>
@@ -23,6 +25,12 @@ interface SnapshotRepository {
     ): Flow<RestoreProgress>
 
     fun cancelRestore()
+
+    suspend fun listSourcesWithStats(): List<SourceWithStats>
+
+    suspend fun listSnapshotsWithRetention(source: SourceInfo): List<SnapshotWithRetention>
+
+    suspend fun deleteSnapshots(snapshotIds: List<String>)
 }
 
 data class RestoreOptions(
