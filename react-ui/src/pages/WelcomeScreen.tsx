@@ -37,7 +37,6 @@ const WelcomeScreen = () => {
         onClick={() => navigate("/connect")}
         className="animate-slide-up btn-primary w-full max-w-xs text-lg"
         style={{ animationDelay: "0.1s" }}
-        data-testid="connect-button"
       >
         Connect to Repository
       </button>
