@@ -164,8 +164,13 @@ class ContentManager(
 
         // Check committed indexes
         committedContents[contentId]?.let { info ->
-            val packData = fetchPackBlob(info.packBlobId)
-            val encryptedData = PackBlobReader.extractContent(packData, info)
+            // Fetch only the needed portion of the pack blob using offset/length
+            // This avoids loading the entire 20MB pack blob into memory
+            val encryptedData = storage.getBlob(
+                info.packBlobId,
+                info.packOffset.toLong(),
+                info.packedLength.toLong()
+            )
             return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
         }
 
@@ -459,10 +464,6 @@ class ContentManager(
                 }
             }
         }
-    }
-
-    private suspend fun fetchPackBlob(packBlobId: BlobId): ByteArray {
-        return storage.getBlob(packBlobId)
     }
 
     private fun generatePackBlobId(prefix: Char?): BlobId {

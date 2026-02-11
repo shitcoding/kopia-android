@@ -65,13 +65,42 @@ class FilesystemBlobStorage private constructor(
                 throw BlobNotFoundException(blobId)
             }
 
-            val bytes = blobPath.readBytes()
-
+            // If reading the full blob, use readBytes()
             if (offset == 0L && length == -1L) {
-                bytes
+                return@withContext blobPath.readBytes()
+            }
+
+            // For partial reads, use FileInputStream to avoid loading entire file into memory
+            val fileSize = Files.size(blobPath)
+            val actualLength = if (length == -1L) {
+                (fileSize - offset).toInt()
             } else {
-                val actualLength = if (length == -1L) bytes.size - offset.toInt() else length.toInt()
-                bytes.copyOfRange(offset.toInt(), offset.toInt() + actualLength)
+                length.toInt()
+            }
+
+            // Validate bounds
+            require(offset >= 0) { "Offset must be non-negative" }
+            require(offset + actualLength <= fileSize) {
+                "Read beyond end of file: offset=$offset, length=$actualLength, fileSize=$fileSize"
+            }
+
+            // Read only the requested portion using FileInputStream
+            Files.newInputStream(blobPath).use { input ->
+                var skipped = 0L
+                while (skipped < offset) {
+                    val skip = input.skip(offset - skipped)
+                    if (skip == 0L) break
+                    skipped += skip
+                }
+
+                val buffer = ByteArray(actualLength)
+                var totalRead = 0
+                while (totalRead < actualLength) {
+                    val read = input.read(buffer, totalRead, actualLength - totalRead)
+                    if (read == -1) break
+                    totalRead += read
+                }
+                buffer
             }
         }
 
