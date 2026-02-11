@@ -26,6 +26,7 @@ const ConnectScreen = () => {
   const [rememberPassword, setRememberPassword] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [isPasswordAutoFilled, setIsPasswordAutoFilled] = useState(false);
 
   // Form states for different storage types
   const [localPath, setLocalPath] = useState("");
@@ -57,6 +58,34 @@ const ConnectScreen = () => {
     });
     return unsubscribe;
   }, []);
+
+  // Check for stored password when config changes
+  useEffect(() => {
+    const checkStoredPassword = async () => {
+      try {
+        const config = buildConnectionConfig();
+        const hasPassword = await kopiaBridge.hasStoredPassword(config);
+        if (hasPassword) {
+          setRememberPassword(true);
+          const storedPassword = await kopiaBridge.getStoredPassword(config);
+          if (storedPassword) {
+            setPassword(storedPassword);
+            setIsPasswordAutoFilled(true); // Mark as auto-filled
+            setShowPassword(false); // Hide password when auto-filled
+          }
+        } else {
+          // Clear password if switching to a config without stored password
+          setPassword("");
+          setRememberPassword(true);
+          setIsPasswordAutoFilled(false);
+        }
+      } catch (error) {
+        console.error("Failed to check stored password:", error);
+      }
+    };
+
+    checkStoredPassword();
+  }, [storageType, localPath, s3Bucket, s3Endpoint, webdavUrl, sftpHost, sftpPort]);
 
   const tabs: { id: UIStorageType; label: string }[] = [
     { id: "local", label: "Local" },
@@ -146,12 +175,24 @@ const ConnectScreen = () => {
     setError(null);
 
     try {
+      const config = buildConnectionConfig();
       const request: ConnectRequest = {
-        config: buildConnectionConfig(),
+        config: config,
         password: password,
       };
 
       await kopiaBridge.connect(request);
+
+      // Store password if "Remember password" is checked
+      if (rememberPassword) {
+        try {
+          await kopiaBridge.storePassword(config, password);
+        } catch (storeError) {
+          console.error("Failed to store password:", storeError);
+          // Don't block navigation if password storage fails
+        }
+      }
+
       navigate("/snapshots");
     } catch (e) {
       if (e instanceof BridgeError && e.code === ErrorCodes.STORAGE_PERMISSION_REQUIRED) {
@@ -366,7 +407,29 @@ const ConnectScreen = () => {
               type={showPassword ? "text" : "password"}
               placeholder="Repository Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                // Security: If password was auto-filled, clear it entirely on first edit
+                if (isPasswordAutoFilled) {
+                  setPassword(""); // Clear the saved password
+                  setIsPasswordAutoFilled(false);
+                  setShowPassword(false);
+                  // Don't set the new value yet - let user start typing from scratch
+                } else {
+                  setPassword(e.target.value);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Dismiss keyboard - multiple methods for Android WebView
+                  const input = e.target as HTMLInputElement;
+                  input.blur();
+                  // Force focus away
+                  document.body.focus();
+                  // Small delay before connect to ensure keyboard dismisses
+                  setTimeout(() => handleConnect(), 100);
+                }
+              }}
               className="input-md3 pr-12"
               disabled={isConnecting}
               data-testid="password-input"
@@ -378,7 +441,13 @@ const ConnectScreen = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isPasswordAutoFilled}
+              className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 transition-colors ${
+                isPasswordAutoFilled
+                  ? "text-muted-foreground/40 cursor-not-allowed"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title={isPasswordAutoFilled ? "Cannot view saved passwords" : "Show password"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>

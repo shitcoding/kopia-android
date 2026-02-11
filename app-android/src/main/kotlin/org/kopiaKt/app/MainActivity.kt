@@ -1,5 +1,6 @@
 package org.kopiaKt.app
 
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.webkit.WebView
@@ -95,6 +96,12 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION")
             super.onBackPressed()
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Notify React when system theme changes
+        webBridge?.notifySystemThemeChanged()
     }
 
     override fun onDestroy() {

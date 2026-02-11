@@ -2,6 +2,7 @@ package org.kopiaKt.app.bridge
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -39,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger
 interface WebBridgeEntryPoint {
     fun repositoryManager(): KopiaRepositoryManager
     fun snapshotRepository(): SnapshotRepository
+    fun credentialRepository(): org.kopiaKt.app.domain.repository.CredentialRepository
 }
 
 /**
@@ -66,6 +68,7 @@ class KopiaWebBridge(
 
     private val repositoryManager get() = entryPoint.repositoryManager()
     private val snapshotRepository get() = entryPoint.snapshotRepository()
+    private val credentialRepository get() = entryPoint.credentialRepository()
 
     private val webViewRef = AtomicReference<WebView?>()
     private val json = Json {
@@ -124,6 +127,21 @@ class KopiaWebBridge(
             // Also update the container view background (the WebView's parent)
             containerView.setBackgroundColor(bgColor)
         }
+    }
+
+    /**
+     * Get the current Android system theme mode.
+     * @return JSON-encoded WebResult<String> - "light" or "dark"
+     */
+    @JavascriptInterface
+    fun getSystemTheme(): String {
+        val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val theme = when (uiMode) {
+            Configuration.UI_MODE_NIGHT_YES -> "dark"
+            Configuration.UI_MODE_NIGHT_NO -> "light"
+            else -> "light" // Default to light if undefined
+        }
+        return json.encodeToString(WebResult.success(theme))
     }
 
     /**
@@ -477,6 +495,83 @@ class KopiaWebBridge(
     }
 
     /**
+     * Check if a password is stored for the given repository configuration.
+     * @param configJson JSON-encoded ConnectionConfig
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun hasStoredPassword(configJson: String): String = runBlocking {
+        try {
+            val config = json.decodeFromString<WebConnectionConfig>(configJson)
+            val connectionId = generateConnectionId(config)
+            val hasPassword = credentialRepository.hasPassword(connectionId)
+            json.encodeToString(WebResult.success(hasPassword))
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "hasStoredPassword error", e)
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Failed to check stored password"))
+        }
+    }
+
+    /**
+     * Retrieve stored password for the given repository configuration.
+     * @param configJson JSON-encoded ConnectionConfig
+     * @return JSON-encoded WebResult<String?>
+     */
+    @JavascriptInterface
+    fun getStoredPassword(configJson: String): String = runBlocking {
+        try {
+            val config = json.decodeFromString<WebConnectionConfig>(configJson)
+            val connectionId = generateConnectionId(config)
+            val password = credentialRepository.getPassword(connectionId)
+            json.encodeToString(WebResult.success(password))
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "getStoredPassword error", e)
+            json.encodeToString(WebResult.error<String?>(e.message ?: "Failed to get stored password"))
+        }
+    }
+
+    /**
+     * Store password for the given repository configuration using encrypted storage.
+     * @param configJson JSON-encoded ConnectionConfig
+     * @param password The password to store (will be encrypted)
+     * @return JSON-encoded WebResult<Unit>
+     */
+    @JavascriptInterface
+    fun storePassword(configJson: String, password: String): String = runBlocking {
+        try {
+            val config = json.decodeFromString<WebConnectionConfig>(configJson)
+            val connectionId = generateConnectionId(config)
+            credentialRepository.storePassword(connectionId, password)
+            json.encodeToString(WebResult.success(Unit))
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "storePassword error", e)
+            json.encodeToString(WebResult.error<Unit>(e.message ?: "Failed to store password"))
+        }
+    }
+
+    /**
+     * Generate a stable connection ID from repository configuration.
+     * Used as a key for storing/retrieving passwords.
+     */
+    private fun generateConnectionId(config: WebConnectionConfig): String {
+        val parts = when (config.storageType) {
+            "LOCAL_FILESYSTEM" ->
+                listOf("local", config.local?.path ?: "")
+            "S3" ->
+                listOf("s3", config.s3?.bucket ?: "", config.s3?.endpoint ?: "")
+            "WEBDAV" ->
+                listOf("webdav", config.webdav?.url ?: "")
+            "SFTP" ->
+                listOf("sftp", config.sftp?.host ?: "", config.sftp?.port?.toString() ?: "")
+            "SAF" ->
+                listOf("saf", config.saf?.treeUri ?: "")
+            else ->
+                listOf("unknown", config.storageType)
+        }
+        return parts.joinToString(":").hashCode().toString()
+    }
+
+    /**
      * Push restore progress to JavaScript.
      */
     private fun pushRestoreProgress(progress: WebRestoreProgress) {
@@ -497,6 +592,26 @@ class KopiaWebBridge(
         webViewRef.get()?.post {
             webViewRef.get()?.evaluateJavascript(
                 "window.KopiaEvents?.onDestinationPicked?.($jsonStr);",
+                null
+            )
+        }
+    }
+
+    /**
+     * Notify JavaScript when the Android system theme changes.
+     * Called by the Activity when it detects a configuration change.
+     */
+    fun notifySystemThemeChanged() {
+        val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val theme = when (uiMode) {
+            Configuration.UI_MODE_NIGHT_YES -> "dark"
+            Configuration.UI_MODE_NIGHT_NO -> "light"
+            else -> "light"
+        }
+        val jsonStr = json.encodeToString(theme)
+        webViewRef.get()?.post {
+            webViewRef.get()?.evaluateJavascript(
+                "window.KopiaEvents?.onSystemThemeChanged?.($jsonStr);",
                 null
             )
         }

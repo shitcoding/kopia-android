@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Info, LinkIcon, Loader2, Moon, Sun, Palette, Check } from "lucide-react";
+import { ArrowLeft, Info, LinkIcon, Loader2, Palette, Check } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,9 +12,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useDisconnect } from "@/hooks/useKopiaApi";
-import { kopiaBridge } from "@/services/kopiaBridge";
+import { ThemeSettings } from "@/components/ThemeSettings";
 
 const ACCENT_COLORS = [
   { name: "Blue", hsl: "217 91% 60%" },
@@ -28,18 +27,12 @@ const ACCENT_COLORS = [
 const SettingsScreen = () => {
   const navigate = useNavigate();
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [accentColor, setAccentColor] = useState(ACCENT_COLORS[0].hsl);
   const [customColor, setCustomColor] = useState("#3b82f6");
 
   const disconnectMutation = useDisconnect();
 
   useEffect(() => {
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    setIsDark(isDarkMode);
-    // Sync status bar with initial theme
-    kopiaBridge.setStatusBarAppearance(isDarkMode);
-
     // Load saved accent color
     const savedAccent = localStorage.getItem("accent-color");
     if (savedAccent) {
@@ -47,18 +40,6 @@ const SettingsScreen = () => {
       applyAccentColor(savedAccent);
     }
   }, []);
-
-  const toggleTheme = () => {
-    const newIsDark = !isDark;
-    setIsDark(newIsDark);
-    if (newIsDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Update Android status bar appearance
-    kopiaBridge.setStatusBarAppearance(newIsDark);
-  };
 
   const applyAccentColor = (hsl: string) => {
     document.documentElement.style.setProperty("--primary", hsl);
@@ -132,20 +113,9 @@ const SettingsScreen = () => {
         <div className="animate-slide-up">
           <p className="section-header">Styling</p>
           <div className="space-y-3">
-            {/* Dark Mode Toggle */}
-            <div className="card-elevated flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                {isDark ? (
-                  <Moon className="w-6 h-6 text-primary" />
-                ) : (
-                  <Sun className="w-6 h-6 text-primary" />
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">Dark Mode</p>
-                <p className="text-sm text-muted-foreground">Switch between light and dark theme</p>
-              </div>
-              <Switch checked={isDark} onCheckedChange={toggleTheme} />
+            {/* Theme Settings */}
+            <div className="card-elevated">
+              <ThemeSettings />
             </div>
 
             {/* Accent Color */}

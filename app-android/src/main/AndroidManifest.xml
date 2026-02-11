@@ -22,6 +22,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="uiMode"
             android:theme="@style/Theme.KopiaKt">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -43,10 +43,15 @@ declare global {
       hasStoragePermission(): string;
       openStoragePermissionSettings(): void;
       setStatusBarAppearance(isDarkMode: boolean): void;
+      getSystemTheme(): string;
+      hasStoredPassword(configJson: string): string;
+      getStoredPassword(configJson: string): string;
+      storePassword(configJson: string, password: string): string;
     };
     KopiaEvents?: {
       onRestoreProgress?: (progress: RestoreProgress) => void;
       onDestinationPicked?: (result: SafPickResult) => void;
+      onSystemThemeChanged?: (theme: string) => void;
     };
   }
 }
@@ -137,6 +142,24 @@ class KopiaBridgeService {
     window.KopiaBridge!.setStatusBarAppearance(isDarkMode);
   }
 
+  async getSystemTheme(): Promise<"light" | "dark"> {
+    if (!this.isAndroid) {
+      // Fallback to media query for browser/development
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      return isDark ? "dark" : "light";
+    }
+    return this.parse<"light" | "dark">(window.KopiaBridge!.getSystemTheme());
+  }
+
+  onSystemThemeChanged(callback: (theme: "light" | "dark") => void): () => void {
+    if (!this.isAndroid) return () => {};
+    window.KopiaEvents = window.KopiaEvents || {};
+    window.KopiaEvents.onSystemThemeChanged = callback;
+    return () => {
+      if (window.KopiaEvents) delete window.KopiaEvents.onSystemThemeChanged;
+    };
+  }
+
   async ping(): Promise<string> {
     if (!this.isAndroid) return "pong (mock)";
     return this.parse<string>(window.KopiaBridge!.ping());
@@ -208,6 +231,27 @@ class KopiaBridgeService {
     return () => {
       if (window.KopiaEvents) delete window.KopiaEvents.onDestinationPicked;
     };
+  }
+
+  async hasStoredPassword(config: ConnectionConfig): Promise<boolean> {
+    if (!this.isAndroid) return false;
+    return this.parse<boolean>(
+      window.KopiaBridge!.hasStoredPassword(JSON.stringify(config))
+    );
+  }
+
+  async getStoredPassword(config: ConnectionConfig): Promise<string | null> {
+    if (!this.isAndroid) return null;
+    return this.parse<string | null>(
+      window.KopiaBridge!.getStoredPassword(JSON.stringify(config))
+    );
+  }
+
+  async storePassword(config: ConnectionConfig, password: string): Promise<void> {
+    if (!this.isAndroid) return;
+    this.parse<void>(
+      window.KopiaBridge!.storePassword(JSON.stringify(config), password)
+    );
   }
 
   get isInWebView(): boolean {
