@@ -1,39 +1,24 @@
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Settings, AlertTriangle, FolderX, Loader2 } from "lucide-react";
-import { useSnapshots } from "@/hooks/useKopiaApi";
-import type { SnapshotInfo } from "@/types/kopia";
+import { RefreshCw, Settings, AlertTriangle, FolderX, Loader2, ChevronRight } from "lucide-react";
+import { useSourcesWithStats } from "@/hooks/useKopiaApi";
+import { formatFileSize, formatDateTime } from "@/lib/format";
+import type { SourceWithStats } from "@/types/kopia";
 
 const SnapshotsScreen = () => {
   const navigate = useNavigate();
-  const { data: snapshots, isLoading, error, refetch, isRefetching } = useSnapshots();
+  const { data: sources, isLoading, isError, refetch, isRefetching } = useSourcesWithStats();
 
-  const formatDate = (epochMs: number) => {
-    return new Date(epochMs).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
+  const handleSourceClick = (source: SourceWithStats) => {
+    const params = new URLSearchParams({
+      host: source.source.host,
+      userName: source.source.userName,
+      path: source.source.path,
     });
+    navigate(`/snapshots/source?${params.toString()}`);
   };
 
-  const formatSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
-  };
-
-  const formatSource = (snapshot: SnapshotInfo): string => {
-    const { source } = snapshot;
-    return `${source.userName}@${source.host}:${source.path}`;
-  };
-
-  const handleRefresh = () => {
-    refetch();
-  };
-
-  const isRefreshing = isRefetching;
+  const isEmpty = !isLoading && !isError && (!sources || sources.length === 0);
+  const hasData = !isLoading && !isError && sources && sources.length > 0;
 
   return (
     <div className="app-container min-h-screen flex flex-col">
@@ -43,21 +28,20 @@ const SnapshotsScreen = () => {
         <h1 className="app-bar-title">Snapshots</h1>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
+            onClick={() => refetch()}
+            disabled={isRefetching}
             className="btn-icon"
-            data-testid="refresh-button"
           >
-            <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-5 h-5 ${isRefetching ? "animate-spin" : ""}`} />
           </button>
-          <button onClick={() => navigate("/settings")} className="btn-icon" data-testid="settings-button">
+          <button onClick={() => navigate("/settings")} className="btn-icon">
             <Settings className="w-5 h-5" />
           </button>
         </div>
       </header>
 
       {/* Refresh Progress Indicator */}
-      {isRefreshing && (
+      {isRefetching && (
         <div className="h-0.5 bg-secondary overflow-hidden">
           <div className="h-full bg-primary animate-pulse w-full" />
         </div>
@@ -67,29 +51,26 @@ const SnapshotsScreen = () => {
       <div className="flex-1 p-4">
         {/* Loading State */}
         {isLoading && (
-          <div className="flex-1 flex flex-col items-center justify-center py-20" data-testid="loading-indicator">
+          <div className="flex-1 flex flex-col items-center justify-center py-20">
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
           </div>
         )}
 
         {/* Error State */}
-        {error && !isLoading && (
+        {isError && (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
               <AlertTriangle className="w-8 h-8 text-destructive" />
             </div>
-            <p className="text-destructive font-medium mb-2" data-testid="error-message">Failed to load snapshots</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              {error instanceof Error ? error.message : "Unknown error"}
-            </p>
-            <button onClick={handleRefresh} className="btn-primary">
+            <p className="text-destructive font-medium mb-4">Failed to load snapshots</p>
+            <button onClick={() => refetch()} className="btn-primary">
               Retry
             </button>
           </div>
         )}
 
         {/* Empty State */}
-        {!isLoading && !error && snapshots?.length === 0 && (
+        {isEmpty && (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <FolderX className="w-8 h-8 text-muted-foreground" />
@@ -99,42 +80,39 @@ const SnapshotsScreen = () => {
           </div>
         )}
 
-        {/* Data State */}
-        {!isLoading && !error && snapshots && snapshots.length > 0 && (
+        {/* Data State - Source Cards */}
+        {hasData && (
           <div className="space-y-3">
-            {snapshots.map((snapshot, index) => (
+            {sources!.map((src, index) => (
               <button
-                key={snapshot.id}
-                onClick={() => navigate(`/files/${snapshot.id}`)}
+                key={`${src.source.userName}@${src.source.host}:${src.source.path}`}
+                onClick={() => handleSourceClick(src)}
                 className="w-full card-elevated text-left transition-all duration-200 hover:shadow-lg active:scale-[0.99] animate-slide-up"
                 style={{ animationDelay: `${index * 0.05}s` }}
-                data-testid={`snapshot-card-${snapshot.id}`}
               >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="font-medium text-foreground truncate flex-1">
-                    {formatSource(snapshot)}
-                  </p>
-                  {snapshot.isIncomplete && (
-                    <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
-                  )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground truncate">
+                      {src.source.path}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {src.source.userName}@{src.source.host}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-1" />
                 </div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  {formatDate(snapshot.startTimeEpochMs)}
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+                  <span>{src.snapshotCount} snapshots</span>
+                  <span>·</span>
+                  <span>{formatFileSize(src.totalFileSize)}</span>
+                  <span>·</span>
+                  <span>{src.totalFileCount.toLocaleString()} files</span>
+                </div>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Last: {formatDateTime(src.latestSnapshotTime)}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {snapshot.stats ? (
-                    <>
-                      {snapshot.stats.totalFileCount.toLocaleString()} files, {formatSize(snapshot.stats.totalFileSize)}
-                    </>
-                  ) : (
-                    "Stats unavailable"
-                  )}
-                </p>
-                {snapshot.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {snapshot.description}
-                  </p>
-                )}
               </button>
             ))}
           </div>
