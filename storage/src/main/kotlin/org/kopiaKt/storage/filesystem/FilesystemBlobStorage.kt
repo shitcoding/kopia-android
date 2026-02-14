@@ -12,6 +12,7 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.BlobVolume
 import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
@@ -70,34 +71,61 @@ class FilesystemBlobStorage private constructor(
                 return@withContext blobPath.readBytes()
             }
 
+            // Validate parameters first
+            if (offset < 0) {
+                throw InvalidBlobRangeException("Offset must be non-negative: $offset")
+            }
+            if (length < -1) {
+                throw InvalidBlobRangeException("Length must be >= -1: $length")
+            }
+
             // For partial reads, use FileInputStream to avoid loading entire file into memory
             val fileSize = Files.size(blobPath)
+
+            // Check offset bounds before computing actualLength
+            if (offset > fileSize) {
+                throw InvalidBlobRangeException(
+                    "Offset beyond end of file: offset=$offset, fileSize=$fileSize"
+                )
+            }
+
             val actualLength = if (length == -1L) {
                 (fileSize - offset).toInt()
             } else {
                 length.toInt()
             }
 
-            // Validate bounds
-            require(offset >= 0) { "Offset must be non-negative" }
-            require(offset + actualLength <= fileSize) {
-                "Read beyond end of file: offset=$offset, length=$actualLength, fileSize=$fileSize"
+            // Validate final bounds
+            if (offset + actualLength > fileSize) {
+                throw InvalidBlobRangeException(
+                    "Read beyond end of file: offset=$offset, length=$actualLength, fileSize=$fileSize"
+                )
             }
 
             // Read only the requested portion using FileInputStream
             Files.newInputStream(blobPath).use { input ->
+                // Skip to offset - must skip exact amount
                 var skipped = 0L
                 while (skipped < offset) {
                     val skip = input.skip(offset - skipped)
-                    if (skip == 0L) break
+                    if (skip == 0L) {
+                        throw InvalidBlobRangeException(
+                            "Failed to skip to offset $offset (skipped only $skipped bytes)"
+                        )
+                    }
                     skipped += skip
                 }
 
+                // Read exact amount - must read full buffer
                 val buffer = ByteArray(actualLength)
                 var totalRead = 0
                 while (totalRead < actualLength) {
                     val read = input.read(buffer, totalRead, actualLength - totalRead)
-                    if (read == -1) break
+                    if (read == -1) {
+                        throw InvalidBlobRangeException(
+                            "Unexpected EOF: requested $actualLength bytes, read only $totalRead bytes"
+                        )
+                    }
                     totalRead += read
                 }
                 buffer
