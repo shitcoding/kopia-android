@@ -167,7 +167,25 @@ class KopiaBridgeService {
 
   async connect(request: ConnectRequest): Promise<RepositoryConnection> {
     if (!this.isAndroid) throw new Error("Not running in WebView");
-    return this.parse(window.KopiaBridge!.connect(JSON.stringify(request)));
+
+    // Use callback pattern to avoid blocking UI thread
+    return new Promise((resolve, reject) => {
+      // Set up callback
+      (window as any).__kopiaConnectCallback = (resultJson: string) => {
+        try {
+          const result = this.parse<RepositoryConnection>(resultJson);
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          // Cleanup callback
+          delete (window as any).__kopiaConnectCallback;
+        }
+      };
+
+      // Call the bridge - it returns immediately, result comes via callback
+      window.KopiaBridge!.connect(JSON.stringify(request));
+    });
   }
 
   async disconnect(): Promise<void> {

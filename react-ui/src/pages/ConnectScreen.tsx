@@ -174,6 +174,9 @@ const ConnectScreen = () => {
     setIsConnecting(true);
     setError(null);
 
+    // Allow UI to update before potentially blocking native call
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
       const config = buildConnectionConfig();
       const request: ConnectRequest = {

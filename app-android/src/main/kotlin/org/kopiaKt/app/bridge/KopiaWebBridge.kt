@@ -182,30 +182,49 @@ class KopiaWebBridge(
      */
     @JavascriptInterface
     fun connect(requestJson: String): String {
-        return runBlocking {
+        // Launch async to avoid blocking UI thread
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val request = json.decodeFromString<WebConnectRequest>(requestJson)
 
                 // Check storage permission for local filesystem
                 if (request.config.storageType == "LOCAL_FILESYSTEM") {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                        return@runBlocking json.encodeToString(
+                        val errorResult = json.encodeToString(
                             WebResult.error<WebRepositoryConnection>(
                                 "Storage permission required. Please grant \"All files access\" permission to access local repositories.",
                                 WebErrorCodes.STORAGE_PERMISSION_REQUIRED
                             )
                         )
+                        val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                        callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
+                        return@launch
                     }
                 }
 
                 val result = repositoryManager.connect(request.config.toDomain(), request.password)
-                result.fold(
+                val resultJson = result.fold(
                     onSuccess = { json.encodeToString(WebResult.success(it.toWeb())) },
                     onFailure = { json.encodeToString(WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error")) }
                 )
+
+                // Escape JSON for JavaScript string
+                val escapedJson = resultJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
             } catch (e: Exception) {
-                json.encodeToString(WebResult.error<WebRepositoryConnection>(e.message ?: "Parse error"))
+                val errorResult = json.encodeToString(WebResult.error<WebRepositoryConnection>(e.message ?: "Parse error"))
+                val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
             }
+        }
+
+        // Return immediately - actual result will come via callback
+        return json.encodeToString(WebResult.success("connecting"))
+    }
+
+    private fun callJavaScript(script: String) {
+        activity.runOnUiThread {
+            webViewRef.get()?.evaluateJavascript(script, null)
         }
     }
 
