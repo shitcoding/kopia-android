@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Settings, AlertTriangle, FolderX, Loader2, ChevronRight } from "lucide-react";
+import ExitDoorIcon from "@/components/ExitDoorIcon";
 import { useSourcesWithStats } from "@/hooks/useKopiaApi";
 import { formatFileSize, formatDateTime } from "@/lib/format";
 import type { SourceWithStats } from "@/types/kopia";
@@ -27,12 +28,8 @@ const SnapshotsScreen = () => {
         <div className="w-9" />
         <h1 className="app-bar-title">Snapshots</h1>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="btn-icon"
-          >
-            <RefreshCw className={`w-5 h-5 ${isRefetching ? "animate-spin" : ""}`} />
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+            <ExitDoorIcon className="w-5 h-5" />
           </button>
           <button onClick={() => navigate("/settings")} className="btn-icon">
             <Settings className="w-5 h-5" />

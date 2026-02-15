@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Download, Folder, File, Link2, ChevronRight, Loader2, AlertTriangle, FolderX, Settings } from "lucide-react";
+import ExitDoorIcon from "@/components/ExitDoorIcon";
 import { useDirectory } from "@/hooks/useKopiaApi";
 import { formatFileSize, formatDateTime } from "@/lib/format";
 import type { FileEntry as KopiaFileEntry, FileEntryType } from "@/types/kopia";
@@ -82,6 +83,9 @@ const FileBrowserScreen = () => {
         </button>
         <h1 className="app-bar-title truncate max-w-[50%]">{currentFolder}</h1>
         <div className="flex items-center gap-1">
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+            <ExitDoorIcon className="w-5 h-5" />
+          </button>
           <button onClick={() => navigate(`/restore/${snapshotId}`)} className="btn-icon">
             <Download className="w-5 h-5" />
           </button>

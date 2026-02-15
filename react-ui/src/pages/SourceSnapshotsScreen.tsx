@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Settings,
 } from "lucide-react";
+import ExitDoorIcon from "@/components/ExitDoorIcon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,12 +122,8 @@ const SourceSnapshotsScreen = () => {
         </button>
         <h1 className="app-bar-title">Snapshots</h1>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="btn-icon"
-          >
-            <RefreshCw className={`w-5 h-5 ${isRefetching ? "animate-spin" : ""}`} />
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+            <ExitDoorIcon className="w-5 h-5" />
           </button>
           <button onClick={() => navigate("/settings")} className="btn-icon">
             <Settings className="w-5 h-5" />
