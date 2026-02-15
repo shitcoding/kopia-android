@@ -34,6 +34,9 @@ class SafRestoreOutput(
     // Cache of created directories to avoid repeated lookups
     private val directoryCache = mutableMapOf<String, DocumentFile>()
 
+    // Track root directory name when restoring a single directory (not snapshot root)
+    private var rootDirectoryName: String? = null
+
     init {
         directoryCache[""] = rootDocument
     }
@@ -42,7 +45,17 @@ class SafRestoreOutput(
 
     override suspend fun beginDirectory(relativePath: String, entry: DirEntry) {
         withContext(Dispatchers.IO) {
-            getOrCreateDirectory(relativePath)
+            android.util.Log.d("SafRestoreOutput", "beginDirectory - relativePath: '$relativePath', entry.name: '${entry.name}'")
+
+            // When restoring a single directory (first call with empty path), preserve its name
+            if (relativePath.isEmpty() && rootDirectoryName == null) {
+                rootDirectoryName = entry.name
+                android.util.Log.d("SafRestoreOutput", "Set root directory name: '$rootDirectoryName'")
+            }
+
+            val effectivePath = mapPath(relativePath, entry.name)
+            android.util.Log.d("SafRestoreOutput", "Creating directory at: '$effectivePath'")
+            getOrCreateDirectory(effectivePath)
         }
     }
 
@@ -52,7 +65,8 @@ class SafRestoreOutput(
 
     override suspend fun writeDirEntry(relativePath: String, entry: DirEntry) {
         withContext(Dispatchers.IO) {
-            getOrCreateDirectory(relativePath)
+            val effectivePath = mapPath(relativePath, entry.name)
+            getOrCreateDirectory(effectivePath)
         }
     }
 
@@ -63,8 +77,14 @@ class SafRestoreOutput(
         progressCallback: FileWriteProgress?
     ) {
         withContext(Dispatchers.IO) {
-            val parentPath = relativePath.substringBeforeLast('/', "")
-            val fileName = relativePath.substringAfterLast('/')
+            android.util.Log.d("SafRestoreOutput", "writeFile called - relativePath: '$relativePath', entry.name: '${entry.name}'")
+
+            val effectivePath = mapPath(relativePath, entry.name)
+
+            val parentPath = effectivePath.substringBeforeLast('/', "")
+            val fileName = effectivePath.substringAfterLast('/')
+
+            android.util.Log.d("SafRestoreOutput", "Parsed - effectivePath: '$effectivePath', parentPath: '$parentPath', fileName: '$fileName'")
 
             val parentDir = getOrCreateDirectory(parentPath)
 
@@ -95,8 +115,9 @@ class SafRestoreOutput(
 
     override suspend fun fileExists(relativePath: String, entry: DirEntry): Boolean {
         return withContext(Dispatchers.IO) {
-            val parentPath = relativePath.substringBeforeLast('/', "")
-            val fileName = relativePath.substringAfterLast('/')
+            val effectivePath = mapPath(relativePath, entry.name)
+            val parentPath = effectivePath.substringBeforeLast('/', "")
+            val fileName = effectivePath.substringAfterLast('/')
 
             val parentDir = directoryCache[parentPath]
                 ?: getDirectoryIfExists(parentPath)
@@ -124,6 +145,26 @@ class SafRestoreOutput(
 
     override fun close() {
         directoryCache.clear()
+        rootDirectoryName = null
+    }
+
+    /**
+     * Maps a relative path to account for root directory name when restoring a single directory.
+     * When restoring a directory (not snapshot root), paths need to be prefixed with the directory name.
+     */
+    private fun mapPath(relativePath: String, entryName: String): String {
+        return when {
+            // Empty path on first beginDirectory - use entry name as root
+            relativePath.isEmpty() && rootDirectoryName != null -> rootDirectoryName!!
+            // Empty path in other contexts (e.g., single file) - use entry name
+            relativePath.isEmpty() -> entryName
+            // Path already includes root directory - use as-is
+            rootDirectoryName != null && relativePath.startsWith("$rootDirectoryName/") -> relativePath
+            // Child path needs root directory prepended
+            rootDirectoryName != null -> "$rootDirectoryName/$relativePath"
+            // No root directory tracking - use as-is
+            else -> relativePath
+        }
     }
 
     private fun getOrCreateDirectory(relativePath: String): DocumentFile {
