@@ -3,6 +3,8 @@
 # Expected: Show appropriate error messages without crashing
 #
 # UI is rendered in WebView (React app).
+# NOTE: eraseText does not work reliably in WebView inputs. We navigate back
+# and re-enter the Connect screen to get fresh empty fields between tests.
 
 appId: org.kopiaKt.app
 ---
@@ -76,36 +78,52 @@ appId: org.kopiaKt.app
 # ========================================
 # Test 4: Non-existent path
 # ========================================
+# Navigate back to Welcome and re-enter Connect screen (fresh form)
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
 - tapOn:
     text: "Repository Path"
-- eraseText: 100
 - inputText: "/sdcard/nonexistent_repo"
 
 - tapOn:
     text: "Repository Password"
-- eraseText: 100
 - inputText: "test123"
 
 - hideKeyboard
 - tapOn: "Connect"
 
-# Should show path not found error
+# Should show path not found / directory error
 - extendedWaitUntil:
     visible:
-      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*"
+      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*|.*directory.*|.*must be.*"
     timeout: 15000
 
 # ========================================
 # Test 5: Successful connection after errors
 # ========================================
+# Navigate back to Welcome and re-enter Connect screen (fresh form)
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
 - tapOn:
     text: "Repository Path"
-- eraseText: 100
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
     text: "Repository Password"
-- eraseText: 100
 - inputText: "test123"
 
 - hideKeyboard

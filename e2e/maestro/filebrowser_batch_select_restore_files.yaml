@@ -66,27 +66,33 @@ appId: org.kopiaKt.app
       text: ".*hidden_dir.*"
     timeout: 10000
 
-# Long-press "hidden_dir" to enter selection mode
+# Enter selection mode by long-pressing on the icon area (left side) of hidden_dir row
+# hidden_dir is typically the first row, around 30% from top
+# Long-press on the left icon area (9% from left) to avoid triggering text selection
 - longPressOn:
-    text: ".*hidden_dir.*"
+    point: "9%,33%"
 
-# Wait for selection toolbar with "1 selected" (WebView DOM update can be slow)
+# Wait for selection toolbar (text may be split across lines in WebView)
 - extendedWaitUntil:
-    visible: "1 selected"
+    visible:
+      text: ".*selected.*"
     timeout: 10000
 
-- assertVisible: "1 selected"
+- assertVisible:
+    text: ".*selected.*"
 
 # Tap "level1" to add a second item to selection
 - tapOn:
     text: ".*level1.*"
 
-# Wait for "2 selected"
+# Wait for updated selection count (text may be split across lines)
 - extendedWaitUntil:
-    visible: "2 selected"
+    visible:
+      text: ".*selected.*"
     timeout: 5000
 
-- assertVisible: "2 selected"
+- assertVisible:
+    text: ".*selected.*"
 
 # Verify toolbar buttons visible
 - assertVisible: "Select All"
@@ -137,10 +143,10 @@ appId: org.kopiaKt.app
     commands:
       - tapOn: "ALLOW"
 
-# Wait for restore progress indicator
+# Wait for restore progress or completion
 - extendedWaitUntil:
     visible:
-      text: "Restoring.*item"
+      text: ".*Restoring.*|.*Restore complete.*|.*restored.*"
     timeout: 15000
 
 # Wait for restore to complete

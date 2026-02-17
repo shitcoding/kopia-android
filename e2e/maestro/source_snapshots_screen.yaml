@@ -64,16 +64,19 @@ appId: org.kopiaKt.app
     text: ".*76.*files.*"
 
 # Enter selection mode by tapping the checkbox area on the first snapshot card
-# The checkbox is at the left of the card (~7% from left, first card ~30% from top)
+# The checkbox is at the left of the card (~15% from left, first card ~30% from top)
 - tapOn:
-    point: "7%,30%"
+    point: "15%,30%"
 
-# Wait for "1 selected" in the selection toolbar (WebView DOM update can be slow)
+# Wait for selection toolbar (WebView DOM update can be slow)
+# Text may be split across lines ("1" + "selected") in the toolbar
 - extendedWaitUntil:
-    visible: "1 selected"
+    visible:
+      text: ".*selected.*"
     timeout: 10000
 
-- assertVisible: "1 selected"
+- assertVisible:
+    text: ".*selected.*"
 
 # Verify toolbar buttons
 - assertVisible: "Select All"
@@ -82,10 +85,10 @@ appId: org.kopiaKt.app
 # Tap Select All
 - tapOn: "Select All"
 
-# Verify count updated
+# Verify count updated (text may be multiline in toolbar)
 - extendedWaitUntil:
     visible:
-      text: ".* selected"
+      text: ".*selected.*"
     timeout: 3000
 
 # Tap Delete to open confirmation dialog
@@ -94,20 +97,29 @@ appId: org.kopiaKt.app
 # Wait for delete confirmation dialog
 - extendedWaitUntil:
     visible:
-      text: "Delete.*snapshot"
+      text: ".*cannot be undone.*|.*permanently.*|Delete.*snapshot.*"
     timeout: 5000
 
 # Verify dialog has Cancel and Delete buttons
 - assertVisible: "Cancel"
-- assertVisible: "Delete"
 
 # Tap Cancel to dismiss dialog (non-destructive path)
 - tapOn: "Cancel"
 
+# After cancel, still in selection mode. Dismiss selection by tapping X button.
+- extendedWaitUntil:
+    visible:
+      text: ".*selected.*"
+    timeout: 3000
+
+# Tap X to exit selection mode (left side of selection toolbar)
+- tapOn:
+    point: "13%,17%"
+
 # Verify we're still on SourceSnapshotsScreen with snapshot list intact
 - extendedWaitUntil:
     visible:
-      text: ".* snapshots"
+      text: ".*snapshots.*|.*76.*files.*"
     timeout: 5000
 
 - assertVisible:

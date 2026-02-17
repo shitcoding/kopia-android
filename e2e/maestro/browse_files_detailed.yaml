@@ -86,9 +86,16 @@ appId: org.kopiaKt.app
       text: ".*double_dot.*|.*binary.*|.*unicode.*|.*hidden.*|.*level.*"
     timeout: 8000
 
-# Scroll back to top to restore known positions
-- scroll
-- scroll
+# Scroll back to top by swiping down (finger drags content up -> finger goes down = scroll up)
+- swipe:
+    start: "50%,30%"
+    end: "50%,90%"
+- swipe:
+    start: "50%,30%"
+    end: "50%,90%"
+- swipe:
+    start: "50%,30%"
+    end: "50%,90%"
 
 # Navigate into level1 folder for nested navigation test
 # Wait for level1 to be visible at its position after scroll

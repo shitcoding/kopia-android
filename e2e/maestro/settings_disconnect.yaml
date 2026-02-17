@@ -64,9 +64,15 @@ appId: org.kopiaKt.app
 - assertVisible: "About"
 - assertVisible: "KopiaKt"
 
-# Verify Disconnect button at bottom of settings
-- assertVisible:
-    text: ".*Disconnect.*"
+# Scroll down to reveal Disconnect button at bottom of settings
+- scroll
+- scroll
+
+# Verify Disconnect button is visible
+- extendedWaitUntil:
+    visible:
+      text: ".*Disconnect.*"
+    timeout: 5000
 
 # Tap Disconnect
 - tapOn:
@@ -82,7 +88,7 @@ appId: org.kopiaKt.app
 # Verify we return to welcome/connect screen
 - extendedWaitUntil:
     visible:
-      text: "KopiaKt|Connect Repository"
-    timeout: 5000
+      text: "KopiaKt|Connect Repository|Connect to Repository"
+    timeout: 10000
 
 - assertVisible: "Connect to Repository"

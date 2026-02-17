@@ -133,9 +133,8 @@ appId: org.kopiaKt.app
       text: ".*level3.*"
     timeout: 10000
 
-# Navigate back to root using back button
-- back
-- back
+# Navigate back to root using the "/" breadcrumb
+- tapOn: "/"
 
 # Verify back at root (shows hidden_dir etc)
 - extendedWaitUntil:
@@ -212,25 +211,16 @@ appId: org.kopiaKt.app
 # ========================================
 # PHASE 7: Settings
 # ========================================
-# Navigate back to snapshots then go to settings
+# Navigate back from RestoreScreen to SnapshotsScreen
+# Stack: Snapshots -> SourceSnapshots -> FileBrowser -> Restore
+# Need to go back through: Restore -> FileBrowser -> SourceSnapshots -> Snapshots
+- back
+- back
 - back
 
 - extendedWaitUntil:
-    visible:
-      text: "Snapshots|SourceSnapshots|.*@.*"
-    timeout: 10000
-
-# Navigate back to SnapshotsScreen if needed
-- runFlow:
-    when:
-      visible:
-        text: ".* snapshots"
-    commands:
-      - back
-
-- extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 5000
+    timeout: 10000
 
 # Go to settings (try text first, then position)
 - tapOn:
@@ -256,6 +246,7 @@ appId: org.kopiaKt.app
 # PHASE 8: Disconnect from Settings
 # ========================================
 - scroll
+- scroll
 
 - extendedWaitUntil:
     visible:
@@ -276,8 +267,9 @@ appId: org.kopiaKt.app
 # PHASE 9: Back at Welcome
 # ========================================
 - extendedWaitUntil:
-    visible: "KopiaKt"
-    timeout: 5000
+    visible:
+      text: "KopiaKt|Connect to Repository"
+    timeout: 10000
 
 - assertVisible: "Connect to Repository"
 
