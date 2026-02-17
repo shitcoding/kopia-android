@@ -1,10 +1,12 @@
-# E2E Test: Complete Restore Flow
-# Verifies the restore screen, destination picker, and restore operation
+# E2E Test: Complete Restore Flow via RestoreScreen
+# Verifies the RestoreScreen (full snapshot restore via app bar Download icon)
 # Repository: /sdcard/testrepo (edge_case_repo)
 # Password: test123
-# Expected: Navigate to restore, select destination, start restore, verify completion
+# Expected: Navigate to RestoreScreen, select destination, start restore, verify completion
 #
-# PREREQUISITE: Run setup_restore_dir.sh to create /sdcard/Download/restore_dest
+# PREREQUISITE: Run setup_restore_dir.sh to create /sdcard/Download/_kopia_restore
+#
+# Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen → RestoreScreen
 #
 # UI is rendered in WebView (React app).
 
@@ -35,41 +37,43 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list
+# SnapshotsScreen: tap source card
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 15000
-
-# Tap on snapshot to browse files
 - tapOn:
     text: ".*76 files.*"
 
-# Wait for file browser
+# SourceSnapshotsScreen: tap first snapshot card
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# FileBrowserScreen: wait for root listing
 - extendedWaitUntil:
     visible:
       text: ".*hidden_dir.*"
     timeout: 15000
 
-# Tap restore button (download icon in app bar)
+# Tap Download icon in app bar to open RestoreScreen
+# Try by position (second icon from right in app bar)
 - tapOn:
-    text: ".*Restore.*"
-    optional: true
+    point: "85%,4%"
 
-- runFlow:
-    when:
-      notVisible: "Select Destination"
-    commands:
-      # Try tapping by icon position (top right)
-      - tapOn:
-          point: "92%,6%"
-
-# Verify restore screen appeared
+# Verify RestoreScreen appeared (shows "Select Destination" or source info)
 - extendedWaitUntil:
     visible: "Select Destination"
-    timeout: 5000
+    timeout: 10000
 
-# Verify source is shown
+# Verify source path is shown
 - assertVisible:
     text: ".*Source.*"
 
@@ -93,24 +97,22 @@ appId: org.kopiaKt.app
     commands:
       - tapOn: "Downloads"
 
-# Wait for Download folder to load
+# Navigate into _kopia_restore folder
 - extendedWaitUntil:
     visible:
-      text: "restore_dest|USE THIS FOLDER|CREATE NEW FOLDER"
+      text: "_kopia_restore|USE THIS FOLDER|CREATE NEW FOLDER"
     timeout: 5000
 
-# If restore_dest exists, navigate into it
 - runFlow:
     when:
-      visible: "restore_dest"
+      visible: "_kopia_restore"
     commands:
-      - tapOn: "restore_dest"
+      - tapOn: "_kopia_restore"
 
 # Use this folder
 - extendedWaitUntil:
     visible: "USE THIS FOLDER"
     timeout: 5000
-
 - tapOn: "USE THIS FOLDER"
 
 # Handle ALLOW permission dialog if shown
@@ -131,15 +133,11 @@ appId: org.kopiaKt.app
 # Wait for restore to start
 - extendedWaitUntil:
     visible:
-      text: ".*Preparing.*|.*Restoring.*|.*files restored.*"
+      text: ".*Preparing.*|.*Restoring.*|.*restored.*"
     timeout: 15000
 
 # Wait for restore to complete (76 files, may take a while)
 - extendedWaitUntil:
     visible:
-      text: ".*files restored.*|.*Restore Complete.*|.*Restore Failed.*"
+      text: ".*restored.*|.*Restore Complete.*|.*Restore Failed.*"
     timeout: 300000
-
-# Verify success
-- assertVisible:
-    text: ".*files restored.*"

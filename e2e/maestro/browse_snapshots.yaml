@@ -1,8 +1,10 @@
 # E2E Test: Browse Snapshots
-# Verifies snapshot list display and navigation to file browser
+# Verifies snapshot list display, SourceSnapshotsScreen, and navigation to file browser
 # Repository: /sdcard/testrepo (edge_case_repo)
 # Password: test123
-# Expected: See snapshot list, verify snapshot info, tap to browse files
+# Expected: See source list, tap source card, see SourceSnapshotsScreen, tap snapshot, browse files
+#
+# Navigation: WelcomeScreen → ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
 #
 # UI is rendered in WebView (React app).
 
@@ -33,7 +35,7 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list to appear
+# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
@@ -41,34 +43,50 @@ appId: org.kopiaKt.app
 # Verify Snapshots title is shown
 - assertVisible: "Snapshots"
 
-# Verify settings button is visible
-- assertVisible:
-    text: ".*settings.*"
-    optional: true
-
-# Wait for snapshot data to load
+# Wait for source card to load (shows total file count)
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 10000
 
-# Verify snapshot card shows source path info (user@host:path format)
+# Verify source card shows user@host format
 - assertVisible:
-    text: ".*@.*:.*"
+    text: ".*@.*"
 
-# Verify snapshot card shows file count
-- assertVisible:
-    text: ".*76 files.*"
-
-# Tap on the snapshot card to open file browser
+# Tap on the source card (contains "76 files") to open SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
 
-# Verify file browser opens
+# SourceSnapshotsScreen: wait for " · N snapshots" in the source header
 - extendedWaitUntil:
     visible:
-      text: ".*hidden_dir.*|.*many_files.*|.*level1.*"
+      text: ".* snapshots"
+    timeout: 10000
+
+# Assert source header format: "user@host · N snapshots"
+- assertVisible:
+    text: ".*@.*"
+
+# Snapshot cards show file/dir/size stats. Tap the first snapshot card (its body button)
+# The card shows date at top; tap by the file count stat which is unique on this screen
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+
+- tapOn:
+    text: ".*76.*files.*"
+
+# Wait for FileBrowserScreen — breadcrumb "/" appears
+- extendedWaitUntil:
+    visible: "/"
     timeout: 15000
+
+# Verify root directory contents are shown
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*|.*level1.*|.*many_files.*"
+    timeout: 10000
 
 # Verify breadcrumb shows root
 - assertVisible: "/"

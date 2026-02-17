@@ -1,0 +1,167 @@
+# E2E Test: FileBrowser batch selection and restore of individual files
+# Tests multi-select, SAF folder picker, per-file restore flow
+# Repository: /sdcard/testrepo
+# Password: test123
+# Restore destination: /sdcard/Download/_kopia_restore
+#
+# PREREQUISITE: Run scripts/setup_restore_dir.sh to create /sdcard/Download/_kopia_restore
+#
+# Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen → level1/
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# SnapshotsScreen: tap source card
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+- tapOn:
+    text: ".*76 files.*"
+
+# SourceSnapshotsScreen: tap first snapshot card
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# FileBrowserScreen root: navigate into level1/ (known to contain files)
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      text: ".*level1.*"
+    timeout: 10000
+- tapOn:
+    text: ".*level1.*"
+
+# Inside level1/: wait for file list to load
+- extendedWaitUntil:
+    visible:
+      text: ".*level2.*|.*\\..*"
+    timeout: 10000
+
+# Long-press the first visible item to enter selection mode
+- longPressOn:
+    index: 0
+
+# Wait for selection toolbar with "1 selected"
+- extendedWaitUntil:
+    visible: "1 selected"
+    timeout: 5000
+
+- assertVisible: "1 selected"
+
+# Tap a second item to add to selection
+- tapOn:
+    index: 1
+
+# Wait for "2 selected"
+- extendedWaitUntil:
+    visible: "2 selected"
+    timeout: 3000
+
+- assertVisible: "2 selected"
+
+# Verify toolbar buttons visible
+- assertVisible: "Select All"
+- assertVisible: "Restore"
+
+# Tap Restore to open SAF folder picker
+- tapOn: "Restore"
+
+# SAF picker: wait for it to appear (native Android UI)
+- extendedWaitUntil:
+    visible:
+      text: "Download|Downloads|Documents"
+    timeout: 10000
+
+# Navigate to Download folder
+- tapOn:
+    text: "Download"
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+# Navigate into _kopia_restore folder
+- extendedWaitUntil:
+    visible:
+      text: "_kopia_restore|USE THIS FOLDER|CREATE NEW FOLDER"
+    timeout: 5000
+
+- runFlow:
+    when:
+      visible: "_kopia_restore"
+    commands:
+      - tapOn: "_kopia_restore"
+
+# Tap USE THIS FOLDER
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+- tapOn: "USE THIS FOLDER"
+
+# Handle optional ALLOW permission dialog
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# Wait for restore progress indicator
+- extendedWaitUntil:
+    visible:
+      text: "Restoring.*item"
+    timeout: 15000
+
+# Wait for restore to complete
+- extendedWaitUntil:
+    visible: "Restore complete"
+    timeout: 60000
+
+- assertVisible: "Restore complete"
+
+# Tap Done to clear the restore bar
+- tapOn: "Done"
+
+# Verify selection mode cleared and normal file list shown
+- extendedWaitUntil:
+    notVisible: "Restore complete"
+    timeout: 3000

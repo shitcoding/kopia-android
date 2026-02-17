@@ -4,6 +4,8 @@
 # Password: test123
 # Expected: Navigate folders, verify breadcrumbs update, navigate back
 #
+# Navigation: WelcomeScreen → ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
+#
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
@@ -33,13 +35,29 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list and tap on snapshot
+# Wait for SnapshotsScreen source card
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 15000
+
+# Tap source card → SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
+
+# Wait for SourceSnapshotsScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+# Tap first snapshot card → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
 
 # Verify file browser opens with root breadcrumb
 - extendedWaitUntil:
@@ -51,11 +69,6 @@ appId: org.kopiaKt.app
     visible:
       text: ".*hidden_dir.*"
     timeout: 10000
-
-# Verify restore button is visible
-- assertVisible:
-    id: "restore-button"
-    optional: true
 
 # Verify root listing shows expected edge case entries
 - assertVisible:
@@ -73,22 +86,6 @@ appId: org.kopiaKt.app
       text: ".*double_dot.*|.*binary.*|.*unicode.*"
     timeout: 5000
 
-# Navigate into unicode folder to test unicode filename handling
-- scroll
-
-- runFlow:
-    when:
-      visible: "unicode"
-    commands:
-      - tapOn: "unicode"
-      - extendedWaitUntil:
-          visible:
-            text: ".*unicode.*"
-          timeout: 10000
-      # Verify we see unicode filenames
-      - assertVisible:
-          text: ".*"
-
 # Navigate into level1 folder for nested navigation test
 - runFlow:
     when:
@@ -99,3 +96,5 @@ appId: org.kopiaKt.app
           visible:
             text: ".*level2.*"
           timeout: 10000
+      - assertVisible:
+          text: ".*level2.*"

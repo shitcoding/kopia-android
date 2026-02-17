@@ -1,0 +1,61 @@
+# Shared flow: Connect to testrepo and navigate to FileBrowserScreen
+# Usage: include in other flows via runFlow
+# After this flow completes: FileBrowserScreen is open at root "/"
+#
+# Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# SnapshotsScreen: wait for source card
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+
+# Tap source card → SourceSnapshotsScreen
+- tapOn:
+    text: ".*76 files.*"
+
+# SourceSnapshotsScreen: wait for snapshot list
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+# Tap first snapshot card (by file count stat)
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# FileBrowserScreen: wait for root breadcrumb
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+
+# Verify files visible
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*|.*level1.*|.*many_files.*"
+    timeout: 10000

@@ -1,0 +1,150 @@
+# E2E Test: FileBrowser directory restore with name preservation
+# Tests that restoring a directory preserves its name (not flattened into destination)
+# Repository: /sdcard/testrepo
+# Password: test123
+# Restore destination: /sdcard/Download/_kopia_restore
+#
+# PREREQUISITE: Run scripts/setup_restore_dir.sh to create /sdcard/Download/_kopia_restore
+#
+# After completion, verify via adb:
+#   adb shell ls /sdcard/Download/_kopia_restore
+#   → should contain "level1/" (not level1's contents at root)
+#
+# Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# SnapshotsScreen → SourceSnapshotsScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+- tapOn:
+    text: ".*76 files.*"
+
+# SourceSnapshotsScreen → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# FileBrowserScreen root: wait for level1 folder
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      text: ".*level1.*"
+    timeout: 10000
+
+# Long-press on level1 folder to enter selection mode
+- longPressOn:
+    text: ".*level1.*"
+
+# Wait for "1 selected" in toolbar
+- extendedWaitUntil:
+    visible: "1 selected"
+    timeout: 5000
+
+- assertVisible: "1 selected"
+- assertVisible: "Restore"
+
+# Tap Restore to open SAF folder picker
+- tapOn: "Restore"
+
+# SAF picker: navigate to _kopia_restore
+- extendedWaitUntil:
+    visible:
+      text: "Download|Downloads|Documents"
+    timeout: 10000
+
+- tapOn:
+    text: "Download"
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+- extendedWaitUntil:
+    visible:
+      text: "_kopia_restore|USE THIS FOLDER|CREATE NEW FOLDER"
+    timeout: 5000
+
+- runFlow:
+    when:
+      visible: "_kopia_restore"
+    commands:
+      - tapOn: "_kopia_restore"
+
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+- tapOn: "USE THIS FOLDER"
+
+# Handle optional ALLOW permission dialog
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# Wait for restore progress
+- extendedWaitUntil:
+    visible:
+      text: "Restoring.*item"
+    timeout: 15000
+
+# Wait for restore to complete
+- extendedWaitUntil:
+    visible: "Restore complete"
+    timeout: 120000
+
+- assertVisible: "Restore complete"
+
+# Tap Done
+- tapOn: "Done"
+
+# Verify we're back to normal file list (no selection/restore bar)
+- extendedWaitUntil:
+    notVisible: "Restore complete"
+    timeout: 3000
+
+# NOTE: To verify directory structure preservation, run:
+# adb shell ls /sdcard/Download/_kopia_restore
+# Expected: level1/  (directory with its name preserved, not flattened contents)

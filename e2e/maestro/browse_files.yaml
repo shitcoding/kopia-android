@@ -1,13 +1,11 @@
 # E2E Test: Browse files in edge_case_repo snapshot
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
-# Expected: Connect to repo, view snapshot list, browse root file listing
+# Expected: Connect to repo, view source list, navigate SourceSnapshotsScreen, browse root file listing
+#
+# Navigation: WelcomeScreen → ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
 #
 # UI is rendered in WebView (React app).
-#
-# KNOWN BUG: Directory navigation (tapping folders) updates the title bar but
-# doesn't actually navigate into the subdirectory. This test currently only
-# validates root-level file browsing.
 
 appId: org.kopiaKt.app
 ---
@@ -20,12 +18,10 @@ appId: org.kopiaKt.app
 - tapOn: "Connect to Repository"
 - assertVisible: "Connect Repository"
 
-# Tap on path field
 - tapOn:
     text: "Repository Path"
 - inputText: "/sdcard/testrepo"
 
-# Tap on password field
 - tapOn:
     text: "Repository Password"
 - inputText: "test123"
@@ -33,26 +29,44 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list to appear
+# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
 
-# Verify snapshot data loaded (76 files)
+# Wait for source card with file count
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 10000
 
-# Tap on snapshot card to enter file browser
+# Tap source card → SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
 
-# Wait for file browser screen to load
+# Wait for SourceSnapshotsScreen — " · N snapshots" in header
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+# Tap first snapshot card → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# Wait for file browser to load
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+
 - extendedWaitUntil:
     visible:
       text: ".*hidden_dir.*"
-    timeout: 15000
+    timeout: 10000
 
 # Verify root directory listing shows expected edge case entries
 - assertVisible:

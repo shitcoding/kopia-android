@@ -1,0 +1,62 @@
+# E2E Test: ExitDoor disconnect from SnapshotsScreen
+# Verifies the ExitDoor (disconnect) button on SnapshotsScreen returns to ConnectScreen
+# Repository: /sdcard/testrepo
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
+
+- assertVisible: "Snapshots"
+
+# Tap ExitDoor button (title="Disconnect")
+- tapOn:
+    text: "Disconnect"
+    optional: true
+
+# Fallback: tap by position (top-right app bar)
+- runFlow:
+    when:
+      notVisible: "Connect Repository"
+    commands:
+      - tapOn:
+          point: "88%,4%"
+
+# Verify we returned to ConnectScreen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Verify connection tabs are visible
+- assertVisible: "Local"
+- assertVisible: "S3"

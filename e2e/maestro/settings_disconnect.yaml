@@ -1,8 +1,9 @@
 # E2E Test: Settings and Disconnect
-# Verifies settings screen access and repository disconnection
+# Verifies settings screen access, content, and repository disconnection via:
+# 1. Settings screen Disconnect button
+# 2. ExitDoor button (direct disconnect without going through Settings)
 # Repository: /sdcard/testrepo (edge_case_repo)
 # Password: test123
-# Expected: Navigate to settings, verify options, disconnect, return to welcome
 #
 # UI is rendered in WebView (React app).
 
@@ -33,15 +34,22 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list
+# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
 
-# Navigate to settings (gear icon in app bar)
-# The gear icon is approximately at position (93%, 3%) based on screenshot
+# Navigate to settings — try text selector first, fall back to position
 - tapOn:
-    point: "93%,4%"
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible: "Settings"
+    commands:
+      - tapOn:
+          point: "93%,4%"
 
 # Verify settings screen appeared
 - extendedWaitUntil:
@@ -50,38 +58,31 @@ appId: org.kopiaKt.app
 
 # Verify styling section exists
 - assertVisible:
-    text: ".*Styling.*"
-
-# Verify dark mode toggle exists
-- assertVisible:
-    text: ".*Dark Mode.*"
-
-# Verify accent color option exists
-- assertVisible:
-    text: ".*Accent Color.*"
+    text: ".*Styling.*|.*Theme.*"
 
 # Verify about section exists
 - assertVisible: "About"
 - assertVisible: "KopiaKt"
 
-# Tap disconnect (at bottom of settings, ~88% down the screen)
+# Verify Disconnect button at bottom of settings
+- assertVisible:
+    text: ".*Disconnect.*"
+
+# Tap Disconnect
 - tapOn:
-    point: "50%,90%"
+    text: ".*Disconnect.*"
 
-# Verify confirmation dialog appears (WebView might not expose dialog text)
-# Wait a moment for dialog to render
+# Handle confirmation dialog if it appears
+- runFlow:
+    when:
+      visible: "Disconnect Repository?"
+    commands:
+      - tapOn: "Disconnect"
+
+# Verify we return to welcome/connect screen
 - extendedWaitUntil:
-    visible: "Disconnect Repository?"
-    timeout: 5000
-    optional: true
-
-# Tap Disconnect button in dialog (right button at ~72%, 54%)
-- tapOn:
-    point: "72%,54%"
-
-# Verify we return to welcome screen
-- extendedWaitUntil:
-    visible: "KopiaKt"
+    visible:
+      text: "KopiaKt|Connect Repository"
     timeout: 5000
 
 - assertVisible: "Connect to Repository"

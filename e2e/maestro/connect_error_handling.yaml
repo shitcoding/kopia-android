@@ -39,15 +39,14 @@ appId: org.kopiaKt.app
 # ========================================
 # Test 2: Empty password validation
 # ========================================
-# Clear and enter path only
+# Enter path only, clear password
 - tapOn:
     text: "Repository Path"
 - inputText: "/sdcard/testrepo"
 
-# Clear password (select all and delete)
 - tapOn:
     text: "Repository Password"
-- eraseText: 10
+- clearText
 
 - hideKeyboard
 - tapOn: "Connect"
@@ -71,21 +70,20 @@ appId: org.kopiaKt.app
 # Should show authentication error
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*"
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*"
     timeout: 15000
 
 # ========================================
 # Test 4: Non-existent path
 # ========================================
-# Clear existing input
 - tapOn:
     text: "Repository Path"
-- eraseText: 20
+- clearText
 - inputText: "/sdcard/nonexistent_repo"
 
 - tapOn:
     text: "Repository Password"
-- eraseText: 15
+- clearText
 - inputText: "test123"
 
 - hideKeyboard
@@ -100,15 +98,14 @@ appId: org.kopiaKt.app
 # ========================================
 # Test 5: Successful connection after errors
 # ========================================
-# Clear and enter correct credentials
 - tapOn:
     text: "Repository Path"
-- eraseText: 30
+- clearText
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
     text: "Repository Password"
-- eraseText: 10
+- clearText
 - inputText: "test123"
 
 - hideKeyboard

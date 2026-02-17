@@ -1,0 +1,114 @@
+# E2E Test: SourceSnapshotsScreen UI
+# Tests source header, snapshot cards, selection mode, delete dialog cancel path
+# Repository: /sdcard/testrepo
+# Password: test123
+#
+# This test exercises the non-destructive (cancel) path of snapshot deletion.
+# No snapshots are actually deleted.
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# SnapshotsScreen: tap source card
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+- tapOn:
+    text: ".*76 files.*"
+
+# SourceSnapshotsScreen: verify source header
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+# Assert "user@host · N snapshots" header format
+- assertVisible:
+    text: ".*@.*"
+- assertVisible:
+    text: ".* snapshots"
+
+# Assert snapshot card is visible (date + stats)
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- assertVisible:
+    text: ".*76.*files.*"
+
+# Enter selection mode by tapping the checkbox area on the first snapshot card
+# (Checkbox is to the left of the card body)
+- tapOn:
+    index: 0
+
+# Wait for "1 selected" in the selection toolbar
+- extendedWaitUntil:
+    visible: "1 selected"
+    timeout: 5000
+
+- assertVisible: "1 selected"
+
+# Verify toolbar buttons
+- assertVisible: "Select All"
+- assertVisible: "Delete"
+
+# Tap Select All
+- tapOn: "Select All"
+
+# Verify count updated
+- extendedWaitUntil:
+    visible:
+      text: ".* selected"
+    timeout: 3000
+
+# Tap Delete to open confirmation dialog
+- tapOn: "Delete"
+
+# Wait for delete confirmation dialog
+- extendedWaitUntil:
+    visible:
+      text: "Delete.*snapshot"
+    timeout: 5000
+
+# Verify dialog has Cancel and Delete buttons
+- assertVisible: "Cancel"
+- assertVisible: "Delete"
+
+# Tap Cancel to dismiss dialog (non-destructive path)
+- tapOn: "Cancel"
+
+# Verify we're still on SourceSnapshotsScreen with snapshot list intact
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 5000
+
+- assertVisible:
+    text: ".*76.*files.*"

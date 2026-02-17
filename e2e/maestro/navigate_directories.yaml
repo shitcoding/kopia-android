@@ -1,12 +1,13 @@
 # E2E Test: Navigate into nested directories
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
-# Expected: Navigate from root -> nested/level1 -> level2 and verify contents
+# Expected: Navigate from root -> level1 -> level2 -> level3 and verify contents
+#
+# Navigation: WelcomeScreen → ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
 #
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
-
 ---
 # Clear app state and start fresh
 - clearState
@@ -17,12 +18,10 @@ appId: org.kopiaKt.app
 - tapOn: "Connect to Repository"
 - assertVisible: "Connect Repository"
 
-# Tap on path field
 - tapOn:
     text: "Repository Path"
 - inputText: "/sdcard/testrepo"
 
-# Tap on password field
 - tapOn:
     text: "Repository Password"
 - inputText: "test123"
@@ -30,26 +29,44 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list to appear
+# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
 
-# Wait for data to load
+# Wait for source card with file count
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 10000
 
-# Tap on snapshot card to enter file browser
+# Tap source card → SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
 
+# Wait for SourceSnapshotsScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+# Tap first snapshot card → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
 # Wait for file browser screen to load (root level)
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+
 - extendedWaitUntil:
     visible:
       text: ".*level1.*"
-    timeout: 15000
+    timeout: 10000
 
 # Verify we see the level1 folder at root level
 - assertVisible:

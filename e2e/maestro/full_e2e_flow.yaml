@@ -2,10 +2,10 @@
 # Comprehensive test covering the entire user journey:
 #   1. Welcome screen
 #   2. Connect to local repository
-#   3. View snapshot list
-#   4. Browse files
+#   3. View snapshot list (SnapshotsScreen)
+#   4. Browse files via SourceSnapshotsScreen → FileBrowserScreen
 #   5. Navigate directories
-#   6. Start restore
+#   6. Restore snapshot via RestoreScreen
 #   7. Settings
 #   8. Disconnect
 #   9. Return to welcome
@@ -13,7 +13,9 @@
 # Repository: /sdcard/testrepo (edge_case_repo)
 # Password: test123
 #
-# PREREQUISITE: Run setup_restore_dir.sh and setup_test_repo.sh
+# PREREQUISITE: Run setup_restore_dir.sh to create /sdcard/Download/_kopia_restore
+#
+# Navigation model: WelcomeScreen → ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
 #
 # UI is rendered in WebView (React app).
 
@@ -61,23 +63,45 @@ appId: org.kopiaKt.app
 - tapOn: "Connect"
 
 # ========================================
-# PHASE 3: View Snapshots
+# PHASE 3: View Snapshots (SnapshotsScreen)
 # ========================================
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
 
-# Verify snapshot details
+# Verify source card with file count
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 10000
 
+# Verify source card shows user@host format
+- assertVisible:
+    text: ".*@.*"
+
 # ========================================
-# PHASE 4: Browse Files
+# PHASE 4: Browse Files via SourceSnapshotsScreen → FileBrowserScreen
 # ========================================
+# Tap source card → SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
+
+# Verify SourceSnapshotsScreen header: "user@host · N snapshots"
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+
+- assertVisible:
+    text: ".*@.*"
+
+# Tap first snapshot card → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
 
 # Verify file browser loads
 - extendedWaitUntil:
@@ -120,23 +144,16 @@ appId: org.kopiaKt.app
     timeout: 10000
 
 # ========================================
-# PHASE 6: Restore Flow
+# PHASE 6: Restore Flow (RestoreScreen)
 # ========================================
-# Tap restore button
+# Tap app bar Download icon to open RestoreScreen
+# Second icon from right in FileBrowserScreen app bar
 - tapOn:
-    text: ".*Restore.*"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible: "Select Destination"
-    commands:
-      - tapOn:
-          point: "92%,6%"
+    point: "85%,4%"
 
 - extendedWaitUntil:
     visible: "Select Destination"
-    timeout: 5000
+    timeout: 10000
 
 # Select destination
 - tapOn: "Select Destination"
@@ -158,14 +175,14 @@ appId: org.kopiaKt.app
 
 - extendedWaitUntil:
     visible:
-      text: "restore_dest|USE THIS FOLDER"
+      text: "_kopia_restore|USE THIS FOLDER"
     timeout: 5000
 
 - runFlow:
     when:
-      visible: "restore_dest"
+      visible: "_kopia_restore"
     commands:
-      - tapOn: "restore_dest"
+      - tapOn: "_kopia_restore"
 
 - extendedWaitUntil:
     visible: "USE THIS FOLDER"
@@ -189,33 +206,35 @@ appId: org.kopiaKt.app
 # Wait for completion
 - extendedWaitUntil:
     visible:
-      text: ".*files restored.*|.*Restore Complete.*"
+      text: ".*restored.*|.*Restore Complete.*"
     timeout: 300000
-
-# Tap Done to return to file browser
-- tapOn:
-    text: "Done"
-    optional: true
-
-- runFlow:
-    when:
-      visible: "Done"
-    commands:
-      - tapOn: "Done"
 
 # ========================================
 # PHASE 7: Settings
 # ========================================
-# Navigate back to snapshots
+# Navigate back to snapshots then go to settings
 - back
 
 - extendedWaitUntil:
-    visible: "Snapshots"
+    visible:
+      text: "Snapshots|SourceSnapshots|.*@.*"
     timeout: 10000
 
-# Go to settings
+# Navigate back to SnapshotsScreen if needed
+- runFlow:
+    when:
+      visible:
+        text: ".* snapshots"
+    commands:
+      - back
+
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 5000
+
+# Go to settings (try text first, then position)
 - tapOn:
-    text: ".*settings.*"
+    text: "Settings"
     optional: true
 
 - runFlow:
@@ -223,7 +242,7 @@ appId: org.kopiaKt.app
       notVisible: "Settings"
     commands:
       - tapOn:
-          point: "95%,6%"
+          point: "93%,4%"
 
 - extendedWaitUntil:
     visible: "Settings"
@@ -231,27 +250,27 @@ appId: org.kopiaKt.app
 
 # Verify settings content
 - assertVisible:
-    text: ".*Dark Mode.*"
+    text: ".*Styling.*|.*Theme.*|.*Dark.*"
 
 # ========================================
-# PHASE 8: Disconnect
+# PHASE 8: Disconnect from Settings
 # ========================================
 - scroll
 
 - extendedWaitUntil:
-    visible: "Disconnect Repository"
-    timeout: 5000
-
-- tapOn: "Disconnect Repository"
-
-# Confirm disconnect
-- extendedWaitUntil:
-    visible: "Disconnect Repository?"
+    visible:
+      text: ".*Disconnect.*"
     timeout: 5000
 
 - tapOn:
-    text: "Disconnect"
-    index: 1
+    text: ".*Disconnect.*"
+
+# Confirm disconnect if dialog appears
+- runFlow:
+    when:
+      visible: "Disconnect Repository?"
+    commands:
+      - tapOn: "Disconnect"
 
 # ========================================
 # PHASE 9: Back at Welcome

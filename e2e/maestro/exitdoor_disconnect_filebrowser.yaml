@@ -1,0 +1,86 @@
+# E2E Test: ExitDoor disconnect from FileBrowserScreen
+# Verifies the ExitDoor (disconnect) button on FileBrowserScreen returns to ConnectScreen
+# Repository: /sdcard/testrepo
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# SnapshotsScreen → SourceSnapshotsScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*76 files.*"
+    timeout: 15000
+- tapOn:
+    text: ".*76 files.*"
+
+# SourceSnapshotsScreen → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# FileBrowserScreen: verify root breadcrumb and file list
+- extendedWaitUntil:
+    visible: "/"
+    timeout: 15000
+
+- assertVisible: "/"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*hidden_dir.*|.*level1.*"
+    timeout: 10000
+
+# Tap ExitDoor button (title="Disconnect")
+- tapOn:
+    text: "Disconnect"
+    optional: true
+
+# Fallback: tap by position (top-right app bar, leftmost icon of the 3)
+- runFlow:
+    when:
+      notVisible: "Connect Repository"
+    commands:
+      - tapOn:
+          point: "75%,4%"
+
+# Verify we returned to ConnectScreen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- assertVisible: "Local"
+- assertVisible: "S3"
