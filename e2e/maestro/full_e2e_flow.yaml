@@ -149,7 +149,7 @@ appId: org.kopiaKt.app
 # Tap app bar Download icon to open RestoreScreen
 # Second icon from right in FileBrowserScreen app bar
 - tapOn:
-    point: "85%,4%"
+    point: "80%,7%"
 
 - extendedWaitUntil:
     visible: "Select Destination"
@@ -242,7 +242,7 @@ appId: org.kopiaKt.app
       notVisible: "Settings"
     commands:
       - tapOn:
-          point: "93%,4%"
+          point: "92%,7%"
 
 - extendedWaitUntil:
     visible: "Settings"

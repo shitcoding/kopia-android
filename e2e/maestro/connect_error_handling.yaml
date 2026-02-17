@@ -46,7 +46,7 @@ appId: org.kopiaKt.app
 
 - tapOn:
     text: "Repository Password"
-- clearText
+- eraseText: 100
 
 - hideKeyboard
 - tapOn: "Connect"
@@ -78,12 +78,12 @@ appId: org.kopiaKt.app
 # ========================================
 - tapOn:
     text: "Repository Path"
-- clearText
+- eraseText: 100
 - inputText: "/sdcard/nonexistent_repo"
 
 - tapOn:
     text: "Repository Password"
-- clearText
+- eraseText: 100
 - inputText: "test123"
 
 - hideKeyboard
@@ -100,12 +100,12 @@ appId: org.kopiaKt.app
 # ========================================
 - tapOn:
     text: "Repository Path"
-- clearText
+- eraseText: 100
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
     text: "Repository Password"
-- clearText
+- eraseText: 100
 - inputText: "test123"
 
 - hideKeyboard

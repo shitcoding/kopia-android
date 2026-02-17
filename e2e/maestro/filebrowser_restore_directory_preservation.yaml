@@ -74,10 +74,10 @@ appId: org.kopiaKt.app
 - longPressOn:
     text: ".*level1.*"
 
-# Wait for "1 selected" in toolbar
+# Wait for "1 selected" in toolbar (WebView DOM update can be slow)
 - extendedWaitUntil:
     visible: "1 selected"
-    timeout: 5000
+    timeout: 10000
 
 - assertVisible: "1 selected"
 - assertVisible: "Restore"

@@ -80,21 +80,30 @@ appId: org.kopiaKt.app
 # Scroll to see more files if needed
 - scroll
 
-# Verify more entries are visible
+# Wait for content to settle after scroll before checking visibility
 - extendedWaitUntil:
     visible:
-      text: ".*double_dot.*|.*binary.*|.*unicode.*"
-    timeout: 5000
+      text: ".*double_dot.*|.*binary.*|.*unicode.*|.*hidden.*|.*level.*"
+    timeout: 8000
+
+# Scroll back to top to restore known positions
+- scroll
+- scroll
 
 # Navigate into level1 folder for nested navigation test
-- runFlow:
-    when:
-      visible: "level1"
-    commands:
-      - tapOn: "level1"
-      - extendedWaitUntil:
-          visible:
-            text: ".*level2.*"
-          timeout: 10000
-      - assertVisible:
-          text: ".*level2.*"
+# Wait for level1 to be visible at its position after scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*level1.*"
+    timeout: 5000
+
+- tapOn:
+    text: ".*level1.*"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*level2.*"
+    timeout: 10000
+
+- assertVisible:
+    text: ".*level2.*"

@@ -49,7 +49,7 @@ appId: org.kopiaKt.app
       notVisible: "Settings"
     commands:
       - tapOn:
-          point: "93%,4%"
+          point: "92%,7%"
 
 # Verify settings screen appeared
 - extendedWaitUntil:

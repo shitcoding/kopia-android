@@ -64,9 +64,9 @@ appId: org.kopiaKt.app
     timeout: 15000
 
 # Tap Download icon in app bar to open RestoreScreen
-# Try by position (second icon from right in app bar)
+# Second icon from right in app bar
 - tapOn:
-    point: "85%,4%"
+    point: "80%,7%"
 
 # Verify RestoreScreen appeared (shows "Select Destination" or source info)
 - extendedWaitUntil:

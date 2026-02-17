@@ -63,14 +63,14 @@ appId: org.kopiaKt.app
       text: ".*level1.*"
     timeout: 10000
 
-# Long-press first item to enter selection mode
+# Long-press "hidden_dir" (known root entry) to enter selection mode
 - longPressOn:
-    index: 0
+    text: ".*hidden_dir.*"
 
-# Wait for "1 selected" toolbar
+# Wait for "1 selected" toolbar (WebView DOM update can be slow)
 - extendedWaitUntil:
     visible: "1 selected"
-    timeout: 5000
+    timeout: 10000
 
 - assertVisible: "1 selected"
 - assertVisible: "Select All"

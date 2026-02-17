@@ -1,14 +1,15 @@
-# E2E Test: Restore files from edge_case_repo snapshot
+# E2E Test: Restore files from edge_case_repo snapshot via RestoreScreen
 # Repository: /sdcard/testrepo (copy of edge_case_repo)
 # Password: test123
-# Expected: Navigate to restore screen, select destination, complete restore
+# Expected: Navigate to RestoreScreen, select destination, complete restore
 #
-# This test validates the complete restore flow including file content reading.
+# PREREQUISITE: Run setup_restore_dir.sh to create /sdcard/Download/_kopia_restore
+#
+# Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen → RestoreScreen
 #
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
-
 ---
 # Clear app state and start fresh
 - clearState
@@ -19,12 +20,10 @@ appId: org.kopiaKt.app
 - tapOn: "Connect to Repository"
 - assertVisible: "Connect Repository"
 
-# Tap on path field
 - tapOn:
     text: "Repository Path"
 - inputText: "/sdcard/testrepo"
 
-# Tap on password field
 - tapOn:
     text: "Repository Password"
 - inputText: "test123"
@@ -32,66 +31,83 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for snapshot list to appear
+# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 15000
 
-# Wait for data to load
+# Wait for source card
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
     timeout: 10000
 
-# Tap on snapshot card
+# Tap source card → SourceSnapshotsScreen
 - tapOn:
     text: ".*76 files.*"
 
-# Wait for file browser screen to load
+# SourceSnapshotsScreen: tap first snapshot card → FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*76.*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*76.*files.*"
+
+# Wait for file browser to load
 - extendedWaitUntil:
     visible:
       text: ".*hidden_dir.*"
     timeout: 15000
 
-# Verify we're in file browser
-- assertVisible:
-    text: ".*hidden_dir.*"
-
-# Tap restore button (in top bar) - look for "Restore this folder" tooltip
+# Tap Download icon in app bar to open RestoreScreen
 - tapOn:
-    text: ".*Restore.*"
+    point: "80%,7%"
 
 # Verify restore screen appeared
 - extendedWaitUntil:
     visible: "Select Destination"
-    timeout: 5000
+    timeout: 10000
 
-# Verify source path shown (accessibility text is "Source\n/")
+# Verify source path is shown
 - assertVisible:
     text: ".*Source.*"
 
 # Tap Select Destination to open SAF picker
 - tapOn: "Select Destination"
 
-# Wait for SAF picker to appear
+# Wait for SAF picker
 - extendedWaitUntil:
     visible:
-      text: "Download|Documents"
+      text: "Download|Documents|Downloads"
     timeout: 10000
 
-# Navigate to Download folder
-- tapOn: "Download"
+- tapOn:
+    text: "Download"
+    optional: true
 
-# Wait for Download folder to load
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+# Navigate into _kopia_restore folder
 - extendedWaitUntil:
     visible:
-      text: "restore_dest|edge_restored|CREATE NEW FOLDER"
+      text: "_kopia_restore|USE THIS FOLDER|CREATE NEW FOLDER"
     timeout: 5000
 
-# Navigate into restore_dest subfolder
-- tapOn: "restore_dest"
+- runFlow:
+    when:
+      visible: "_kopia_restore"
+    commands:
+      - tapOn: "_kopia_restore"
 
-# Now we should be able to use this folder
 - extendedWaitUntil:
     visible: "USE THIS FOLDER"
     timeout: 5000
@@ -105,27 +121,20 @@ appId: org.kopiaKt.app
     commands:
       - tapOn: "ALLOW"
 
-# After selecting destination, should see Start Restore button enabled
+# Start Restore button should now be enabled
 - extendedWaitUntil:
     visible: "Start Restore"
     timeout: 10000
 
-# Start restore
 - tapOn: "Start Restore"
 
-# Wait for restore to complete OR fail
-# The restore screen shows:
-# - "Preparing restore..." initially
-# - "Restoring file X of Y..." during restore
-# - "Restore Complete! N files restored" on success
-# - "Restore Failed" on error
+# Wait for restore to start then complete
 - extendedWaitUntil:
     visible:
-      text: ".*files restored.*|.*Restore Failed.*|.*Restoring.*|.*Preparing restore.*"
+      text: ".*Preparing.*|.*Restoring.*|.*restored.*"
     timeout: 15000
 
-# Now wait for restore to actually complete
 - extendedWaitUntil:
     visible:
-      text: ".*files restored.*|.*Restore Failed.*"
+      text: ".*restored.*|.*Restore Complete.*|.*Restore Failed.*"
     timeout: 300000

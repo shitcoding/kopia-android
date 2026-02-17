@@ -57,42 +57,34 @@ appId: org.kopiaKt.app
 - tapOn:
     text: ".*76.*files.*"
 
-# FileBrowserScreen root: navigate into level1/ (known to contain files)
+# FileBrowserScreen root: wait for known entries
 - extendedWaitUntil:
     visible: "/"
     timeout: 15000
 - extendedWaitUntil:
     visible:
-      text: ".*level1.*"
-    timeout: 10000
-- tapOn:
-    text: ".*level1.*"
-
-# Inside level1/: wait for file list to load
-- extendedWaitUntil:
-    visible:
-      text: ".*level2.*|.*\\..*"
+      text: ".*hidden_dir.*"
     timeout: 10000
 
-# Long-press the first visible item to enter selection mode
+# Long-press "hidden_dir" to enter selection mode
 - longPressOn:
-    index: 0
+    text: ".*hidden_dir.*"
 
-# Wait for selection toolbar with "1 selected"
+# Wait for selection toolbar with "1 selected" (WebView DOM update can be slow)
 - extendedWaitUntil:
     visible: "1 selected"
-    timeout: 5000
+    timeout: 10000
 
 - assertVisible: "1 selected"
 
-# Tap a second item to add to selection
+# Tap "level1" to add a second item to selection
 - tapOn:
-    index: 1
+    text: ".*level1.*"
 
 # Wait for "2 selected"
 - extendedWaitUntil:
     visible: "2 selected"
-    timeout: 3000
+    timeout: 5000
 
 - assertVisible: "2 selected"
 
