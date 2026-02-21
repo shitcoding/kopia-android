@@ -2,90 +2,81 @@ package org.kopiaKt.storage.sftp
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
-import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 
 /**
- * Integration tests for SftpBlobStorage.
+ * Integration tests for SftpBlobStorage using a Testcontainers-managed SFTP server.
  *
- * These tests require a running SFTP server. Configure using environment variables:
- * - SFTP_TEST_HOST: SFTP server hostname (default: localhost)
- * - SFTP_TEST_PORT: SFTP server port (default: 22)
- * - SFTP_TEST_USERNAME: SSH username
- * - SFTP_TEST_PASSWORD: SSH password (for password auth)
- * - SFTP_TEST_KEYFILE: Path to SSH private key (for key auth)
- * - SFTP_TEST_PATH: Remote path for testing (default: /tmp/kopia-test)
+ * These tests automatically start an atmoz/sftp container using Testcontainers.
+ * They are skipped if Docker is not available on the host.
  *
- * Tests are skipped if SFTP_TEST_USERNAME is not set.
- *
- * Example using Docker:
- * ```
- * docker run -d --name sftp-test \
- *   -p 2222:22 \
- *   -e SFTP_USERS=test:test:::upload \
- *   atmoz/sftp
- *
- * SFTP_TEST_HOST=localhost \
- * SFTP_TEST_PORT=2222 \
- * SFTP_TEST_USERNAME=test \
- * SFTP_TEST_PASSWORD=test \
- * SFTP_TEST_PATH=/upload/kopia-test \
- * ./gradlew :storage:test --tests "SftpBlobStorageIntegrationTest"
- * ```
+ * Run with: ./gradlew :storage:integrationTest --tests "*SftpBlobStorageIntegrationTest*"
  */
+@Tag("integration")
+@Tag("sftp")
+@Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class SftpBlobStorageIntegrationTest {
 
-    private val host = System.getenv("SFTP_TEST_HOST") ?: "localhost"
-    private val port = System.getenv("SFTP_TEST_PORT")?.toIntOrNull() ?: 22
-    private val username = System.getenv("SFTP_TEST_USERNAME") ?: ""
-    private val password = System.getenv("SFTP_TEST_PASSWORD") ?: ""
-    private val keyfile = System.getenv("SFTP_TEST_KEYFILE") ?: ""
-    private val basePath = System.getenv("SFTP_TEST_PATH") ?: "/tmp/kopia-test"
+    companion object {
+        private const val USERNAME = "kopia"
+        private const val PASSWORD = "testpass"
+
+        @Container
+        @JvmStatic
+        val sftp: GenericContainer<*> = GenericContainer("atmoz/sftp:latest")
+            .withExposedPorts(22)
+            .withCommand("$USERNAME:$PASSWORD:::upload")
+            .waitingFor(
+                Wait.forListeningPort()
+            )
+    }
 
     private lateinit var storage: SftpBlobStorage
     private val testPrefix = UUID.randomUUID().toString().take(8)
 
-    @BeforeAll
-    fun setupAll() {
-        assumeTrue(username.isNotEmpty()) {
-            "SFTP integration tests require SFTP_TEST_USERNAME environment variable"
-        }
-    }
+    private fun sftpOptions(
+        path: String = "/home/$USERNAME/upload/$testPrefix",
+        password: String = PASSWORD
+    ) = SftpOptions(
+        path = path,
+        host = sftp.host,
+        port = sftp.getMappedPort(22),
+        username = USERNAME,
+        password = password,
+        knownHostsFile = "/dev/null/nonexistent",
+        directoryShards = listOf(1, 3)
+    )
 
     @BeforeEach
     fun setup() = runTest {
-        val options = SftpOptions(
-            path = "$basePath/$testPrefix",
-            host = host,
-            port = port,
-            username = username,
-            password = password,
-            keyfile = keyfile,
-            directoryShards = listOf(1, 3)
-        )
-
-        storage = SftpBlobStorage.create(options, isCreate = true)
+        storage = SftpBlobStorage.create(sftpOptions(), isCreate = true)
     }
 
     @AfterAll
     fun teardownAll() = runTest {
         if (::storage.isInitialized) {
-            // Clean up test files
             try {
                 storage.listBlobs("").toList().forEach { metadata ->
                     storage.deleteBlob(metadata.blobId)
@@ -231,8 +222,8 @@ class SftpBlobStorageIntegrationTest {
         val info = storage.connectionInfo()
 
         assertThat(info.type).isEqualTo("sftp")
-        assertThat(info.config["host"]).isEqualTo(host)
-        assertThat(info.config["username"]).isEqualTo(username)
+        assertThat(info.config["host"]).isEqualTo(sftp.host)
+        assertThat(info.config["username"]).isEqualTo(USERNAME)
     }
 
     @Test
@@ -242,8 +233,8 @@ class SftpBlobStorageIntegrationTest {
         val name = storage.displayName()
 
         assertThat(name).contains("SFTP")
-        assertThat(name).contains(username)
-        assertThat(name).contains(host)
+        assertThat(name).contains(USERNAME)
+        assertThat(name).contains(sftp.host)
     }
 
     @Test
@@ -258,5 +249,34 @@ class SftpBlobStorageIntegrationTest {
         val result = storage.getBlob(blobId)
 
         assertThat(result).isEmpty()
+    }
+
+    @Test
+    @Order(13)
+    @DisplayName("create with isCreate=true creates remote directory")
+    fun create_withIsCreate_createsRemoteDirectory() = runTest {
+        val uniquePath = "/home/$USERNAME/upload/test-${UUID.randomUUID().toString().take(8)}"
+        val s = SftpBlobStorage.create(
+            sftpOptions(path = uniquePath),
+            isCreate = true
+        )
+        s.putBlob(BlobId("p_test"), "data".toByteArray())
+        val result = s.getBlob(BlobId("p_test"))
+        assertArrayEquals("data".toByteArray(), result)
+        s.close()
+    }
+
+    @Test
+    @Order(14)
+    @DisplayName("wrong password fails authentication")
+    fun create_failsWithWrongPassword() = runTest {
+        assertThrows<Exception> {
+            runBlocking {
+                SftpBlobStorage.create(
+                    sftpOptions(password = "wrongpassword"),
+                    isCreate = false
+                )
+            }
+        }
     }
 }
