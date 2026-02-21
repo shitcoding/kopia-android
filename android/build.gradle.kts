@@ -49,10 +49,12 @@ android {
                 "META-INF/AL2.0",
                 "META-INF/LGPL2.1",
                 "META-INF/*.kotlin_module",
-                "META-INF/io.netty.versions.properties",
                 "META-INF/INDEX.LIST",
                 "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
-                "META-INF/versions/**"
+                "META-INF/versions/**",
+                "META-INF/services/javax.xml.stream.*",
+                "META-INF/services/com.fasterxml.woodstox.*",
+                "META-INF/io.netty.versions.properties"
             )
         }
     }

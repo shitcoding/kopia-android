@@ -1,8 +1,5 @@
 package org.kopiaKt.storage.webdav
 
-import com.github.sardine.DavResource
-import com.github.sardine.Sardine
-import com.github.sardine.impl.SardineException
 import com.google.common.truth.Truth.assertThat
 import io.mockk.Runs
 import io.mockk.every
@@ -28,13 +25,12 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.time.Duration
 import java.time.Instant
-import java.util.Date
 
 private const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
 class WebDavBlobStorageTest {
 
-    private lateinit var mockClient: Sardine
+    private lateinit var mockClient: OkHttpWebDavClient
     private lateinit var storage: WebDavBlobStorage
     private val baseUrl = "https://example.com/dav/"
     private val options = WebDavOptions(url = baseUrl)
@@ -133,7 +129,7 @@ class WebDavBlobStorageTest {
             val blobId = BlobId("missing")
 
             every { mockClient.get("${baseUrl}missing.f") } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
             assertThrows<BlobNotFoundException> {
                 storage.getBlob(blobId)
@@ -146,10 +142,9 @@ class WebDavBlobStorageTest {
 
             every {
                 mockClient.get("${baseUrl}short.f", mapOf("Range" to "bytes=1000-"))
-            } throws SardineException(
+            } throws WebDavException(
                 "Range Not Satisfiable",
-                HTTP_RANGE_NOT_SATISFIABLE,
-                null
+                HTTP_RANGE_NOT_SATISFIABLE
             )
 
             assertThrows<InvalidBlobRangeException> {
@@ -171,7 +166,7 @@ class WebDavBlobStorageTest {
             val blobId = BlobId("short")
 
             every { mockClient.get("${baseUrl}short.f") } throws
-                SardineException("Unauthorized", HttpURLConnection.HTTP_UNAUTHORIZED, null)
+                WebDavException("Unauthorized", HttpURLConnection.HTTP_UNAUTHORIZED)
 
             assertThrows<InvalidCredentialsException> {
                 storage.getBlob(blobId)
@@ -186,12 +181,14 @@ class WebDavBlobStorageTest {
         @Test
         fun `returns metadata for existing blob`() = runTest {
             val blobId = BlobId("short")
-            val modTime = Date.from(Instant.parse("2024-01-15T10:30:00Z"))
 
-            val mockResource = mockk<DavResource> {
-                every { contentLength } returns 1234L
-                every { modified } returns modTime
-            }
+            val mockResource = DavResource(
+                href = "${baseUrl}short.f",
+                contentLength = 1234L,
+                isDirectory = false,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
+                name = "short.f"
+            )
 
             every { mockClient.list("${baseUrl}short.f", 0) } returns listOf(mockResource)
 
@@ -200,7 +197,7 @@ class WebDavBlobStorageTest {
             assertThat(result).isNotNull()
             assertThat(result!!.blobId).isEqualTo(blobId)
             assertThat(result.length).isEqualTo(1234L)
-            assertThat(result.timestamp).isEqualTo(modTime.toInstant())
+            assertThat(result.timestamp).isEqualTo(Instant.parse("2024-01-15T10:30:00Z"))
         }
 
         @Test
@@ -208,7 +205,7 @@ class WebDavBlobStorageTest {
             val blobId = BlobId("missing")
 
             every { mockClient.list("${baseUrl}missing.f", 0) } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
             val result = storage.getBlobMetadata(blobId)
 
@@ -285,16 +282,16 @@ class WebDavBlobStorageTest {
             } answers {
                 if (callCount.isEmpty()) {
                     callCount.add(1)
-                    throw SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                    throw WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
                 }
             }
 
             every { mockClient.list("${baseUrl}p/", 0) } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
             every { mockClient.createDirectory("${baseUrl}p/") } just Runs
 
             every { mockClient.list("${baseUrl}p/ack/", 0) } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
             every { mockClient.createDirectory("${baseUrl}p/ack/") } just Runs
 
             every { mockClient.move(any(), any(), true) } just Runs
@@ -310,7 +307,11 @@ class WebDavBlobStorageTest {
             val blobId = BlobId("existing")
             val data = "data".toByteArray()
 
-            val mockResource = mockk<DavResource>()
+            val mockResource = DavResource(
+                href = "${baseUrl}existing.f",
+                contentLength = 100L,
+                name = "existing.f"
+            )
             every { mockClient.list("${baseUrl}existing.f", 0) } returns listOf(mockResource)
 
             storage.putBlob(blobId, data, PutBlobOptions(dontOverwrite = true))
@@ -362,7 +363,7 @@ class WebDavBlobStorageTest {
             val blobId = BlobId("missing")
 
             every { mockClient.delete("${baseUrl}missing.f") } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
             // Should not throw
             storage.deleteBlob(blobId)
@@ -386,53 +387,54 @@ class WebDavBlobStorageTest {
 
         @Test
         fun `lists blobs with prefix`() = runTest {
-            val modTime = Date.from(Instant.parse("2024-01-15T10:30:00Z"))
-
             // Root directory listing
-            val rootDir = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}")
-                every { isDirectory } returns true
-            }
-            val subDir = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/")
-                every { name } returns "p"
-                every { isDirectory } returns true
-            }
+            val rootDir = DavResource(
+                href = baseUrl,
+                isDirectory = true,
+                name = ""
+            )
+            val subDir = DavResource(
+                href = "${baseUrl}p/",
+                isDirectory = true,
+                name = "p"
+            )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, subDir)
 
             // p/ directory listing
-            val pDir = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/")
-                every { isDirectory } returns true
-            }
-            val ackDir = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/ack/")
-                every { name } returns "ack"
-                every { isDirectory } returns true
-            }
+            val pDir = DavResource(
+                href = "${baseUrl}p/",
+                isDirectory = true,
+                name = "p"
+            )
+            val ackDir = DavResource(
+                href = "${baseUrl}p/ack/",
+                isDirectory = true,
+                name = "ack"
+            )
 
             every { mockClient.list("${baseUrl}p/", 1) } returns listOf(pDir, ackDir)
 
             // p/ack/ directory listing
-            val ackDirSelf = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/ack/")
-                every { isDirectory } returns true
-            }
-            val blob1 = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/ack/-blob1.f")
-                every { name } returns "-blob1.f"
-                every { isDirectory } returns false
-                every { contentLength } returns 100L
-                every { modified } returns modTime
-            }
-            val blob2 = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}p/ack/-blob2.f")
-                every { name } returns "-blob2.f"
-                every { isDirectory } returns false
-                every { contentLength } returns 200L
-                every { modified } returns modTime
-            }
+            val ackDirSelf = DavResource(
+                href = "${baseUrl}p/ack/",
+                isDirectory = true,
+                name = "ack"
+            )
+            val blob1 = DavResource(
+                href = "${baseUrl}p/ack/-blob1.f",
+                name = "-blob1.f",
+                isDirectory = false,
+                contentLength = 100L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+            val blob2 = DavResource(
+                href = "${baseUrl}p/ack/-blob2.f",
+                name = "-blob2.f",
+                isDirectory = false,
+                contentLength = 200L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
 
             every { mockClient.list("${baseUrl}p/ack/", 1) } returns listOf(ackDirSelf, blob1, blob2)
 
@@ -445,7 +447,7 @@ class WebDavBlobStorageTest {
         @Test
         fun `returns empty list when directory does not exist`() = runTest {
             every { mockClient.list(baseUrl, 1) } throws
-                SardineException("Not Found", HttpURLConnection.HTTP_NOT_FOUND, null)
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
             val results = storage.listBlobs("anything").toList()
 
@@ -454,22 +456,24 @@ class WebDavBlobStorageTest {
 
         @Test
         fun `ignores files without complete blob suffix`() = runTest {
-            val rootDir = mockk<DavResource> {
-                every { href } returns java.net.URI(baseUrl)
-                every { isDirectory } returns true
-            }
-            val validFile = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}valid.f")
-                every { name } returns "valid.f"
-                every { isDirectory } returns false
-                every { contentLength } returns 100L
-                every { modified } returns Date()
-            }
-            val invalidFile = mockk<DavResource> {
-                every { href } returns java.net.URI("${baseUrl}.shards")
-                every { name } returns ".shards"
-                every { isDirectory } returns false
-            }
+            val rootDir = DavResource(
+                href = baseUrl,
+                isDirectory = true,
+                name = ""
+            )
+            val validFile = DavResource(
+                href = "${baseUrl}valid.f",
+                name = "valid.f",
+                isDirectory = false,
+                contentLength = 100L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+            val invalidFile = DavResource(
+                href = "${baseUrl}.shards",
+                name = ".shards",
+                isDirectory = false,
+                contentLength = 50L
+            )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, validFile, invalidFile)
 

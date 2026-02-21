@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.kopiaKt.core.blob.BlobId
@@ -22,11 +21,11 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-import software.amazon.awssdk.core.async.AsyncRequestBody
-import software.amazon.awssdk.core.async.AsyncResponseTransformer
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.core.sync.ResponseTransformer
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.S3Configuration
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -51,13 +50,13 @@ import java.time.Instant
  *
  * Features:
  * - Support for AWS S3 and S3-compatible services (MinIO, etc.)
- * - Async/non-blocking operations using AWS SDK v2
+ * - Synchronous operations via UrlConnectionHttpClient for Android compatibility
  * - Object retention/locking support
  * - Storage class configuration per blob prefix
  * - Retry with exponential backoff
  */
 class S3BlobStorage private constructor(
-    private val client: S3AsyncClient,
+    private val client: S3Client,
     private val options: S3Options,
     private val storageConfig: S3StorageConfig,
     private val readOnly: Boolean
@@ -85,7 +84,7 @@ class S3BlobStorage private constructor(
          * Creates a new S3 blob storage with a custom client (for testing).
          */
         internal fun createWithClient(
-            client: S3AsyncClient,
+            client: S3Client,
             options: S3Options,
             storageConfig: S3StorageConfig = S3StorageConfig(),
             readOnly: Boolean = false
@@ -93,8 +92,8 @@ class S3BlobStorage private constructor(
             return S3BlobStorage(client, options, storageConfig, readOnly)
         }
 
-        private fun createClient(options: S3Options): S3AsyncClient {
-            val builder = S3AsyncClient.builder()
+        private fun createClient(options: S3Options): S3Client {
+            val builder = S3Client.builder()
 
             // Configure credentials
             val credentialsProvider = createCredentialsProvider(options)
@@ -128,11 +127,10 @@ class S3BlobStorage private constructor(
                 )
             }
 
-            // Configure HTTP client with timeouts
-            val httpClient = NettyNioAsyncHttpClient.builder()
+            // Configure HTTP client (UrlConnection for Android compatibility)
+            val httpClient = UrlConnectionHttpClient.builder()
+                .socketTimeout(Duration.ofMinutes(5))
                 .connectionTimeout(Duration.ofSeconds(30))
-                .readTimeout(Duration.ofMinutes(5))
-                .writeTimeout(Duration.ofMinutes(5))
                 .build()
             builder.httpClient(httpClient)
 
@@ -167,7 +165,7 @@ class S3BlobStorage private constructor(
         }
 
         private suspend fun loadStorageConfig(
-            client: S3AsyncClient,
+            client: S3Client,
             options: S3Options
         ): S3StorageConfig = withContext(Dispatchers.IO) {
             try {
@@ -176,7 +174,7 @@ class S3BlobStorage private constructor(
                     .key(getObjectKey(options.prefix, CONFIG_NAME))
                     .build()
 
-                val bytes = client.getObject(request, AsyncResponseTransformer.toBytes()).await()
+                val bytes = client.getObject(request, ResponseTransformer.toBytes())
                 val json = bytes.asUtf8String()
                 Json.decodeFromString<S3StorageConfig>(json)
             } catch (e: NoSuchKeyException) {
@@ -215,8 +213,8 @@ class S3BlobStorage private constructor(
 
                 val response = client.getObject(
                     requestBuilder.build(),
-                    AsyncResponseTransformer.toBytes()
-                ).await()
+                    ResponseTransformer.toBytes()
+                )
 
                 response.asByteArray()
             } catch (e: NoSuchKeyException) {
@@ -234,7 +232,7 @@ class S3BlobStorage private constructor(
                     .key(getObjectKey(blobId))
                     .build()
 
-                val response = client.headObject(request).await()
+                val response = client.headObject(request)
 
                 BlobMetadata(
                     blobId = blobId,
@@ -264,7 +262,7 @@ class S3BlobStorage private constructor(
                 requestBuilder.continuationToken(continuationToken)
             }
 
-            val response = client.listObjectsV2(requestBuilder.build()).await()
+            val response = client.listObjectsV2(requestBuilder.build())
 
             for (obj in response.contents()) {
                 // Skip the storage config file
@@ -338,8 +336,8 @@ class S3BlobStorage private constructor(
             try {
                 client.putObject(
                     requestBuilder.build(),
-                    AsyncRequestBody.fromBytes(data)
-                ).await()
+                    RequestBody.fromBytes(data)
+                )
             } catch (e: S3Exception) {
                 handleS3Exception(e, blobId)
             }
@@ -352,7 +350,7 @@ class S3BlobStorage private constructor(
                 .key(getObjectKey(blobId))
                 .build()
 
-            client.deleteObject(request).await()
+            client.deleteObject(request)
         } catch (e: NoSuchKeyException) {
             // Ignore - blob already doesn't exist
         } catch (e: S3Exception) {
@@ -385,7 +383,7 @@ class S3BlobStorage private constructor(
                 .build()
 
             try {
-                client.putObjectRetention(request).await()
+                client.putObjectRetention(request)
             } catch (e: S3Exception) {
                 handleS3Exception(e, blobId)
             }

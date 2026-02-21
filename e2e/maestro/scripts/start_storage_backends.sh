@@ -75,7 +75,7 @@ fi
 # Expects HTTP 401 (auth required) as sign the server is up
 WEBDAV_READY=false
 for i in $(seq 1 15); do
-  HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/ 2>/dev/null || echo "000")
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ 2>/dev/null || echo "000")
   if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "200" ]; then
     echo "  WebDAV ready (${i}s)"
     WEBDAV_READY=true

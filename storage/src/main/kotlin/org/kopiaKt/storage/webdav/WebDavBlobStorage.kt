@@ -1,9 +1,5 @@
 package org.kopiaKt.storage.webdav
 
-import com.github.sardine.DavResource
-import com.github.sardine.Sardine
-import com.github.sardine.SardineFactory
-import com.github.sardine.impl.SardineException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,10 +15,13 @@ import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
-import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
+import java.net.URI
 import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 /**
  * WebDAV-based blob storage implementation.
@@ -32,15 +31,17 @@ import java.time.Instant
  * Storage formats are compatible (both use sharded directory structure),
  * so a repository may be accessed using WebDAV or filesystem interchangeably.
  *
+ * Uses OkHttp for HTTP transport, which is fully supported on Android
+ * (unlike the previous Sardine/Apache HttpClient approach).
+ *
  * Features:
- * - HTTP Basic and Digest authentication
+ * - HTTP Basic authentication
  * - Sharded directory structure (compatible with Go filesystem backend)
  * - Atomic writes via temp file + rename
- * - Certificate fingerprint pinning
  * - Retry with exponential backoff
  */
 class WebDavBlobStorage private constructor(
-    private val client: Sardine,
+    private val client: OkHttpWebDavClient,
     private val options: WebDavOptions,
     private val shardingParams: ShardingParameters,
     private val readOnly: Boolean
@@ -54,6 +55,10 @@ class WebDavBlobStorage private constructor(
 
         /** HTTP 416 Range Not Satisfiable */
         private const val HTTP_RANGE_NOT_SATISFIABLE = 416
+
+        /** RFC 1123 date format used by HTTP Last-Modified headers */
+        private val HTTP_DATE_FORMAT: DateTimeFormatter =
+            DateTimeFormatter.RFC_1123_DATE_TIME
 
         private val json = Json { ignoreUnknownKeys = true }
 
@@ -79,7 +84,7 @@ class WebDavBlobStorage private constructor(
          * Creates a new WebDAV blob storage with a custom client (for testing).
          */
         internal fun createWithClient(
-            client: Sardine,
+            client: OkHttpWebDavClient,
             options: WebDavOptions,
             shardingParams: ShardingParameters = ShardingParameters(),
             readOnly: Boolean = false
@@ -87,19 +92,15 @@ class WebDavBlobStorage private constructor(
             return WebDavBlobStorage(client, options, shardingParams, readOnly)
         }
 
-        private fun createClient(options: WebDavOptions): Sardine {
-            return if (options.username.isNotEmpty()) {
-                SardineFactory.begin(options.username, options.password)
-            } else {
-                SardineFactory.begin()
-            }
-            // Note: Sardine doesn't support custom default headers.
-            // Headers like Accept-Encoding: identity need to be passed per-request.
-            // Certificate pinning would require a custom HttpClient configuration.
+        private fun createClient(options: WebDavOptions): OkHttpWebDavClient {
+            return OkHttpWebDavClient(
+                username = options.username,
+                password = options.password
+            )
         }
 
         private suspend fun loadOrCreateShardingParams(
-            client: Sardine,
+            client: OkHttpWebDavClient,
             options: WebDavOptions,
             isCreate: Boolean
         ): ShardingParameters = withContext(Dispatchers.IO) {
@@ -112,7 +113,7 @@ class WebDavBlobStorage private constructor(
                     val content = stream.readBytes().toString(Charsets.UTF_8)
                     json.decodeFromString<ShardingParameters>(content)
                 }
-            } catch (e: SardineException) {
+            } catch (e: WebDavException) {
                 if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                     // No shards file exists, create default parameters
                     val defaultShards = if (isCreate) {
@@ -161,7 +162,7 @@ class WebDavBlobStorage private constructor(
                         // Zero-length read - verify file exists by reading 1 byte range
                         try {
                             client.get(fileUrl, mapOf("Range" to "bytes=$offset-$offset")).use { }
-                        } catch (e: SardineException) {
+                        } catch (e: WebDavException) {
                             if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                                 throw BlobNotFoundException(blobId)
                             }
@@ -198,8 +199,8 @@ class WebDavBlobStorage private constructor(
 
                     bytes
                 }
-            } catch (e: SardineException) {
-                handleSardineException(e, blobId)
+            } catch (e: WebDavException) {
+                handleWebDavException(e, blobId)
             }
         }
 
@@ -218,13 +219,13 @@ class WebDavBlobStorage private constructor(
                 BlobMetadata(
                     blobId = blobId,
                     length = resource.contentLength,
-                    timestamp = resource.modified?.toInstant() ?: Instant.now()
+                    timestamp = parseLastModified(resource.lastModified) ?: Instant.now()
                 )
-            } catch (e: SardineException) {
+            } catch (e: WebDavException) {
                 if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                     null
                 } else {
-                    handleSardineException(e, blobId)
+                    handleWebDavException(e, blobId)
                 }
             }
         }
@@ -257,14 +258,18 @@ class WebDavBlobStorage private constructor(
             val resources = client.list(dirUrl, 1) // Depth 1 to list immediate children
 
             for (resource in resources) {
-                // Skip the directory itself
-                if (resource.href.toString().removeSuffix("/") == dirUrl.removeSuffix("/")) {
+                // Skip the directory itself.
+                // WebDAV servers may return absolute paths (e.g. "/") in href
+                // while dirUrl is a full URL (e.g. "http://host:port/"),
+                // so we compare only the path components.
+                if (hrefMatchesUrl(resource.href, dirUrl)) {
                     continue
                 }
 
                 if (resource.isDirectory) {
                     // Recursively walk subdirectories that could match prefix
                     val subDirName = resource.name
+
                     val newPrefix = currentPrefix + subDirName
 
                     val shouldDescend = if (filterPrefix.length > newPrefix.length) {
@@ -297,13 +302,13 @@ class WebDavBlobStorage private constructor(
                             BlobMetadata(
                                 blobId = BlobId(fullBlobId),
                                 length = resource.contentLength,
-                                timestamp = resource.modified?.toInstant() ?: Instant.now()
+                                timestamp = parseLastModified(resource.lastModified) ?: Instant.now()
                             )
                         )
                     }
                 }
             }
-        } catch (e: SardineException) {
+        } catch (e: WebDavException) {
             if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
                 throw e
             }
@@ -335,9 +340,9 @@ class WebDavBlobStorage private constructor(
                     if (resources.isNotEmpty()) {
                         return@withContext // Blob exists, don't overwrite
                     }
-                } catch (e: SardineException) {
+                } catch (e: WebDavException) {
                     if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
-                        handleSardineException(e, blobId)
+                        handleWebDavException(e, blobId)
                     }
                     // Not found is fine - we'll create it
                 }
@@ -354,7 +359,7 @@ class WebDavBlobStorage private constructor(
                 // Try to write the file
                 try {
                     client.put(writePath, data, CONTENT_TYPE)
-                } catch (e: SardineException) {
+                } catch (e: WebDavException) {
                     // If write failed, try creating parent directories and retry
                     if (dirPath.isNotEmpty()) {
                         try {
@@ -373,8 +378,8 @@ class WebDavBlobStorage private constructor(
                 if (!this@WebDavBlobStorage.options.atomicWrites) {
                     client.move(writePath, fileUrl, true)
                 }
-            } catch (e: SardineException) {
-                handleSardineException(e, blobId)
+            } catch (e: WebDavException) {
+                handleWebDavException(e, blobId)
             }
         }
 
@@ -384,10 +389,10 @@ class WebDavBlobStorage private constructor(
 
         try {
             client.delete(fileUrl)
-        } catch (e: SardineException) {
+        } catch (e: WebDavException) {
             // Ignore "not found" errors - blob is already deleted
             if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
-                handleSardineException(e, blobId)
+                handleWebDavException(e, blobId)
             }
         }
         Unit
@@ -414,6 +419,26 @@ class WebDavBlobStorage private constructor(
     }
 
     /**
+     * Compares a WebDAV href with a full URL by extracting and comparing their
+     * path components. WebDAV servers typically return absolute paths in href
+     * elements (e.g. "/", "/.shards") rather than full URLs, so a direct string
+     * comparison against the request URL would fail.
+     */
+    private fun hrefMatchesUrl(href: String, url: String): Boolean {
+        val hrefPath = try {
+            URI(href).path.orEmpty().removeSuffix("/")
+        } catch (_: Exception) {
+            href.removeSuffix("/")
+        }
+        val urlPath = try {
+            URI(url).path.orEmpty().removeSuffix("/")
+        } catch (_: Exception) {
+            url.removeSuffix("/")
+        }
+        return hrefPath == urlPath
+    }
+
+    /**
      * Creates all directories in the path, similar to mkdir -p.
      */
     private fun mkdirAll(dirUrl: String) {
@@ -429,12 +454,12 @@ class WebDavBlobStorage private constructor(
             try {
                 // Check if directory exists
                 client.list(currentPath, 0)
-            } catch (e: SardineException) {
+            } catch (e: WebDavException) {
                 if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                     // Create directory
                     try {
                         client.createDirectory(currentPath)
-                    } catch (createError: SardineException) {
+                    } catch (createError: WebDavException) {
                         // Ignore "already exists" errors (409 Conflict)
                         if (createError.statusCode != HttpURLConnection.HTTP_CONFLICT) {
                             throw createError
@@ -503,7 +528,21 @@ class WebDavBlobStorage private constructor(
         return if (dirPath.isEmpty()) fileName else "$dirPath/$fileName"
     }
 
-    private fun handleSardineException(e: SardineException, blobId: BlobId): Nothing {
+    /**
+     * Parses a Last-Modified date string (RFC 1123 format) into an [Instant].
+     *
+     * @return the parsed instant, or null if the string is null or unparseable
+     */
+    private fun parseLastModified(dateStr: String?): Instant? {
+        if (dateStr.isNullOrBlank()) return null
+        return try {
+            ZonedDateTime.parse(dateStr, HTTP_DATE_FORMAT).toInstant()
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
+
+    private fun handleWebDavException(e: WebDavException, blobId: BlobId): Nothing {
         when (e.statusCode) {
             HttpURLConnection.HTTP_NOT_FOUND -> throw BlobNotFoundException(blobId)
             HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN ->

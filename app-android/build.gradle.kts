@@ -48,8 +48,9 @@ android {
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/**"
             excludes += "META-INF/INDEX.LIST"
-            // Merge Netty version files
-            pickFirsts += "META-INF/io.netty.versions.properties"
+            excludes += "META-INF/services/javax.xml.stream.*"
+            excludes += "META-INF/services/com.fasterxml.woodstox.*"
+            excludes += "META-INF/io.netty.versions.properties"
         }
     }
 }
@@ -82,6 +83,9 @@ dependencies {
     implementation(libs.bundles.lifecycle)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+
+    // BouncyCastle (full provider to replace Android's stripped-down built-in)
+    implementation(libs.bouncycastle.provider)
 
     // Coroutines
     implementation(libs.bundles.coroutines)

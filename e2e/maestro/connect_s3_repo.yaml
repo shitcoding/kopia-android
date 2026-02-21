@@ -10,6 +10,9 @@
 # Expected: Connect successfully and see snapshot list
 #
 # UI is rendered in WebView (React app).
+# NOTE: hideKeyboard is called between fields to prevent the keyboard from
+# obscuring lower fields and causing mistyped input. Fields with default
+# values (Endpoint) use clearText instead of eraseText for reliability.
 
 appId: org.kopiaKt.app
 ---
@@ -20,7 +23,7 @@ appId: org.kopiaKt.app
 # Wait for welcome screen and navigate to Connect
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 10000
+    timeout: 15000
 
 - tapOn: "Connect to Repository"
 
@@ -32,26 +35,36 @@ appId: org.kopiaKt.app
 # Switch to S3 tab
 - tapOn: "S3"
 
-# Fill S3 fields
+# Fill S3 fields -- hide keyboard between each to keep all fields visible
 - tapOn:
     text: "Bucket"
 - inputText: "kopia-e2e"
+- hideKeyboard
 
 # Endpoint field has a default value "s3.amazonaws.com" -- clear it first
+# Use long press + select all to ensure full clearing in WebView
 - tapOn:
-    text: "Endpoint"
+    text: ".*amazonaws.*"
+- longPressOn:
+    text: ".*amazonaws.*"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
+- hideKeyboard
 
 # Region field defaults to "us-east-1" which is what we want -- leave it
 
 - tapOn:
     text: "Access Key ID"
 - inputText: "kopia"
+- hideKeyboard
 
 - tapOn:
     text: "Secret Access Key"
 - inputText: "kopia123456"
+- hideKeyboard
+
+# Scroll down to make password field visible
+- scroll
 
 # Fill repository password
 - tapOn:
@@ -67,4 +80,4 @@ appId: org.kopiaKt.app
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 30000

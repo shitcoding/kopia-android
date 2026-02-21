@@ -93,7 +93,7 @@ echo "=== WebDAV ==="
 
 echo "  Creating WebDAV repository..."
 KOPIA_PASSWORD="$REPO_PASSWORD" kopia repository create webdav \
-  --url=http://localhost:8080/kopia-e2e \
+  --url=http://localhost:8080/ \
   --webdav-username=kopia \
   --webdav-password=kopia123 \
   --flat \
@@ -110,16 +110,20 @@ echo "=== SFTP ==="
 # Create the target directory inside the SFTP container
 echo "  Creating SFTP directory structure..."
 docker exec kopia-e2e-sftp mkdir -p /home/kopia/upload/kopia-e2e 2>/dev/null || true
-docker exec kopia-e2e-sftp chown -R 1000:1000 /home/kopia/upload 2>/dev/null || true
+docker exec kopia-e2e-sftp chown -R kopia:users /home/kopia/upload 2>/dev/null || true
+
+echo "  Fetching SFTP host key..."
+SFTP_KNOWN_HOSTS=$(mktemp)
+ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v '^#' > "$SFTP_KNOWN_HOSTS"
 
 echo "  Creating SFTP repository..."
 KOPIA_PASSWORD="$REPO_PASSWORD" kopia repository create sftp \
-  --path=/home/kopia/upload/kopia-e2e \
+  --path=/upload/kopia-e2e \
   --host=localhost \
   --port=2222 \
   --username=kopia \
   --sftp-password=kopia123 \
-  --known-hosts="" \
+  --known-hosts="$SFTP_KNOWN_HOSTS" \
   --flat \
   --config-file="$KOPIA_CONFIG" \
   2>&1 | sed 's/^/    /'
@@ -147,7 +151,7 @@ echo ""
 
 echo "  Verifying WebDAV repository is connectable..."
 KOPIA_PASSWORD="$REPO_PASSWORD" kopia repository connect webdav \
-  --url=http://localhost:8080/kopia-e2e \
+  --url=http://localhost:8080/ \
   --webdav-username=kopia \
   --webdav-password=kopia123 \
   --flat \
@@ -160,12 +164,12 @@ echo ""
 
 echo "  Verifying SFTP repository is connectable..."
 KOPIA_PASSWORD="$REPO_PASSWORD" kopia repository connect sftp \
-  --path=/home/kopia/upload/kopia-e2e \
+  --path=/upload/kopia-e2e \
   --host=localhost \
   --port=2222 \
   --username=kopia \
   --sftp-password=kopia123 \
-  --known-hosts="" \
+  --known-hosts="$SFTP_KNOWN_HOSTS" \
   --flat \
   --config-file="$KOPIA_CONFIG" \
   2>&1 | sed 's/^/    /'
@@ -174,13 +178,14 @@ kopia repository disconnect --config-file="$KOPIA_CONFIG" 2>&1 | sed 's/^/    /'
 echo "  SFTP OK"
 echo ""
 
-# Cleanup temp config
+# Cleanup temp files
+rm -f "$SFTP_KNOWN_HOSTS"
 rm -rf "$(dirname "$KOPIA_CONFIG")"
 
 echo "All backends seeded and verified successfully."
 echo ""
 echo "Repositories are ready for E2E tests:"
 echo "  S3:     bucket=kopia-e2e, endpoint=http://10.0.2.2:9000"
-echo "  WebDAV: url=http://10.0.2.2:8080/kopia-e2e"
-echo "  SFTP:   host=10.0.2.2:2222, path=/home/kopia/upload/kopia-e2e"
+echo "  WebDAV: url=http://10.0.2.2:8080/"
+echo "  SFTP:   host=10.0.2.2:2222, path=/upload/kopia-e2e"
 echo "  Password: $REPO_PASSWORD"

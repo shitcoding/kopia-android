@@ -25,12 +25,13 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.bundles.ktor)
 
-    // AWS S3
+    // AWS S3 (using UrlConnectionHttpClient for Android compatibility)
     implementation(libs.aws.s3)
-    implementation(libs.aws.netty)
+    implementation(libs.aws.url.connection)
+    implementation(libs.stax.api)
+    implementation(libs.woodstox.core)
 
-    // WebDAV
-    implementation(libs.sardine)
+    // WebDAV (uses OkHttp, already declared above)
 
     // SFTP
     implementation(libs.sshj)

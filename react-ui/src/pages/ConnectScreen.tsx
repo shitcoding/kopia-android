@@ -305,15 +305,23 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="s3-bucket-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
-              type="text"
+              type="url"
               placeholder="Endpoint"
               value={s3Endpoint}
               onChange={(e) => setS3Endpoint(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
               data-testid="s3-endpoint-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="text"
@@ -323,6 +331,10 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="s3-region-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="text"
@@ -332,6 +344,10 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="s3-access-key-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="password"
@@ -369,6 +385,10 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="webdav-username-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="password"
@@ -393,6 +413,10 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="sftp-host-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="number"
@@ -411,6 +435,10 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="sftp-username-input"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
             <input
               type="text"

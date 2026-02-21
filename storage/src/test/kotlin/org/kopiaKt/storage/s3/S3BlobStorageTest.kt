@@ -1,6 +1,5 @@
 package org.kopiaKt.storage.s3
 
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -21,9 +20,9 @@ import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import software.amazon.awssdk.core.ResponseBytes
-import software.amazon.awssdk.core.async.AsyncRequestBody
-import software.amazon.awssdk.core.async.AsyncResponseTransformer
-import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.core.sync.ResponseTransformer
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -35,7 +34,6 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectResponse
 import software.amazon.awssdk.services.s3.model.S3Exception
 import java.time.Instant
-import java.util.concurrent.CompletableFuture
 
 /**
  * Unit tests for S3BlobStorage using mocked S3 client.
@@ -45,7 +43,7 @@ import java.util.concurrent.CompletableFuture
  */
 class S3BlobStorageTest {
 
-    private lateinit var mockClient: S3AsyncClient
+    private lateinit var mockClient: S3Client
     private lateinit var storage: S3BlobStorage
     private val testBucket = "test-bucket"
     private val testPrefix = "test-prefix/"
@@ -74,9 +72,9 @@ class S3BlobStorageTest {
             val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
             every { responseBytes.asByteArray() } returns expectedData
 
-            coEvery {
-                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.completedFuture(responseBytes)
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns responseBytes
 
             val result = storage.getBlob(blobId)
 
@@ -87,11 +85,9 @@ class S3BlobStorageTest {
         fun `should throw BlobNotFoundException when blob does not exist`() = runTest {
             val blobId = BlobId("non-existent")
 
-            coEvery {
-                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.failedFuture(
-                NoSuchKeyException.builder().message("Key not found").build()
-            )
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws NoSuchKeyException.builder().message("Key not found").build()
 
             assertThrows<BlobNotFoundException> {
                 storage.getBlob(blobId)
@@ -115,9 +111,9 @@ class S3BlobStorageTest {
             val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
             every { responseBytes.asByteArray() } returns "partial".toByteArray()
 
-            coEvery {
-                mockClient.getObject(capture(requestSlot), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.completedFuture(responseBytes)
+            every {
+                mockClient.getObject(capture(requestSlot), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns responseBytes
 
             storage.getBlob(blobId, offset = 10, length = 5)
 
@@ -132,9 +128,9 @@ class S3BlobStorageTest {
             val responseBytes = mockk<ResponseBytes<GetObjectResponse>>()
             every { responseBytes.asByteArray() } returns "rest".toByteArray()
 
-            coEvery {
-                mockClient.getObject(capture(requestSlot), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.completedFuture(responseBytes)
+            every {
+                mockClient.getObject(capture(requestSlot), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns responseBytes
 
             storage.getBlob(blobId, offset = 100, length = -1)
 
@@ -156,9 +152,9 @@ class S3BlobStorageTest {
                 .lastModified(timestamp)
                 .build()
 
-            coEvery {
+            every {
                 mockClient.headObject(any<HeadObjectRequest>())
-            } returns CompletableFuture.completedFuture(response)
+            } returns response
 
             val metadata = storage.getBlobMetadata(blobId)
 
@@ -172,11 +168,9 @@ class S3BlobStorageTest {
         fun `should return null for non-existent blob`() = runTest {
             val blobId = BlobId("non-existent")
 
-            coEvery {
+            every {
                 mockClient.headObject(any<HeadObjectRequest>())
-            } returns CompletableFuture.failedFuture(
-                NoSuchKeyException.builder().message("Not found").build()
-            )
+            } throws NoSuchKeyException.builder().message("Not found").build()
 
             val metadata = storage.getBlobMetadata(blobId)
 
@@ -194,9 +188,9 @@ class S3BlobStorageTest {
             val data = "test data".toByteArray()
             val requestSlot = slot<PutObjectRequest>()
 
-            coEvery {
-                mockClient.putObject(capture(requestSlot), any<AsyncRequestBody>())
-            } returns CompletableFuture.completedFuture(PutObjectResponse.builder().build())
+            every {
+                mockClient.putObject(capture(requestSlot), any<RequestBody>())
+            } returns PutObjectResponse.builder().build()
 
             storage.putBlob(blobId, data)
 
@@ -212,20 +206,18 @@ class S3BlobStorageTest {
             val data = "test data".toByteArray()
 
             // Mock metadata check to return existing blob
-            coEvery {
+            every {
                 mockClient.headObject(any<HeadObjectRequest>())
-            } returns CompletableFuture.completedFuture(
-                HeadObjectResponse.builder()
-                    .contentLength(100L)
-                    .lastModified(Instant.now())
-                    .build()
-            )
+            } returns HeadObjectResponse.builder()
+                .contentLength(100L)
+                .lastModified(Instant.now())
+                .build()
 
             storage.putBlob(blobId, data, PutBlobOptions(dontOverwrite = true))
 
             // putObject should not be called
             coVerify(exactly = 0) {
-                mockClient.putObject(any<PutObjectRequest>(), any<AsyncRequestBody>())
+                mockClient.putObject(any<PutObjectRequest>(), any<RequestBody>())
             }
         }
 
@@ -249,9 +241,9 @@ class S3BlobStorageTest {
             val blobId = BlobId("to-delete")
             val requestSlot = slot<DeleteObjectRequest>()
 
-            coEvery {
+            every {
                 mockClient.deleteObject(capture(requestSlot))
-            } returns CompletableFuture.completedFuture(DeleteObjectResponse.builder().build())
+            } returns DeleteObjectResponse.builder().build()
 
             storage.deleteBlob(blobId)
 
@@ -263,11 +255,9 @@ class S3BlobStorageTest {
         fun `should not throw when deleting non-existent blob`() = runTest {
             val blobId = BlobId("non-existent")
 
-            coEvery {
+            every {
                 mockClient.deleteObject(any<DeleteObjectRequest>())
-            } returns CompletableFuture.failedFuture(
-                NoSuchKeyException.builder().message("Not found").build()
-            )
+            } throws NoSuchKeyException.builder().message("Not found").build()
 
             // Should not throw
             storage.deleteBlob(blobId)
@@ -304,14 +294,12 @@ class S3BlobStorageTest {
         fun `should throw InvalidCredentialsException for invalid access key`() = runTest {
             val blobId = BlobId("test-blob")
 
-            coEvery {
-                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.failedFuture(
-                S3Exception.builder()
-                    .message("InvalidAccessKeyId")
-                    .statusCode(403)
-                    .build()
-            )
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder()
+                .message("InvalidAccessKeyId")
+                .statusCode(403)
+                .build()
 
             assertThrows<InvalidCredentialsException> {
                 storage.getBlob(blobId)
@@ -322,14 +310,12 @@ class S3BlobStorageTest {
         fun `should throw InvalidCredentialsException for expired token`() = runTest {
             val blobId = BlobId("test-blob")
 
-            coEvery {
-                mockClient.getObject(any<GetObjectRequest>(), any<AsyncResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
-            } returns CompletableFuture.failedFuture(
-                S3Exception.builder()
-                    .message("ExpiredToken")
-                    .statusCode(403)
-                    .build()
-            )
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder()
+                .message("ExpiredToken")
+                .statusCode(403)
+                .build()
 
             assertThrows<InvalidCredentialsException> {
                 storage.getBlob(blobId)
@@ -356,9 +342,9 @@ class S3BlobStorageTest {
 
             val requestSlot = slot<PutObjectRequest>()
 
-            coEvery {
-                mockClient.putObject(capture(requestSlot), any<AsyncRequestBody>())
-            } returns CompletableFuture.completedFuture(PutObjectResponse.builder().build())
+            every {
+                mockClient.putObject(capture(requestSlot), any<RequestBody>())
+            } returns PutObjectResponse.builder().build()
 
             storageWithConfig.putBlob(BlobId("pabc123"), "data".toByteArray())
 

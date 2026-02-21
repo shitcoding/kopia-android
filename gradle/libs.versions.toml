@@ -47,7 +47,6 @@ ktor = "3.0.2"
 aws = "2.29.44"
 
 # Storage
-sardine = "5.12"  # WebDAV
 sshj = "0.39.0"   # SFTP
 
 # Testing
@@ -127,10 +126,11 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 
 # AWS S3
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws" }
-aws-netty = { module = "software.amazon.awssdk:netty-nio-client", version.ref = "aws" }
+aws-url-connection = { module = "software.amazon.awssdk:url-connection-client", version.ref = "aws" }
+stax-api = { module = "javax.xml.stream:stax-api", version = "1.0-2" }
+woodstox-core = { module = "com.fasterxml.woodstox:woodstox-core", version = "6.7.0" }
 
 # Storage backends
-sardine = { module = "com.github.lookfirst:sardine", version.ref = "sardine" }
 sshj = { module = "com.hierynomus:sshj", version.ref = "sshj" }
 
 # Testing

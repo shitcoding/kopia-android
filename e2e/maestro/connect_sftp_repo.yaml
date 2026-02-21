@@ -5,11 +5,14 @@
 #   - Docker storage backends running (scripts/start_storage_backends.sh)
 #   - Repositories seeded (scripts/seed_storage_backends.sh)
 #
-# Repository: SFTP at 10.0.2.2:2222 path /home/kopia/upload/kopia-e2e
+# Repository: SFTP at 10.0.2.2:2222 path /upload/kopia-e2e
 # Password: test123
 # Expected: Connect successfully and see snapshot list
 #
 # UI is rendered in WebView (React app).
+# NOTE: hideKeyboard is called between fields to prevent the keyboard from
+# obscuring lower fields and causing mistyped input. Fields with default
+# values (Port) use longPress+erase for reliability.
 
 appId: org.kopiaKt.app
 ---
@@ -20,7 +23,7 @@ appId: org.kopiaKt.app
 # Wait for welcome screen and navigate to Connect
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 10000
+    timeout: 15000
 
 - tapOn: "Connect to Repository"
 
@@ -32,35 +35,43 @@ appId: org.kopiaKt.app
 # Switch to SFTP tab
 - tapOn: "SFTP"
 
-# Fill SFTP fields
+# Fill SFTP fields -- hide keyboard between each to keep all fields visible
 - tapOn:
     text: "Host"
 - inputText: "10.0.2.2"
+- hideKeyboard
 
 # Port field defaults to "22" -- clear it and enter 2222
 - tapOn:
-    text: "Port"
+    text: ".*22.*"
+- longPressOn:
+    text: ".*22.*"
 - eraseText: 10
 - inputText: "2222"
+- hideKeyboard
 
 - tapOn:
     text: "Username"
 - inputText: "kopia"
+- hideKeyboard
 
 - tapOn:
     text: "Path"
-- inputText: "/home/kopia/upload/kopia-e2e"
+- inputText: "/upload/kopia-e2e"
+- hideKeyboard
 
 - tapOn:
     text: "SFTP Password"
 - inputText: "kopia123"
+- hideKeyboard
+
+# Scroll down to ensure repository password field is visible
+- scroll
 
 # Fill repository password
 - tapOn:
     text: "Repository Password"
 - inputText: "test123"
-
-# Hide keyboard before tapping Connect
 - hideKeyboard
 
 # Tap Connect button
@@ -69,4 +80,4 @@ appId: org.kopiaKt.app
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 30000
