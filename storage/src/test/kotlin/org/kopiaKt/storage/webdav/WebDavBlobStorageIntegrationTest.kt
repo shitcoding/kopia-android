@@ -1,13 +1,14 @@
 package org.kopiaKt.storage.webdav
 
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
@@ -16,62 +17,60 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.PutBlobOptions
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.assertThrows
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import java.security.SecureRandom
 
 /**
- * Integration tests for WebDavBlobStorage that require a real WebDAV server.
+ * Integration tests for WebDavBlobStorage using a Testcontainers-managed WebDAV server.
  *
- * These tests are skipped unless a WebDAV server is available.
- * Set the following environment variables to enable:
- * - WEBDAV_TEST_URL: Base URL of the WebDAV server (e.g., "http://localhost:8080/remote.php/dav/files/user/")
- * - WEBDAV_TEST_USERNAME: Username for authentication (optional)
- * - WEBDAV_TEST_PASSWORD: Password for authentication (optional)
+ * These tests automatically start a bytemark/webdav container using Testcontainers.
+ * They are skipped if Docker is not available on the host.
  *
- * Example with Nextcloud:
- * ```
- * docker run -d -p 8080:80 nextcloud
- * # Create a user and folder, then:
- * export WEBDAV_TEST_URL="http://localhost:8080/remote.php/dav/files/user/kopia-test/"
- * export WEBDAV_TEST_USERNAME="user"
- * export WEBDAV_TEST_PASSWORD="password"
- * ```
- *
- * Example with Apache WebDAV:
- * ```
- * docker run -d -p 8080:80 -e USERNAME=user -e PASSWORD=password bytemark/webdav
- * export WEBDAV_TEST_URL="http://localhost:8080/"
- * export WEBDAV_TEST_USERNAME="user"
- * export WEBDAV_TEST_PASSWORD="password"
- * ```
+ * Run with: ./gradlew :storage:integrationTest --tests "*WebDavBlobStorageIntegrationTest*"
  */
+@Tag("integration")
+@Tag("webdav")
+@Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class WebDavBlobStorageIntegrationTest {
 
+    companion object {
+        private const val USERNAME = "testuser"
+        private const val PASSWORD = "testpass"
+
+        @Container
+        @JvmStatic
+        val webdav: GenericContainer<*> = GenericContainer("bytemark/webdav:2.4")
+            .withExposedPorts(80)
+            .withEnv("AUTH_TYPE", "Basic")
+            .withEnv("USERNAME", USERNAME)
+            .withEnv("PASSWORD", PASSWORD)
+            .waitingFor(
+                HttpWaitStrategy()
+                    .forPath("/")
+                    .forPort(80)
+                    .forStatusCode(401)
+            )
+    }
+
     private var storage: WebDavBlobStorage? = null
     private var testPrefix: String = ""
 
-    @BeforeAll
-    fun checkEnvironment() {
-        val url = System.getenv("WEBDAV_TEST_URL")
-        assumeTrue(url != null && url.isNotEmpty()) {
-            "Skipping WebDAV integration tests: WEBDAV_TEST_URL not set"
-        }
-    }
+    private fun webdavUrl(): String = "http://${webdav.host}:${webdav.getMappedPort(80)}/"
 
     @BeforeEach
     fun setup() = runTest {
-        val url = System.getenv("WEBDAV_TEST_URL") ?: return@runTest
-        val username = System.getenv("WEBDAV_TEST_USERNAME") ?: ""
-        val password = System.getenv("WEBDAV_TEST_PASSWORD") ?: ""
-
         // Generate unique prefix for this test run to avoid conflicts
         testPrefix = "test-${System.currentTimeMillis()}-"
 
         val options = WebDavOptions(
-            url = url,
-            username = username,
-            password = password,
+            url = webdavUrl(),
+            username = USERNAME,
+            password = PASSWORD,
             atomicWrites = false, // Use temp+rename for safety
             directoryShards = listOf(1, 3),
             maxNonShardedLength = 20
@@ -302,6 +301,31 @@ class WebDavBlobStorageIntegrationTest {
 
         val displayName = s.displayName()
         assertThat(displayName).startsWith("WebDAV:")
+    }
+
+    @Test
+    @Order(13)
+    @DisplayName("create with isCreate=true initializes repository structure")
+    fun create_withIsCreate_initializesRepoStructure() = runTest {
+        val s = storage ?: return@runTest
+        s.putBlob(BlobId("p_test"), "hello".toByteArray())
+        val data = s.getBlob(BlobId("p_test"))
+        assertArrayEquals("hello".toByteArray(), data)
+    }
+
+    @Test
+    @Order(14)
+    @DisplayName("authentication failure throws exception")
+    fun authFailure_throwsException() = runTest {
+        val url = webdavUrl()
+        assertThrows<Exception> {
+            runBlocking {
+                WebDavBlobStorage.create(
+                    WebDavOptions(url = url, username = "wrong", password = "wrong"),
+                    isCreate = false
+                )
+            }
+        }
     }
 
     @Test
