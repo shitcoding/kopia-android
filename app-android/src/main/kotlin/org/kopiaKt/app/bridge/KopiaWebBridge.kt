@@ -202,6 +202,11 @@ class KopiaWebBridge(
                     }
                 }
 
+                // Fallback: accept legacy 'password' field for repository encryption password.
+                // Storage-specific credentials (s3.secretAccessKey, webdav.password, sftp.password)
+                // must always be sent in their respective config objects — there is no legacy mapping
+                // for them because the old single-password approach was non-functional for S3 and
+                // only worked for WebDAV/SFTP when the storage password coincidentally matched.
                 val repositoryPassword = request.repositoryPassword.ifEmpty { request.password }
                 val result = repositoryManager.connect(request.config.toDomain(), repositoryPassword)
                 val resultJson = result.fold(
