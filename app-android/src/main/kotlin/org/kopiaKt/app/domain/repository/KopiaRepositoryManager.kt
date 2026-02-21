@@ -7,7 +7,7 @@ import org.kopiaKt.app.domain.model.RepositoryConnection
 interface KopiaRepositoryManager {
     val connectionState: StateFlow<ConnectionState>
 
-    suspend fun connect(config: ConnectionConfig, password: String): Result<RepositoryConnection>
+    suspend fun connect(config: ConnectionConfig, repositoryPassword: String): Result<RepositoryConnection>
 
     suspend fun disconnect()
 

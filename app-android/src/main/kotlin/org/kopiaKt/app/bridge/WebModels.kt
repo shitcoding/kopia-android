@@ -43,7 +43,8 @@ object WebErrorCodes {
 @Serializable
 data class WebConnectRequest(
     val config: WebConnectionConfig,
-    val password: String
+    val repositoryPassword: String = "",
+    val password: String = ""
 )
 
 @Serializable
@@ -63,17 +64,20 @@ data class WebConnectionConfig(
             bucket = s3?.bucket ?: "",
             endpoint = s3?.endpoint ?: "",
             region = s3?.region ?: "",
-            accessKeyId = s3?.accessKeyId ?: ""
+            accessKeyId = s3?.accessKeyId ?: "",
+            secretAccessKey = s3?.secretAccessKey ?: ""
         )
         "WEBDAV" -> ConnectionConfig.WebDAV(
             url = webdav?.url ?: "",
-            username = webdav?.username ?: ""
+            username = webdav?.username ?: "",
+            password = webdav?.password ?: ""
         )
         "SFTP" -> ConnectionConfig.SFTP(
             host = sftp?.host ?: "",
             port = sftp?.port ?: 22,
             username = sftp?.username ?: "",
-            path = sftp?.path ?: ""
+            path = sftp?.path ?: "",
+            password = sftp?.password ?: ""
         )
         "SAF" -> ConnectionConfig.SAF(
             treeUri = saf?.treeUri ?: "",
@@ -91,13 +95,15 @@ data class WebS3Config(
     val bucket: String,
     val endpoint: String,
     val region: String,
-    val accessKeyId: String
+    val accessKeyId: String,
+    val secretAccessKey: String = ""
 )
 
 @Serializable
 data class WebWebDavConfig(
     val url: String,
-    val username: String
+    val username: String,
+    val password: String = ""
 )
 
 @Serializable
@@ -105,7 +111,8 @@ data class WebSftpConfig(
     val host: String,
     val port: Int,
     val username: String,
-    val path: String
+    val path: String,
+    val password: String = ""
 )
 
 @Serializable
@@ -281,14 +288,16 @@ fun ConnectionConfig.toWeb(): WebConnectionConfig = when (this) {
             bucket = bucket,
             endpoint = endpoint,
             region = region,
-            accessKeyId = accessKeyId
+            accessKeyId = accessKeyId,
+            secretAccessKey = secretAccessKey
         )
     )
     is ConnectionConfig.WebDAV -> WebConnectionConfig(
         storageType = "WEBDAV",
         webdav = WebWebDavConfig(
             url = url,
-            username = username
+            username = username,
+            password = password
         )
     )
     is ConnectionConfig.SFTP -> WebConnectionConfig(
@@ -297,7 +306,8 @@ fun ConnectionConfig.toWeb(): WebConnectionConfig = when (this) {
             host = host,
             port = port,
             username = username,
-            path = path
+            path = path,
+            password = password
         )
     )
     is ConnectionConfig.SAF -> WebConnectionConfig(

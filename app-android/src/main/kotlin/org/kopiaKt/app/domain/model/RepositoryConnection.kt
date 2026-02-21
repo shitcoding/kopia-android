@@ -26,19 +26,22 @@ sealed interface ConnectionConfig {
         val bucket: String,
         val endpoint: String,
         val region: String,
-        val accessKeyId: String
+        val accessKeyId: String,
+        val secretAccessKey: String = ""
     ) : ConnectionConfig
 
     data class WebDAV(
         val url: String,
-        val username: String
+        val username: String,
+        val password: String = ""
     ) : ConnectionConfig
 
     data class SFTP(
         val host: String,
         val port: Int,
         val username: String,
-        val path: String
+        val path: String,
+        val password: String = ""
     ) : ConnectionConfig
 
     data class SAF(

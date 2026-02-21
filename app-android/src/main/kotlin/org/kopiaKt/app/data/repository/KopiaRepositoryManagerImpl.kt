@@ -45,16 +45,16 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
     override suspend fun connect(
         config: ConnectionConfig,
-        password: String
+        repositoryPassword: String
     ): Result<RepositoryConnection> = withContext(Dispatchers.IO) {
         _connectionState.value = ConnectionState.Connecting
 
         try {
-            val storage = createBlobStorage(config, password)
+            val storage = createBlobStorage(config)
 
             val repository = DirectRepositoryImpl.open(
                 blobStorage = storage,
-                password = password,
+                password = repositoryPassword,
                 clientOptions = ClientOptions.withDefaults(
                     description = "KopiaKt Android"
                 )
@@ -98,8 +98,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     fun getRepository(): DirectRepository? = currentRepository
 
     private suspend fun createBlobStorage(
-        config: ConnectionConfig,
-        password: String
+        config: ConnectionConfig
     ): BlobStorage = when (config) {
         is ConnectionConfig.LocalFilesystem -> {
             FilesystemBlobStorage.create(Path(config.path))
@@ -112,7 +111,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                     endpoint = config.endpoint,
                     region = config.region,
                     accessKeyId = config.accessKeyId,
-                    secretAccessKey = password
+                    secretAccessKey = config.secretAccessKey
                 )
             )
         }
@@ -122,7 +121,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 WebDavOptions(
                     url = config.url,
                     username = config.username,
-                    password = password
+                    password = config.password
                 )
             )
         }
@@ -133,7 +132,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                     host = config.host,
                     port = config.port,
                     username = config.username,
-                    password = password,
+                    password = config.password,
                     path = config.path
                 )
             )

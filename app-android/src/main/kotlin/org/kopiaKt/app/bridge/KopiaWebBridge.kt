@@ -202,7 +202,8 @@ class KopiaWebBridge(
                     }
                 }
 
-                val result = repositoryManager.connect(request.config.toDomain(), request.password)
+                val repositoryPassword = request.repositoryPassword.ifEmpty { request.password }
+                val result = repositoryManager.connect(request.config.toDomain(), repositoryPassword)
                 val resultJson = result.fold(
                     onSuccess = { json.encodeToString(WebResult.success(it.toWeb())) },
                     onFailure = { json.encodeToString(WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error")) }

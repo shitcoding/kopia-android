@@ -12,14 +12,14 @@ class ConnectRepositoryUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         config: ConnectionConfig,
-        password: String,
+        repositoryPassword: String,
         savePassword: Boolean
     ): Result<RepositoryConnection> {
-        val result = repositoryManager.connect(config, password)
+        val result = repositoryManager.connect(config, repositoryPassword)
 
         if (result.isSuccess && savePassword) {
             val connection = result.getOrThrow()
-            credentialRepository.storePassword(connection.id, password)
+            credentialRepository.storePassword(connection.id, repositoryPassword)
         }
 
         return result
