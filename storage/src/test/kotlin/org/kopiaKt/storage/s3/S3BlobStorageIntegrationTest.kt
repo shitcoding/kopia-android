@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
@@ -23,6 +23,10 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobStorageContractTest
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
@@ -37,94 +41,82 @@ import java.net.URI
 import java.util.UUID
 
 /**
- * Integration tests for S3BlobStorage using MinIO.
+ * Integration tests for S3BlobStorage using MinIO via Testcontainers.
  *
- * These tests require a running MinIO instance. They are skipped if MinIO
- * is not available. To run these tests:
+ * These tests automatically start a MinIO container using Testcontainers.
+ * They are skipped if Docker is not available on the host.
  *
- * 1. Start MinIO using Docker:
- *    docker run -p 9000:9000 -p 9001:9001 \
- *      -e MINIO_ROOT_USER=minioadmin \
- *      -e MINIO_ROOT_PASSWORD=minioadmin \
- *      minio/minio server /data --console-address ":9001"
- *
- * 2. Set environment variables (optional, defaults work with above command):
- *    export S3_TEST_ENDPOINT=localhost:9000
- *    export S3_TEST_ACCESS_KEY=minioadmin
- *    export S3_TEST_SECRET_KEY=minioadmin
- *
- * 3. Run the tests.
- *
- * To run these tests with contract tests, use S3BlobStorageContractIntegrationTest.
+ * Run with: ./gradlew :storage:integrationTest --tests "*S3BlobStorageIntegrationTest*"
  */
+@Tag("integration")
+@Tag("s3")
+@Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class S3BlobStorageIntegrationTest {
 
     companion object {
-        private val endpoint = System.getenv("S3_TEST_ENDPOINT") ?: "localhost:9000"
-        private val accessKey = System.getenv("S3_TEST_ACCESS_KEY") ?: "minioadmin"
-        private val secretKey = System.getenv("S3_TEST_SECRET_KEY") ?: "minioadmin"
-        private val bucketName = "kopia-kt-test-${UUID.randomUUID().toString().take(8)}"
+        private const val ACCESS_KEY = "minioadmin"
+        private const val SECRET_KEY = "minioadmin"
+        private const val REGION = "us-east-1"
+
+        @Container
+        @JvmStatic
+        val minio: GenericContainer<*> = GenericContainer("minio/minio:latest")
+            .withExposedPorts(9000)
+            .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
+            .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
+            .withCommand("server", "/data")
+            .waitingFor(
+                HttpWaitStrategy()
+                    .forPath("/minio/health/ready")
+                    .forPort(9000)
+            )
     }
 
+    private val bucketName = "kopia-kt-test-${UUID.randomUUID().toString().take(8)}"
     private lateinit var syncClient: S3Client
     private lateinit var storage: S3BlobStorage
-    private var minioAvailable = false
+
+    private fun minioEndpoint(): String = "${minio.host}:${minio.getMappedPort(9000)}"
 
     @BeforeAll
     fun setupClass() {
-        // Try to connect to MinIO
-        try {
-            syncClient = S3Client.builder()
-                .endpointOverride(URI.create("http://$endpoint"))
-                .region(Region.US_EAST_1)
-                .credentialsProvider(
-                    StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
-                    )
+        syncClient = S3Client.builder()
+            .endpointOverride(URI.create("http://${minioEndpoint()}"))
+            .region(Region.US_EAST_1)
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
                 )
-                .forcePathStyle(true)
-                .build()
+            )
+            .forcePathStyle(true)
+            .build()
 
-            // Test connection by listing buckets
-            syncClient.listBuckets()
-            minioAvailable = true
-
-            // Create test bucket
-            syncClient.createBucket(CreateBucketRequest.builder().bucket(bucketName).build())
-        } catch (e: Exception) {
-            minioAvailable = false
-        }
+        syncClient.createBucket(CreateBucketRequest.builder().bucket(bucketName).build())
     }
 
     @AfterAll
     fun teardownClass() {
-        if (minioAvailable) {
-            try {
-                // Delete all objects in bucket
-                deleteAllObjectsInBucket()
-                // Delete bucket
-                syncClient.deleteBucket(DeleteBucketRequest.builder().bucket(bucketName).build())
-            } catch (e: Exception) {
-                // Ignore cleanup errors
-            }
-            syncClient.close()
+        try {
+            deleteAllObjectsInBucket()
+            syncClient.deleteBucket(DeleteBucketRequest.builder().bucket(bucketName).build())
+        } catch (_: Exception) {
+            // Ignore cleanup errors
         }
+        syncClient.close()
     }
 
     @BeforeEach
     fun setUp() {
-        assumeTrue(minioAvailable, "MinIO is not available, skipping integration tests")
-
         runBlocking {
             storage = S3BlobStorage.create(
                 S3Options(
                     bucketName = bucketName,
-                    endpoint = endpoint,
-                    accessKeyId = accessKey,
-                    secretAccessKey = secretKey,
+                    endpoint = minioEndpoint(),
+                    accessKeyId = ACCESS_KEY,
+                    secretAccessKey = SECRET_KEY,
                     doNotUseTls = true,
-                    region = "us-east-1"
+                    region = REGION
                 )
             )
         }
@@ -132,9 +124,8 @@ class S3BlobStorageIntegrationTest {
 
     @AfterEach
     fun tearDown() {
-        if (minioAvailable && ::storage.isInitialized) {
+        if (::storage.isInitialized) {
             runBlocking {
-                // Clean up all test blobs
                 deleteAllObjectsInBucket()
                 storage.close()
             }
@@ -398,59 +389,99 @@ class S3BlobStorageIntegrationTest {
             assertTrue(name.contains("S3"))
         }
     }
+
+    @Nested
+    @DisplayName("Extended operations")
+    inner class ExtendedTests {
+
+        @Test
+        @DisplayName("listBlobs handles many objects correctly")
+        fun listBlobs_handlesManyObjects() = runTest {
+            val prefix = "p_"
+            repeat(50) { i ->
+                storage.putBlob(BlobId("${prefix}blob_${i.toString().padStart(4, '0')}"), "data$i".toByteArray())
+            }
+            val listed = storage.listBlobs(prefix).toList()
+            assertEquals(50, listed.size)
+        }
+
+        @Test
+        @DisplayName("create with doNotUseTls connects over HTTP")
+        fun create_withDoNotUseTls_connectsOverHttp() = runTest {
+            val s3 = S3BlobStorage.create(
+                S3Options(
+                    bucketName = bucketName,
+                    endpoint = minioEndpoint(),
+                    region = REGION,
+                    accessKeyId = ACCESS_KEY,
+                    secretAccessKey = SECRET_KEY,
+                    doNotUseTls = true
+                )
+            )
+            val blobs = s3.listBlobs("").toList()
+            assertNotNull(blobs)
+            s3.close()
+        }
+    }
 }
 
 /**
- * Contract tests for S3BlobStorage with MinIO.
+ * Contract tests for S3BlobStorage with MinIO via Testcontainers.
  *
  * This runs all the standard BlobStorage contract tests against a real
- * MinIO instance to ensure full compatibility.
+ * MinIO instance to ensure full compatibility. The container is managed
+ * automatically by Testcontainers.
  */
+@Tag("integration")
+@Tag("s3")
+@Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
 
     companion object {
-        private val endpoint = System.getenv("S3_TEST_ENDPOINT") ?: "localhost:9000"
-        private val accessKey = System.getenv("S3_TEST_ACCESS_KEY") ?: "minioadmin"
-        private val secretKey = System.getenv("S3_TEST_SECRET_KEY") ?: "minioadmin"
+        private const val ACCESS_KEY = "minioadmin"
+        private const val SECRET_KEY = "minioadmin"
+        private const val REGION = "us-east-1"
+
+        @Container
+        @JvmStatic
+        val minio: GenericContainer<*> = GenericContainer("minio/minio:latest")
+            .withExposedPorts(9000)
+            .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
+            .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
+            .withCommand("server", "/data")
+            .waitingFor(
+                HttpWaitStrategy()
+                    .forPath("/minio/health/ready")
+                    .forPort(9000)
+            )
     }
 
     private lateinit var syncClient: S3Client
-    private var minioAvailable = false
     private var currentBucket: String? = null
+
+    private fun minioEndpoint(): String = "${minio.host}:${minio.getMappedPort(9000)}"
 
     @BeforeAll
     fun setupClass() {
-        try {
-            syncClient = S3Client.builder()
-                .endpointOverride(URI.create("http://$endpoint"))
-                .region(Region.US_EAST_1)
-                .credentialsProvider(
-                    StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
-                    )
+        syncClient = S3Client.builder()
+            .endpointOverride(URI.create("http://${minioEndpoint()}"))
+            .region(Region.US_EAST_1)
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
                 )
-                .forcePathStyle(true)
-                .build()
-
-            syncClient.listBuckets()
-            minioAvailable = true
-        } catch (e: Exception) {
-            minioAvailable = false
-        }
+            )
+            .forcePathStyle(true)
+            .build()
     }
 
     @AfterAll
     fun teardownClass() {
-        if (minioAvailable) {
-            syncClient.close()
-        }
+        syncClient.close()
     }
 
     override fun createStorage(): BlobStorage {
-        assumeTrue(minioAvailable, "MinIO is not available, skipping integration tests")
-
-        // Create unique bucket for each test
         currentBucket = "kopia-kt-contract-${UUID.randomUUID().toString().take(8)}"
         syncClient.createBucket(CreateBucketRequest.builder().bucket(currentBucket).build())
 
@@ -458,20 +489,19 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
             S3BlobStorage.create(
                 S3Options(
                     bucketName = currentBucket!!,
-                    endpoint = endpoint,
-                    accessKeyId = accessKey,
-                    secretAccessKey = secretKey,
+                    endpoint = minioEndpoint(),
+                    accessKeyId = ACCESS_KEY,
+                    secretAccessKey = SECRET_KEY,
                     doNotUseTls = true,
-                    region = "us-east-1"
+                    region = REGION
                 )
             )
         }
     }
 
     override fun cleanupStorage(storage: BlobStorage) {
-        if (minioAvailable && currentBucket != null) {
+        if (currentBucket != null) {
             try {
-                // Delete all objects
                 val response = syncClient.listObjectsV2(
                     ListObjectsV2Request.builder().bucket(currentBucket).build()
                 )
@@ -486,9 +516,8 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
                             .build()
                     )
                 }
-                // Delete bucket
                 syncClient.deleteBucket(DeleteBucketRequest.builder().bucket(currentBucket).build())
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore cleanup errors
             }
             currentBucket = null
