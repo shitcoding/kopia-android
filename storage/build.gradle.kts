@@ -39,10 +39,30 @@ dependencies {
     testImplementation(libs.bundles.testing.unit)
     testImplementation(project(":core", "testArchive"))
     testRuntimeOnly(libs.junit5.engine)
+
+    // Testcontainers (Docker-based integration tests)
+    testImplementation(libs.testcontainers.core)
+    testImplementation(libs.testcontainers.junit5)
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+}
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests requiring Docker"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("integration")
+    }
     testLogging {
         events("passed", "skipped", "failed")
         showExceptions = true

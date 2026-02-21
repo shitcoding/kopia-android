@@ -52,6 +52,7 @@ sshj = "0.39.0"   # SFTP
 
 # Testing
 junit5 = "5.11.3"
+testcontainers = "1.20.4"
 mockk = "1.13.14"
 robolectric = "4.14.1"
 robolectric-junit5 = "0.9.0"
@@ -142,6 +143,10 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 robolectric-junit5 = { module = "tech.apter.junit5.jupiter:robolectric-extension", version.ref = "robolectric-junit5" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+
+# Testcontainers
+testcontainers-core = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit5 = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 
 # Android Testing
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test" }

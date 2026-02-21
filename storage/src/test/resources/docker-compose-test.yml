@@ -1,0 +1,25 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: kopia
+      MINIO_ROOT_PASSWORD: kopia123456
+
+  webdav:
+    image: bytemark/webdav:2.4
+    ports:
+      - "8080:80"
+    environment:
+      AUTH_TYPE: Basic
+      USERNAME: kopia
+      PASSWORD: kopia123
+
+  sftp:
+    image: atmoz/sftp:latest
+    command: "kopia:kopia123:::upload"
+    ports:
+      - "2222:22"
