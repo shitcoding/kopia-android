@@ -1,0 +1,243 @@
+# E2E Test: S3 Connection Error Handling
+# Verifies proper error handling for invalid S3 credentials and missing fields.
+#
+# Prerequisites:
+#   - Docker storage backends running (scripts/start_storage_backends.sh)
+#   - Repositories seeded (scripts/seed_storage_backends.sh)
+#
+# Tests:
+#   1. Missing bucket -> validation error
+#   2. Missing secret key -> validation error
+#   3. Wrong S3 credentials -> backend auth error
+#   4. Wrong repository password -> repo auth error
+#   5. Successful connection after errors (recovery test)
+#
+# UI is rendered in WebView (React app).
+# NOTE: eraseText does not work reliably in WebView inputs. We navigate back
+# and re-enter the Connect screen to get fresh empty fields between tests.
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Navigate to connect screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Switch to S3 tab
+- tapOn: "S3"
+
+# ========================================
+# Test 1: Missing bucket validation
+# ========================================
+# Fill everything except bucket
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Secret Access Key"
+- inputText: "kopia123456"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error about bucket
+- extendedWaitUntil:
+    visible:
+      text: ".*bucket.*required.*|.*Bucket.*required.*"
+    timeout: 5000
+
+# ========================================
+# Test 2: Missing secret key validation
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "S3"
+
+# Fill everything except secret key
+- tapOn:
+    text: "Bucket"
+- inputText: "kopia-e2e"
+
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "kopia"
+
+# Skip Secret Access Key intentionally
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error about secret key
+- extendedWaitUntil:
+    visible:
+      text: ".*[Ss]ecret.*key.*required.*|.*access key.*required.*"
+    timeout: 5000
+
+# ========================================
+# Test 3: Wrong S3 credentials -> backend auth error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "S3"
+
+# Fill with wrong S3 credentials
+- tapOn:
+    text: "Bucket"
+- inputText: "kopia-e2e"
+
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "wrong-key"
+
+- tapOn:
+    text: "Secret Access Key"
+- inputText: "wrong-secret"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show backend authentication error
+- extendedWaitUntil:
+    visible:
+      text: ".*invalid.*|.*denied.*|.*failed.*|.*error.*|.*credentials.*|.*403.*|.*Access Denied.*"
+    timeout: 15000
+
+# ========================================
+# Test 4: Wrong repository password -> repo auth error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "S3"
+
+# Fill with correct S3 credentials but wrong repo password
+- tapOn:
+    text: "Bucket"
+- inputText: "kopia-e2e"
+
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Secret Access Key"
+- inputText: "kopia123456"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "wrongpassword"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show repository auth error
+- extendedWaitUntil:
+    visible:
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+    timeout: 15000
+
+# ========================================
+# Test 5: Successful connection after errors (recovery)
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "S3"
+
+# Fill with correct credentials
+- tapOn:
+    text: "Bucket"
+- inputText: "kopia-e2e"
+
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Secret Access Key"
+- inputText: "kopia123456"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should successfully connect
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000

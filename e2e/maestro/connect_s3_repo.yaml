@@ -1,0 +1,70 @@
+# E2E Test: Connect to S3 (MinIO) Repository
+# Verifies the complete connection flow for an S3-compatible storage backend.
+#
+# Prerequisites:
+#   - Docker storage backends running (scripts/start_storage_backends.sh)
+#   - Repositories seeded (scripts/seed_storage_backends.sh)
+#
+# Repository: S3 bucket "kopia-e2e" on MinIO at http://10.0.2.2:9000
+# Password: test123
+# Expected: Connect successfully and see snapshot list
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for welcome screen and navigate to Connect
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+
+- tapOn: "Connect to Repository"
+
+# Wait for Connect Repository screen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Switch to S3 tab
+- tapOn: "S3"
+
+# Fill S3 fields
+- tapOn:
+    text: "Bucket"
+- inputText: "kopia-e2e"
+
+# Endpoint field has a default value "s3.amazonaws.com" -- clear it first
+- tapOn:
+    text: "Endpoint"
+- eraseText: 50
+- inputText: "http://10.0.2.2:9000"
+
+# Region field defaults to "us-east-1" which is what we want -- leave it
+
+- tapOn:
+    text: "Access Key ID"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Secret Access Key"
+- inputText: "kopia123456"
+
+# Fill repository password
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+# Hide keyboard before tapping Connect
+- hideKeyboard
+
+# Tap Connect button
+- tapOn: "Connect"
+
+# Wait for connection and verify success - should see Snapshots screen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000

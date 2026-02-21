@@ -1,0 +1,72 @@
+# E2E Test: Connect to SFTP Repository
+# Verifies the complete connection flow for an SFTP storage backend.
+#
+# Prerequisites:
+#   - Docker storage backends running (scripts/start_storage_backends.sh)
+#   - Repositories seeded (scripts/seed_storage_backends.sh)
+#
+# Repository: SFTP at 10.0.2.2:2222 path /home/kopia/upload/kopia-e2e
+# Password: test123
+# Expected: Connect successfully and see snapshot list
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for welcome screen and navigate to Connect
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+
+- tapOn: "Connect to Repository"
+
+# Wait for Connect Repository screen
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Switch to SFTP tab
+- tapOn: "SFTP"
+
+# Fill SFTP fields
+- tapOn:
+    text: "Host"
+- inputText: "10.0.2.2"
+
+# Port field defaults to "22" -- clear it and enter 2222
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "kopia123"
+
+# Fill repository password
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+# Hide keyboard before tapping Connect
+- hideKeyboard
+
+# Tap Connect button
+- tapOn: "Connect"
+
+# Wait for connection and verify success - should see Snapshots screen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000

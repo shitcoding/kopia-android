@@ -1,0 +1,263 @@
+# E2E Test: SFTP Connection Error Handling
+# Verifies proper error handling for invalid SFTP credentials and missing fields.
+#
+# Prerequisites:
+#   - Docker storage backends running (scripts/start_storage_backends.sh)
+#   - Repositories seeded (scripts/seed_storage_backends.sh)
+#
+# Tests:
+#   1. Missing host -> validation error
+#   2. Missing username -> validation error
+#   3. Wrong SFTP password -> SSH auth error
+#   4. Wrong repository password -> repo auth error
+#   5. Successful connection after errors (recovery test)
+#
+# UI is rendered in WebView (React app).
+# NOTE: eraseText does not work reliably in WebView inputs. We navigate back
+# and re-enter the Connect screen to get fresh empty fields between tests.
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Navigate to connect screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Switch to SFTP tab
+- tapOn: "SFTP"
+
+# ========================================
+# Test 1: Missing host validation
+# ========================================
+# Fill everything except host
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error about host
+- extendedWaitUntil:
+    visible:
+      text: ".*host.*required.*|.*Host.*required.*"
+    timeout: 5000
+
+# ========================================
+# Test 2: Missing username validation
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "SFTP"
+
+# Fill everything except username
+- tapOn:
+    text: "Host"
+- inputText: "10.0.2.2"
+
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+# Skip Username intentionally
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error about username
+- extendedWaitUntil:
+    visible:
+      text: ".*username.*required.*|.*Username.*required.*"
+    timeout: 5000
+
+# ========================================
+# Test 3: Wrong SFTP password -> SSH auth error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "SFTP"
+
+# Fill with wrong SFTP password
+- tapOn:
+    text: "Host"
+- inputText: "10.0.2.2"
+
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "wrongpassword"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show SSH/auth error
+- extendedWaitUntil:
+    visible:
+      text: ".*auth.*|.*denied.*|.*failed.*|.*error.*|.*ssh.*|.*handshake.*"
+    timeout: 15000
+
+# ========================================
+# Test 4: Wrong repository password -> repo auth error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "SFTP"
+
+# Fill with correct SFTP credentials but wrong repo password
+- tapOn:
+    text: "Host"
+- inputText: "10.0.2.2"
+
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "wrongpassword"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show repository auth error
+- extendedWaitUntil:
+    visible:
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+    timeout: 15000
+
+# ========================================
+# Test 5: Successful connection after errors (recovery)
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "SFTP"
+
+# Fill with correct credentials
+- tapOn:
+    text: "Host"
+- inputText: "10.0.2.2"
+
+- tapOn:
+    text: "Port"
+- eraseText: 10
+- inputText: "2222"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "Path"
+- inputText: "/home/kopia/upload/kopia-e2e"
+
+- tapOn:
+    text: "SFTP Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should successfully connect
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000

@@ -1,0 +1,218 @@
+# E2E Test: WebDAV Connection Error Handling
+# Verifies proper error handling for invalid WebDAV credentials and missing fields.
+#
+# Prerequisites:
+#   - Docker storage backends running (scripts/start_storage_backends.sh)
+#   - Repositories seeded (scripts/seed_storage_backends.sh)
+#
+# Tests:
+#   1. Missing URL -> validation error
+#   2. Missing repository password -> validation error
+#   3. Wrong WebDAV password -> HTTP 401 auth error
+#   4. Wrong repository password -> repo auth error
+#   5. Successful connection after errors (recovery test)
+#
+# UI is rendered in WebView (React app).
+# NOTE: eraseText does not work reliably in WebView inputs. We navigate back
+# and re-enter the Connect screen to get fresh empty fields between tests.
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Navigate to connect screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 10000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+# Switch to WebDAV tab
+- tapOn: "WebDAV"
+
+# ========================================
+# Test 1: Missing URL validation
+# ========================================
+# Fill everything except URL
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "WebDAV Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show validation error about URL
+- extendedWaitUntil:
+    visible:
+      text: ".*URL.*required.*|.*WebDAV.*required.*"
+    timeout: 5000
+
+# ========================================
+# Test 2: Missing repository password validation
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "WebDAV"
+
+# Fill URL but no repository password
+- tapOn:
+    text: "WebDAV URL"
+- inputText: "http://10.0.2.2:8080/kopia-e2e"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "WebDAV Password"
+- inputText: "kopia123"
+
+# Skip Repository Password intentionally
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show password required error
+- extendedWaitUntil:
+    visible:
+      text: ".*password.*required.*|.*Repository password.*"
+    timeout: 5000
+
+# ========================================
+# Test 3: Wrong WebDAV password -> HTTP 401 error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "WebDAV"
+
+# Fill with wrong WebDAV credentials
+- tapOn:
+    text: "WebDAV URL"
+- inputText: "http://10.0.2.2:8080/kopia-e2e"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "WebDAV Password"
+- inputText: "wrongpassword"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show auth/HTTP error
+- extendedWaitUntil:
+    visible:
+      text: ".*401.*|.*[Uu]nauthorized.*|.*denied.*|.*failed.*|.*error.*|.*invalid.*"
+    timeout: 15000
+
+# ========================================
+# Test 4: Wrong repository password -> repo auth error
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "WebDAV"
+
+# Fill with correct WebDAV credentials but wrong repo password
+- tapOn:
+    text: "WebDAV URL"
+- inputText: "http://10.0.2.2:8080/kopia-e2e"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "WebDAV Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "wrongpassword"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should show repository auth error
+- extendedWaitUntil:
+    visible:
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+    timeout: 15000
+
+# ========================================
+# Test 5: Successful connection after errors (recovery)
+# ========================================
+# Navigate back and re-enter for fresh form
+- back
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn: "WebDAV"
+
+# Fill with correct credentials
+- tapOn:
+    text: "WebDAV URL"
+- inputText: "http://10.0.2.2:8080/kopia-e2e"
+
+- tapOn:
+    text: "Username"
+- inputText: "kopia"
+
+- tapOn:
+    text: "WebDAV Password"
+- inputText: "kopia123"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Should successfully connect
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 15000
