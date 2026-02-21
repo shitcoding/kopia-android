@@ -21,11 +21,13 @@ export interface S3Config {
   endpoint: string;
   region: string;
   accessKeyId: string;
+  secretAccessKey: string;
 }
 
 export interface WebDavConfig {
   url: string;
   username: string;
+  password: string;
 }
 
 export interface SftpConfig {
@@ -33,6 +35,7 @@ export interface SftpConfig {
   port: number;
   username: string;
   path: string;
+  password: string;
 }
 
 export interface SafConfig {
@@ -53,7 +56,7 @@ export interface ConnectionConfig {
 
 export interface ConnectRequest {
   config: ConnectionConfig;
-  password: string;
+  repositoryPassword: string;
 }
 
 export interface SnapshotListRequest {

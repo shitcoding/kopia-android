@@ -40,6 +40,9 @@ const ConnectScreen = () => {
   const [sftpPort, setSftpPort] = useState("22");
   const [sftpUsername, setSftpUsername] = useState("");
   const [sftpPath, setSftpPath] = useState("");
+  const [s3SecretKey, setS3SecretKey] = useState("");
+  const [webdavPassword, setWebdavPassword] = useState("");
+  const [sftpPassword, setSftpPassword] = useState("");
   const [password, setPassword] = useState("");
 
   // Subscribe to folder picker results
@@ -118,12 +121,14 @@ const ConnectScreen = () => {
           endpoint: s3Endpoint,
           region: s3Region,
           accessKeyId: s3AccessKey,
+          secretAccessKey: s3SecretKey,
         };
         break;
       case "webdav":
         config.webdav = {
           url: webdavUrl,
           username: webdavUsername,
+          password: webdavPassword,
         };
         break;
       case "sftp":
@@ -132,6 +137,7 @@ const ConnectScreen = () => {
           port: parseInt(sftpPort, 10) || 22,
           username: sftpUsername,
           path: sftpPath,
+          password: sftpPassword,
         };
         break;
     }
@@ -151,6 +157,7 @@ const ConnectScreen = () => {
       case "s3":
         if (!s3Bucket.trim()) return "S3 bucket is required";
         if (!s3AccessKey.trim()) return "Access key ID is required";
+        if (!s3SecretKey.trim()) return "Secret access key is required";
         break;
       case "webdav":
         if (!webdavUrl.trim()) return "WebDAV URL is required";
@@ -181,7 +188,7 @@ const ConnectScreen = () => {
       const config = buildConnectionConfig();
       const request: ConnectRequest = {
         config: config,
-        password: password,
+        repositoryPassword: password,
       };
 
       await kopiaBridge.connect(request);
@@ -326,6 +333,15 @@ const ConnectScreen = () => {
               disabled={isConnecting}
               data-testid="s3-access-key-input"
             />
+            <input
+              type="password"
+              placeholder="Secret Access Key"
+              value={s3SecretKey}
+              onChange={(e) => setS3SecretKey(e.target.value)}
+              className="input-md3"
+              disabled={isConnecting}
+              data-testid="s3-secret-key-input"
+            />
           </div>
         )}
 
@@ -353,6 +369,15 @@ const ConnectScreen = () => {
               className="input-md3"
               disabled={isConnecting}
               data-testid="webdav-username-input"
+            />
+            <input
+              type="password"
+              placeholder="WebDAV Password"
+              value={webdavPassword}
+              onChange={(e) => setWebdavPassword(e.target.value)}
+              className="input-md3"
+              disabled={isConnecting}
+              data-testid="webdav-password-input"
             />
           </div>
         )}
@@ -400,11 +425,23 @@ const ConnectScreen = () => {
               autoCapitalize="off"
               spellCheck={false}
             />
+            <input
+              type="password"
+              placeholder="SFTP Password"
+              value={sftpPassword}
+              onChange={(e) => setSftpPassword(e.target.value)}
+              className="input-md3"
+              disabled={isConnecting}
+              data-testid="sftp-password-input"
+            />
           </div>
         )}
 
         {/* Password Section (Common to all) */}
         <div className="pt-2 space-y-3">
+          <p className="text-xs text-muted-foreground px-1">
+            Repository encryption password
+          </p>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
