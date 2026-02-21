@@ -91,7 +91,12 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing.unit)
+    testRuntimeOnly(libs.junit5.engine)
     androidTestImplementation(libs.bundles.testing.android)
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 // Task to build React assets and copy to Android assets folder
