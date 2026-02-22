@@ -48,8 +48,8 @@ android {
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/**"
             excludes += "META-INF/INDEX.LIST"
-            excludes += "META-INF/services/javax.xml.stream.*"
-            excludes += "META-INF/services/com.fasterxml.woodstox.*"
+            pickFirsts += "META-INF/services/javax.xml.stream.*"
+            pickFirsts += "META-INF/services/com.fasterxml.woodstox.*"
             excludes += "META-INF/io.netty.versions.properties"
         }
     }

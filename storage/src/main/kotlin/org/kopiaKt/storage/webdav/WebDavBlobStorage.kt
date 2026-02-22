@@ -56,6 +56,9 @@ class WebDavBlobStorage private constructor(
         /** HTTP 416 Range Not Satisfiable */
         private const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
+        /** Maximum directory recursion depth to prevent infinite loops. */
+        private const val MAX_WALK_DEPTH = 10
+
         /** RFC 1123 date format used by HTTP Last-Modified headers */
         private val HTTP_DATE_FORMAT: DateTimeFormatter =
             DateTimeFormatter.RFC_1123_DATE_TIME
@@ -236,7 +239,7 @@ class WebDavBlobStorage private constructor(
         // Collect all metadata first in IO context, then emit
         val results = withContext(Dispatchers.IO) {
             val collected = mutableListOf<BlobMetadata>()
-            walkDirectory(rootUrl, "", prefix, collected)
+            walkDirectory(rootUrl, "", prefix, collected, depth = 0)
             collected
         }
 
@@ -247,13 +250,19 @@ class WebDavBlobStorage private constructor(
 
     /**
      * Recursively walks the WebDAV directory tree to collect blob metadata.
+     *
+     * @param depth current recursion depth; capped at [MAX_WALK_DEPTH] to prevent
+     *              infinite recursion from symlink loops or server bugs.
      */
     private fun walkDirectory(
         dirUrl: String,
         currentPrefix: String,
         filterPrefix: String,
-        results: MutableList<BlobMetadata>
+        results: MutableList<BlobMetadata>,
+        depth: Int
     ) {
+        if (depth > MAX_WALK_DEPTH) return
+
         try {
             val resources = client.list(dirUrl, 1) // Depth 1 to list immediate children
 
@@ -270,6 +279,11 @@ class WebDavBlobStorage private constructor(
                     // Recursively walk subdirectories that could match prefix
                     val subDirName = resource.name
 
+                    // Skip empty, ".", or ".." directory names
+                    if (subDirName.isEmpty() || subDirName == "." || subDirName == "..") {
+                        continue
+                    }
+
                     val newPrefix = currentPrefix + subDirName
 
                     val shouldDescend = if (filterPrefix.length > newPrefix.length) {
@@ -283,7 +297,8 @@ class WebDavBlobStorage private constructor(
                             "$dirUrl${subDirName}/",
                             newPrefix,
                             filterPrefix,
-                            results
+                            results,
+                            depth + 1
                         )
                     }
                 } else {
@@ -426,12 +441,12 @@ class WebDavBlobStorage private constructor(
      */
     private fun hrefMatchesUrl(href: String, url: String): Boolean {
         val hrefPath = try {
-            URI(href).path.orEmpty().removeSuffix("/")
+            URI(href).normalize().path.orEmpty().removeSuffix("/")
         } catch (_: Exception) {
             href.removeSuffix("/")
         }
         val urlPath = try {
-            URI(url).path.orEmpty().removeSuffix("/")
+            URI(url).normalize().path.orEmpty().removeSuffix("/")
         } catch (_: Exception) {
             url.removeSuffix("/")
         }

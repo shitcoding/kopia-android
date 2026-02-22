@@ -485,6 +485,124 @@ class WebDavBlobStorageTest {
     }
 
     @Nested
+    @DisplayName("path-only href handling")
+    inner class PathOnlyHrefTests {
+
+        @Test
+        fun `path-only href for root is correctly matched`() = runTest {
+            // WebDAV server returns "/" as href for the root directory
+            val rootDir = DavResource(
+                href = "/",
+                isDirectory = true,
+                name = ""
+            )
+            val file = DavResource(
+                href = "/blob.f",
+                name = "blob.f",
+                isDirectory = false,
+                contentLength = 42L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+
+            every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
+
+            val results = storage.listBlobs("").toList()
+
+            assertThat(results).hasSize(1)
+            assertThat(results[0].blobId.value).isEqualTo("blob")
+        }
+
+        @Test
+        fun `path-only href for subdirectories is correctly matched`() = runTest {
+            // Root listing returns path-only hrefs
+            val rootDir = DavResource(
+                href = "/dav/",
+                isDirectory = true,
+                name = ""
+            )
+            val subDir = DavResource(
+                href = "/dav/p/",
+                isDirectory = true,
+                name = "p"
+            )
+
+            every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, subDir)
+
+            // Subdirectory also returns path-only href
+            val subDirSelf = DavResource(
+                href = "/dav/p/",
+                isDirectory = true,
+                name = "p"
+            )
+            val blob = DavResource(
+                href = "/dav/p/test.f",
+                name = "test.f",
+                isDirectory = false,
+                contentLength = 100L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+
+            every { mockClient.list("${baseUrl}p/", 1) } returns listOf(subDirSelf, blob)
+
+            val results = storage.listBlobs("p").toList()
+
+            assertThat(results).hasSize(1)
+            assertThat(results[0].blobId.value).isEqualTo("ptest")
+        }
+
+        @Test
+        fun `dot-segment paths are normalized`() = runTest {
+            // Href with dot segments like /dav/./  should normalize to /dav/
+            val rootDir = DavResource(
+                href = "/dav/./",
+                isDirectory = true,
+                name = ""
+            )
+            val file = DavResource(
+                href = "/dav/short.f",
+                name = "short.f",
+                isDirectory = false,
+                contentLength = 10L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+
+            every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
+
+            val results = storage.listBlobs("").toList()
+
+            assertThat(results).hasSize(1)
+            assertThat(results[0].blobId.value).isEqualTo("short")
+        }
+
+        @Test
+        fun `double-slash paths are handled`() = runTest {
+            // Some servers may return double slashes in hrefs
+            val rootDir = DavResource(
+                href = "//dav//",
+                isDirectory = true,
+                name = ""
+            )
+            val file = DavResource(
+                href = "/dav/data.f",
+                name = "data.f",
+                isDirectory = false,
+                contentLength = 5L,
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+            )
+
+            every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
+
+            val results = storage.listBlobs("").toList()
+
+            // The rootDir with double-slash won't match the baseUrl path,
+            // so it would be treated as a non-self entry. But since isDirectory=true
+            // and name="" it gets skipped by the empty name guard.
+            assertThat(results).hasSize(1)
+            assertThat(results[0].blobId.value).isEqualTo("data")
+        }
+    }
+
+    @Nested
     @DisplayName("connectionInfo and displayName")
     inner class ConnectionInfoTests {
 

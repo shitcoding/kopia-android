@@ -171,12 +171,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# Should show backend authentication/SDK error
-# NOTE: Current S3 SDK has Android compatibility issue (missing javax.xml.stream),
-# so error may be about XMLInputFactory instead of auth
+# Should show backend authentication error
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*denied.*|.*failed.*|.*error.*|.*credentials.*|.*403.*|.*Access Denied.*|.*XMLInput.*|.*Unable to execute.*"
+      text: ".*invalid.*|.*denied.*|.*failed.*|.*error.*|.*credentials.*|.*403.*|.*Access Denied.*"
     timeout: 15000
 
 # ========================================
@@ -226,10 +224,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# Should show error (SDK or repo auth)
+# Should show error (repo auth)
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*|.*XMLInput.*|.*Unable to execute.*"
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
     timeout: 15000
 
 # ========================================
@@ -279,10 +277,7 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# NOTE: This will fail until S3 SDK Android compatibility is fixed
-# (missing javax.xml.stream.XMLInputFactory)
-# For now, just verify we see an error rather than a crash
+# Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:
-    visible:
-      text: ".*Snapshots.*|.*error.*|.*failed.*|.*Unable.*"
+    visible: "Snapshots"
     timeout: 30000

@@ -186,11 +186,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# Should show SSH/auth error or X25519 crypto error
-# NOTE: Current SFTP library has Android compatibility issue (X25519 not supported)
+# Should show SSH/auth error
 - extendedWaitUntil:
     visible:
-      text: ".*auth.*|.*denied.*|.*failed.*|.*error.*|.*ssh.*|.*handshake.*|.*X25519.*|.*algorithm.*"
+      text: ".*auth.*|.*denied.*|.*failed.*|.*error.*|.*ssh.*|.*handshake.*"
     timeout: 15000
 
 # ========================================
@@ -245,10 +244,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# Should show error (crypto or repo auth)
+# Should show repo auth error
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*|.*X25519.*|.*algorithm.*"
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
     timeout: 15000
 
 # ========================================
@@ -303,9 +302,7 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# NOTE: This will fail until SFTP X25519 algorithm support is fixed
-# For now, just verify we see an error rather than a crash
+# Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:
-    visible:
-      text: ".*Snapshots.*|.*error.*|.*failed.*|.*X25519.*|.*algorithm.*"
+    visible: "Snapshots"
     timeout: 30000

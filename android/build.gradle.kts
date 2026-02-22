@@ -52,9 +52,11 @@ android {
                 "META-INF/INDEX.LIST",
                 "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
                 "META-INF/versions/**",
-                "META-INF/services/javax.xml.stream.*",
-                "META-INF/services/com.fasterxml.woodstox.*",
                 "META-INF/io.netty.versions.properties"
+            )
+            pickFirsts += listOf(
+                "META-INF/services/javax.xml.stream.*",
+                "META-INF/services/com.fasterxml.woodstox.*"
             )
         }
     }

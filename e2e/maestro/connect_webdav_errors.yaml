@@ -145,12 +145,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# NOTE: WebDAV Sardine library has Android compatibility issue
-# (AllowAllHostnameVerifier.INSTANCE not found), so this may crash the app.
-# If no crash, should show auth/HTTP error.
+# Should show auth/HTTP error
 - extendedWaitUntil:
     visible:
-      text: ".*401.*|.*[Uu]nauthorized.*|.*denied.*|.*failed.*|.*error.*|.*invalid.*|.*HostnameVerifier.*|.*NoSuchField.*"
+      text: ".*401.*|.*[Uu]nauthorized.*|.*denied.*|.*failed.*|.*error.*|.*invalid.*"
     timeout: 15000
 
 # ========================================
@@ -192,10 +190,10 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# NOTE: May crash due to Sardine library issue before reaching repo auth
+# Should show repo auth error
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*|.*HostnameVerifier.*|.*NoSuchField.*"
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
     timeout: 15000
 
 # ========================================
@@ -237,9 +235,7 @@ appId: org.kopiaKt.app
 
 - tapOn: "Connect"
 
-# NOTE: This will fail until Sardine library Android compatibility is fixed
-# For now, just verify we see an error rather than a crash
+# Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:
-    visible:
-      text: ".*Snapshots.*|.*error.*|.*failed.*|.*Unable.*|.*HostnameVerifier.*"
+    visible: "Snapshots"
     timeout: 30000

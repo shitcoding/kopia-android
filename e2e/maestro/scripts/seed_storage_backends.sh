@@ -114,7 +114,18 @@ docker exec kopia-e2e-sftp chown -R kopia:users /home/kopia/upload 2>/dev/null |
 
 echo "  Fetching SFTP host key..."
 SFTP_KNOWN_HOSTS=$(mktemp)
-ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v '^#' > "$SFTP_KNOWN_HOSTS"
+for attempt in 1 2 3 4 5; do
+  ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v '^#' > "$SFTP_KNOWN_HOSTS"
+  if [ -s "$SFTP_KNOWN_HOSTS" ]; then
+    break
+  fi
+  echo "    ssh-keyscan attempt $attempt failed, retrying in 2s..."
+  sleep 2
+done
+if [ ! -s "$SFTP_KNOWN_HOSTS" ]; then
+  echo "ERROR: ssh-keyscan failed after 5 attempts"
+  exit 1
+fi
 
 echo "  Creating SFTP repository..."
 KOPIA_PASSWORD="$REPO_PASSWORD" kopia repository create sftp \

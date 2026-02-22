@@ -7,11 +7,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.InputStream
-import java.io.StringReader
+import java.io.BufferedInputStream
 import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
 import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.XMLStreamConstants
+import javax.xml.stream.XMLStreamException
 import javax.xml.stream.XMLStreamReader
 
 /**
@@ -73,8 +74,10 @@ class OkHttpWebDavClient(
                 throwForStatus(resp)
             }
 
-            val body = resp.body?.string() ?: return emptyList()
-            return parsePropfindResponse(body)
+            val body = resp.body ?: return emptyList()
+            return body.byteStream().use { stream ->
+                parsePropfindResponse(stream)
+            }
         }
     }
 
@@ -236,76 +239,87 @@ class OkHttpWebDavClient(
      * Parses a WebDAV multi-status (207) PROPFIND XML response into [DavResource] entries.
      *
      * Uses StAX (javax.xml.stream) which is available in the JDK and on Android API 26+.
+     * Parses directly from the response [InputStream] to avoid buffering the entire body
+     * as a String.
      */
-    private fun parsePropfindResponse(xml: String): List<DavResource> {
+    private fun parsePropfindResponse(input: InputStream): List<DavResource> {
         val resources = mutableListOf<DavResource>()
         val xmlFactory = XMLInputFactory.newInstance()
         // Disable external entity resolution for security
         xmlFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false)
         xmlFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false)
 
-        val reader: XMLStreamReader = xmlFactory.createXMLStreamReader(StringReader(xml))
+        val reader: XMLStreamReader = xmlFactory.createXMLStreamReader(BufferedInputStream(input))
 
-        var href: String? = null
-        var contentLength: Long = -1
-        var isDirectory = false
-        var lastModified: String? = null
-        var insideResponse = false
-        var insideResourceType = false
-        var currentText = StringBuilder()
+        try {
+            var href: String? = null
+            var contentLength: Long = -1
+            var isDirectory = false
+            var lastModified: String? = null
+            var insideResponse = false
+            var insideResourceType = false
+            var currentText = StringBuilder()
 
-        while (reader.hasNext()) {
-            when (reader.next()) {
-                XMLStreamConstants.START_ELEMENT -> {
-                    val localName = reader.localName
-                    when (localName) {
-                        "response" -> {
-                            insideResponse = true
-                            href = null
-                            contentLength = -1
-                            isDirectory = false
-                            lastModified = null
-                        }
-                        "resourcetype" -> insideResourceType = true
-                        "collection" -> {
-                            if (insideResourceType) {
-                                isDirectory = true
+            while (reader.hasNext()) {
+                when (reader.next()) {
+                    XMLStreamConstants.START_ELEMENT -> {
+                        val localName = reader.localName
+                        when (localName) {
+                            "response" -> {
+                                insideResponse = true
+                                href = null
+                                contentLength = -1
+                                isDirectory = false
+                                lastModified = null
+                            }
+                            "resourcetype" -> insideResourceType = true
+                            "collection" -> {
+                                if (insideResourceType) {
+                                    isDirectory = true
+                                }
                             }
                         }
+                        currentText.clear()
                     }
-                    currentText.clear()
-                }
-                XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA -> {
-                    currentText.append(reader.text)
-                }
-                XMLStreamConstants.END_ELEMENT -> {
-                    val localName = reader.localName
-                    when (localName) {
-                        "href" -> href = currentText.toString().trim()
-                        "getcontentlength" -> {
-                            contentLength = currentText.toString().trim().toLongOrNull() ?: -1
-                        }
-                        "getlastmodified" -> lastModified = currentText.toString().trim()
-                        "resourcetype" -> insideResourceType = false
-                        "response" -> {
-                            if (insideResponse && href != null) {
-                                resources.add(
-                                    DavResource(
-                                        href = href,
-                                        contentLength = contentLength,
-                                        isDirectory = isDirectory,
-                                        lastModified = lastModified,
-                                        name = extractName(href)
-                                    )
-                                )
+                    XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA -> {
+                        currentText.append(reader.text)
+                    }
+                    XMLStreamConstants.END_ELEMENT -> {
+                        val localName = reader.localName
+                        when (localName) {
+                            "href" -> href = currentText.toString().trim()
+                            "getcontentlength" -> {
+                                contentLength = currentText.toString().trim().toLongOrNull() ?: -1
                             }
-                            insideResponse = false
+                            "getlastmodified" -> lastModified = currentText.toString().trim()
+                            "resourcetype" -> insideResourceType = false
+                            "response" -> {
+                                if (insideResponse && href != null) {
+                                    resources.add(
+                                        DavResource(
+                                            href = href,
+                                            contentLength = contentLength,
+                                            isDirectory = isDirectory,
+                                            lastModified = lastModified,
+                                            name = extractName(href)
+                                        )
+                                    )
+                                }
+                                insideResponse = false
+                            }
                         }
                     }
                 }
             }
+        } catch (e: XMLStreamException) {
+            throw WebDavException("Failed to parse PROPFIND response: ${e.message}", 207)
+        } finally {
+            try {
+                reader.close()
+            } catch (_: XMLStreamException) {
+                // Ignore close errors
+            }
         }
-        reader.close()
 
         return resources
     }
