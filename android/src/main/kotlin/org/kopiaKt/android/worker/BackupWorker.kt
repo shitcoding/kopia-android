@@ -213,7 +213,8 @@ class BackupWorker(
             repository = repository,
             config = sessionConfig,
             checkpointStore = checkpointStore,
-            callback = callback
+            callback = callback,
+            context = applicationContext
         )
         currentSession.set(session)
 

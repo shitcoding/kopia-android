@@ -1,10 +1,13 @@
 package org.kopiaKt.android.worker
 
+import android.content.Context
+import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.kopiaKt.android.storage.SafFilesystem
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.RepositoryWriter
@@ -120,7 +123,8 @@ class BackupSession(
     private val repository: DirectRepository,
     private val config: BackupSessionConfig,
     private val checkpointStore: CheckpointStore,
-    private val callback: BackupSessionCallback = NullBackupSessionCallback()
+    private val callback: BackupSessionCallback = NullBackupSessionCallback(),
+    private val context: Context? = null
 ) {
     private val cancelled = AtomicBoolean(false)
     private val uploaderRef = AtomicReference<SnapshotUploader?>(null)
@@ -262,6 +266,16 @@ class BackupSession(
     }
 
     private fun openSourceDirectory(): Directory {
+        if (config.sourcePath.startsWith("content://")) {
+            val ctx = context
+                ?: throw IllegalStateException(
+                    "Context is required for SAF URI backup. " +
+                        "Pass context to BackupSession constructor."
+                )
+            val uri = Uri.parse(config.sourcePath)
+            return SafFilesystem.directory(ctx, uri)
+        }
+
         val sourceFile = File(config.sourcePath)
         if (!sourceFile.exists()) {
             throw IllegalArgumentException("Source path does not exist: ${config.sourcePath}")

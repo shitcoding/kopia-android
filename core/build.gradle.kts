@@ -27,6 +27,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing.unit)
+    testImplementation(project(":storage"))
     testRuntimeOnly(libs.junit5.engine)
 }
 

@@ -15,7 +15,12 @@ import org.kopiaKt.app.domain.model.RepositoryConnection
 import org.kopiaKt.app.domain.model.StorageType
 import org.kopiaKt.app.domain.repository.ConnectionState
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
+import org.kopiaKt.app.domain.repository.RepositoryCreateOptions
 import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.encryption.EncryptionAlgorithm
+import org.kopiaKt.core.format.RepositoryConfig
+import org.kopiaKt.core.hashing.HashAlgorithm
+import java.security.SecureRandom
 import org.kopiaKt.core.repository.ClientOptions
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
@@ -80,10 +85,56 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         }
     }
 
+    override suspend fun create(
+        config: ConnectionConfig,
+        repositoryPassword: String,
+        options: RepositoryCreateOptions
+    ): Result<RepositoryConnection> = withContext(Dispatchers.IO) {
+        _connectionState.value = ConnectionState.Connecting
+
+        try {
+            val storage = createBlobStorage(config)
+
+            val repoConfig = buildRepositoryConfig(options)
+
+            val clientOpts = ClientOptions.withDefaults(
+                description = options.description.ifEmpty { "KopiaKt Android" }
+            )
+
+            val repository = DirectRepositoryImpl.create(
+                blobStorage = storage,
+                password = repositoryPassword,
+                config = repoConfig,
+                clientOptions = clientOpts
+            )
+
+            currentRepository = repository
+
+            val connection = RepositoryConnection(
+                id = UUID.randomUUID().toString(),
+                displayName = getDisplayName(config),
+                storageType = getStorageType(config),
+                connectionConfig = config,
+                lastConnected = Instant.now(),
+                isConnected = true
+            )
+
+            _connectionState.value = ConnectionState.Connected(connection)
+            Result.success(connection)
+
+        } catch (e: Exception) {
+            _connectionState.value = ConnectionState.Error(e.message ?: "Repository creation failed")
+            Result.failure(e)
+        }
+    }
+
     override suspend fun disconnect() {
-        currentRepository?.close()
-        currentRepository = null
-        _connectionState.value = ConnectionState.Disconnected
+        withContext(Dispatchers.IO) {
+            val repo = currentRepository
+            currentRepository = null
+            _connectionState.value = ConnectionState.Disconnected
+            repo?.close()
+        }
     }
 
     override suspend fun getStoredConnections(): List<RepositoryConnection> {
@@ -95,7 +146,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         // TODO: Implement
     }
 
-    fun getRepository(): DirectRepository? = currentRepository
+    override fun getRepository(): DirectRepository? = currentRepository
 
     private suspend fun createBlobStorage(
         config: ConnectionConfig
@@ -164,5 +215,19 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         is ConnectionConfig.WebDAV -> StorageType.WEBDAV
         is ConnectionConfig.SFTP -> StorageType.SFTP
         is ConnectionConfig.SAF -> StorageType.SAF
+    }
+
+    private fun buildRepositoryConfig(options: RepositoryCreateOptions): RepositoryConfig {
+        val random = SecureRandom()
+        val secret = ByteArray(32).also { random.nextBytes(it) }
+        val masterKey = ByteArray(32).also { random.nextBytes(it) }
+
+        return RepositoryConfig(
+            hash = options.hashAlgorithm ?: HashAlgorithm.DEFAULT.id,
+            encryption = options.encryptionAlgorithm ?: EncryptionAlgorithm.DEFAULT.id,
+            secret = secret,
+            masterKey = masterKey,
+            splitter = options.splitterAlgorithm ?: "DYNAMIC-4M-BUZHASH"
+        )
     }
 }
