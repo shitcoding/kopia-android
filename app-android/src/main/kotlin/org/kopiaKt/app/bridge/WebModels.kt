@@ -365,3 +365,89 @@ fun RestoreState.isTerminal() =
     this == RestoreState.COMPLETED ||
         this == RestoreState.FAILED ||
         this == RestoreState.CANCELLED
+
+// ===== Backup Source Models =====
+
+@Serializable
+data class WebCreateSourceRequest(
+    val path: String,
+    val displayName: String = ""
+)
+
+@Serializable
+data class WebBackupSourceInfo(
+    val id: String,
+    val path: String,
+    val displayName: String,
+    val status: String,
+    val lastSnapshotTimeEpochMs: Long? = null,
+    val createdAtEpochMs: Long
+)
+
+// ===== Task Models =====
+
+@Serializable
+data class WebTaskInfo(
+    val id: String,
+    val kind: String,
+    val description: String,
+    val status: String,
+    val progressInfo: String = "",
+    val counters: Map<String, WebTaskCounterValue> = emptyMap(),
+    val errorMessage: String? = null,
+    val startTimeEpochMs: Long,
+    val endTimeEpochMs: Long? = null
+)
+
+@Serializable
+data class WebTaskCounterValue(
+    val value: Long,
+    val units: String,
+    val level: String = ""
+)
+
+// ===== Policy Request Models =====
+
+@Serializable
+data class WebPolicySourceRequest(
+    val host: String,
+    val userName: String,
+    val path: String
+)
+
+@Serializable
+data class WebSetPolicyRequest(
+    val source: WebPolicySourceRequest,
+    val policy: org.kopiaKt.snapshot.policy.Policy
+)
+
+// ===== Backup Source -> Web Mappings =====
+
+fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
+    id = id,
+    path = path,
+    displayName = displayName,
+    status = status.name,
+    lastSnapshotTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
+    createdAtEpochMs = createdAt.toEpochMilli()
+)
+
+fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(
+    id = id,
+    kind = kind.name,
+    description = description,
+    status = status.name,
+    progressInfo = progressInfo,
+    counters = counters.mapValues { (_, v) ->
+        WebTaskCounterValue(value = v.value, units = v.units, level = v.level)
+    },
+    errorMessage = errorMessage,
+    startTimeEpochMs = startTime.toEpochMilli(),
+    endTimeEpochMs = endTime?.toEpochMilli()
+)
+
+fun WebPolicySourceRequest.toSnapshotSourceInfo() = org.kopiaKt.snapshot.model.SourceInfo(
+    host = host,
+    userName = userName,
+    path = path
+)

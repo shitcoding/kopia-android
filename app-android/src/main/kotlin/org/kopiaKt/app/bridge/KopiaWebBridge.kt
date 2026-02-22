@@ -25,8 +25,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.kopiaKt.android.worker.BackupSourceManager
+import org.kopiaKt.android.worker.TaskKind
+import org.kopiaKt.android.worker.TaskManager
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
+import org.kopiaKt.snapshot.policy.PolicyManager
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicInteger
@@ -51,24 +55,70 @@ interface WebBridgeEntryPoint {
  * Methods that need to return data use JSON serialization.
  * Async operations (like restore) push events back to JavaScript via evaluateJavascript.
  */
-class KopiaWebBridge(
-    private val context: Context,
-    private val activity: ComponentActivity,
-    private val containerView: android.view.View,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+class KopiaWebBridge private constructor(
+    private val context: Context?,
+    private val activity: ComponentActivity?,
+    private val containerView: android.view.View?,
+    private val scope: CoroutineScope,
+    private val _taskManager: TaskManager?,
+    private val _sourceManager: BackupSourceManager?,
+    private val _repositoryManager: KopiaRepositoryManager?
 ) {
+    /**
+     * Primary constructor for production use with Android context and Hilt DI.
+     */
+    constructor(
+        context: Context,
+        activity: ComponentActivity,
+        containerView: android.view.View,
+        scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    ) : this(
+        context = context,
+        activity = activity,
+        containerView = containerView,
+        scope = scope,
+        _taskManager = null,
+        _sourceManager = null,
+        _repositoryManager = null
+    )
+
+    /**
+     * Test constructor that accepts managers directly, avoiding Android/Hilt dependencies.
+     */
+    constructor(
+        taskManager: TaskManager,
+        sourceManager: BackupSourceManager,
+        repositoryManager: KopiaRepositoryManager
+    ) : this(
+        context = null,
+        activity = null,
+        containerView = null,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        _taskManager = taskManager,
+        _sourceManager = sourceManager,
+        _repositoryManager = repositoryManager
+    )
+
     private companion object {
         const val TAG = "KopiaWebBridge"
     }
 
-    private val entryPoint = EntryPointAccessors.fromApplication(
-        context,
-        WebBridgeEntryPoint::class.java
-    )
+    private val entryPoint by lazy {
+        EntryPointAccessors.fromApplication(
+            context!!,
+            WebBridgeEntryPoint::class.java
+        )
+    }
 
-    private val repositoryManager get() = entryPoint.repositoryManager()
+    private val repositoryManager: KopiaRepositoryManager
+        get() = _repositoryManager ?: entryPoint.repositoryManager()
     private val snapshotRepository get() = entryPoint.snapshotRepository()
     private val credentialRepository get() = entryPoint.credentialRepository()
+
+    internal val taskManager: TaskManager
+        get() = _taskManager ?: throw IllegalStateException("TaskManager not available. Provide via EntryPoint or test constructor.")
+    internal val sourceManager: BackupSourceManager
+        get() = _sourceManager ?: throw IllegalStateException("BackupSourceManager not available. Provide via EntryPoint or test constructor.")
 
     private val webViewRef = AtomicReference<WebView?>()
     private val json = Json {
@@ -99,8 +149,9 @@ class KopiaWebBridge(
      */
     @JavascriptInterface
     fun setStatusBarAppearance(isDarkMode: Boolean) {
-        activity.runOnUiThread {
-            val window = activity.window
+        val act = activity ?: return
+        act.runOnUiThread {
+            val window = act.window
 
             // Background colors matching React CSS exactly:
             // Light mode: --background: 220 20% 97% = #F7F8FA
@@ -125,7 +176,7 @@ class KopiaWebBridge(
             }
 
             // Also update the container view background (the WebView's parent)
-            containerView.setBackgroundColor(bgColor)
+            containerView?.setBackgroundColor(bgColor)
         }
     }
 
@@ -135,7 +186,7 @@ class KopiaWebBridge(
      */
     @JavascriptInterface
     fun getSystemTheme(): String {
-        val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val uiMode = (context?.resources?.configuration?.uiMode ?: 0) and Configuration.UI_MODE_NIGHT_MASK
         val theme = when (uiMode) {
             Configuration.UI_MODE_NIGHT_YES -> "dark"
             Configuration.UI_MODE_NIGHT_NO -> "light"
@@ -165,12 +216,14 @@ class KopiaWebBridge(
      */
     @JavascriptInterface
     fun openStoragePermissionSettings() {
-        activity.runOnUiThread {
+        val act = activity ?: return
+        val ctx = context ?: return
+        act.runOnUiThread {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${context.packageName}")
+                    data = Uri.parse("package:${ctx.packageName}")
                 }
-                activity.startActivity(intent)
+                act.startActivity(intent)
             }
         }
     }
@@ -229,7 +282,7 @@ class KopiaWebBridge(
     }
 
     private fun callJavaScript(script: String) {
-        activity.runOnUiThread {
+        activity?.runOnUiThread {
             webViewRef.get()?.evaluateJavascript(script, null)
         }
     }
@@ -479,10 +532,11 @@ class KopiaWebBridge(
      */
     @JavascriptInterface
     fun pickRestoreDestination() {
+        val act = activity ?: return
         val key = "kopia_pick_${UUID.randomUUID()}"
-        activity.runOnUiThread {
+        act.runOnUiThread {
             var launcher: androidx.activity.result.ActivityResultLauncher<Uri?>? = null
-            launcher = activity.activityResultRegistry.register(
+            launcher = act.activityResultRegistry.register(
                 key,
                 ActivityResultContracts.OpenDocumentTree()
             ) { uri ->
@@ -509,10 +563,11 @@ class KopiaWebBridge(
     @JavascriptInterface
     fun persistUriPermission(requestJson: String): String {
         return try {
+            val ctx = context ?: throw IllegalStateException("Context not available")
             val request = json.decodeFromString<WebPersistUriRequest>(requestJson)
             val flags = (if (request.read) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
                 (if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
-            context.contentResolver.takePersistableUriPermission(Uri.parse(request.uri), flags)
+            ctx.contentResolver.takePersistableUriPermission(Uri.parse(request.uri), flags)
             json.encodeToString(WebResult.success(Unit))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<Unit>(e.message ?: "Failed to persist permission"))
@@ -627,7 +682,7 @@ class KopiaWebBridge(
      * Called by the Activity when it detects a configuration change.
      */
     fun notifySystemThemeChanged() {
-        val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val uiMode = (context?.resources?.configuration?.uiMode ?: 0) and Configuration.UI_MODE_NIGHT_MASK
         val theme = when (uiMode) {
             Configuration.UI_MODE_NIGHT_YES -> "dark"
             Configuration.UI_MODE_NIGHT_NO -> "light"
@@ -639,6 +694,254 @@ class KopiaWebBridge(
                 "window.KopiaEvents?.onSystemThemeChanged?.($jsonStr);",
                 null
             )
+        }
+    }
+
+    // ================================================================
+    // Source Management Methods
+    // ================================================================
+
+    /**
+     * Create a new backup source.
+     * @param requestJson JSON-encoded WebCreateSourceRequest
+     * @return JSON-encoded WebResult<WebBackupSourceInfo>
+     */
+    @JavascriptInterface
+    fun createSource(requestJson: String): String {
+        return try {
+            val request = json.decodeFromString<WebCreateSourceRequest>(requestJson)
+            val source = sourceManager.createSource(request.path, request.displayName)
+            json.encodeToString(WebResult.success(source.toWeb()))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebBackupSourceInfo>(e.message ?: "Error creating source"))
+        }
+    }
+
+    /**
+     * Delete a backup source by ID.
+     * @param sourceId The source ID to delete
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun deleteSource(sourceId: String): String {
+        return try {
+            val existing = sourceManager.getSource(sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<Boolean>("Source not found: $sourceId")
+                )
+            sourceManager.deleteSource(sourceId)
+            json.encodeToString(WebResult.success(true))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error deleting source"))
+        }
+    }
+
+    /**
+     * Get the current status of a backup source.
+     * @param sourceId The source ID
+     * @return JSON-encoded WebResult<WebBackupSourceInfo>
+     */
+    @JavascriptInterface
+    fun getSourceStatus(sourceId: String): String {
+        return try {
+            val source = sourceManager.getSource(sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<WebBackupSourceInfo>("Source not found: $sourceId")
+                )
+            json.encodeToString(WebResult.success(source.toWeb()))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebBackupSourceInfo>(e.message ?: "Error getting source status"))
+        }
+    }
+
+    /**
+     * Pause a backup source.
+     * @param sourceId The source ID to pause
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun pauseSource(sourceId: String): String {
+        return try {
+            val existing = sourceManager.getSource(sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<Boolean>("Source not found: $sourceId")
+                )
+            sourceManager.pauseSource(sourceId)
+            json.encodeToString(WebResult.success(true))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error pausing source"))
+        }
+    }
+
+    /**
+     * Resume a paused backup source.
+     * @param sourceId The source ID to resume
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun resumeSource(sourceId: String): String {
+        return try {
+            val existing = sourceManager.getSource(sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<Boolean>("Source not found: $sourceId")
+                )
+            sourceManager.resumeSource(sourceId)
+            json.encodeToString(WebResult.success(true))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error resuming source"))
+        }
+    }
+
+    // ================================================================
+    // Backup Operations Methods
+    // ================================================================
+
+    /**
+     * Start a backup for the given source.
+     * @param sourceId The source ID to back up
+     * @return JSON-encoded WebResult<String> containing the task ID
+     */
+    @JavascriptInterface
+    fun startBackup(sourceId: String): String {
+        return try {
+            val source = sourceManager.getSource(sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<String>("Source not found: $sourceId")
+                )
+            val taskId = taskManager.startTask(
+                kind = TaskKind.BACKUP,
+                description = "Backup ${source.displayName}"
+            ) { controller ->
+                // The actual backup work will be delegated to BackupWorker
+                // in a full implementation. For now, the task tracks lifecycle.
+                controller.reportProgress("Starting backup for ${source.path}")
+            }
+            json.encodeToString(WebResult.success(taskId))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<String>(e.message ?: "Error starting backup"))
+        }
+    }
+
+    /**
+     * Cancel a running backup by task ID.
+     * @param taskId The task ID to cancel
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun cancelBackup(taskId: String): String {
+        return try {
+            val task = taskManager.getTask(taskId)
+                ?: return json.encodeToString(
+                    WebResult.error<Boolean>("Task not found: $taskId")
+                )
+            taskManager.cancelTask(taskId)
+            json.encodeToString(WebResult.success(true))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error cancelling backup"))
+        }
+    }
+
+    // ================================================================
+    // Task Management Methods
+    // ================================================================
+
+    /**
+     * List all tracked tasks.
+     * @return JSON-encoded WebResult<List<WebTaskInfo>>
+     */
+    @JavascriptInterface
+    fun listTasks(): String {
+        return try {
+            val tasks = taskManager.listTasks()
+            json.encodeToString(WebResult.success(tasks.map { it.toWeb() }))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebTaskInfo>>(e.message ?: "Error listing tasks"))
+        }
+    }
+
+    /**
+     * Get details of a specific task.
+     * @param taskId The task ID
+     * @return JSON-encoded WebResult<WebTaskInfo?>
+     */
+    @JavascriptInterface
+    fun getTask(taskId: String): String {
+        return try {
+            val task = taskManager.getTask(taskId)
+            json.encodeToString(WebResult.success(task?.toWeb()))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebTaskInfo?>(e.message ?: "Error getting task"))
+        }
+    }
+
+    /**
+     * Cancel a running task.
+     * @param taskId The task ID to cancel
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun cancelTask(taskId: String): String {
+        return try {
+            val task = taskManager.getTask(taskId)
+                ?: return json.encodeToString(
+                    WebResult.error<Boolean>("Task not found: $taskId")
+                )
+            taskManager.cancelTask(taskId)
+            json.encodeToString(WebResult.success(true))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error cancelling task"))
+        }
+    }
+
+    // ================================================================
+    // Policy Management Methods
+    // ================================================================
+
+    /**
+     * Get the policy for a source.
+     * @param requestJson JSON-encoded WebPolicySourceRequest
+     * @return JSON-encoded WebResult<Policy?>
+     */
+    @JavascriptInterface
+    fun getPolicy(requestJson: String): String {
+        return runBlocking {
+            try {
+                val repo = repositoryManager.getRepository()
+                    ?: return@runBlocking json.encodeToString(
+                        WebResult.error<org.kopiaKt.snapshot.policy.Policy?>("Repository not connected")
+                    )
+                val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
+                val sourceInfo = request.toSnapshotSourceInfo()
+                val policy = PolicyManager.getPolicy(repo, sourceInfo)
+                json.encodeToString(WebResult.success(policy))
+            } catch (e: Exception) {
+                json.encodeToString(
+                    WebResult.error<org.kopiaKt.snapshot.policy.Policy?>(e.message ?: "Error getting policy")
+                )
+            }
+        }
+    }
+
+    /**
+     * Set a policy for a source.
+     * @param requestJson JSON-encoded WebSetPolicyRequest
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun setPolicy(requestJson: String): String {
+        return runBlocking {
+            try {
+                val repo = repositoryManager.getRepository()
+                    ?: return@runBlocking json.encodeToString(
+                        WebResult.error<Boolean>("Repository not connected")
+                    )
+                val request = json.decodeFromString<WebSetPolicyRequest>(requestJson)
+                val sourceInfo = request.source.toSnapshotSourceInfo()
+                PolicyManager.setPolicy(repo, sourceInfo, request.policy)
+                json.encodeToString(WebResult.success(true))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error setting policy"))
+            }
         }
     }
 
