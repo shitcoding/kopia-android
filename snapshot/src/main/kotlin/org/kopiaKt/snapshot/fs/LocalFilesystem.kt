@@ -66,15 +66,18 @@ object LocalFilesystem {
 
     private fun readOwner(path: Path, linkOptions: Array<LinkOption>): OwnerInfo {
         return try {
-            val posixAttrs = Files.readAttributes(path, PosixFileAttributes::class.java, *linkOptions)
-            // On Unix, we can get the actual UID/GID via reflection or native calls
-            // For now, return placeholder values as Java doesn't expose raw UID/GID
-            OwnerInfo(
-                userId = posixAttrs.owner().name.hashCode(),
-                groupId = posixAttrs.group().name.hashCode()
-            )
+            // Read numeric UID/GID via the unix file attribute view.
+            // This is available on Unix/macOS and returns actual numeric IDs
+            // that Go Kopia expects (uint32 in the DirEntry JSON).
+            val attrs = Files.readAttributes(path, "unix:uid,gid", *linkOptions)
+            val uid = attrs["uid"] as? Int ?: 0
+            val gid = attrs["gid"] as? Int ?: 0
+            OwnerInfo(userId = uid, groupId = gid)
         } catch (e: UnsupportedOperationException) {
             // Windows or other non-POSIX filesystem
+            OwnerInfo.EMPTY
+        } catch (e: IllegalArgumentException) {
+            // unix attribute view not available
             OwnerInfo.EMPTY
         } catch (e: Exception) {
             OwnerInfo.EMPTY

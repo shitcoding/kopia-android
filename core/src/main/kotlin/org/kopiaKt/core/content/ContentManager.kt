@@ -70,7 +70,8 @@ class ContentManager(
     encryptionKey: ByteArray,
     private val compressorFactory: CompressorFactory,
     private val defaultCompression: CompressionAlgorithm = CompressionAlgorithm.NONE,
-    private val maxPackSize: Int = DEFAULT_MAX_PACK_SIZE
+    private val maxPackSize: Int = DEFAULT_MAX_PACK_SIZE,
+    private val epochsEnabled: Boolean = false
 ) {
     private val hasher: ContentHasher = hasherFactory.create(hashAlgorithm, hashSecret)
     private val encryptor: Encryptor = encryptorFactory.create(encryptionAlgorithm, encryptionKey)
@@ -479,7 +480,9 @@ class ContentManager(
 
     private fun generateIndexBlobId(): BlobId {
         val randomPart = generateRandomHex(16)
-        return BlobId("$INDEX_BLOB_PREFIX$randomPart-$sessionId")
+        // Use 'n' prefix for non-epoch repos (Go compatibility), 'x' for epoch-managed
+        val prefix = if (epochsEnabled) INDEX_BLOB_PREFIX else INDEX_BLOB_PREFIX_OLD
+        return BlobId("$prefix$randomPart-$sessionId")
     }
 
     private fun generateSessionId(): String {

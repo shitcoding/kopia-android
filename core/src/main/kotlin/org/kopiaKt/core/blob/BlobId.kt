@@ -34,10 +34,10 @@ value class BlobId(val value: String) {
         get() = hasPrefix(PACK_BLOB_PREFIX) || hasPrefix(PACK_SPECIAL_PREFIX)
 
     /**
-     * Returns true if this is an index blob (n prefix).
+     * Returns true if this is an index blob (n or x prefix).
      */
     val isIndexBlob: Boolean
-        get() = hasPrefix(INDEX_BLOB_PREFIX)
+        get() = hasPrefix(INDEX_BLOB_PREFIX) || hasPrefix(INDEX_SHARD_PREFIX)
 
     /**
      * Returns true if this is a session blob (s prefix).

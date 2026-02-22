@@ -446,7 +446,8 @@ class DirectRepositoryImpl private constructor(
                 encryptionKey = config.masterKey,
                 compressorFactory = compressorFactory,
                 defaultCompression = defaultCompression,
-                maxPackSize = config.maxPackSize
+                maxPackSize = config.maxPackSize,
+                epochsEnabled = config.epochParameters.enabled
             )
         }
     }

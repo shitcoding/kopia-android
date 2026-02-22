@@ -94,7 +94,7 @@ data class KopiaRepositoryJson(
             "Unknown encryption algorithm: '$encryption'"
         }
 
-        val data = json.encodeToString(EncryptedRepositoryConfig(config))
+        val data = jsonWriter.encodeToString(EncryptedRepositoryConfig(config))
         val encrypted = encryptRepositoryBlobBytesAes256Gcm(
             data.toByteArray(Charsets.UTF_8),
             masterKey,
@@ -144,6 +144,12 @@ data class KopiaRepositoryJson(
             encodeDefaults = false
         }
 
+        /** JSON encoder that always writes defaults. Required for Go Kopia compatibility. */
+        private val jsonWriter = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
+
         /**
          * Parses the kopia.repository blob JSON.
          *
@@ -179,7 +185,7 @@ data class KopiaRepositoryJson(
          * Serializes this to JSON bytes.
          */
         fun KopiaRepositoryJson.toJson(): ByteArray {
-            return json.encodeToString(this).toByteArray(Charsets.UTF_8)
+            return jsonWriter.encodeToString(this).toByteArray(Charsets.UTF_8)
         }
     }
 }

@@ -298,7 +298,10 @@ class FilesystemBlobStorage private constructor(
         private val DEFAULT_SHARDS = listOf(1, 3)
         private const val DEFAULT_MAX_NON_SHARDED_LENGTH = 20
 
-        private val json = Json { ignoreUnknownKeys = true }
+        private val json = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
         /**
          * Creates or opens a filesystem storage at the given path.
@@ -322,7 +325,9 @@ class FilesystemBlobStorage private constructor(
                 }
             } else {
                 val config = ShardsConfig(DEFAULT_SHARDS, DEFAULT_MAX_NON_SHARDED_LENGTH)
-                if (create && !readOnly) {
+                // Always write .shards for writable storage so that Go CLI
+                // (which defaults to [3,3] sharding) uses our sharding config.
+                if (!readOnly && path.exists()) {
                     shardsFile.writeText(json.encodeToString(config))
                 }
                 config

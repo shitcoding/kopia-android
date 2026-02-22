@@ -66,6 +66,7 @@ class BlobIdTest {
     @Test
     fun `isIndexBlob detects index blob prefix`() {
         assertTrue(BlobId("n0123456789abcdef").isIndexBlob)
+        assertTrue(BlobId("x0123456789abcdef").isIndexBlob)
         assertFalse(BlobId("p0123456789abcdef").isIndexBlob)
         assertFalse(BlobId("s0123456789abcdef").isIndexBlob)
     }
