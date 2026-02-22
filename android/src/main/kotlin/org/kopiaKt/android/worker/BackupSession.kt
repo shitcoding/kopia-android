@@ -183,8 +183,29 @@ class BackupSession(
         var checkpointJob: Job? = null
         var result: BackupSessionResult
 
-        // Create writer for the session
-        val writer: RepositoryWriter = repository.newWriter(WriteSessionOptions())
+        // Create writer for the session (inside try to handle connection failures)
+        val writer: RepositoryWriter
+        try {
+            writer = repository.newWriter(WriteSessionOptions())
+        } catch (e: Throwable) {
+            val counters = currentCounters.get()
+            val checkpoint = BackupCheckpoint(
+                sourceId = config.sourceId,
+                sourcePath = config.sourcePath,
+                repositoryConnectionJson = repoConnectionJson,
+                startTime = startTimeValue.toEpochMilli(),
+                lastError = e.message
+            )
+            val checkpointSaved = try {
+                checkpointStore.saveCheckpoint(checkpoint)
+                true
+            } catch (_: Exception) {
+                false
+            }
+            result = BackupSessionResult.Failed(e, counters, checkpointSaved)
+            callback.onComplete(result)
+            return@coroutineScope result
+        }
 
         try {
             // Create uploader
