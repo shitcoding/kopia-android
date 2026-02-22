@@ -210,7 +210,7 @@ class TreeWalker(
         builder: DirManifestBuilder
     ) {
         if (cancelled.get()) {
-            return
+            throw CancelledException()
         }
 
         val entryPath = joinPath(parentPath, entry.name)
