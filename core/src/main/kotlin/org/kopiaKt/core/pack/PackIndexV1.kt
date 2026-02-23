@@ -321,21 +321,24 @@ object PackIndexV1 {
     /**
      * Determines if the first byte of key bytes is a marker/prefix byte.
      *
-     * In Go Kopia V1 index format:
-     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes
-     * - KeySize 16 or 32 = pure hash bytes (no marker)
+     * In Go Kopia index format:
+     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes (standard)
+     * - KeySize 16 or 32 = pure hash bytes, no marker (legacy)
+     * - Any odd keySize = 1 marker byte + even-length hash bytes
      *
      * The marker byte can be:
      * - 0x00 = no prefix (remaining bytes are hash)
      * - 'g'-'z' = prefix character
+     *
+     * Since contentIdToBytes always adds a marker byte, any index built by
+     * this implementation will have an odd keySize.
      *
      * @param keyBytes The key bytes (not used, but kept for API compatibility)
      * @param keySize The key size from the index header
      * @return true if the first byte should be treated as a marker byte
      */
     internal fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        // KeySize 17 or 33 means there's always a marker byte at the front
-        return keySize == 17 || keySize == 33
+        return keySize % 2 == 1
     }
 
     private fun buildEmptyIndex(): ByteArray {

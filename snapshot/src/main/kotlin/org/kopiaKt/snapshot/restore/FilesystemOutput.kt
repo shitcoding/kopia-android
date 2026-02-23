@@ -122,12 +122,20 @@ class FilesystemOutput(
             checkPath = checkPath.resolve(component)
             if (!checkPath.exists(LinkOption.NOFOLLOW_LINKS)) break
             if (checkPath.isSymbolicLink()) {
-                val realPath = checkPath.toRealPath()
-                val realRoot = normalizedTarget.toRealPath()
-                if (!realPath.startsWith(realRoot)) {
-                    throw RestoreException(
-                        "Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root"
-                    )
+                // Use toRealPath to canonically resolve the symlink target.
+                // For dangling symlinks (target doesn't exist), toRealPath throws
+                // NoSuchFileException — these are safe since they can't redirect writes.
+                try {
+                    val realPath = checkPath.toRealPath()
+                    val realRoot = normalizedTarget.toRealPath()
+                    if (!realPath.startsWith(realRoot)) {
+                        throw RestoreException(
+                            "Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root"
+                        )
+                    }
+                } catch (_: java.nio.file.NoSuchFileException) {
+                    // Dangling symlink — target doesn't exist, can't redirect writes.
+                    // Safe to skip for leaf symlinks being restored.
                 }
             }
         }

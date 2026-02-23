@@ -3,6 +3,7 @@ package org.kopiaKt.core.pack
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -36,7 +37,190 @@ object PackIndexV2 {
     }
 
     fun build(entries: List<ContentInfo>): ByteArray {
-        TODO("V2 index building not yet implemented")
+        val entrySize = ENTRY_OFFSET_HIGH_LENGTH_BITS + 1 // 19
+
+        if (entries.isEmpty()) {
+            // Return minimal valid header with zero counts
+            val header = ByteArray(HEADER_SIZE)
+            header[0] = VERSION.toByte()
+            header[1] = 17.toByte() // default keySize
+            ByteBuffer.wrap(header, 2, 2).order(ByteOrder.BIG_ENDIAN).putShort(entrySize.toShort())
+            // entryCount, packCount, numFormatInfos, baseTimestamp all stay 0
+            return header
+        }
+
+        // Convert all contentIds to key bytes and pair with their entries
+        val keyEntryPairs = entries.map { entry ->
+            contentIdToBytes(entry.contentId) to entry
+        }
+
+        // Determine keySize from first entry
+        val keySize = keyEntryPairs[0].first.size
+
+        // Sort by key bytes using unsigned byte comparison
+        val sorted = keyEntryPairs.sortedWith(Comparator { a, b ->
+            val ak = a.first
+            val bk = b.first
+            for (i in 0 until minOf(ak.size, bk.size)) {
+                val diff = (ak[i].toInt() and 0xFF) - (bk[i].toInt() and 0xFF)
+                if (diff != 0) return@Comparator diff
+            }
+            ak.size - bk.size
+        })
+
+        // Compute baseTimestamp = min of all timestampSeconds, clamped to UInt range
+        val baseTimestamp: Long = sorted.minOf { (_, entry) ->
+            entry.timestampSeconds.coerceIn(0L, UInt.MAX_VALUE.toLong())
+        }
+
+        // Deduplicate pack blob IDs, preserving insertion order
+        val packBlobIdIndex = LinkedHashMap<String, Int>()
+        for ((_, entry) in sorted) {
+            val id = entry.packBlobId.value
+            if (id !in packBlobIdIndex) {
+                packBlobIdIndex[id] = packBlobIdIndex.size
+            }
+        }
+        val packBlobIds = packBlobIdIndex.keys.toList()
+        val packCount = packBlobIds.size
+
+        // Deduplicate format tuples
+        val formatIndex = LinkedHashMap<Triple<Int, Byte, Byte>, Int>()
+        for ((_, entry) in sorted) {
+            val key = Triple(entry.compressionHeaderId, entry.formatVersion, entry.encryptionKeyId)
+            if (key !in formatIndex) {
+                formatIndex[key] = formatIndex.size
+            }
+        }
+        val formats = formatIndex.keys.toList()
+        val numFormatInfos = formats.size
+
+        // Build string data (concatenated pack blob ID strings)
+        val stringDataBuf = ByteArrayOutputStream()
+        val packNameOffsetInStringData = mutableMapOf<String, Int>()
+        val packNameLengths = mutableMapOf<String, Int>()
+        for (name in packBlobIds) {
+            packNameOffsetInStringData[name] = stringDataBuf.size()
+            val nameBytes = name.toByteArray(Charsets.UTF_8)
+            packNameLengths[name] = nameBytes.size
+            stringDataBuf.write(nameBytes)
+        }
+
+        val entryCount = sorted.size
+
+        // Calculate absolute offset base for string data section
+        val stringDataAbsoluteBase = HEADER_SIZE +
+            entryCount * (keySize + entrySize) +
+            packCount * PACK_INFO_SIZE +
+            numFormatInfos * FORMAT_INFO_SIZE
+
+        // Build output
+        val output = ByteArrayOutputStream()
+
+        // Write 17-byte header
+        output.write(VERSION)
+        output.write(keySize)
+        output.write(ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN)
+            .putShort(entrySize.toShort()).array())
+        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+            .putInt(entryCount).array())
+        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+            .putInt(packCount).array())
+        output.write(numFormatInfos)
+        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+            .putInt(baseTimestamp.toInt()).array())
+
+        // Write entries section
+        for ((keyBytes, entry) in sorted) {
+            // Write key bytes
+            output.write(keyBytes)
+
+            // Write 19-byte entry data
+            val entryData = ByteArray(entrySize)
+
+            // [0..3] relativeTimestamp
+            val relTs = (entry.timestampSeconds.coerceIn(0L, UInt.MAX_VALUE.toLong()) - baseTimestamp).toInt()
+            ByteBuffer.wrap(entryData, ENTRY_OFFSET_TIMESTAMP, 4)
+                .order(ByteOrder.BIG_ENDIAN).putInt(relTs)
+
+            // [4..7] packOffsetAndFlags
+            var packOffsetAndFlags = entry.packOffset.toInt()
+            if (entry.deleted) {
+                packOffsetAndFlags = packOffsetAndFlags or 0x80000000.toInt()
+            }
+            ByteBuffer.wrap(entryData, ENTRY_OFFSET_PACK_OFFSET_AND_FLAGS, 4)
+                .order(ByteOrder.BIG_ENDIAN).putInt(packOffsetAndFlags)
+
+            val origLen = entry.originalLength.toInt()
+            val packLen = entry.packedLength.toInt()
+
+            // [8..10] originalLength lower 24 bits (big-endian uint24)
+            entryData[ENTRY_OFFSET_ORIGINAL_LENGTH] = ((origLen shr 16) and 0xFF).toByte()
+            entryData[ENTRY_OFFSET_ORIGINAL_LENGTH + 1] = ((origLen shr 8) and 0xFF).toByte()
+            entryData[ENTRY_OFFSET_ORIGINAL_LENGTH + 2] = (origLen and 0xFF).toByte()
+
+            // [11..13] packedLength lower 24 bits (big-endian uint24)
+            entryData[ENTRY_OFFSET_PACKED_LENGTH] = ((packLen shr 16) and 0xFF).toByte()
+            entryData[ENTRY_OFFSET_PACKED_LENGTH + 1] = ((packLen shr 8) and 0xFF).toByte()
+            entryData[ENTRY_OFFSET_PACKED_LENGTH + 2] = (packLen and 0xFF).toByte()
+
+            // [14..15] packBlobIdIndex lower 16 bits (big-endian uint16)
+            val packIdx = packBlobIdIndex[entry.packBlobId.value] ?: 0
+            entryData[ENTRY_OFFSET_PACK_BLOB_ID] = ((packIdx shr 8) and 0xFF).toByte()
+            entryData[ENTRY_OFFSET_PACK_BLOB_ID + 1] = (packIdx and 0xFF).toByte()
+
+            // [16] formatInfoIndex
+            val fmtKey = Triple(entry.compressionHeaderId, entry.formatVersion, entry.encryptionKeyId)
+            val fmtIdx = formatIndex[fmtKey] ?: 0
+            entryData[ENTRY_OFFSET_FORMAT_ID] = fmtIdx.toByte()
+
+            // [17] extendedPackId high byte (packBlobIdIndex >> 16)
+            entryData[ENTRY_OFFSET_EXTENDED_PACK_ID] = ((packIdx shr EXTENDED_PACK_ID_SHIFT) and 0xFF).toByte()
+
+            // [18] highLengthBits: ((originalLength >> 24) << 4) | (packedLength >> 24) & 0x0F
+            val highOriginal = (origLen ushr HIGH_LENGTH_SHIFT) and 0x0F
+            val highPacked = (packLen ushr HIGH_LENGTH_SHIFT) and HIGH_LENGTH_PACKED_MASK
+            entryData[ENTRY_OFFSET_HIGH_LENGTH_BITS] = ((highOriginal shl HIGH_LENGTH_ORIGINAL_SHIFT) or highPacked).toByte()
+
+            output.write(entryData)
+        }
+
+        // Write packs section (5 bytes each: nameLength + nameOffset as absolute)
+        for (name in packBlobIds) {
+            val nameLen = packNameLengths[name] ?: 0
+            val nameOffset = stringDataAbsoluteBase + (packNameOffsetInStringData[name] ?: 0)
+            output.write(nameLen)
+            output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(nameOffset).array())
+        }
+
+        // Write formats section (6 bytes each)
+        for ((compressionHeaderId, formatVersion, encryptionKeyId) in formats) {
+            output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(compressionHeaderId).array())
+            output.write(formatVersion.toInt())
+            output.write(encryptionKeyId.toInt())
+        }
+
+        // Write string data
+        output.write(stringDataBuf.toByteArray())
+
+        return output.toByteArray()
+    }
+
+    /**
+     * Converts a content ID to its byte representation for V2 index format.
+     *
+     * V2 index format (keySize 17 or 33):
+     * - First byte: marker (0x00 if no prefix, otherwise prefix char 'g'-'z')
+     * - Remaining bytes: hash bytes
+     */
+    internal fun contentIdToBytes(contentId: ContentId): ByteArray {
+        val hashBytes = contentId.hashBytes
+        return ByteArray(1 + hashBytes.size).apply {
+            this[0] = if (contentId.prefix != null) contentId.prefix.code.toByte() else 0x00
+            hashBytes.copyInto(this, 1)
+        }
     }
 }
 
@@ -236,21 +420,7 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
         return a.size - b.size
     }
 
-    /**
-     * Converts a content ID to its byte representation for V2 index format.
-     *
-     * Go Kopia V2 index format (keySize 17 or 33):
-     * - First byte: marker (0x00 if no prefix, otherwise prefix char 'g'-'z')
-     * - Remaining bytes: hash bytes
-     */
-    private fun contentIdToBytes(contentId: ContentId): ByteArray {
-        val hashBytes = contentId.hashBytes
-        // Always include marker byte: 0x00 for no prefix, or prefix char
-        return ByteArray(1 + hashBytes.size).apply {
-            this[0] = if (contentId.prefix != null) contentId.prefix.code.toByte() else 0x00
-            hashBytes.copyInto(this, 1)
-        }
-    }
+    private fun contentIdToBytes(contentId: ContentId) = PackIndexV2.contentIdToBytes(contentId)
 
     /**
      * Converts bytes back to a content ID.
@@ -279,12 +449,14 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
     /**
      * Determines if the first byte of key bytes is a marker byte.
      *
-     * In Go Kopia V2 index format:
-     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes
-     * - The marker byte can be 0x00 (no prefix) or 'g'-'z' (prefix char)
+     * In Go Kopia index format:
+     * - KeySize 17 or 33 = 1 marker byte + 16 or 32 hash bytes (standard)
+     * - Any odd keySize = 1 marker byte + even-length hash bytes
+     *
+     * Since contentIdToBytes always adds a marker byte, any index built by
+     * this implementation will have an odd keySize.
      */
     private fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        // KeySize 17 or 33 means there's always a marker byte at the front
-        return keySize == 17 || keySize == 33
+        return keySize % 2 == 1
     }
 }
