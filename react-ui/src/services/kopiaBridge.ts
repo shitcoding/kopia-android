@@ -5,6 +5,7 @@
  */
 
 import type {
+  ConnectionConfig,
   ConnectRequest,
   RepositoryConnection,
   SourceInfo,
@@ -20,6 +21,19 @@ import type {
   SafPickResult,
   WebResult,
   PersistUriRequest,
+  WebAlgorithms,
+  WebSourceStatus,
+  WebTaskInfo,
+  WebTaskLogEntry,
+  WebPolicy,
+  WebResolvedPolicy,
+  WebPolicyEntry,
+  WebMaintenanceStatus,
+  WebRepositoryConnection,
+  CreateRepositoryRequest,
+  CreateSourceRequest,
+  EstimateBackupRequest,
+  SetPolicyRequest,
 } from "../types/kopia";
 
 // Declare the global bridge interface injected by Android
@@ -47,11 +61,37 @@ declare global {
       hasStoredPassword(configJson: string): string;
       getStoredPassword(configJson: string): string;
       storePassword(configJson: string, password: string): string;
+      // New methods for sources, tasks, policies, maintenance
+      getSupportedAlgorithms(): string;
+      createRepository(json: string): string;
+      createSource(json: string): string;
+      deleteSource(sourceId: string): string;
+      getSourceStatus(sourceId: string): string;
+      pauseSource(sourceId: string): string;
+      resumeSource(sourceId: string): string;
+      startBackup(sourceId: string): string;
+      estimateBackup(json: string): string;
+      getPolicy(sourceId: string): string;
+      setPolicy(json: string): string;
+      deletePolicy(sourceId: string): string;
+      listPolicies(): string;
+      resolvePolicy(sourceId: string): string;
+      listTasks(): string;
+      getTask(taskId: string): string;
+      cancelTask(taskId: string): string;
+      getTaskLogs(taskId: string): string;
+      triggerMaintenance(mode: string): string;
+      getMaintenanceStatus(): string;
+      listAllSources(): string;
     };
     KopiaEvents?: {
       onRestoreProgress?: (progress: RestoreProgress) => void;
       onDestinationPicked?: (result: SafPickResult) => void;
       onSystemThemeChanged?: (theme: string) => void;
+      onRepositoryCreated?: () => void;
+      onBackupProgress?: (sourceId: string, counters: string) => void;
+      onTaskCompleted?: (taskId: string, status: string) => void;
+      onSourceStatusChanged?: (sourceId: string, status: string) => void;
     };
   }
 }
@@ -109,6 +149,34 @@ function callBridge<T>(method: string, arg?: unknown): T {
 
   if (!result.success) throw new BridgeError(result.error ?? "Unknown bridge error");
   return result.data as T;
+}
+
+/**
+ * Bridge call helper for void-returning methods (no response parsing needed).
+ */
+function callBridgeVoid(method: string, arg?: unknown): void {
+  const bridge = window.KopiaBridge;
+  if (!bridge) throw new BridgeError("KopiaBridge not available");
+
+  const fn = (bridge as Record<string, unknown>)[method];
+  if (typeof fn !== "function") {
+    console.error(`[kopiaBridge] Bridge method '${method}' missing or not callable`, {
+      methodType: typeof fn,
+      bridgeKeys: Object.keys(bridge),
+    });
+    throw new BridgeError(`Bridge method '${method}' not found`);
+  }
+
+  try {
+    if (arg !== undefined) {
+      fn.call(bridge, typeof arg === "string" ? arg : JSON.stringify(arg));
+    } else {
+      fn.call(bridge);
+    }
+  } catch (invokeError) {
+    console.error(`[kopiaBridge] Bridge invocation threw for '${method}'`, invokeError);
+    throw invokeError;
+  }
 }
 
 class KopiaBridgeService {
@@ -354,4 +422,98 @@ export async function listSnapshotsWithRetention(
 
 export async function deleteSnapshots(request: DeleteSnapshotsRequest): Promise<void> {
   callBridge<void>("deleteSnapshots", request);
+}
+
+// ---------- Source management ----------
+
+export async function getSupportedAlgorithms(): Promise<WebAlgorithms> {
+  return callBridge<WebAlgorithms>("getSupportedAlgorithms");
+}
+
+export async function createRepository(request: CreateRepositoryRequest): Promise<void> {
+  callBridge<void>("createRepository", request);
+}
+
+export async function getAllSourceStatuses(): Promise<WebSourceStatus[]> {
+  return callBridge<WebSourceStatus[]>("listAllSources");
+}
+
+export async function getSourceStatus(sourceId: string): Promise<WebSourceStatus> {
+  return callBridge<WebSourceStatus>("getSourceStatus", sourceId);
+}
+
+export async function createSource(request: CreateSourceRequest): Promise<void> {
+  callBridge<void>("createSource", request);
+}
+
+export async function deleteSource(sourceId: string): Promise<void> {
+  callBridge<void>("deleteSource", sourceId);
+}
+
+export async function startBackup(sourceId: string): Promise<void> {
+  callBridge<void>("startBackup", sourceId);
+}
+
+export async function pauseSource(sourceId: string): Promise<void> {
+  callBridge<void>("pauseSource", sourceId);
+}
+
+export async function resumeSource(sourceId: string): Promise<void> {
+  callBridge<void>("resumeSource", sourceId);
+}
+
+// ---------- Policy management ----------
+
+export async function getPolicy(sourceId: string): Promise<WebPolicy> {
+  return callBridge<WebPolicy>("getPolicy", sourceId);
+}
+
+export async function setPolicy(request: SetPolicyRequest): Promise<void> {
+  callBridge<void>("setPolicy", request);
+}
+
+export async function resolvePolicy(sourceId: string): Promise<WebResolvedPolicy> {
+  return callBridge<WebResolvedPolicy>("resolvePolicy", sourceId);
+}
+
+export async function listPolicies(): Promise<WebPolicyEntry[]> {
+  return callBridge<WebPolicyEntry[]>("listPolicies");
+}
+
+export async function deletePolicy(sourceId: string): Promise<void> {
+  callBridge<void>("deletePolicy", sourceId);
+}
+
+// ---------- Task management ----------
+
+export async function listTasks(): Promise<WebTaskInfo[]> {
+  return callBridge<WebTaskInfo[]>("listTasks");
+}
+
+export async function getTask(taskId: string): Promise<WebTaskInfo> {
+  return callBridge<WebTaskInfo>("getTask", taskId);
+}
+
+export async function cancelTask(taskId: string): Promise<void> {
+  callBridge<void>("cancelTask", taskId);
+}
+
+export async function getTaskLogs(taskId: string): Promise<WebTaskLogEntry[]> {
+  return callBridge<WebTaskLogEntry[]>("getTaskLogs", taskId);
+}
+
+// ---------- Backup estimation ----------
+
+export async function estimateBackup(request: EstimateBackupRequest): Promise<void> {
+  callBridge<void>("estimateBackup", request);
+}
+
+// ---------- Maintenance ----------
+
+export async function triggerMaintenance(mode: string): Promise<void> {
+  callBridge<void>("triggerMaintenance", mode);
+}
+
+export async function getMaintenanceStatus(): Promise<WebMaintenanceStatus> {
+  return callBridge<WebMaintenanceStatus>("getMaintenanceStatus");
 }

@@ -181,6 +181,179 @@ export interface SafPickResult {
   displayName?: string;
 }
 
+// ===== Upload / Source / Task Types =====
+
+/** Upload progress counters */
+export interface WebUploadCounters {
+  totalCachedBytes: number;
+  totalHashedBytes: number;
+  totalUploadedBytes: number;
+  estimatedBytes: number;
+  totalCachedFiles: number;
+  totalHashedFiles: number;
+  totalExcludedFiles: number;
+  totalExcludedDirs: number;
+  fatalErrorCount: number;
+  ignoredErrorCount: number;
+  estimatedFiles: number;
+  currentDirectory: string;
+}
+
+/** Source status */
+export interface WebSourceStatus {
+  source: SourceInfo;
+  status: "IDLE" | "UPLOADING" | "PAUSED" | "FAILED" | "SCHEDULED";
+  nextBackupTimeEpochMs?: number;
+  lastBackupTimeEpochMs?: number;
+  uploadCounters?: WebUploadCounters;
+  currentTaskId?: string;
+  snapshotCount: number;
+  totalFileSize: number;
+}
+
+/** Task info */
+export interface WebTaskInfo {
+  id: string;
+  kind: "Snapshot" | "Restore" | "Maintenance" | "Estimate";
+  status: "RUNNING" | "CANCELING" | "SUCCESS" | "FAILED" | "CANCELED";
+  description: string;
+  startTimeEpochMs: number;
+  endTimeEpochMs?: number;
+  progressInfo: string;
+  counters?: WebUploadCounters;
+  error?: string;
+}
+
+/** Task log entry */
+export interface WebTaskLogEntry {
+  timestamp: number;
+  level: "debug" | "info" | "warning" | "error";
+  module: string;
+  message: string;
+}
+
+// ===== Policy Types =====
+
+/** Retention policy */
+export interface WebRetentionPolicy {
+  keepLatest?: number;
+  keepHourly?: number;
+  keepDaily?: number;
+  keepWeekly?: number;
+  keepMonthly?: number;
+  keepAnnual?: number;
+  ignoreIdenticalSnapshots?: boolean;
+}
+
+/** Scheduling policy */
+export interface WebSchedulingPolicy {
+  intervalSeconds?: number;
+  timesOfDay?: Array<{ hour: number; minute: number }>;
+  manual?: boolean;
+  runMissed?: boolean;
+}
+
+/** Compression policy */
+export interface WebCompressionPolicy {
+  compressorName?: string;
+  onlyCompress?: string[];
+  neverCompress?: string[];
+  minSize?: number;
+  maxSize?: number;
+}
+
+/** Files policy */
+export interface WebFilesPolicy {
+  ignore?: string[];
+  maxFileSize?: number;
+  dotIgnore?: string[];
+}
+
+/** Full policy */
+export interface WebPolicy {
+  retentionPolicy?: WebRetentionPolicy;
+  schedulingPolicy?: WebSchedulingPolicy;
+  compressionPolicy?: WebCompressionPolicy;
+  filesPolicy?: WebFilesPolicy;
+}
+
+/** Resolved policy (effective + definition) */
+export interface WebResolvedPolicy {
+  effective: WebPolicy;
+  defined: WebPolicy;
+  upcomingSnapshotTimes: number[];
+}
+
+/** Policy entry (for listing) */
+export interface WebPolicyEntry {
+  source: SourceInfo;
+  policy: WebPolicy;
+}
+
+// ===== Maintenance Types =====
+
+/** Maintenance status */
+export interface WebMaintenanceStatus {
+  lastRunTimeEpochMs?: number;
+  lastMode?: string;
+  lastSuccess?: boolean;
+  lastError?: string;
+  lastGcStats?: {
+    deletedContentCount: number;
+    reclaimedBytes: number;
+  };
+}
+
+// ===== Repository / Algorithm Types =====
+
+/** Supported algorithms */
+export interface WebAlgorithms {
+  hashing: string[];
+  encryption: string[];
+  compression: string[];
+}
+
+/** Repository connection info */
+export interface WebRepositoryConnection {
+  storageType: string;
+  encryption: string;
+  hashing: string;
+  description?: string;
+}
+
+// ===== New Request Types =====
+
+/** Create repository request */
+export interface CreateRepositoryRequest {
+  config: ConnectionConfig;
+  password: string;
+  options: {
+    hash: string;
+    encryption: string;
+    compression: string;
+    description?: string;
+  };
+}
+
+/** Create source request */
+export interface CreateSourceRequest {
+  uri: string;
+  policy: WebPolicy;
+  startBackup: boolean;
+}
+
+/** Estimate backup request */
+export interface EstimateBackupRequest {
+  sourceId: string;
+  policyOverride?: WebPolicy;
+}
+
+/** Set policy request */
+export interface SetPolicyRequest {
+  sourceId: string;
+  policy: WebPolicy;
+}
+
 // ===== Result Wrapper =====
 
 export interface WebResult<T> {

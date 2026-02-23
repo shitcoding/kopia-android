@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Info, LinkIcon, Loader2, Palette, Check } from "lucide-react";
+import { ArrowLeft, Info, LinkIcon, Loader2, Palette, Check, FolderOpen, ListTodo, Wrench } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,6 +172,51 @@ const SettingsScreen = () => {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Navigation Section */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.03s" }}>
+          <p className="section-header">Navigation</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate("/sources")}
+              className="w-full card-elevated flex items-center gap-4 text-left hover:bg-card transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <FolderOpen className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Sources</p>
+                <p className="text-sm text-muted-foreground">Manage backup sources and policies</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate("/tasks")}
+              className="w-full card-elevated flex items-center gap-4 text-left hover:bg-card transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <ListTodo className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Tasks</p>
+                <p className="text-sm text-muted-foreground">View running and completed tasks</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate("/maintenance")}
+              className="w-full card-elevated flex items-center gap-4 text-left hover:bg-card transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Wrench className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Maintenance</p>
+                <p className="text-sm text-muted-foreground">Repository maintenance and garbage collection</p>
+              </div>
+            </button>
           </div>
         </div>
 

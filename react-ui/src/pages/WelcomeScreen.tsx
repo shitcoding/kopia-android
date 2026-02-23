@@ -32,14 +32,22 @@ const WelcomeScreen = () => {
         Browse and restore your Kopia backups
       </p>
 
-      {/* CTA Button */}
-      <button
-        onClick={() => navigate("/connect")}
-        className="animate-slide-up btn-primary w-full max-w-xs text-lg"
-        style={{ animationDelay: "0.1s" }}
-      >
-        Connect to Repository
-      </button>
+      {/* CTA Buttons */}
+      <div className="animate-slide-up w-full max-w-xs space-y-4" style={{ animationDelay: "0.1s" }}>
+        <button
+          onClick={() => navigate("/connect")}
+          className="btn-primary w-full text-lg"
+        >
+          Connect to Repository
+        </button>
+
+        <button
+          onClick={() => navigate("/create-repository")}
+          className="btn-secondary w-full text-lg"
+        >
+          Create New Repository
+        </button>
+      </div>
 
     </div>
   );
