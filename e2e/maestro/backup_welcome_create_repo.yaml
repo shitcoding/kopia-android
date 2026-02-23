@@ -1,0 +1,58 @@
+# E2E Test: Welcome Screen - Create New Repository button
+# Verifies the new "Create New Repository" button on the welcome screen
+# Expected: Button visible, navigates to CreateRepositoryScreen with storage type selector
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# WebView may need a moment to load
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+
+# Verify app title is visible
+- assertVisible: "KopiaKt"
+
+# Verify the existing Connect to Repository button
+- assertVisible: "Connect to Repository"
+
+# Verify the new Create New Repository button
+- assertVisible: "Create New Repository"
+
+# Tap Create New Repository
+- tapOn: "Create New Repository"
+
+# Verify navigation to CreateRepositoryScreen
+- extendedWaitUntil:
+    visible: "Create Repository"
+    timeout: 5000
+
+# Verify step 1: storage type selection is shown
+- assertVisible:
+    text: ".*store your repository.*"
+
+# Verify storage type options are displayed (regex for WebView text)
+- assertVisible:
+    text: ".*Local Filesystem.*"
+- assertVisible:
+    text: ".*Amazon S3.*"
+- assertVisible:
+    text: ".*WebDAV.*"
+- assertVisible:
+    text: ".*SFTP.*"
+
+# Navigate back to welcome screen using the back button
+- tapOn:
+    point: "8%,7%"
+
+# Verify we returned to the welcome screen
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 5000
+
+- assertVisible: "Create New Repository"

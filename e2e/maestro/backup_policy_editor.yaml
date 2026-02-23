@@ -1,0 +1,124 @@
+# E2E Test: Policy Editor Screen (conditional)
+# Verifies the PolicyEditorScreen renders when accessed through sources
+# Since edge_case_repo may not have backup sources configured,
+# this test is resilient - it verifies the sources dashboard first,
+# and only navigates to policy editor if sources exist.
+#
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to Settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation section and tap Sources
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Sources.*Manage.*"
+
+# Wait for SourcesDashboardScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# If sources exist, try to access policy editor via the dropdown menu
+# If no sources (empty state), verify the empty state and consider test passed
+- runFlow:
+    when:
+      visible:
+        text: ".*No backup sources.*"
+    commands:
+      # Empty state -- verify it renders correctly
+      - assertVisible:
+          text: ".*No backup sources configured.*"
+      - assertVisible:
+          text: ".*Add Your First Source.*"
+      # Test passes -- no sources to edit policy for
+
+# If sources exist, try tapping the first source's dropdown and "Edit Policy"
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Backup Source.*"
+    commands:
+      # There are sources. Tap the first source's 3-dot menu.
+      - tapOn:
+          point: "93%,25%"
+      # Wait for dropdown menu
+      - extendedWaitUntil:
+          visible:
+            text: ".*Edit Policy.*"
+          timeout: 5000
+      - tapOn:
+          text: ".*Edit Policy.*"
+      # Wait for PolicyEditorScreen
+      - extendedWaitUntil:
+          visible:
+            text: ".*Edit Policy.*"
+          timeout: 10000
+      # Verify tabs are visible
+      - assertVisible:
+          text: ".*Retention.*"
+      - assertVisible:
+          text: ".*Schedule.*"
+      - assertVisible:
+          text: ".*Compress.*"
+      - assertVisible:
+          text: ".*Files.*"
+      # Verify footer buttons
+      - assertVisible:
+          text: ".*Defaults.*"
+      - assertVisible:
+          text: ".*Save Policy.*"

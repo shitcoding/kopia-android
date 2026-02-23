@@ -1,0 +1,133 @@
+# E2E Test: Settings Navigation section and Repository Info
+# Verifies the new Navigation section in Settings (Sources, Tasks, Maintenance links)
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen (connecting can take time for key derivation)
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+# Verify settings screen loaded
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Verify Styling section exists
+- assertVisible:
+    text: ".*Styling.*"
+
+# Scroll down to Navigation section
+- scroll
+
+# Verify Navigation section header (may be uppercase via CSS)
+- extendedWaitUntil:
+    visible:
+      text: ".*NAVIGATION.*|.*Navigation.*"
+    timeout: 5000
+
+# Verify Sources navigation link (use regex for WebView text)
+- assertVisible:
+    text: ".*Sources.*"
+- assertVisible:
+    text: ".*backup sources.*"
+
+# Verify Tasks navigation link
+- assertVisible:
+    text: ".*Tasks.*"
+
+# Scroll more to see Maintenance (may be below fold)
+- scroll
+
+# Verify Maintenance navigation link
+- assertVisible:
+    text: ".*Maintenance.*"
+
+# Scroll back up to tap Sources
+- swipe:
+    direction: "DOWN"
+    duration: 500
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+
+# Tap Sources to navigate to SourcesDashboardScreen
+- tapOn:
+    text: ".*Sources.*Manage.*"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# Navigate back to Settings -- SourcesDashboard has Settings icon, not back arrow
+# Use the Settings gear icon at top-right
+- tapOn:
+    point: "93%,7%"
+
+# Verify back on Settings screen
+- extendedWaitUntil:
+    visible:
+      text: ".*Settings.*"
+    timeout: 5000
+
+# Scroll down to About and Repository sections
+- scroll
+- scroll
+- scroll
+
+# Verify About section
+- assertVisible:
+    text: ".*About.*"
+- assertVisible:
+    text: ".*KopiaKt.*"
+
+# Verify Repository section with Disconnect
+- extendedWaitUntil:
+    visible:
+      text: ".*Disconnect.*"
+    timeout: 5000

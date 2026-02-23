@@ -1,0 +1,99 @@
+# E2E Test: Maintenance Screen
+# Verifies the MaintenanceScreen renders correctly with action buttons
+# Navigates via Settings -> Maintenance
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to Settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation section and tap Maintenance
+- scroll
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Maintenance.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Maintenance.*garbage collection.*"
+
+# Wait for MaintenanceScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Repository Maintenance.*"
+    timeout: 10000
+
+# Verify the explanation card
+- assertVisible:
+    text: ".*Repository Maintenance.*"
+- assertVisible:
+    text: ".*cleans up unused data.*"
+
+# Scroll down to action buttons
+- scroll
+
+# Verify action buttons section
+- assertVisible:
+    text: ".*ACTIONS.*|.*Actions.*"
+- assertVisible:
+    text: ".*Run Quick Maintenance.*"
+- assertVisible:
+    text: ".*Run Full Maintenance.*"
+
+# Navigate back using the back arrow
+- tapOn:
+    point: "8%,7%"
+
+# Verify we're back on settings or previous screen
+- extendedWaitUntil:
+    visible:
+      text: ".*Settings.*|.*Snapshots.*"
+    timeout: 5000

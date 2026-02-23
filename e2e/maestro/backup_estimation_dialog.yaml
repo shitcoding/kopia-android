@@ -1,0 +1,133 @@
+# E2E Test: Add Source Screen and Manual Path Entry
+# Verifies the AddSourceScreen renders correctly from SourcesDashboard.
+# Uses manual path entry instead of folder picker to avoid native SAF dialog.
+# Since the EstimationDialog requires an active source to trigger estimation,
+# this test focuses on verifying AddSourceScreen flow.
+#
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to Settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation and tap Sources
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Sources.*Manage.*"
+
+# Wait for SourcesDashboardScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# Navigate to Add Source screen
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Your First Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Your First Source.*"
+
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Backup Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Backup Source.*"
+
+# Wait for AddSourceScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Add Source.*"
+    timeout: 5000
+
+# Verify Step 1: folder selection
+- assertVisible:
+    text: ".*Choose a folder.*"
+- assertVisible:
+    text: ".*Choose Folder.*"
+
+# Verify manual entry toggle exists
+- assertVisible:
+    text: ".*Enter path manually.*"
+
+# Tap "Enter path manually" to reveal the text input
+- tapOn:
+    text: ".*Enter path manually.*"
+
+# Enter a test path via manual input
+- tapOn:
+    text: ".*emulated.*"
+    optional: true
+- inputText: "/storage/emulated/0/Documents"
+
+- hideKeyboard
+
+# Verify "Next" button is visible and should be enabled now
+- assertVisible:
+    text: ".*Next.*"
+
+# Navigate back using back arrow (AddSourceScreen has back arrow)
+- tapOn:
+    point: "8%,7%"
+
+# Verify we're back on Sources Dashboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 5000

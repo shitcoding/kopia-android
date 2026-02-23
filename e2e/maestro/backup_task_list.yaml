@@ -1,0 +1,110 @@
+# E2E Test: Task List Screen
+# Verifies the TaskListScreen renders correctly with filter tabs
+# Navigates via Settings -> Tasks
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to Settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation section and tap Tasks
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Tasks.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Tasks.*View running.*"
+
+# Wait for TaskListScreen -- the title is "Tasks" in the app bar
+- extendedWaitUntil:
+    visible:
+      text: ".*All.*"
+    timeout: 10000
+
+# Verify filter tabs are visible
+- assertVisible:
+    text: ".*All.*"
+- assertVisible:
+    text: ".*Running.*"
+- assertVisible:
+    text: ".*Completed.*"
+- assertVisible:
+    text: ".*Failed.*"
+
+# The task list should show either tasks or empty state
+- runFlow:
+    when:
+      visible:
+        text: ".*No tasks.*"
+    commands:
+      - assertVisible:
+          text: ".*No tasks found.*"
+
+# Test switching between filter tabs
+- tapOn:
+    text: ".*Running.*"
+- tapOn:
+    text: ".*Completed.*"
+- tapOn:
+    text: ".*Failed.*"
+- tapOn:
+    text: ".*All.*"
+
+# Navigate back using the back arrow
+- tapOn:
+    point: "8%,7%"
+
+# Verify we're back on settings or previous screen
+- extendedWaitUntil:
+    visible:
+      text: ".*Settings.*|.*Snapshots.*"
+    timeout: 5000

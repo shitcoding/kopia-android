@@ -1,0 +1,127 @@
+# E2E Test: Sources Dashboard Screen
+# Verifies the SourcesDashboardScreen renders correctly
+# Navigates via Settings -> Sources
+# Repository: /sdcard/testrepo (edge_case_repo)
+# Password: test123
+#
+# Since no backup sources are configured in the edge_case_repo,
+# this test verifies the empty state with the "Add Your First Source" button.
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Connect to repository first
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for SnapshotsScreen
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# Navigate to Settings
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation section and tap Sources
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Sources.*Manage.*"
+
+# Wait for SourcesDashboardScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# The screen should show either:
+# - Empty state: "No backup sources configured" with "Add Your First Source" button
+# - Or list of sources with "Add Backup Source" button
+# Both are valid states for this test
+
+# Check for empty state message OR source list
+- runFlow:
+    when:
+      visible:
+        text: ".*No backup sources.*"
+    commands:
+      - assertVisible:
+          text: ".*No backup sources configured.*"
+      - assertVisible:
+          text: ".*Add Your First Source.*"
+
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Backup Source.*"
+    commands:
+      - assertVisible:
+          text: ".*Add Backup Source.*"
+
+# Navigate to Add Source screen
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Your First Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Your First Source.*"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Add Source.*"
+          timeout: 5000
+      - assertVisible:
+          text: ".*Choose a folder.*"
+
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Backup Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Backup Source.*"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Add Source.*"
+          timeout: 5000
+      - assertVisible:
+          text: ".*Choose a folder.*"
