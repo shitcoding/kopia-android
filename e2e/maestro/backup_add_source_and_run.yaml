@@ -1,0 +1,186 @@
+# E2E Test: Add Backup Source and Trigger Backup
+# Connects to an existing repository, navigates to Sources dashboard,
+# adds a backup source using manual path entry, configures policy,
+# and triggers a backup.
+#
+# Flow:
+#   1. Connect to existing edge_case_repo (/sdcard/testrepo, password: test123)
+#   2. Navigate to Settings -> Sources
+#   3. Tap "Add Your First Source" (or "Add Backup Source")
+#   4. Enter source path manually (/sdcard/Download)
+#   5. Configure policy (keep defaults: auto backup every 24 hours, ZSTD)
+#   6. Review and add source with "Start first backup immediately" checked
+#   7. Verify source appears on Sources dashboard
+#
+# Prerequisites:
+#   - Edge case repo must be pushed to /sdcard/testrepo on the device:
+#     adb push kopiaKt/core/src/test/resources/fixtures/edge_case_repos/edge_case_repo /sdcard/testrepo
+#   - /sdcard/Download must exist on device (default Android directory)
+#   - Storage permissions granted:
+#     adb shell appops set org.kopiaKt.app MANAGE_EXTERNAL_STORAGE allow
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# ===== Phase 1: Connect to Repository =====
+
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+
+- tapOn: "Connect to Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/testrepo"
+
+- tapOn:
+    text: "Repository Password"
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn: "Connect"
+
+# Wait for connection (key derivation may take time)
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 30000
+
+# ===== Phase 2: Navigate to Sources Dashboard =====
+
+# Open Settings (gear icon at top-right or "Settings" text)
+- tapOn:
+    text: "Settings"
+    optional: true
+
+- runFlow:
+    when:
+      notVisible:
+        text: ".*Styling.*"
+    commands:
+      - tapOn:
+          point: "92%,7%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 5000
+
+# Scroll to Navigation section and tap Sources
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Sources.*Manage.*"
+
+# Wait for SourcesDashboardScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# ===== Phase 3: Add Backup Source =====
+
+# Navigate to Add Source screen (handles both empty and non-empty states)
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Your First Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Your First Source.*"
+
+- runFlow:
+    when:
+      visible:
+        text: ".*Add Backup Source.*"
+    commands:
+      - tapOn:
+          text: ".*Add Backup Source.*"
+
+# Wait for AddSourceScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*Add Source.*"
+    timeout: 5000
+
+# Step 1: Choose folder to back up
+- assertVisible:
+    text: ".*Choose a folder.*"
+
+# Use manual path entry instead of SAF folder picker
+- tapOn:
+    text: ".*Enter path manually.*"
+
+# Tap on the revealed input field and enter path
+# The placeholder text is "/storage/emulated/0/..."
+- tapOn:
+    text: ".*emulated.*"
+    optional: true
+- inputText: "/sdcard/Download"
+- hideKeyboard
+
+# Tap Next to go to policy step
+- tapOn:
+    text: "Next"
+
+# Step 2: Configure policy (keep defaults: auto backup every 24 hours, ZSTD)
+- extendedWaitUntil:
+    visible:
+      text: ".*Configure backup schedule.*"
+    timeout: 5000
+
+# Verify default settings are visible
+- assertVisible:
+    text: ".*Automatic backups.*"
+- assertVisible:
+    text: ".*ZSTD.*"
+
+# Scroll to see the Review button (exclusions textarea may push it below fold)
+- scroll
+
+# Proceed with defaults
+- tapOn:
+    text: "Review"
+
+# Step 3: Review and add source
+- extendedWaitUntil:
+    visible:
+      text: ".*Review and add source.*"
+    timeout: 5000
+
+# Verify summary shows correct values
+- assertVisible:
+    text: ".*Download.*"
+- assertVisible:
+    text: ".*Every 24 hours.*"
+- assertVisible:
+    text: ".*ZSTD.*"
+
+# Verify "Start first backup immediately" checkbox is visible
+- assertVisible:
+    text: ".*Start first backup immediately.*"
+
+# Tap "Add Source" to create the source and trigger backup
+- tapOn:
+    text: ".*Add Source.*"
+
+# ===== Phase 4: Verify Source on Dashboard =====
+
+# Wait for navigation back to Sources dashboard.
+# The bridge createSource method is invoked.
+# On success: navigates to /sources with the new source visible.
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000

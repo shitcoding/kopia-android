@@ -1,0 +1,144 @@
+# E2E Test: Create New Repository - Local Filesystem
+# Full repository creation wizard via UI:
+#   Step 1: Select Local Filesystem storage type
+#   Step 2: Enter path, test connection
+#   Step 3: Set password and encryption settings
+#   Step 4: Review and create
+#
+# Verifies the complete 4-step wizard UI flow for creating a local repository.
+# On success the app navigates to the Sources dashboard.
+#
+# Note: Uses /sdcard/KopiaTestRepo as repository path. This directory
+# must not already contain a repository (clearState ensures fresh app state,
+# and we clean up the path on device before running).
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+---
+# Clear app state and start fresh
+- clearState
+- launchApp
+
+# Wait for the welcome screen to load in WebView
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+
+# Verify both main buttons are visible on welcome screen
+- assertVisible: "Connect to Repository"
+- assertVisible: "Create New Repository"
+
+# Tap Create New Repository
+- tapOn: "Create New Repository"
+
+# ===== Step 1: Select Storage Type =====
+- extendedWaitUntil:
+    visible: "Create Repository"
+    timeout: 5000
+
+# Verify step 1 prompt text
+- assertVisible:
+    text: ".*store your repository.*"
+
+# Verify all storage options are visible
+- assertVisible:
+    text: ".*Local Filesystem.*"
+- assertVisible:
+    text: ".*Amazon S3.*"
+
+# Select Local Filesystem (tapping advances to step 2 automatically)
+- tapOn:
+    text: ".*Local Filesystem.*"
+
+# ===== Step 2: Configure Local Storage =====
+- extendedWaitUntil:
+    visible:
+      text: ".*Configure.*Local Filesystem.*"
+    timeout: 5000
+
+# Enter repository path in the input field
+- tapOn:
+    text: "Repository Path"
+- inputText: "/sdcard/KopiaTestRepo"
+
+- hideKeyboard
+
+# Test connection -- button should say "Test Connection"
+- tapOn:
+    text: ".*Test Connection.*"
+
+# Wait for test to complete -- button changes to "Connection OK"
+- extendedWaitUntil:
+    visible:
+      text: ".*Connection OK.*"
+    timeout: 10000
+
+# "Next" button should now be enabled, tap it
+- tapOn:
+    text: "Next"
+
+# ===== Step 3: Repository Settings (Password, Encryption) =====
+- extendedWaitUntil:
+    visible:
+      text: ".*encryption.*settings.*"
+    timeout: 5000
+
+# Enter password
+- tapOn:
+    text: "Password"
+- inputText: "testpassword123"
+
+# Enter confirm password
+- tapOn:
+    text: "Confirm Password"
+- inputText: "testpassword123"
+
+- hideKeyboard
+
+# Scroll down to see encryption settings and Review button
+- scroll
+
+# Verify default encryption, hashing, and compression are pre-selected
+# (These are select dropdowns with defaults: AES-256-GCM, BLAKE2B-256-128, ZSTD)
+- assertVisible:
+    text: ".*AES-256-GCM.*"
+- assertVisible:
+    text: ".*BLAKE2B-256-128.*"
+
+# Scroll further to reveal ZSTD dropdown and Review button
+- scroll
+
+- assertVisible:
+    text: ".*ZSTD.*"
+
+# Tap Review to go to step 4
+- tapOn:
+    text: "Review"
+
+# ===== Step 4: Review and Create =====
+- extendedWaitUntil:
+    visible:
+      text: ".*Review your settings.*"
+    timeout: 5000
+
+# Verify summary card shows correct settings
+- assertVisible:
+    text: ".*Local Filesystem.*"
+- assertVisible:
+    text: ".*AES-256-GCM.*"
+- assertVisible:
+    text: ".*BLAKE2B-256-128.*"
+- assertVisible:
+    text: ".*ZSTD.*"
+
+# Tap Create Repository to trigger the bridge call
+- tapOn:
+    text: ".*Create Repository.*"
+
+# Wait for the result. The bridge's createRepository method is invoked.
+# On success: app navigates to Sources dashboard ("Backup Sources").
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 30000

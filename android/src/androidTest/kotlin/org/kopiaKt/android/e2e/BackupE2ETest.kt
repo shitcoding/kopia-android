@@ -305,7 +305,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
 
         val repository = createRepository()
         try {
-            // First backup
+            // First backup - all files must be hashed (no previous snapshot)
             val progress1 = CountingUploadProgress()
             val manifestId1 = performBackup(
                 repository = repository,
@@ -317,21 +317,37 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val counters1 = progress1.snapshot()
             Log.i(TAG, "First backup: ${counters1.totalHashedFiles} hashed, ${counters1.totalCachedFiles} cached")
 
-            // Second backup (same files, should be cached)
+            // First backup should hash all files since there is no previous snapshot
+            assertThat(counters1.totalHashedFiles).isEqualTo(testData.fileCount)
+            assertThat(counters1.totalCachedFiles).isEqualTo(0)
+
+            // Refresh so the second backup can discover the first snapshot
+            repository.refresh()
+
+            // Second backup (same files, unchanged - SnapshotUploader automatically
+            // discovers the previous snapshot via findPreviousSnapshot() and uses its
+            // root manifest for caching decisions)
             val progress2 = CountingUploadProgress()
             val manifestId2 = performBackup(
                 repository = repository,
                 description = "Incremental backup",
-                progress = progress2,
-                previousManifestId = manifestId1.value
+                progress = progress2
             )
             assertThat(manifestId2).isNotNull()
 
             val counters2 = progress2.snapshot()
             Log.i(TAG, "Second backup: ${counters2.totalHashedFiles} hashed, ${counters2.totalCachedFiles} cached")
 
-            // In incremental mode, unchanged files should be cached
-            // Note: This depends on how the uploader detects unchanged files
+            // In incremental mode, unchanged files should be cached rather than re-hashed.
+            // The total processed files must equal the file count.
+            val totalProcessed = counters2.totalHashedFiles + counters2.totalCachedFiles
+            assertThat(totalProcessed).isEqualTo(testData.fileCount)
+
+            // At least some files should be cached (reused from previous snapshot)
+            assertThat(counters2.totalCachedFiles).isGreaterThan(0)
+
+            // The second backup should hash fewer files than the first
+            assertThat(counters2.totalHashedFiles).isLessThan(counters1.totalHashedFiles)
         } finally {
             repository.close()
         }
@@ -391,8 +407,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
     private suspend fun performBackup(
         repository: org.kopiaKt.core.repository.DirectRepository,
         description: String,
-        progress: CountingUploadProgress = CountingUploadProgress(),
-        previousManifestId: String? = null
+        progress: CountingUploadProgress = CountingUploadProgress()
     ): org.kopiaKt.core.manifest.ManifestId {
         val writer = repository.newWriter(WriteSessionOptions())
         try {
@@ -402,6 +417,9 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 path = sourceDir.absolutePath
             )
 
+            // SnapshotUploader automatically discovers the previous snapshot for the
+            // same source via findPreviousSnapshot() and uses it for caching decisions.
+            // No need to pass previousManifestId explicitly.
             val uploader = SnapshotUploader(
                 writer = writer,
                 source = source,

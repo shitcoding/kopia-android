@@ -217,7 +217,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
     fun restoreIncrementalSkipUnchanged(): Unit = runBlocking {
         Log.i(TAG, "Test: restoreIncrementalSkipUnchanged on ${getDeviceInfo()}")
 
-        // Create and backup
+        // Create and backup two files
         File(sourceDir, "unchanged.txt").writeText("This won't change")
         File(sourceDir, "will_change.txt").writeText("Original")
 
@@ -228,13 +228,22 @@ class RestoreE2ETest : AndroidE2ETestBase() {
             repository.refresh()
             val snapshot = getLatestSnapshot(repository)
 
-            // First restore
-            performRestore(repository, snapshot!!)
+            // First restore - both files should be restored
+            val firstProgress = CountingRestoreProgress()
+            performRestore(repository, snapshot!!, firstProgress)
 
-            // Modify one file in restore directory
+            val firstStats = firstProgress.snapshot()
+            Log.i(TAG, "First restore: ${firstStats.restoredFileCount} files restored")
+            assertThat(firstStats.restoredFileCount).isEqualTo(2)
+
+            // Verify initial restore content
+            assertThat(File(restoreDir, "unchanged.txt").readText()).isEqualTo("This won't change")
+            assertThat(File(restoreDir, "will_change.txt").readText()).isEqualTo("Original")
+
+            // Modify one file in the restore directory to simulate local change
             File(restoreDir, "will_change.txt").writeText("Modified after restore")
 
-            // Second incremental restore
+            // Second incremental restore - should skip unchanged file, re-restore changed one
             val progress = CountingRestoreProgress()
             performRestore(
                 repository = repository,
@@ -246,8 +255,15 @@ class RestoreE2ETest : AndroidE2ETestBase() {
             val stats = progress.snapshot()
             Log.i(TAG, "Incremental restore: ${stats.skippedCount} skipped, ${stats.restoredFileCount} restored")
 
-            // The unchanged file should be skipped, the modified one restored
-            // Note: Actual behavior depends on incremental detection logic
+            // The unchanged file should be skipped (metadata matches), the modified one restored
+            assertThat(stats.skippedCount).isAtLeast(1)
+            // Total processed files (skipped + restored) should cover both files
+            assertThat(stats.skippedCount + stats.restoredFileCount).isEqualTo(2)
+
+            // Verify that the modified file was restored back to the original content
+            assertThat(File(restoreDir, "will_change.txt").readText()).isEqualTo("Original")
+            // Verify that the unchanged file is still correct
+            assertThat(File(restoreDir, "unchanged.txt").readText()).isEqualTo("This won't change")
         } finally {
             repository.close()
         }
@@ -297,32 +313,42 @@ class RestoreE2ETest : AndroidE2ETestBase() {
 
         val repository = createRepository()
         try {
-            // Create first backup with content A
+            // Create first backup with content A and capture its manifest ID
             File(sourceDir, "version.txt").writeText("Version A")
             val manifestId1 = performBackup(repository, "Snapshot A")
+            Log.i(TAG, "Snapshot A manifest: ${manifestId1.value}")
 
-            // Create second backup with content B
+            // Create second backup with content B and capture its manifest ID
             File(sourceDir, "version.txt").writeText("Version B")
             val manifestId2 = performBackup(repository, "Snapshot B")
+            Log.i(TAG, "Snapshot B manifest: ${manifestId2.value}")
 
             repository.refresh()
 
-            // Get both snapshots
+            // Verify both snapshots exist
             val manifests = repository.findManifests(
                 mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
             )
             assertThat(manifests.size).isEqualTo(2)
 
-            // Restore the first snapshot (older one)
-            val (snapshot1, _) = repository.getManifest(manifests.first().id, SnapshotManifest.serializer())
-            performRestore(repository, snapshot1)
+            // Restore snapshot A using its exact manifest ID (deterministic)
+            val (snapshotA, _) = repository.getManifest(manifestId1, SnapshotManifest.serializer())
+            performRestore(repository, snapshotA)
 
-            // Should have content A
-            val restoredContent = File(restoreDir, "version.txt").readText()
-            Log.i(TAG, "Restored version: $restoredContent")
+            val restoredContentA = File(restoreDir, "version.txt").readText()
+            Log.i(TAG, "Restored from snapshot A: $restoredContentA")
+            assertThat(restoredContentA).isEqualTo("Version A")
 
-            // One of them should be "Version A" depending on ordering
-            assertThat(restoredContent).isAnyOf("Version A", "Version B")
+            // Clear restore directory and restore snapshot B
+            restoreDir.deleteRecursively()
+            restoreDir.mkdirs()
+
+            val (snapshotB, _) = repository.getManifest(manifestId2, SnapshotManifest.serializer())
+            performRestore(repository, snapshotB)
+
+            val restoredContentB = File(restoreDir, "version.txt").readText()
+            Log.i(TAG, "Restored from snapshot B: $restoredContentB")
+            assertThat(restoredContentB).isEqualTo("Version B")
         } finally {
             repository.close()
         }

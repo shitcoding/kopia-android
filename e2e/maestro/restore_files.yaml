@@ -136,5 +136,5 @@ appId: org.kopiaKt.app
 
 - extendedWaitUntil:
     visible:
-      text: ".*restored.*|.*Restore Complete.*|.*Restore Failed.*"
+      text: ".*restored.*|.*Restore Complete.*"
     timeout: 300000

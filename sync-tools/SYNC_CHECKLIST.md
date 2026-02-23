@@ -207,7 +207,11 @@ When crypto/format changes detected:
 
 - [ ] Open with Kotlin and verify
   ```bash
-  ./gradlew :e2e:test --tests "*CrossCompatibility*" -Pe2e
+  ./gradlew :e2e:test --tests "*KotlinToGoCompatibilityTest*" -Pe2e
+  ./gradlew :e2e:test --tests "*RepositoryCompatibilityTest*" -Pe2e
+  ./gradlew :e2e:test --tests "*GoToKotlinDeterministicRestoreTest*" -Pe2e
+  ./gradlew :e2e:test --tests "*AlgorithmIndexMatrixCompatibilityTest*" -Pe2e
+  ./gradlew :e2e:test --tests "*EdgeCaseFixtureCrossCompatibilityTest*" -Pe2e
   ```
 
 - [ ] Create repository with Kotlin

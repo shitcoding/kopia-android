@@ -134,6 +134,117 @@ class TestDataGenerator(
     }
 
     /**
+     * Create a directory with edge-case filenames and content patterns.
+     *
+     * Exercises: unicode names, emoji names, special chars, empty files/dirs,
+     * symlinks (when OS supports), binary patterns, and deep nesting.
+     */
+    fun createEdgeCaseDirectory(root: Path): DirectoryInfo {
+        root.createDirectories()
+
+        val files = mutableListOf<FileInfo>()
+        val dirs = mutableListOf<Path>()
+        val symlinks = mutableListOf<SymlinkInfo>()
+
+        // 1. Unicode filenames
+        val unicodeDir = root.resolve("unicode")
+        unicodeDir.createDirectories()
+        dirs.add(unicodeDir)
+
+        createTextFile(unicodeDir.resolve("中文文件.txt"), "Chinese content 中文内容\n").let { files.add(it) }
+        createTextFile(unicodeDir.resolve("日本語ファイル.txt"), "Japanese content 日本語\n").let { files.add(it) }
+        createTextFile(unicodeDir.resolve("한국어파일.txt"), "Korean content 한국어\n").let { files.add(it) }
+        createTextFile(unicodeDir.resolve("accénted_naïve_über.txt"), "Accented characters\n").let { files.add(it) }
+        createTextFile(unicodeDir.resolve("Ελληνικά.txt"), "Greek content\n").let { files.add(it) }
+        createTextFile(unicodeDir.resolve("Кириллица.txt"), "Cyrillic content\n").let { files.add(it) }
+
+        // 2. Emoji filenames
+        val emojiDir = root.resolve("emoji")
+        emojiDir.createDirectories()
+        dirs.add(emojiDir)
+
+        createTextFile(emojiDir.resolve("\uD83C\uDF89party\uD83C\uDF8A.txt"), "Party content\n").let { files.add(it) }
+        createTextFile(emojiDir.resolve("\uD83D\uDE80rocket.txt"), "Rocket content\n").let { files.add(it) }
+        createTextFile(emojiDir.resolve("thumbs\uD83D\uDC4D.txt"), "Thumbs up\n").let { files.add(it) }
+
+        // 3. Special characters in filenames
+        val specialDir = root.resolve("special_chars")
+        specialDir.createDirectories()
+        dirs.add(specialDir)
+
+        createTextFile(specialDir.resolve("file with spaces.txt"), "Spaces\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file...dots.txt"), "Dots\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file-dashes-here.txt"), "Dashes\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file_under_scores.txt"), "Underscores\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file#hash.txt"), "Hash\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file@at.txt"), "At sign\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file(parens).txt"), "Parentheses\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file[brackets].txt"), "Brackets\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file{braces}.txt"), "Braces\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file&ampersand.txt"), "Ampersand\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file=equals.txt"), "Equals\n").let { files.add(it) }
+        createTextFile(specialDir.resolve("file+plus.txt"), "Plus\n").let { files.add(it) }
+
+        // 4. Empty files and empty directories
+        val emptyFile = root.resolve("empty_file.txt")
+        emptyFile.createFile()
+        files.add(FileInfo(emptyFile, 0, ByteArray(0)))
+
+        val emptyDir = root.resolve("empty_dir")
+        emptyDir.createDirectories()
+        dirs.add(emptyDir)
+
+        val nestedEmptyDir = root.resolve("nested_empty/inner_empty")
+        nestedEmptyDir.createDirectories()
+        dirs.add(root.resolve("nested_empty"))
+        dirs.add(nestedEmptyDir)
+
+        // 5. Symlinks (gracefully skip on unsupported platforms)
+        try {
+            val symlinkTarget = root.resolve("unicode/中文文件.txt")
+            val symlinkPath = root.resolve("link_to_chinese.txt")
+            symlinkPath.createSymbolicLinkPointingTo(symlinkTarget)
+            symlinks.add(SymlinkInfo(symlinkPath, symlinkTarget.toString()))
+
+            val dirLinkTarget = root.resolve("unicode")
+            val dirLinkPath = root.resolve("link_to_unicode_dir")
+            dirLinkPath.createSymbolicLinkPointingTo(dirLinkTarget)
+            symlinks.add(SymlinkInfo(dirLinkPath, dirLinkTarget.toString()))
+        } catch (e: UnsupportedOperationException) {
+            // Symlinks not supported on this platform
+        }
+
+        // 6. Binary data files with specific patterns
+        val binaryDir = root.resolve("binary_patterns")
+        binaryDir.createDirectories()
+        dirs.add(binaryDir)
+
+        createPatternFile(binaryDir.resolve("all_zeros.bin"), ContentPattern.ZEROS, 4096).let { files.add(it) }
+        createPatternFile(binaryDir.resolve("all_ff.bin"), ContentPattern.ONES, 4096).let { files.add(it) }
+        createPatternFile(binaryDir.resolve("sequential.bin"), ContentPattern.SEQUENTIAL, 4096).let { files.add(it) }
+        createPatternFile(binaryDir.resolve("random.bin"), ContentPattern.RANDOM, 8192).let { files.add(it) }
+        createPatternFile(binaryDir.resolve("compressible.bin"), ContentPattern.COMPRESSIBLE, 16384).let { files.add(it) }
+
+        // Alternating bytes pattern
+        val alternating = ByteArray(4096) { if (it % 2 == 0) 0xAA.toByte() else 0x55.toByte() }
+        binaryDir.resolve("alternating.bin").writeBytes(alternating)
+        files.add(FileInfo(binaryDir.resolve("alternating.bin"), alternating.size.toLong(), alternating))
+
+        // 7. Deeply nested directory structure
+        var deepPath = root.resolve("deep")
+        deepPath.createDirectories()
+        dirs.add(deepPath)
+        for (level in 1..10) {
+            deepPath = deepPath.resolve("level_$level")
+            deepPath.createDirectories()
+            dirs.add(deepPath)
+        }
+        createTextFile(deepPath.resolve("deepest_file.txt"), "At the bottom\n").let { files.add(it) }
+
+        return DirectoryInfo(root, files, dirs, symlinks)
+    }
+
+    /**
      * Create a large directory for stress testing.
      *
      * @param root Target directory

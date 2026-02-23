@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * Utility class for running Go Kopia CLI commands.
@@ -103,19 +104,37 @@ class KopiaCliRunner(
 
         val process = processBuilder.start()
 
-        val stdout = process.inputStream.bufferedReader().readText()
-        val stderr = process.errorStream.bufferedReader().readText()
+        // Read stdout and stderr concurrently to avoid I/O deadlock.
+        // If the process fills one pipe buffer while we block reading the other,
+        // both sides stall indefinitely. Background threads drain both streams
+        // while waitFor handles the timeout.
+        var stdoutResult = ""
+        var stderrResult = ""
+
+        val stdoutThread = thread(start = true, isDaemon = true) {
+            stdoutResult = process.inputStream.bufferedReader().readText()
+        }
+        val stderrThread = thread(start = true, isDaemon = true) {
+            stderrResult = process.errorStream.bufferedReader().readText()
+        }
 
         val completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
         if (!completed) {
             process.destroyForcibly()
+            // Wait briefly for reader threads to finish after force-kill
+            stdoutThread.join(5_000)
+            stderrThread.join(5_000)
             throw KopiaCommandException(-1, "Command timed out after ${timeoutSeconds}s")
         }
 
+        // Process exited normally; streams will close and threads will finish
+        stdoutThread.join()
+        stderrThread.join()
+
         CommandResult(
             exitCode = process.exitValue(),
-            stdout = stdout,
-            stderr = stderr
+            stdout = stdoutResult,
+            stderr = stderrResult
         )
     }
 

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.content.hexToByteArray
 
 /**
  * Tests for IndexBlobEncryption.
@@ -24,15 +25,17 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `deriveContentIdFromBlobId should remove prefix`() {
-        // Various prefixes should be removed
+    fun `deriveContentIdFromBlobId should return empty for short IDs after prefix removal`() {
+        // These IDs have only 16 hex chars after prefix removal, which is less than
+        // the required 32 hex chars (16 bytes). The IV-based derivation returns zeros,
+        // which maps to ContentId.Empty.
         val nBlobId = BlobId("n1234567890abcdef")
         val pBlobId = BlobId("p1234567890abcdef")
         val qBlobId = BlobId("q1234567890abcdef")
 
-        assertEquals("1234567890abcdef", IndexBlobEncryption.deriveContentIdFromBlobId(nBlobId).toString())
-        assertEquals("1234567890abcdef", IndexBlobEncryption.deriveContentIdFromBlobId(pBlobId).toString())
-        assertEquals("1234567890abcdef", IndexBlobEncryption.deriveContentIdFromBlobId(qBlobId).toString())
+        assertEquals("", IndexBlobEncryption.deriveContentIdFromBlobId(nBlobId).toString())
+        assertEquals("", IndexBlobEncryption.deriveContentIdFromBlobId(pBlobId).toString())
+        assertEquals("", IndexBlobEncryption.deriveContentIdFromBlobId(qBlobId).toString())
     }
 
     @Test
@@ -56,42 +59,44 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `deriveContentIdFromBlobId should handle short blob ID`() {
+    fun `deriveContentIdFromBlobId should return empty for short blob ID`() {
         val blobId = BlobId("n1234")
 
         val contentId = IndexBlobEncryption.deriveContentIdFromBlobId(blobId)
 
-        // Short IDs are used as-is (padded if needed for valid ContentId)
-        assertEquals("1234", contentId.toString())
+        // Short IDs (< 32 hex chars) result in all-zero IV bytes,
+        // which maps to ContentId.Empty
+        assertEquals("", contentId.toString())
     }
 
     @Test
-    fun `deriveContentIdFromBlobId should handle uppercase hex`() {
+    fun `deriveContentIdFromBlobId should return empty for short uppercase hex`() {
         val blobId = BlobId("nABCDEF1234567890")
 
         val contentId = IndexBlobEncryption.deriveContentIdFromBlobId(blobId)
 
-        assertEquals("abcdef1234567890", contentId.toString())
+        // 16 hex chars after prefix removal, < 32 required -> empty
+        assertEquals("", contentId.toString())
     }
 
     @Test
-    fun `deriveContentIdFromBlobId should filter non-hex characters`() {
+    fun `deriveContentIdFromBlobId should return empty for short filtered hex`() {
         val blobId = BlobId("n12-34-56-78")
 
         val contentId = IndexBlobEncryption.deriveContentIdFromBlobId(blobId)
 
-        // Only "12" is before the first dash
-        assertEquals("12", contentId.toString())
+        // Before first dash: "n12" -> hex chars "12" -> only 2 hex chars, < 32 -> empty
+        assertEquals("", contentId.toString())
     }
 
     @Test
-    fun `deriveContentIdFromBlobId should handle blob ID without letter prefix`() {
-        // Non-letter first char shouldn't be stripped
+    fun `deriveContentIdFromBlobId should return empty for short ID without letter prefix`() {
+        // 16 hex chars without prefix, still < 32 required -> empty
         val blobId = BlobId("1234567890abcdef")
 
         val contentId = IndexBlobEncryption.deriveContentIdFromBlobId(blobId)
 
-        assertEquals("1234567890abcdef", contentId.toString())
+        assertEquals("", contentId.toString())
     }
 
     // ===== IV Bytes Extension Tests =====
@@ -106,19 +111,16 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `toIvBytes should pad short IDs with zeros`() {
+    fun `toIvBytes should return all zeros for short IDs`() {
         val blobId = BlobId("n1234")
 
         val ivBytes = blobId.toIvBytes()
 
         assertEquals(16, ivBytes.size)
-        // First 14 bytes should be zeros (padding)
-        for (i in 0 until 14) {
+        // Short IDs (< 32 hex chars) produce all-zero IV bytes
+        for (i in 0 until 16) {
             assertEquals(0.toByte(), ivBytes[i], "Byte at index $i should be zero")
         }
-        // Last 2 bytes should be 0x12 0x34
-        assertEquals(0x12.toByte(), ivBytes[14])
-        assertEquals(0x34.toByte(), ivBytes[15])
     }
 
     @Test
@@ -192,25 +194,33 @@ class IndexBlobEncryptionTest {
         val mockEncryptor = MockEncryptor()
         val encryption = IndexBlobEncryption(mockEncryptor)
         val data = byteArrayOf(1, 2, 3, 4, 5)
-        val blobId = BlobId("naaaa11112222333344445555")
+        // Must have >= 32 hex chars after prefix removal so IV derivation works
+        val blobId = BlobId("naaaa1111222233334444555566667777")
 
         encryption.encrypt(data, blobId)
 
         assertTrue(mockEncryptor.encryptCalled)
-        assertEquals("aaaa11112222333344445555", mockEncryptor.lastContentId?.toString())
+        assertEquals("aaaa1111222233334444555566667777", mockEncryptor.lastContentId?.toString())
     }
 
     @Test
-    fun `decrypt should use encryptor when provided`() = kotlinx.coroutines.runBlocking {
+    fun `decrypt should use encryptor decryptWithRawId when provided`() = kotlinx.coroutines.runBlocking {
         val mockEncryptor = MockEncryptor()
         val encryption = IndexBlobEncryption(mockEncryptor)
         val data = byteArrayOf(1, 2, 3, 4, 5)
-        val blobId = BlobId("nbbbb66667777888899990000")
+        // Must have >= 32 hex chars so IV derivation produces non-zero bytes
+        val blobId = BlobId("nbbbb6666777788889999000011112222")
 
         encryption.decrypt(data, blobId)
 
+        // decrypt() uses decryptWithRawId (not decrypt with ContentId)
         assertTrue(mockEncryptor.decryptCalled)
-        assertEquals("bbbb66667777888899990000", mockEncryptor.lastContentId?.toString())
+        // Verify the raw IV bytes were passed correctly
+        val expectedIvHex = "bbbb6666777788889999000011112222"
+        assertArrayEquals(
+            expectedIvHex.hexToByteArray(),
+            mockEncryptor.lastRawIdBytes
+        )
     }
 
     // ===== Mock Encryptor =====
@@ -223,6 +233,7 @@ class IndexBlobEncryptionTest {
         var encryptCalled = false
         var decryptCalled = false
         var lastContentId: org.kopiaKt.core.content.ContentId? = null
+        var lastRawIdBytes: ByteArray? = null
 
         override suspend fun encrypt(
             plaintext: ByteArray,
@@ -252,6 +263,7 @@ class IndexBlobEncryptionTest {
             contentIdBytes: ByteArray
         ): ByteArray {
             decryptCalled = true
+            lastRawIdBytes = contentIdBytes
             // Remove mock overhead
             return if (ciphertext.size > overhead) {
                 ciphertext.copyOfRange(0, ciphertext.size - overhead)

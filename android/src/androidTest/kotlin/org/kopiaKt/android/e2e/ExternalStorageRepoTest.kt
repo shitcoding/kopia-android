@@ -1,14 +1,16 @@
 package org.kopiaKt.android.e2e
 
-import android.os.Environment
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.flow.first
+import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.kopiaKt.core.repository.DirectRepositoryImpl
+import org.kopiaKt.snapshot.fs.Directory
+import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.restore.CountingRestoreProgress
@@ -45,13 +47,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
         Log.i(TAG, "Test: openGoCreatedRepository on ${getDeviceInfo()}")
 
         val repoPath = File(GO_REPO_PATH)
-
-        // Check if the repo exists
-        if (!repoPath.exists()) {
-            Log.w(TAG, "Go-created repository not found at $GO_REPO_PATH. Skipping test.")
-            Log.w(TAG, "Please create the repo and push it to the emulator first.")
-            return@runBlocking
-        }
+        assumeGoRepoAvailable(repoPath)
 
         Log.i(TAG, "Found repository at: ${repoPath.absolutePath}")
         Log.i(TAG, "Repository files: ${repoPath.listFiles()?.map { it.name }}")
@@ -96,10 +92,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
         Log.i(TAG, "Test: browseGoCreatedSnapshot on ${getDeviceInfo()}")
 
         val repoPath = File(GO_REPO_PATH)
-        if (!repoPath.exists()) {
-            Log.w(TAG, "Skipping: repository not found at $GO_REPO_PATH")
-            return@runBlocking
-        }
+        assumeGoRepoAvailable(repoPath)
 
         val storage = FilesystemBlobStorage.create(repoPath.toPath())
         val repository = DirectRepositoryImpl.open(storage, GO_REPO_PASSWORD)
@@ -120,7 +113,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             Log.i(TAG, "Root object: ${snapshot.rootEntry?.objectId}")
 
             // Browse the root directory
-            val root = snapshotRoot(repository, snapshot) as org.kopiaKt.snapshot.fs.Directory
+            val root = snapshotRoot(repository, snapshot) as Directory
             Log.i(TAG, "Root directory: ${root.name}")
 
             // List all entries
@@ -147,10 +140,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
         Log.i(TAG, "Test: restoreGoCreatedSnapshot on ${getDeviceInfo()}")
 
         val repoPath = File(GO_REPO_PATH)
-        if (!repoPath.exists()) {
-            Log.w(TAG, "Skipping: repository not found at $GO_REPO_PATH")
-            return@runBlocking
-        }
+        assumeGoRepoAvailable(repoPath)
 
         val storage = FilesystemBlobStorage.create(repoPath.toPath())
         val repository = DirectRepositoryImpl.open(storage, GO_REPO_PASSWORD)
@@ -164,6 +154,11 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             assertThat(manifests).isNotEmpty()
 
             val (snapshot, _) = repository.getManifest(manifests.first().id, SnapshotManifest.serializer())
+
+            // Build expected file tree from snapshot metadata before restoring
+            val snapshotTree = snapshotRoot(repository, snapshot)
+            val expectedEntries = collectSnapshotEntries(snapshotTree)
+            Log.i(TAG, "Snapshot describes ${expectedEntries.size} file entries")
 
             // Create restore directory
             val restoreTarget = File(testRoot, "go_restore")
@@ -194,20 +189,160 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             Log.i(TAG, "  Files restored: ${stats.restoredFileCount}")
             Log.i(TAG, "  Dirs restored: ${stats.restoredDirCount}")
             Log.i(TAG, "  Bytes restored: ${stats.restoredTotalFileSize}")
+            Log.i(TAG, "  Errors ignored: ${stats.ignoredErrorCount}")
 
+            // Validate all enqueued files were restored successfully
             assertThat(stats.restoredFileCount).isGreaterThan(0)
+            assertThat(stats.restoredFileCount).isEqualTo(stats.enqueuedFileCount)
+            assertThat(stats.restoredDirCount).isEqualTo(stats.enqueuedDirCount)
+            assertThat(stats.restoredSymlinkCount).isEqualTo(stats.enqueuedSymlinkCount)
+            assertThat(stats.restoredTotalFileSize).isEqualTo(stats.enqueuedTotalFileSize)
+            assertThat(stats.ignoredErrorCount).isEqualTo(0)
 
-            // Verify restored files
-            Log.i(TAG, "Restored files:")
-            restoreTarget.walkTopDown().forEach { file ->
-                if (file.isFile) {
-                    Log.i(TAG, "  ${file.toRelativeString(restoreTarget)}: ${file.length()} bytes")
-                }
-            }
+            // Validate restored files match snapshot metadata
+            assertRestoredMatchesSnapshot(restoreTarget, expectedEntries)
 
         } finally {
             repository.close()
         }
         Unit
+    }
+
+    // ==================
+    // Helper methods
+    // ==================
+
+    /**
+     * Ensures the Go test repository is available on device. Marks the test as
+     * SKIPPED (not PASSED) when prerequisites aren't met, so CI accurately
+     * reports which tests actually ran.
+     */
+    private fun assumeGoRepoAvailable(repoPath: File) {
+        assumeTrue(
+            "Go test repo not available at ${repoPath.path}. " +
+                "Push repo via: adb push <source> ${repoPath.path}",
+            repoPath.exists() && repoPath.isDirectory
+        )
+    }
+
+    /**
+     * Metadata about a single file in the snapshot tree, used for validation
+     * after restore. We record the relative path and expected size from the
+     * snapshot so we can compare against the restored files on disk.
+     */
+    private data class SnapshotFileEntry(
+        val relativePath: String,
+        val size: Long
+    )
+
+    /**
+     * Recursively walks the snapshot tree and collects metadata for every file
+     * entry. Directories and symlinks are excluded; only regular files are
+     * returned.
+     *
+     * @param entry     the current entry being visited
+     * @param basePath  the path prefix built up so far (empty string for the
+     *                  root directory, since the restorer places files directly
+     *                  into the target without a root-name wrapper)
+     * @param isRoot    true only for the very first call (the snapshot root);
+     *                  its name is NOT prepended to child paths
+     */
+    private suspend fun collectSnapshotEntries(
+        entry: Entry,
+        basePath: String = "",
+        isRoot: Boolean = true
+    ): List<SnapshotFileEntry> {
+        if (entry.isFile()) {
+            val path = if (basePath.isEmpty()) entry.name else "$basePath/${entry.name}"
+            return listOf(SnapshotFileEntry(relativePath = path, size = entry.size))
+        }
+
+        if (entry.isDirectory()) {
+            val dir = entry as Directory
+            // The root directory's name is NOT included in paths because the
+            // restorer writes directly into the target directory.
+            val childBasePath = when {
+                isRoot -> ""
+                basePath.isEmpty() -> entry.name
+                else -> "$basePath/${entry.name}"
+            }
+            val result = mutableListOf<SnapshotFileEntry>()
+            val iter = dir.iterate()
+            try {
+                while (true) {
+                    val child = iter.next() ?: break
+                    result.addAll(collectSnapshotEntries(child, childBasePath, isRoot = false))
+                }
+            } finally {
+                iter.close()
+            }
+            return result
+        }
+
+        // Symlinks and other types are skipped for file-content validation
+        return emptyList()
+    }
+
+    /**
+     * Validates that the restored directory on disk matches the snapshot
+     * metadata. Checks:
+     * - Every file listed in the snapshot exists on disk
+     * - File sizes match the snapshot metadata exactly
+     * - No unexpected extra files exist in the restore directory
+     * - Every restored file is readable (non-corrupt on disk)
+     */
+    private fun assertRestoredMatchesSnapshot(
+        restoreTarget: File,
+        expectedEntries: List<SnapshotFileEntry>
+    ) {
+        val expectedByPath = expectedEntries.associateBy { it.relativePath }
+
+        // Collect actual restored files
+        val actualFiles = restoreTarget.walkTopDown()
+            .filter { it.isFile }
+            .map { it.toRelativeString(restoreTarget) to it }
+            .toList()
+        val actualByPath = actualFiles.toMap()
+
+        // Check all expected files are present with correct sizes
+        val missingFiles = mutableListOf<String>()
+        val sizeMismatches = mutableListOf<String>()
+
+        for ((path, expected) in expectedByPath) {
+            val actualFile = actualByPath[path]
+            if (actualFile == null) {
+                missingFiles.add(path)
+                continue
+            }
+            val actualSize = actualFile.length()
+            if (actualSize != expected.size) {
+                sizeMismatches.add(
+                    "$path: expected ${expected.size} bytes, got $actualSize bytes"
+                )
+            }
+        }
+
+        // Check for unexpected extra files
+        val extraFiles = actualByPath.keys - expectedByPath.keys
+
+        // Log details before asserting for easier debugging
+        if (missingFiles.isNotEmpty()) {
+            Log.e(TAG, "Missing files (${missingFiles.size}): ${missingFiles.take(20)}")
+        }
+        if (sizeMismatches.isNotEmpty()) {
+            Log.e(TAG, "Size mismatches (${sizeMismatches.size}): ${sizeMismatches.take(20)}")
+        }
+        if (extraFiles.isNotEmpty()) {
+            Log.w(TAG, "Extra files (${extraFiles.size}): ${extraFiles.take(20)}")
+        }
+        Log.i(TAG, "Validated ${expectedByPath.size} expected files, " +
+            "${actualByPath.size} actual files on disk")
+
+        assertWithMessage("files present in snapshot but missing from restore")
+            .that(missingFiles).isEmpty()
+        assertWithMessage("files with size mismatch between snapshot metadata and restored file")
+            .that(sizeMismatches).isEmpty()
+        assertWithMessage("restored file count")
+            .that(actualByPath.size).isEqualTo(expectedByPath.size)
     }
 }

@@ -212,6 +212,145 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
     }
 
     @Test
+    @DisplayName("Go CLI restores Kotlin complex dataset with matching content")
+    fun goRestoresKotlinComplexDataset() = runTest {
+        requireGoKopia()
+
+        // Create complex test source with various file types and sizes
+        val dirInfo = testDataGenerator.createComplexDirectory(sourceDir)
+
+        // Create repository and upload snapshot using Kotlin
+        val repo = createGoCompatibleKotlinRepo()
+        repo.use {
+            uploadSnapshotWithKotlin(repo)
+        }
+
+        // Connect Go CLI
+        cliRunner.repositoryConnect(repoDir, testPassword)
+
+        // Verify snapshot integrity using Go CLI
+        val verifyResult = cliRunner.run("snapshot", "verify")
+        assertThat(verifyResult.success).isTrue()
+
+        // List snapshots and restore
+        val snapshots = cliRunner.snapshotList(all = true)
+        assertThat(snapshots).isNotEmpty()
+
+        val snapshotId = snapshots.first().rootEntry?.obj
+            ?: snapshots.first().id
+        assertThat(snapshotId).isNotNull()
+
+        cliRunner.snapshotRestore(snapshotId!!, restoreDir)
+
+        // Compare restored directory against original
+        val comparison = compareDirectories(sourceDir, restoreDir)
+        if (!comparison.identical) {
+            throw AssertionError("Restored complex dataset does not match original: $comparison")
+        }
+
+        // Verify specific files have correct content
+        for (fileInfo in dirInfo.files) {
+            val relativePath = sourceDir.relativize(fileInfo.path).toString()
+            val restoredFile = restoreDir.resolve(relativePath)
+            assertThat(restoredFile.readBytes())
+                .isEqualTo(fileInfo.content)
+        }
+    }
+
+    @Test
+    @DisplayName("Go CLI restores Kotlin large dataset with matching content")
+    fun goRestoresKotlinLargeDataset() = runTest {
+        requireGoKopia()
+
+        // Create large dataset: 50 files, ~10KB average
+        val dirInfo = testDataGenerator.createLargeDirectory(sourceDir, fileCount = 50, avgFileSize = 10 * 1024)
+
+        // Create repository and upload snapshot using Kotlin
+        val repo = createGoCompatibleKotlinRepo()
+        repo.use {
+            uploadSnapshotWithKotlin(repo)
+        }
+
+        // Connect Go CLI
+        cliRunner.repositoryConnect(repoDir, testPassword)
+
+        // Verify snapshot integrity
+        val verifyResult = cliRunner.run("snapshot", "verify")
+        assertThat(verifyResult.success).isTrue()
+
+        // Restore
+        val snapshots = cliRunner.snapshotList(all = true)
+        assertThat(snapshots).isNotEmpty()
+
+        val snapshotId = snapshots.first().rootEntry?.obj
+            ?: snapshots.first().id
+        assertThat(snapshotId).isNotNull()
+
+        cliRunner.snapshotRestore(snapshotId!!, restoreDir)
+
+        // Compare all files byte-for-byte
+        val comparison = compareDirectories(sourceDir, restoreDir)
+        if (!comparison.identical) {
+            throw AssertionError("Restored large dataset does not match original: $comparison")
+        }
+
+        // Verify file count matches
+        assertThat(dirInfo.fileCount).isEqualTo(50)
+    }
+
+    @Test
+    @DisplayName("Go CLI restores Kotlin edge-case names and symlinks")
+    fun goRestoresKotlinEdgeCaseNamesAndSymlinks() = runTest {
+        requireGoKopia()
+
+        // Create edge-case directory with unicode, emoji, special chars, symlinks
+        val dirInfo = testDataGenerator.createEdgeCaseDirectory(sourceDir)
+
+        // Create repository and upload snapshot using Kotlin
+        val repo = createGoCompatibleKotlinRepo()
+        repo.use {
+            uploadSnapshotWithKotlin(repo)
+        }
+
+        // Connect Go CLI
+        cliRunner.repositoryConnect(repoDir, testPassword)
+
+        // Verify snapshot integrity
+        val verifyResult = cliRunner.run("snapshot", "verify")
+        assertThat(verifyResult.success).isTrue()
+
+        // Restore
+        val snapshots = cliRunner.snapshotList(all = true)
+        assertThat(snapshots).isNotEmpty()
+
+        val snapshotId = snapshots.first().rootEntry?.obj
+            ?: snapshots.first().id
+        assertThat(snapshotId).isNotNull()
+
+        cliRunner.snapshotRestore(snapshotId!!, restoreDir)
+
+        // Compare restored files against originals (file content only, symlinks may differ)
+        for (fileInfo in dirInfo.files) {
+            val relativePath = sourceDir.relativize(fileInfo.path).toString()
+            val restoredFile = restoreDir.resolve(relativePath)
+            assertThat(restoredFile.readBytes())
+                .isEqualTo(fileInfo.content)
+        }
+
+        // Verify key edge-case files survived the round-trip
+        assertThat(restoreDir.resolve("unicode/中文文件.txt").readBytes())
+            .isEqualTo("Chinese content 中文内容\n".toByteArray())
+        assertThat(restoreDir.resolve("unicode/日本語ファイル.txt").readBytes())
+            .isEqualTo("Japanese content 日本語\n".toByteArray())
+        assertThat(restoreDir.resolve("special_chars/file with spaces.txt").readBytes())
+            .isEqualTo("Spaces\n".toByteArray())
+        assertThat(restoreDir.resolve("binary_patterns/all_zeros.bin").readBytes())
+            .isEqualTo(ByteArray(4096))
+        assertThat(restoreDir.resolve("deep/level_1/level_2/level_3/level_4/level_5/level_6/level_7/level_8/level_9/level_10/deepest_file.txt").readBytes())
+            .isEqualTo("At the bottom\n".toByteArray())
+    }
+
+    @Test
     @DisplayName("Kotlin repo format blob matches Go expectations")
     fun kotlinFormatBlobMatchesGoExpectations() = runTest {
         // This test does not require Go CLI - it validates the format blob structure

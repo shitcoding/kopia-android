@@ -139,5 +139,5 @@ appId: org.kopiaKt.app
 # Wait for restore to complete (76 files, may take a while)
 - extendedWaitUntil:
     visible:
-      text: ".*restored.*|.*Restore Complete.*|.*Restore Failed.*"
+      text: ".*restored.*|.*Restore Complete.*"
     timeout: 300000

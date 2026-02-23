@@ -38,6 +38,18 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(project(":core", "testArchive"))
+
+    // Testcontainers (Docker-based integration tests for remote backends)
+    testImplementation(libs.testcontainers.core)
+    testImplementation(libs.testcontainers.junit5)
+
+    // Storage backend runtime dependencies (needed for remote backend tests)
+    testImplementation(libs.aws.s3)
+    testImplementation(libs.aws.url.connection)
+    testImplementation(libs.stax.api)
+    testImplementation(libs.woodstox.core)
+    testImplementation(libs.okhttp)
+    testImplementation(libs.sshj)
 }
 
 tasks.test {
