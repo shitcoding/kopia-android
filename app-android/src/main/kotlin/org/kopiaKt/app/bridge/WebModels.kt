@@ -421,6 +421,80 @@ data class WebSetPolicyRequest(
     val policy: org.kopiaKt.snapshot.policy.Policy
 )
 
+// ===== New Request/Response Models =====
+
+@Serializable
+data class WebSupportedAlgorithms(
+    val hashing: List<String>,
+    val encryption: List<String>,
+    val compression: List<String>
+)
+
+@Serializable
+data class WebCreateRepositoryRequest(
+    val config: WebConnectionConfig,
+    val password: String,
+    val options: WebCreateRepoOptions
+)
+
+@Serializable
+data class WebCreateRepoOptions(
+    val hash: String,
+    val encryption: String,
+    val compression: String,
+    val description: String = ""
+)
+
+@Serializable
+data class WebEstimateBackupRequest(
+    val sourceId: String,
+    val policyOverride: String? = null
+)
+
+@Serializable
+data class WebMaintenanceStatus(
+    val lastRunTimeEpochMs: Long? = null,
+    val lastMode: String? = null,
+    val lastSuccess: Boolean? = null,
+    val lastError: String? = null,
+    val lastGcStats: WebMaintenanceGcStats? = null
+)
+
+@Serializable
+data class WebMaintenanceGcStats(
+    val deletedContentCount: Int = 0,
+    val reclaimedBytes: Long = 0
+)
+
+@Serializable
+data class WebTaskLogEntry(
+    val timestamp: Long,
+    val level: String,
+    val module: String,
+    val message: String
+)
+
+@Serializable
+data class WebResolvedPolicy(
+    val effective: org.kopiaKt.snapshot.policy.Policy,
+    val defined: org.kopiaKt.snapshot.policy.Policy?,
+    val upcomingSnapshotTimes: List<Long>
+)
+
+@Serializable
+data class WebPolicyListEntry(
+    val source: WebSourceInfo,
+    val policy: org.kopiaKt.snapshot.policy.Policy
+)
+
+@Serializable
+data class WebRepositoryCreationResult(
+    val storageType: String,
+    val encryption: String,
+    val hashing: String,
+    val description: String? = null
+)
+
 // ===== Backup Source -> Web Mappings =====
 
 fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
@@ -447,6 +521,12 @@ fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(
 )
 
 fun WebPolicySourceRequest.toSnapshotSourceInfo() = org.kopiaKt.snapshot.model.SourceInfo(
+    host = host,
+    userName = userName,
+    path = path
+)
+
+fun org.kopiaKt.snapshot.model.SourceInfo.toWeb() = WebSourceInfo(
     host = host,
     userName = userName,
     path = path

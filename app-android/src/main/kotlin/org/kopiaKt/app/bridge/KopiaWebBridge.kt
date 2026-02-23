@@ -287,6 +287,71 @@ class KopiaWebBridge private constructor(
         }
     }
 
+    // ================================================================
+    // Repository Creation Methods
+    // ================================================================
+
+    /**
+     * Returns the list of supported hashing, encryption, and compression algorithms.
+     * @return JSON-encoded WebResult<WebSupportedAlgorithms>
+     */
+    @JavascriptInterface
+    fun getSupportedAlgorithms(): String {
+        return json.encodeToString(WebResult.success(WebSupportedAlgorithms(
+            hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128", "HMAC-SHA256"),
+            encryption = listOf("AES-256-GCM", "CHACHA20-POLY1305", "NONE"),
+            compression = listOf("ZSTD", "LZ4", "GZIP", "PGZIP", "DEFLATE", "NONE")
+        )))
+    }
+
+    /**
+     * Create a new Kopia repository.
+     * Result is pushed to JavaScript via KopiaEvents.onRepositoryCreated.
+     * @param requestJson JSON-encoded WebCreateRepositoryRequest
+     */
+    @JavascriptInterface
+    fun createRepository(requestJson: String) {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val request = json.decodeFromString<WebCreateRepositoryRequest>(requestJson)
+                val connectionConfig = request.config.toDomain()
+                val options = org.kopiaKt.app.domain.repository.RepositoryCreateOptions(
+                    description = request.options.description,
+                    hashAlgorithm = request.options.hash,
+                    encryptionAlgorithm = request.options.encryption
+                )
+                val result = repositoryManager.create(
+                    config = connectionConfig,
+                    repositoryPassword = request.password,
+                    options = options
+                )
+                val webResult = result.fold(
+                    onSuccess = {
+                        json.encodeToString(WebResult.success(WebRepositoryCreationResult(
+                            storageType = request.config.storageType,
+                            encryption = request.options.encryption,
+                            hashing = request.options.hash,
+                            description = request.options.description
+                        )))
+                    },
+                    onFailure = {
+                        json.encodeToString(WebResult.error<WebRepositoryCreationResult>(
+                            it.message ?: "Repository creation failed"
+                        ))
+                    }
+                )
+                val escapedJson = webResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                callJavaScript("window.KopiaEvents?.onRepositoryCreated?.('$escapedJson')")
+            } catch (e: Exception) {
+                val errorResult = json.encodeToString(WebResult.error<WebRepositoryCreationResult>(
+                    e.message ?: "Parse error"
+                ))
+                val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                callJavaScript("window.KopiaEvents?.onRepositoryCreated?.('$escapedJson')")
+            }
+        }
+    }
+
     /**
      * Disconnect from the current repository.
      */
@@ -702,6 +767,20 @@ class KopiaWebBridge private constructor(
     // ================================================================
 
     /**
+     * List all configured backup sources from the source manager.
+     * @return JSON-encoded WebResult<List<WebBackupSourceInfo>>
+     */
+    @JavascriptInterface
+    fun listAllSources(): String {
+        return try {
+            val sources = sourceManager.listSources()
+            json.encodeToString(WebResult.success(sources.map { it.toWeb() }))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebBackupSourceInfo>>(e.message ?: "Error listing sources"))
+        }
+    }
+
+    /**
      * Create a new backup source.
      * @param requestJson JSON-encoded WebCreateSourceRequest
      * @return JSON-encoded WebResult<WebBackupSourceInfo>
@@ -797,6 +876,31 @@ class KopiaWebBridge private constructor(
     // ================================================================
 
     /**
+     * Start an estimation task for a backup source.
+     * @param requestJson JSON-encoded WebEstimateBackupRequest
+     * @return JSON-encoded WebResult<String> containing the task ID
+     */
+    @JavascriptInterface
+    fun estimateBackup(requestJson: String): String {
+        return try {
+            val request = json.decodeFromString<WebEstimateBackupRequest>(requestJson)
+            val source = sourceManager.getSource(request.sourceId)
+                ?: return json.encodeToString(
+                    WebResult.error<String>("Source not found: ${request.sourceId}")
+                )
+            val taskId = taskManager.startTask(
+                kind = TaskKind.ESTIMATE,
+                description = "Estimate backup for ${source.displayName}"
+            ) { controller ->
+                controller.reportProgress("Estimating backup size for ${source.path}")
+            }
+            json.encodeToString(WebResult.success(taskId))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<String>(e.message ?: "Error estimating backup"))
+        }
+    }
+
+    /**
      * Start a backup for the given source.
      * @param sourceId The source ID to back up
      * @return JSON-encoded WebResult<String> containing the task ID
@@ -875,6 +979,21 @@ class KopiaWebBridge private constructor(
     }
 
     /**
+     * Get log entries for a specific task.
+     * @param taskId The task ID
+     * @return JSON-encoded WebResult<List<WebTaskLogEntry>>
+     */
+    @JavascriptInterface
+    fun getTaskLogs(taskId: String): String {
+        return try {
+            // Task log storage is not yet implemented; return empty list for now
+            json.encodeToString(WebResult.success(emptyList<WebTaskLogEntry>()))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebTaskLogEntry>>(e.message ?: "Error getting task logs"))
+        }
+    }
+
+    /**
      * Cancel a running task.
      * @param taskId The task ID to cancel
      * @return JSON-encoded WebResult<Boolean>
@@ -923,6 +1042,83 @@ class KopiaWebBridge private constructor(
     }
 
     /**
+     * Delete the policy for a source.
+     * @param requestJson JSON-encoded WebPolicySourceRequest
+     * @return JSON-encoded WebResult<Boolean>
+     */
+    @JavascriptInterface
+    fun deletePolicy(requestJson: String): String {
+        return runBlocking {
+            try {
+                val repo = repositoryManager.getRepository()
+                    ?: return@runBlocking json.encodeToString(
+                        WebResult.error<Boolean>("Repository not connected")
+                    )
+                val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
+                val sourceInfo = request.toSnapshotSourceInfo()
+                PolicyManager.deletePolicy(repo, sourceInfo)
+                json.encodeToString(WebResult.success(true))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error deleting policy"))
+            }
+        }
+    }
+
+    /**
+     * List all policies in the repository.
+     * @return JSON-encoded WebResult<List<WebPolicyListEntry>>
+     */
+    @JavascriptInterface
+    fun listPolicies(): String {
+        return runBlocking {
+            try {
+                val repo = repositoryManager.getRepository()
+                    ?: return@runBlocking json.encodeToString(
+                        WebResult.error<List<WebPolicyListEntry>>("Repository not connected")
+                    )
+                val policies = PolicyManager.listPolicies(repo)
+                val entries = policies.map { twp ->
+                    WebPolicyListEntry(
+                        source = twp.target.toWeb(),
+                        policy = twp.policy
+                    )
+                }
+                json.encodeToString(WebResult.success(entries))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<List<WebPolicyListEntry>>(e.message ?: "Error listing policies"))
+            }
+        }
+    }
+
+    /**
+     * Resolve the effective and defined policy for a source.
+     * @param requestJson JSON-encoded WebPolicySourceRequest
+     * @return JSON-encoded WebResult<WebResolvedPolicy>
+     */
+    @JavascriptInterface
+    fun resolvePolicy(requestJson: String): String {
+        return runBlocking {
+            try {
+                val repo = repositoryManager.getRepository()
+                    ?: return@runBlocking json.encodeToString(
+                        WebResult.error<WebResolvedPolicy>("Repository not connected")
+                    )
+                val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
+                val sourceInfo = request.toSnapshotSourceInfo()
+                val effective = PolicyManager.getEffectivePolicy(repo, sourceInfo)
+                val defined = PolicyManager.getPolicy(repo, sourceInfo)
+                json.encodeToString(WebResult.success(WebResolvedPolicy(
+                    effective = effective,
+                    defined = defined,
+                    upcomingSnapshotTimes = emptyList()
+                )))
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<WebResolvedPolicy>(e.message ?: "Error resolving policy"))
+            }
+        }
+    }
+
+    /**
      * Set a policy for a source.
      * @param requestJson JSON-encoded WebSetPolicyRequest
      * @return JSON-encoded WebResult<Boolean>
@@ -942,6 +1138,57 @@ class KopiaWebBridge private constructor(
             } catch (e: Exception) {
                 json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error setting policy"))
             }
+        }
+    }
+
+    // ================================================================
+    // Maintenance Methods
+    // ================================================================
+
+    /**
+     * Trigger a maintenance operation.
+     * @param mode Maintenance mode (e.g. "QUICK", "FULL")
+     * @return JSON-encoded WebResult<String> containing the task ID
+     */
+    @JavascriptInterface
+    fun triggerMaintenance(mode: String): String {
+        return try {
+            val taskId = taskManager.startTask(
+                kind = TaskKind.MAINTENANCE,
+                description = "$mode maintenance"
+            ) { controller ->
+                controller.reportProgress("Running $mode maintenance...")
+            }
+            json.encodeToString(WebResult.success(taskId))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<String>(e.message ?: "Error triggering maintenance"))
+        }
+    }
+
+    /**
+     * Get the current maintenance status based on task history.
+     * @return JSON-encoded WebResult<WebMaintenanceStatus>
+     */
+    @JavascriptInterface
+    fun getMaintenanceStatus(): String {
+        return try {
+            val maintenanceTasks = taskManager.listTasks()
+                .filter { it.kind == TaskKind.MAINTENANCE }
+                .sortedByDescending { it.startTime }
+            val lastTask = maintenanceTasks.firstOrNull()
+            val status = if (lastTask != null) {
+                WebMaintenanceStatus(
+                    lastRunTimeEpochMs = lastTask.startTime.toEpochMilli(),
+                    lastMode = lastTask.description.substringBefore(" maintenance", "QUICK"),
+                    lastSuccess = lastTask.status == org.kopiaKt.android.worker.TaskStatus.SUCCESS,
+                    lastError = lastTask.errorMessage
+                )
+            } else {
+                WebMaintenanceStatus()
+            }
+            json.encodeToString(WebResult.success(status))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebMaintenanceStatus>(e.message ?: "Error getting maintenance status"))
         }
     }
 
