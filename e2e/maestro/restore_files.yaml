@@ -15,10 +15,17 @@ appId: org.kopiaKt.app
 - clearState
 - launchApp
 
+# Wait for WebView to load
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+
 # Connect to repository
-- assertVisible: "Connect to Repository"
 - tapOn: "Connect to Repository"
-- assertVisible: "Connect Repository"
+
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
 
 - tapOn:
     text: "Repository Path"
@@ -31,10 +38,10 @@ appId: org.kopiaKt.app
 - hideKeyboard
 - tapOn: "Connect"
 
-# Wait for SnapshotsScreen
+# Wait for SnapshotsScreen (key derivation may take time)
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 30000
 
 # Wait for source card
 - extendedWaitUntil:

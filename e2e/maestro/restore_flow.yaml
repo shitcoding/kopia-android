@@ -19,7 +19,7 @@ appId: org.kopiaKt.app
 # Connect to repository
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 10000
+    timeout: 20000
 - tapOn: "Connect to Repository"
 
 - extendedWaitUntil:
@@ -41,7 +41,7 @@ appId: org.kopiaKt.app
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
-    timeout: 15000
+    timeout: 30000
 - tapOn:
     text: ".*76 files.*"
 

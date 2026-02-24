@@ -115,10 +115,12 @@ class KopiaWebBridge private constructor(
     private val snapshotRepository get() = entryPoint.snapshotRepository()
     private val credentialRepository get() = entryPoint.credentialRepository()
 
+    private val lazyTaskManager by lazy { TaskManager() }
     internal val taskManager: TaskManager
-        get() = _taskManager ?: throw IllegalStateException("TaskManager not available. Provide via EntryPoint or test constructor.")
+        get() = _taskManager ?: lazyTaskManager
+    private val lazySourceManager by lazy { BackupSourceManager() }
     internal val sourceManager: BackupSourceManager
-        get() = _sourceManager ?: throw IllegalStateException("BackupSourceManager not available. Provide via EntryPoint or test constructor.")
+        get() = _sourceManager ?: lazySourceManager
 
     private val webViewRef = AtomicReference<WebView?>()
     private val json = Json {
@@ -293,14 +295,15 @@ class KopiaWebBridge private constructor(
 
     /**
      * Returns the list of supported hashing, encryption, and compression algorithms.
+     * Algorithm IDs must match the core enum IDs exactly (e.g. "AES256-GCM-HMAC-SHA256").
      * @return JSON-encoded WebResult<WebSupportedAlgorithms>
      */
     @JavascriptInterface
     fun getSupportedAlgorithms(): String {
         return json.encodeToString(WebResult.success(WebSupportedAlgorithms(
-            hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128", "HMAC-SHA256"),
-            encryption = listOf("AES-256-GCM", "CHACHA20-POLY1305", "NONE"),
-            compression = listOf("ZSTD", "LZ4", "GZIP", "PGZIP", "DEFLATE", "NONE")
+            hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"),
+            encryption = listOf("AES256-GCM-HMAC-SHA256", "CHACHA20-POLY1305-HMAC-SHA256", "NONE"),
+            compression = listOf("zstd", "lz4", "gzip", "pgzip", "deflate-default", "none")
         )))
     }
 
@@ -767,16 +770,17 @@ class KopiaWebBridge private constructor(
     // ================================================================
 
     /**
-     * List all configured backup sources from the source manager.
-     * @return JSON-encoded WebResult<List<WebBackupSourceInfo>>
+     * List all configured backup sources with status info.
+     * Returns WebSourceStatus[] matching the React UI's expected structure.
+     * @return JSON-encoded WebResult<List<WebSourceStatus>>
      */
     @JavascriptInterface
     fun listAllSources(): String {
         return try {
             val sources = sourceManager.listSources()
-            json.encodeToString(WebResult.success(sources.map { it.toWeb() }))
+            json.encodeToString(WebResult.success(sources.map { it.toWebStatus() }))
         } catch (e: Exception) {
-            json.encodeToString(WebResult.error<List<WebBackupSourceInfo>>(e.message ?: "Error listing sources"))
+            json.encodeToString(WebResult.error<List<WebSourceStatus>>(e.message ?: "Error listing sources"))
         }
     }
 
@@ -818,18 +822,18 @@ class KopiaWebBridge private constructor(
     /**
      * Get the current status of a backup source.
      * @param sourceId The source ID
-     * @return JSON-encoded WebResult<WebBackupSourceInfo>
+     * @return JSON-encoded WebResult<WebSourceStatus>
      */
     @JavascriptInterface
     fun getSourceStatus(sourceId: String): String {
         return try {
             val source = sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
-                    WebResult.error<WebBackupSourceInfo>("Source not found: $sourceId")
+                    WebResult.error<WebSourceStatus>("Source not found: $sourceId")
                 )
-            json.encodeToString(WebResult.success(source.toWeb()))
+            json.encodeToString(WebResult.success(source.toWebStatus()))
         } catch (e: Exception) {
-            json.encodeToString(WebResult.error<WebBackupSourceInfo>(e.message ?: "Error getting source status"))
+            json.encodeToString(WebResult.error<WebSourceStatus>(e.message ?: "Error getting source status"))
         }
     }
 

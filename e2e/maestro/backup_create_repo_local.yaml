@@ -100,17 +100,17 @@ appId: org.kopiaKt.app
 - scroll
 
 # Verify default encryption, hashing, and compression are pre-selected
-# (These are select dropdowns with defaults: AES-256-GCM, BLAKE2B-256-128, ZSTD)
+# (These are select dropdowns with defaults: AES256-GCM-HMAC-SHA256, BLAKE2B-256-128, zstd)
 - assertVisible:
-    text: ".*AES-256-GCM.*"
+    text: ".*AES256-GCM.*"
 - assertVisible:
     text: ".*BLAKE2B-256-128.*"
 
-# Scroll further to reveal ZSTD dropdown and Review button
+# Scroll further to reveal zstd dropdown and Review button
 - scroll
 
 - assertVisible:
-    text: ".*ZSTD.*"
+    text: ".*zstd.*"
 
 # Tap Review to go to step 4
 - tapOn:
@@ -126,19 +126,22 @@ appId: org.kopiaKt.app
 - assertVisible:
     text: ".*Local Filesystem.*"
 - assertVisible:
-    text: ".*AES-256-GCM.*"
+    text: ".*AES256-GCM.*"
 - assertVisible:
     text: ".*BLAKE2B-256-128.*"
 - assertVisible:
-    text: ".*ZSTD.*"
+    text: ".*zstd.*"
 
-# Tap Create Repository to trigger the bridge call
+# Tap Create Repository button (index 1 to skip the app bar title).
+# Text-based taps work for WebView buttons in this flow.
 - tapOn:
-    text: ".*Create Repository.*"
+    text: "Create Repository"
+    index: 1
 
 # Wait for the result. The bridge's createRepository method is invoked.
+# Key derivation (scrypt) can take 15-30s on emulator ARM.
 # On success: app navigates to Sources dashboard ("Backup Sources").
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
-    timeout: 30000
+    timeout: 60000

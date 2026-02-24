@@ -93,7 +93,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         _connectionState.value = ConnectionState.Connecting
 
         try {
-            val storage = createBlobStorage(config)
+            val storage = createBlobStorage(config, isCreate = true)
 
             val repoConfig = buildRepositoryConfig(options)
 
@@ -149,10 +149,11 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     override fun getRepository(): DirectRepository? = currentRepository
 
     private suspend fun createBlobStorage(
-        config: ConnectionConfig
+        config: ConnectionConfig,
+        isCreate: Boolean = false
     ): BlobStorage = when (config) {
         is ConnectionConfig.LocalFilesystem -> {
-            FilesystemBlobStorage.create(Path(config.path))
+            FilesystemBlobStorage.create(Path(config.path), create = isCreate)
         }
 
         is ConnectionConfig.S3 -> {

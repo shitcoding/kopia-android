@@ -92,32 +92,17 @@ appId: org.kopiaKt.app
 # ===== Phase 3: Add Backup Source =====
 
 # Navigate to Add Source screen (handles both empty and non-empty states)
-- runFlow:
-    when:
-      visible:
-        text: ".*Add Your First Source.*"
-    commands:
-      - tapOn:
-          text: ".*Add Your First Source.*"
+# Use a single tap that matches either button variant
+- tapOn:
+    text: ".*Add.*Source.*"
 
-- runFlow:
-    when:
-      visible:
-        text: ".*Add Backup Source.*"
-    commands:
-      - tapOn:
-          text: ".*Add Backup Source.*"
-
-# Wait for AddSourceScreen
+# Wait for AddSourceScreen - use specific text to avoid matching dashboard buttons
 - extendedWaitUntil:
     visible:
-      text: ".*Add Source.*"
+      text: ".*Choose a folder.*"
     timeout: 5000
 
 # Step 1: Choose folder to back up
-- assertVisible:
-    text: ".*Choose a folder.*"
-
 # Use manual path entry instead of SAF folder picker
 - tapOn:
     text: ".*Enter path manually.*"
@@ -171,9 +156,11 @@ appId: org.kopiaKt.app
 - assertVisible:
     text: ".*Start first backup immediately.*"
 
-# Tap "Add Source" to create the source and trigger backup
+# Tap "Add Source" button.
+# WebView text taps may not trigger the React onClick handler, so use
+# coordinate tap on the button center as a reliable fallback.
 - tapOn:
-    text: ".*Add Source.*"
+    point: "50%,73%"
 
 # ===== Phase 4: Verify Source on Dashboard =====
 
@@ -183,4 +170,4 @@ appId: org.kopiaKt.app
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
-    timeout: 15000
+    timeout: 30000

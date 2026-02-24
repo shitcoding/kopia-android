@@ -61,13 +61,13 @@ appId: org.kopiaKt.app
 # ========================================
 # Test 2: Empty password validation
 # ========================================
-# Navigate back to start fresh
-- back
-- back
+# Start fresh to avoid back-navigation exiting the app
+- clearState
+- launchApp
 
 - extendedWaitUntil:
-    visible: "Create New Repository"
-    timeout: 5000
+    visible: "KopiaKt"
+    timeout: 20000
 
 - tapOn: "Create New Repository"
 

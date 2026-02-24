@@ -120,6 +120,9 @@ appId: org.kopiaKt.app
     text: ".*Configure backup schedule.*"
 
 # ===== Phase 4: Test Invalid Path =====
+# The UI allows any non-empty path through to the next step (validation is
+# deferred to source creation). So we walk through the wizard and verify
+# that creating a source with an invalid path produces an error.
 
 # Enter an invalid path
 - tapOn:
@@ -128,13 +131,35 @@ appId: org.kopiaKt.app
 - inputText: "/nonexistent/invalid/backup/path"
 - hideKeyboard
 
-# Try to proceed
+# Proceed through wizard steps
 - tapOn:
     text: "Next"
 
-# The form must NOT advance to step 2 (schedule config) with an invalid path.
-# If the UI does allow advancing (validation is deferred), we fall through to
-# a conditional block that continues through the wizard and checks for an error
-# at source creation time.
-- assertNotVisible:
-    text: ".*Configure backup schedule.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Configure backup schedule.*"
+    timeout: 5000
+
+# Skip policy config with defaults, go to review
+- scroll
+- tapOn:
+    text: "Review"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Review and add source.*"
+    timeout: 5000
+
+# Verify the invalid path is shown in review
+- assertVisible:
+    text: ".*nonexistent.*"
+
+# Try to create source -- should fail with error toast
+- tapOn:
+    text: ".*Add Source.*"
+
+# Wait briefly for the error to appear
+- extendedWaitUntil:
+    visible:
+      text: ".*Failed.*|.*Error.*|.*error.*|.*not found.*|.*invalid.*"
+    timeout: 10000

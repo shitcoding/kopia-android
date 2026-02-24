@@ -63,7 +63,7 @@ declare global {
       storePassword(configJson: string, password: string): string;
       // New methods for sources, tasks, policies, maintenance
       getSupportedAlgorithms(): string;
-      createRepository(json: string): string;
+      createRepository(json: string): void;
       createSource(json: string): string;
       deleteSource(sourceId: string): string;
       getSourceStatus(sourceId: string): string;
@@ -88,7 +88,7 @@ declare global {
       onRestoreProgress?: (progress: RestoreProgress) => void;
       onDestinationPicked?: (result: SafPickResult) => void;
       onSystemThemeChanged?: (theme: string) => void;
-      onRepositoryCreated?: () => void;
+      onRepositoryCreated?: (resultJson: string) => void;
       onBackupProgress?: (sourceId: string, counters: string) => void;
       onTaskCompleted?: (taskId: string, status: string) => void;
       onSourceStatusChanged?: (sourceId: string, status: string) => void;
@@ -431,7 +431,28 @@ export async function getSupportedAlgorithms(): Promise<WebAlgorithms> {
 }
 
 export async function createRepository(request: CreateRepositoryRequest): Promise<void> {
-  callBridge<void>("createRepository", request);
+  const bridge = window.KopiaBridge;
+  if (!bridge) throw new BridgeError("KopiaBridge not available");
+
+  return new Promise<void>((resolve, reject) => {
+    window.KopiaEvents = window.KopiaEvents || {};
+    window.KopiaEvents.onRepositoryCreated = (resultJson: string) => {
+      try {
+        const result: WebResult<unknown> = JSON.parse(resultJson);
+        if (result.success) {
+          resolve();
+        } else {
+          reject(new BridgeError(result.error ?? "Repository creation failed"));
+        }
+      } catch {
+        reject(new BridgeError("Invalid response from createRepository bridge"));
+      } finally {
+        if (window.KopiaEvents) delete window.KopiaEvents.onRepositoryCreated;
+      }
+    };
+
+    bridge.createRepository(JSON.stringify(request));
+  });
 }
 
 export async function getAllSourceStatuses(): Promise<WebSourceStatus[]> {

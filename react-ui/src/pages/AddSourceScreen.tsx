@@ -134,7 +134,7 @@ const AddSourceScreen = () => {
               )}
             </div>
 
-            <button onClick={() => setStep(2)} disabled={!selectedPath.trim()} className="btn-primary w-full">
+            <button onClick={() => { if (selectedPath.trim()) setStep(2); }} disabled={!selectedPath.trim()} className="btn-primary w-full">
               Next
             </button>
           </div>

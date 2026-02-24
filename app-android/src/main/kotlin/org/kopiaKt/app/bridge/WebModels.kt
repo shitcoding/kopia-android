@@ -370,9 +370,13 @@ fun RestoreState.isTerminal() =
 
 @Serializable
 data class WebCreateSourceRequest(
-    val path: String,
-    val displayName: String = ""
-)
+    val uri: String,
+    val displayName: String = "",
+    val startBackup: Boolean = false
+) {
+    /** Alias for bridge method that uses `path` parameter */
+    val path: String get() = uri
+}
 
 @Serializable
 data class WebBackupSourceInfo(
@@ -382,6 +386,21 @@ data class WebBackupSourceInfo(
     val status: String,
     val lastSnapshotTimeEpochMs: Long? = null,
     val createdAtEpochMs: Long
+)
+
+/**
+ * Source status matching the React UI's WebSourceStatus interface.
+ * Uses a nested source field with { host, userName, path }.
+ */
+@Serializable
+data class WebSourceStatus(
+    val source: WebSourceInfo,
+    val status: String,
+    val nextBackupTimeEpochMs: Long? = null,
+    val lastBackupTimeEpochMs: Long? = null,
+    val currentTaskId: String? = null,
+    val snapshotCount: Int = 0,
+    val totalFileSize: Long = 0
 )
 
 // ===== Task Models =====
@@ -504,6 +523,18 @@ fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
     status = status.name,
     lastSnapshotTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
     createdAtEpochMs = createdAt.toEpochMilli()
+)
+
+fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
+    source = WebSourceInfo(
+        host = android.os.Build.MODEL,
+        userName = "local",
+        path = path
+    ),
+    status = status.name,
+    lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
+    snapshotCount = 0,
+    totalFileSize = 0
 )
 
 fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(

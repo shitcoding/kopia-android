@@ -53,9 +53,9 @@ const CreateRepositoryScreen = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [encryption, setEncryption] = useState("AES-256-GCM");
+  const [encryption, setEncryption] = useState("AES256-GCM-HMAC-SHA256");
   const [hashing, setHashing] = useState("BLAKE2B-256-128");
-  const [compression, setCompression] = useState("ZSTD");
+  const [compression, setCompression] = useState("zstd");
   const [description, setDescription] = useState("");
 
   const [isTesting, setIsTesting] = useState(false);
@@ -64,9 +64,9 @@ const CreateRepositoryScreen = () => {
   const { data: algorithms } = useAlgorithms();
   const createRepo = useCreateRepository();
 
-  const encryptionOptions = algorithms?.encryption ?? ["AES-256-GCM", "NONE"];
-  const hashingOptions = algorithms?.hashing ?? ["BLAKE2B-256-128", "BLAKE2B-256-256", "BLAKE3-256", "HMAC-SHA256-128"];
-  const compressionOptions = algorithms?.compression ?? ["ZSTD", "LZ4", "GZIP", "PGZIP", "DEFLATE", "NONE"];
+  const encryptionOptions = algorithms?.encryption ?? ["AES256-GCM-HMAC-SHA256", "CHACHA20-POLY1305-HMAC-SHA256", "NONE"];
+  const hashingOptions = algorithms?.hashing ?? ["BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"];
+  const compressionOptions = algorithms?.compression ?? ["zstd", "lz4", "gzip", "pgzip", "deflate-default", "none"];
 
   const buildConfig = (): ConnectionConfig => {
     const storageTypeMap: Record<string, StorageType> = {
