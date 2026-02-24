@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.content.pm.ApplicationInfo
 
 /**
  * Configures a WebView for the Kopia app with appropriate settings.
@@ -11,6 +12,12 @@ import android.webkit.WebViewClient
  */
 @SuppressLint("SetJavaScriptEnabled")
 fun WebView.configureForKopia() {
+    // Enable WebView debugging for debug builds (required for Maestro devtools hierarchy)
+    val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    if (isDebuggable) {
+        WebView.setWebContentsDebuggingEnabled(true)
+    }
+
     settings.apply {
         // Enable JavaScript for React app
         javaScriptEnabled = true

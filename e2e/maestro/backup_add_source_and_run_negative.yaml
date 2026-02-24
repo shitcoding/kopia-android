@@ -15,6 +15,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -50,21 +51,11 @@ appId: org.kopiaKt.app
 
 # ===== Phase 2: Navigate to Sources Dashboard =====
 
-- tapOn:
-    text: "Settings"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible:
-        text: ".*Styling.*"
-    commands:
-      - tapOn:
-          point: "92%,7%"
+- tapOn: "Settings"
 
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 5000
+    timeout: 15000
 
 - scroll
 - extendedWaitUntil:

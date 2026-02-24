@@ -7,6 +7,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -39,21 +40,11 @@ appId: org.kopiaKt.app
     timeout: 30000
 
 # Navigate to Settings
-- tapOn:
-    text: "Settings"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible:
-        text: ".*Styling.*"
-    commands:
-      - tapOn:
-          point: "92%,7%"
+- tapOn: "Settings"
 
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 5000
+    timeout: 15000
 
 # Scroll to Navigation section and tap Maintenance
 - scroll
@@ -89,8 +80,7 @@ appId: org.kopiaKt.app
     text: ".*Run Full Maintenance.*"
 
 # Navigate back using the back arrow
-- tapOn:
-    point: "8%,7%"
+- tapOn: "Back"
 
 # Verify we're back on settings or previous screen
 - extendedWaitUntil:

@@ -257,18 +257,19 @@ const FileBrowserScreen = () => {
         <button
           onClick={() => path.length > 0 ? setPath(path.slice(0, -1)) : navigate(-1)}
           className="btn-icon -ml-2"
+          aria-label="Back"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title truncate max-w-[50%]">{currentFolder}</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect" aria-label="Disconnect">
             <ExitDoorIcon className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate(`/restore/${snapshotId}`)} className="btn-icon">
+          <button onClick={() => navigate(`/restore/${snapshotId}`)} className="btn-icon" aria-label="Restore">
             <Download className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+          <button onClick={() => navigate("/settings")} className="btn-icon -mr-2" aria-label="Settings">
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -278,7 +279,7 @@ const FileBrowserScreen = () => {
       {selectionModeActive && restoreState === "idle" && (
         <div className="sticky top-[53px] z-40 flex items-center justify-between px-4 py-2.5 bg-primary/10 border-b border-border animate-fade-in whitespace-nowrap">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={clearSelection} className="btn-icon">
+            <button onClick={clearSelection} className="btn-icon" aria-label="Clear selection">
               <X className="w-5 h-5" />
             </button>
             <span className="text-sm font-medium text-foreground">

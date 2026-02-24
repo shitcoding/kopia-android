@@ -22,6 +22,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -57,22 +58,12 @@ appId: org.kopiaKt.app
 
 # ===== Phase 2: Navigate to Sources Dashboard =====
 
-# Open Settings (gear icon at top-right or "Settings" text)
-- tapOn:
-    text: "Settings"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible:
-        text: ".*Styling.*"
-    commands:
-      - tapOn:
-          point: "92%,7%"
+# Open Settings
+- tapOn: "Settings"
 
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 5000
+    timeout: 15000
 
 # Scroll to Navigation section and tap Sources
 - scroll
@@ -157,10 +148,7 @@ appId: org.kopiaKt.app
     text: ".*Start first backup immediately.*"
 
 # Tap "Add Source" button.
-# WebView text taps may not trigger the React onClick handler, so use
-# coordinate tap on the button center as a reliable fallback.
-- tapOn:
-    point: "50%,73%"
+- tapOn: "Add Source"
 
 # ===== Phase 4: Verify Source on Dashboard =====
 

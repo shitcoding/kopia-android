@@ -28,10 +28,10 @@ const SnapshotsScreen = () => {
         <div className="w-9" />
         <h1 className="app-bar-title">Snapshots</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect" aria-label="Disconnect">
             <ExitDoorIcon className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate("/settings")} className="btn-icon">
+          <button onClick={() => navigate("/settings")} className="btn-icon" aria-label="Settings">
             <Settings className="w-5 h-5" />
           </button>
         </div>

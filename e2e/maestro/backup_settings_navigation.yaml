@@ -6,6 +6,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -38,22 +39,12 @@ appId: org.kopiaKt.app
     timeout: 30000
 
 # Navigate to settings
-- tapOn:
-    text: "Settings"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible:
-        text: ".*Styling.*"
-    commands:
-      - tapOn:
-          point: "92%,7%"
+- tapOn: "Settings"
 
 # Verify settings screen loaded
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 5000
+    timeout: 15000
 
 # Verify Styling section exists
 - assertVisible:
@@ -105,9 +96,7 @@ appId: org.kopiaKt.app
     timeout: 10000
 
 # Navigate back to Settings -- SourcesDashboard has Settings icon, not back arrow
-# Use the Settings gear icon at top-right
-- tapOn:
-    point: "93%,7%"
+- tapOn: "Settings"
 
 # Verify back on Settings screen
 - extendedWaitUntil:

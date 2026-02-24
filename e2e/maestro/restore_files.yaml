@@ -10,6 +10,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -71,14 +72,13 @@ appId: org.kopiaKt.app
       text: ".*hidden_dir.*"
     timeout: 15000
 
-# Tap Download icon in app bar to open RestoreScreen
-- tapOn:
-    point: "80%,7%"
+# Tap Restore icon in app bar to open RestoreScreen
+- tapOn: "Restore"
 
 # Verify restore screen appeared
 - extendedWaitUntil:
     visible: "Select Destination"
-    timeout: 10000
+    timeout: 20000
 
 # Verify source path is shown
 - assertVisible:

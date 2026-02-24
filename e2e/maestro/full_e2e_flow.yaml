@@ -20,6 +20,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # ========================================
 # PHASE 1: Welcome Screen
@@ -30,7 +31,7 @@ appId: org.kopiaKt.app
 # Verify welcome screen elements
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 10000
+    timeout: 30000
 
 - assertVisible:
     text: ".*Browse and restore.*"
@@ -67,7 +68,7 @@ appId: org.kopiaKt.app
 # ========================================
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 30000
 
 # Verify source card with file count
 - extendedWaitUntil:
@@ -145,14 +146,12 @@ appId: org.kopiaKt.app
 # ========================================
 # PHASE 6: Restore Flow (RestoreScreen)
 # ========================================
-# Tap app bar Download icon to open RestoreScreen
-# Second icon from right in FileBrowserScreen app bar
-- tapOn:
-    point: "80%,7%"
+# Tap app bar Restore icon to open RestoreScreen
+- tapOn: "Restore"
 
 - extendedWaitUntil:
     visible: "Select Destination"
-    timeout: 10000
+    timeout: 20000
 
 # Select destination
 - tapOn: "Select Destination"
@@ -222,21 +221,12 @@ appId: org.kopiaKt.app
     visible: "Snapshots"
     timeout: 10000
 
-# Go to settings (try text first, then position)
-- tapOn:
-    text: "Settings"
-    optional: true
-
-- runFlow:
-    when:
-      notVisible: "Settings"
-    commands:
-      - tapOn:
-          point: "92%,7%"
+# Go to settings
+- tapOn: "Settings"
 
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 5000
+    timeout: 15000
 
 # Verify settings content
 - assertVisible:

@@ -225,11 +225,11 @@ const ConnectScreen = () => {
     <div className="app-container min-h-screen flex flex-col">
       {/* App Bar */}
       <header className="app-bar">
-        <button onClick={() => navigate("/")} className="btn-icon -ml-2">
+        <button onClick={() => navigate("/")} className="btn-icon -ml-2" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Connect Repository</h1>
-        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2" aria-label="Settings">
           <Settings className="w-5 h-5" />
         </button>
       </header>

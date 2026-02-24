@@ -11,6 +11,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -98,8 +99,14 @@ appId: org.kopiaKt.app
 - assertVisible: "Select All"
 - assertVisible: "Restore"
 
-# Tap Restore to open SAF folder picker
+# Tap Restore to open RestoreScreen
 - tapOn: "Restore"
+
+# Wait for RestoreScreen and tap Select Destination to open SAF picker
+- extendedWaitUntil:
+    visible: "Select Destination"
+    timeout: 10000
+- tapOn: "Select Destination"
 
 # SAF picker: wait for it to appear (native Android UI)
 - extendedWaitUntil:
@@ -143,6 +150,12 @@ appId: org.kopiaKt.app
     commands:
       - tapOn: "ALLOW"
 
+# RestoreScreen should be visible, tap "Start Restore" to begin the restore
+- extendedWaitUntil:
+    visible: "Start Restore"
+    timeout: 5000
+- tapOn: "Start Restore"
+
 # Wait for restore progress or completion
 - extendedWaitUntil:
     visible:
@@ -151,15 +164,18 @@ appId: org.kopiaKt.app
 
 # Wait for restore to complete
 - extendedWaitUntil:
-    visible: "Restore complete"
+    visible:
+      text: ".*Restore Complete.*"
     timeout: 60000
 
-- assertVisible: "Restore complete"
+- assertVisible:
+    text: ".*Restore Complete.*"
 
 # Tap Done to clear the restore bar
 - tapOn: "Done"
 
 # Verify selection mode cleared and normal file list shown
 - extendedWaitUntil:
-    notVisible: "Restore complete"
+    notVisible:
+      text: ".*Restore Complete.*"
     timeout: 3000

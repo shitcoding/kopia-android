@@ -9,6 +9,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -17,7 +18,7 @@ appId: org.kopiaKt.app
 # Connect to repository
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 10000
+    timeout: 30000
 - tapOn: "Connect to Repository"
 
 - extendedWaitUntil:
@@ -73,7 +74,7 @@ appId: org.kopiaKt.app
 - extendedWaitUntil:
     visible:
       text: ".*selected.*"
-    timeout: 10000
+    timeout: 15000
 
 - assertVisible:
     text: ".*selected.*"
@@ -112,9 +113,8 @@ appId: org.kopiaKt.app
       text: ".*selected.*"
     timeout: 3000
 
-# Tap X to exit selection mode (left side of selection toolbar)
-- tapOn:
-    point: "13%,17%"
+# Tap X to exit selection mode
+- tapOn: "Clear selection"
 
 # Verify we're still on SourceSnapshotsScreen with snapshot list intact
 - extendedWaitUntil:

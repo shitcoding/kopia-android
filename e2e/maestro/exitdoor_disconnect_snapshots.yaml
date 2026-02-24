@@ -6,6 +6,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -40,17 +41,7 @@ appId: org.kopiaKt.app
 - assertVisible: "Snapshots"
 
 # Tap ExitDoor button (title="Disconnect")
-- tapOn:
-    text: "Disconnect"
-    optional: true
-
-# Fallback: tap by position (top-right app bar)
-- runFlow:
-    when:
-      notVisible: "Connect Repository"
-    commands:
-      - tapOn:
-          point: "88%,4%"
+- tapOn: "Disconnect"
 
 # Verify we returned to ConnectScreen
 - extendedWaitUntil:

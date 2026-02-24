@@ -117,15 +117,15 @@ const SourceSnapshotsScreen = () => {
     <div className="app-container min-h-screen flex flex-col">
       {/* App Bar */}
       <header className="app-bar">
-        <button onClick={() => navigate("/snapshots")} className="btn-icon -ml-2">
+        <button onClick={() => navigate("/snapshots")} className="btn-icon -ml-2" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Snapshots</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect">
+          <button onClick={() => navigate("/connect")} className="btn-icon" title="Disconnect" aria-label="Disconnect">
             <ExitDoorIcon className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate("/settings")} className="btn-icon">
+          <button onClick={() => navigate("/settings")} className="btn-icon" aria-label="Settings">
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -142,7 +142,7 @@ const SourceSnapshotsScreen = () => {
       {selectionMode && (
         <div className="sticky top-[53px] z-40 flex items-center justify-between px-4 py-2.5 bg-primary/10 border-b border-border animate-fade-in">
           <div className="flex items-center gap-2">
-            <button onClick={clearSelection} className="btn-icon">
+            <button onClick={clearSelection} className="btn-icon" aria-label="Clear selection">
               <X className="w-5 h-5" />
             </button>
             <span className="text-sm font-medium text-foreground">

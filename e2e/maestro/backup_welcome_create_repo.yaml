@@ -5,6 +5,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - clearState
@@ -13,10 +14,12 @@ appId: org.kopiaKt.app
 # WebView may need a moment to load
 - extendedWaitUntil:
     visible: "KopiaKt"
-    timeout: 20000
+    timeout: 30000
 
-# Verify app title is visible
-- assertVisible: "KopiaKt"
+# Wait for full page render including buttons
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 10000
 
 # Verify the existing Connect to Repository button
 - assertVisible: "Connect to Repository"
@@ -47,8 +50,7 @@ appId: org.kopiaKt.app
     text: ".*SFTP.*"
 
 # Navigate back to welcome screen using the back button
-- tapOn:
-    point: "8%,7%"
+- tapOn: "Back"
 
 # Verify we returned to the welcome screen
 - extendedWaitUntil:

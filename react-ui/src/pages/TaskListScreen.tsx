@@ -53,11 +53,11 @@ const TaskListScreen = () => {
   return (
     <div className="app-container min-h-screen flex flex-col">
       <header className="app-bar">
-        <button onClick={() => navigate(-1)} className="btn-icon -ml-2">
+        <button onClick={() => navigate(-1)} className="btn-icon -ml-2" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Tasks</h1>
-        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2">
+        <button onClick={() => navigate("/settings")} className="btn-icon -mr-2" aria-label="Settings">
           <Settings className="w-5 h-5" />
         </button>
       </header>
