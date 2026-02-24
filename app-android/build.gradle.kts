@@ -102,6 +102,9 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    maxParallelForks = 2
+    maxHeapSize = "1536m"
+    setForkEvery(40)
 }
 
 // Task to build React assets and copy to Android assets folder
