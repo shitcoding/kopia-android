@@ -140,9 +140,10 @@ androidWebViewHierarchy: devtools
     index: 1
 
 # Wait for the result. The bridge's createRepository method is invoked.
-# Key derivation (scrypt) can take 15-30s on emulator ARM.
+# Key derivation (scrypt N=65536,r=8,p=1) takes ~1-2s on real ARM hardware
+# but can take 60-180s on emulated ARM (Apple Silicon AVD).
 # On success: app navigates to Sources dashboard ("Backup Sources").
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
-    timeout: 120000
+    timeout: 240000
