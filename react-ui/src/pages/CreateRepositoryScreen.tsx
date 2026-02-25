@@ -229,7 +229,7 @@ const CreateRepositoryScreen = () => {
               </div>
             )}
 
-            <button onClick={handleTestConnection} disabled={isTesting} className={`w-full ${testPassed ? "btn-secondary" : "btn-primary"}`} id="test-connection-button" aria-label="Test connection">
+            <button onClick={handleTestConnection} disabled={isTesting} className={`w-full ${testPassed ? "btn-secondary" : "btn-primary"}`} id="test-connection-button" aria-label={testPassed ? "Connection OK" : "Test connection"}>
               {isTesting ? <><Loader2 className="w-5 h-5 animate-spin" /> Testing...</> : testPassed ? <><Check className="w-5 h-5" /> Connection OK</> : "Test Connection"}
             </button>
 
