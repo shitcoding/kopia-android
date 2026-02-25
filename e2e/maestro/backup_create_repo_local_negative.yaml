@@ -44,6 +44,7 @@ androidWebViewHierarchy: devtools
 # Enter an invalid path that cannot exist
 - tapOn:
     id: "create-repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/invalid/nonexistent/path"
 
 - hideKeyboard
@@ -87,6 +88,7 @@ androidWebViewHierarchy: devtools
 # Enter a valid path
 - tapOn:
     id: "create-repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/KopiaNegativeTestRepo"
 
 - hideKeyboard
@@ -128,11 +130,13 @@ androidWebViewHierarchy: devtools
 # Enter password
 - tapOn:
     id: "create-password-input"
+- waitForAnimationToEnd
 - inputText: "testpassword123"
 
 # Enter different confirm password
 - tapOn:
     id: "create-confirm-password-input"
+- waitForAnimationToEnd
 - inputText: "differentpassword456"
 
 - hideKeyboard

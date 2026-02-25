@@ -28,10 +28,12 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 
 - hideKeyboard
@@ -105,6 +107,7 @@ androidWebViewHierarchy: devtools
 # Enter a test path via manual input
 - tapOn:
     id: "source-path-input"
+- waitForAnimationToEnd
 - inputText: "/storage/emulated/0/Documents"
 
 - hideKeyboard

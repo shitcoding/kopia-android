@@ -29,6 +29,7 @@ androidWebViewHierarchy: devtools
 # Try to connect without entering path
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 - hideKeyboard
 - tapOn:
@@ -46,6 +47,7 @@ androidWebViewHierarchy: devtools
 # Enter path only, clear password
 - tapOn:
     id: "repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
@@ -67,6 +69,7 @@ androidWebViewHierarchy: devtools
 # ========================================
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "wrongpassword"
 
 - hideKeyboard
@@ -94,10 +97,12 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/nonexistent_repo"
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 
 - hideKeyboard
@@ -125,10 +130,12 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 
 - hideKeyboard

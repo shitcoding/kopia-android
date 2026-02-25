@@ -48,21 +48,25 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "sftp-port-input"
 - eraseText: 10
+- waitForAnimationToEnd
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-username-input"
+- waitForAnimationToEnd
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-path-input"
+- waitForAnimationToEnd
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
+- waitForAnimationToEnd
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -70,6 +74,7 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 - hideKeyboard
 
@@ -100,6 +105,7 @@ androidWebViewHierarchy: devtools
 # Fill everything except username
 - tapOn:
     id: "sftp-host-input"
+- waitForAnimationToEnd
 - inputText: "10.0.2.2"
 - hideKeyboard
 
@@ -108,6 +114,7 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "sftp-port-input"
 - eraseText: 10
+- waitForAnimationToEnd
 - inputText: "2222"
 - hideKeyboard
 
@@ -115,11 +122,13 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "sftp-path-input"
+- waitForAnimationToEnd
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
+- waitForAnimationToEnd
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -127,6 +136,7 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 - hideKeyboard
 
@@ -157,6 +167,7 @@ androidWebViewHierarchy: devtools
 # Fill with wrong SFTP password
 - tapOn:
     id: "sftp-host-input"
+- waitForAnimationToEnd
 - inputText: "10.0.2.2"
 - hideKeyboard
 
@@ -165,21 +176,25 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "sftp-port-input"
 - eraseText: 10
+- waitForAnimationToEnd
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-username-input"
+- waitForAnimationToEnd
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-path-input"
+- waitForAnimationToEnd
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
+- waitForAnimationToEnd
 - inputText: "wrongpassword"
 - hideKeyboard
 
@@ -187,6 +202,7 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 - hideKeyboard
 
@@ -217,6 +233,7 @@ androidWebViewHierarchy: devtools
 # Fill with correct SFTP credentials but wrong repo password
 - tapOn:
     id: "sftp-host-input"
+- waitForAnimationToEnd
 - inputText: "10.0.2.2"
 - hideKeyboard
 
@@ -225,21 +242,25 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "sftp-port-input"
 - eraseText: 10
+- waitForAnimationToEnd
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-username-input"
+- waitForAnimationToEnd
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-path-input"
+- waitForAnimationToEnd
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
+- waitForAnimationToEnd
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -247,6 +268,7 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "wrongpassword"
 - hideKeyboard
 
@@ -277,6 +299,7 @@ androidWebViewHierarchy: devtools
 # Fill with correct credentials
 - tapOn:
     id: "sftp-host-input"
+- waitForAnimationToEnd
 - inputText: "10.0.2.2"
 - hideKeyboard
 
@@ -285,21 +308,25 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "sftp-port-input"
 - eraseText: 10
+- waitForAnimationToEnd
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-username-input"
+- waitForAnimationToEnd
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-path-input"
+- waitForAnimationToEnd
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
+- waitForAnimationToEnd
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -307,6 +334,7 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 - hideKeyboard
 

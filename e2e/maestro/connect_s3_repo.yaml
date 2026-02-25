@@ -40,6 +40,7 @@ androidWebViewHierarchy: devtools
 # Fill S3 fields -- hide keyboard between each to keep all fields visible
 - tapOn:
     id: "s3-bucket-input"
+- waitForAnimationToEnd
 - inputText: "kopia-e2e"
 - hideKeyboard
 
@@ -50,6 +51,7 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     id: "s3-endpoint-input"
 - eraseText: 50
+- waitForAnimationToEnd
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
@@ -57,11 +59,13 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "s3-access-key-input"
+- waitForAnimationToEnd
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "s3-secret-key-input"
+- waitForAnimationToEnd
 - inputText: "kopia123456"
 - hideKeyboard
 
@@ -71,6 +75,7 @@ androidWebViewHierarchy: devtools
 # Fill repository password
 - tapOn:
     id: "repo-password-input"
+- waitForAnimationToEnd
 - inputText: "test123"
 
 # Hide keyboard before tapping Connect

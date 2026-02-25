@@ -67,6 +67,7 @@ androidWebViewHierarchy: devtools
 # Enter repository path in the input field
 - tapOn:
     id: "create-repo-path-input"
+- waitForAnimationToEnd
 - inputText: "/sdcard/KopiaTestRepo"
 
 - hideKeyboard
@@ -94,11 +95,13 @@ androidWebViewHierarchy: devtools
 # Enter password
 - tapOn:
     id: "create-password-input"
+- waitForAnimationToEnd
 - inputText: "testpassword123"
 
 # Enter confirm password
 - tapOn:
     id: "create-confirm-password-input"
+- waitForAnimationToEnd
 - inputText: "testpassword123"
 
 - hideKeyboard
