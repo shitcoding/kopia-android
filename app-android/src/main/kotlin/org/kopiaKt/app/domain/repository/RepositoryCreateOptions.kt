@@ -28,5 +28,12 @@ data class RepositoryCreateOptions(
      * Splitter algorithm identifier (e.g. "DYNAMIC-4M-BUZHASH", "FIXED-1M").
      * Null means use the default.
      */
-    val splitterAlgorithm: String? = null
+    val splitterAlgorithm: String? = null,
+
+    /**
+     * Key derivation algorithm string (e.g. "scrypt-65536-8-1").
+     * Null means use the core default (scrypt-65536-8-1).
+     * Override via BuildConfig to use weaker parameters in debug builds.
+     */
+    val keyDerivationAlgorithm: String? = null
 )

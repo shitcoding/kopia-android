@@ -101,11 +101,15 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 description = options.description.ifEmpty { "KopiaKt Android" }
             )
 
+            val keyDerivationAlgorithm = options.keyDerivationAlgorithm
+
             val repository = DirectRepositoryImpl.create(
                 blobStorage = storage,
                 password = repositoryPassword,
                 config = repoConfig,
-                clientOptions = clientOpts
+                clientOptions = clientOpts,
+                keyDerivationAlgorithm = keyDerivationAlgorithm
+                    ?: org.kopiaKt.core.format.KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM
             )
 
             currentRepository = repository

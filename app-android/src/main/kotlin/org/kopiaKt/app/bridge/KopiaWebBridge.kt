@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
@@ -370,10 +371,12 @@ class KopiaWebBridge private constructor(
             try {
                 val request = json.decodeFromString<WebCreateRepositoryRequest>(requestJson)
                 val connectionConfig = request.config.toDomain()
+                val keyDerivationAlgorithm = "scrypt-${BuildConfig.SCRYPT_N}-${BuildConfig.SCRYPT_R}-${BuildConfig.SCRYPT_P}"
                 val options = org.kopiaKt.app.domain.repository.RepositoryCreateOptions(
                     description = request.options.description,
                     hashAlgorithm = request.options.hash,
-                    encryptionAlgorithm = request.options.encryption
+                    encryptionAlgorithm = request.options.encryption,
+                    keyDerivationAlgorithm = keyDerivationAlgorithm
                 )
                 val result = repositoryManager.create(
                     config = connectionConfig,

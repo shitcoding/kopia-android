@@ -15,6 +15,7 @@ import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.encryption.EncryptorFactory
 import org.kopiaKt.core.format.FormatBlobManager
+import org.kopiaKt.core.format.KopiaRepositoryJson
 import org.kopiaKt.core.format.OpenRepositoryResult
 import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.hashing.ContentHasherFactory
@@ -330,10 +331,15 @@ class DirectRepositoryImpl private constructor(
             password: String,
             config: RepositoryConfig,
             clientOptions: ClientOptions = ClientOptions.withDefaults(),
-            clock: Clock = Clock.systemUTC()
+            clock: Clock = Clock.systemUTC(),
+            keyDerivationAlgorithm: String = KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM
         ): DirectRepositoryImpl {
             val formatBlobManager = FormatBlobManager(blobStorage)
-            val result = formatBlobManager.createRepository(password, config)
+            val result = formatBlobManager.createRepository(
+                password = password,
+                config = config,
+                keyDerivationAlgorithm = keyDerivationAlgorithm
+            )
 
             return createFromConfig(
                 blobStorage = blobStorage,

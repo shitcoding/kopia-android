@@ -20,13 +20,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
+        debug {
+            buildConfigField("int", "SCRYPT_N", "1024")
+            buildConfigField("int", "SCRYPT_R", "8")
+            buildConfigField("int", "SCRYPT_P", "1")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("int", "SCRYPT_N", "65536")
+            buildConfigField("int", "SCRYPT_R", "8")
+            buildConfigField("int", "SCRYPT_P", "1")
         }
     }
 
