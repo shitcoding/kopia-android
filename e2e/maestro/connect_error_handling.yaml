@@ -9,7 +9,7 @@
 appId: org.kopiaKt.app
 ---
 # Clear app state and start fresh
-- clearState
+- stopApp
 - launchApp
 
 # Navigate to connect screen

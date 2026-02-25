@@ -25,7 +25,7 @@ appId: org.kopiaKt.app
 androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
-- clearState
+- stopApp
 - launchApp
 
 # ===== Phase 1: Connect to Repository =====

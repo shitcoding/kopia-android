@@ -9,8 +9,12 @@
 # On success the app navigates to the Sources dashboard.
 #
 # Note: Uses /sdcard/KopiaTestRepo as repository path. This directory
-# must not already contain a repository (clearState ensures fresh app state,
+# must not already contain a repository (stopApp ensures fresh app state,
 # and we clean up the path on device before running).
+#
+# Prerequisite: Disable stylus handwriting on the emulator, which intercepts
+# WebView text input and prevents Maestro's inputText from working:
+#   adb shell settings put secure stylus_handwriting_enabled 0
 #
 # UI is rendered in WebView (React app).
 
@@ -18,7 +22,9 @@ appId: org.kopiaKt.app
 androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
-- clearState
+# Note: stopApp is used instead of clearState to avoid WebView DevTools timeout.
+# Run `adb shell pm clear org.kopiaKt.app` manually before the test if needed.
+- stopApp
 - launchApp
 
 # Wait for the welcome screen to load in WebView

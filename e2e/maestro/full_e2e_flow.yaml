@@ -25,7 +25,7 @@ androidWebViewHierarchy: devtools
 # ========================================
 # PHASE 1: Welcome Screen
 # ========================================
-- clearState
+- stopApp
 - launchApp
 
 # Verify welcome screen elements

@@ -17,7 +17,7 @@
 appId: org.kopiaKt.app
 ---
 # Clear app state and start fresh
-- clearState
+- stopApp
 - launchApp
 
 # Wait for welcome screen and navigate to Connect

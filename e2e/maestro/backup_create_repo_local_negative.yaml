@@ -12,7 +12,7 @@
 appId: org.kopiaKt.app
 ---
 # Clear app state and start fresh
-- clearState
+- stopApp
 - launchApp
 
 # Wait for the welcome screen to load in WebView
@@ -62,7 +62,7 @@ appId: org.kopiaKt.app
 # Test 2: Empty password validation
 # ========================================
 # Start fresh to avoid back-navigation exiting the app
-- clearState
+- stopApp
 - launchApp
 
 - extendedWaitUntil:

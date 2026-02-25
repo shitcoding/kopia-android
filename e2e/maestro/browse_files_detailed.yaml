@@ -11,7 +11,7 @@
 appId: org.kopiaKt.app
 ---
 # Clear app state and start fresh
-- clearState
+- stopApp
 - launchApp
 
 # Connect to repository
