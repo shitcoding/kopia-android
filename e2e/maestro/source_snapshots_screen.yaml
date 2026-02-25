@@ -64,10 +64,9 @@ androidWebViewHierarchy: devtools
 - assertVisible:
     text: ".*76.*files.*"
 
-# Enter selection mode by tapping the checkbox area on the first snapshot card
-# The checkbox is at the left of the card (~15% from left, first card ~30% from top)
+# Enter selection mode by tapping the checkbox on the first snapshot card
 - tapOn:
-    point: "15%,30%"
+    text: "Select snapshot 1"
 
 # Wait for selection toolbar (WebView DOM update can be slow)
 # Text may be split across lines ("1" + "selected") in the toolbar

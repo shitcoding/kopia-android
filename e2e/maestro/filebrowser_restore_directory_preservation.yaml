@@ -71,11 +71,9 @@ androidWebViewHierarchy: devtools
       text: ".*level1.*"
     timeout: 10000
 
-# Enter selection mode by long-pressing on the icon area (left side) of level1 row
-# level1 is in the file list, around 60% from top
-# Long-press on the left icon area (9% from left) to avoid triggering text selection
+# Enter selection mode by long-pressing on the level1 folder row
 - longPressOn:
-    point: "9%,60%"
+    text: "Folder level1"
 
 # Wait for selection toolbar (text may be split across lines in WebView)
 - extendedWaitUntil:

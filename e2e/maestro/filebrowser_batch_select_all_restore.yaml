@@ -64,11 +64,9 @@ androidWebViewHierarchy: devtools
       text: ".*level1.*"
     timeout: 10000
 
-# Enter selection mode by long-pressing on the icon area (left side) of hidden_dir row
-# hidden_dir is typically the first row, around 33% from top
-# Long-press on the left icon area (9% from left) to avoid triggering text selection
+# Enter selection mode by long-pressing on the hidden_dir row
 - longPressOn:
-    point: "9%,33%"
+    text: "Folder hidden_dir"
 
 # Wait for selection toolbar (text may be split across lines in WebView)
 - extendedWaitUntil:
@@ -104,9 +102,7 @@ androidWebViewHierarchy: devtools
     timeout: 3000
 
 # Tap X to exit selection mode
-- tapOn:
-    text: ".*"
-    optional: true
+- tapOn: "Clear selection"
 
 # Verify normal file list icons are restored (no checkboxes)
 # and selection toolbar is gone
