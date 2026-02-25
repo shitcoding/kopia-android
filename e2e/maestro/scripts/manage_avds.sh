@@ -276,6 +276,9 @@ cmd_setup() {
         (
             echo "  [$i/$count] Setting up $serial..."
 
+            # Configure device settings (animations, input, screen stability)
+            "$SCRIPT_DIR/configure_avd.sh" "$serial"
+
             # Install APK
             echo "    Installing APK..."
             $ADB -s "$serial" install -r -g "$apk_path" 2>&1 | sed 's/^/    /'
