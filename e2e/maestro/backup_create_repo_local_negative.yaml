@@ -10,6 +10,7 @@
 # UI is rendered in WebView (React app).
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp

@@ -308,6 +308,58 @@ class KopiaWebBridge private constructor(
     }
 
     /**
+     * Test whether the given storage configuration is reachable and writable.
+     * For local filesystem paths, validates existence, creates the directory if needed,
+     * and performs an actual write/delete test.
+     * @param configJson JSON-encoded WebConnectionConfig
+     * @return JSON-encoded WebResult<String> ("OK" on success)
+     */
+    @JavascriptInterface
+    fun testStorageConnection(configJson: String): String {
+        return runBlocking {
+            try {
+                val config = json.decodeFromString<WebConnectionConfig>(configJson)
+                val domainConfig = config.toDomain()
+                when (domainConfig) {
+                    is org.kopiaKt.app.domain.model.ConnectionConfig.LocalFilesystem -> {
+                        val dir = java.io.File(domainConfig.path)
+                        if (!dir.exists()) {
+                            if (!dir.mkdirs()) {
+                                return@runBlocking json.encodeToString(
+                                    WebResult.error<String>("Directory does not exist and cannot be created: ${domainConfig.path}")
+                                )
+                            }
+                        }
+                        if (!dir.isDirectory) {
+                            return@runBlocking json.encodeToString(
+                                WebResult.error<String>("Path is not a directory: ${domainConfig.path}")
+                            )
+                        }
+                        if (!dir.canWrite()) {
+                            return@runBlocking json.encodeToString(
+                                WebResult.error<String>("Directory is not writable: ${domainConfig.path}")
+                            )
+                        }
+                        val testFile = java.io.File(dir, ".kopia-test-${System.currentTimeMillis()}")
+                        try {
+                            testFile.writeText("test")
+                            testFile.delete()
+                        } catch (e: Exception) {
+                            return@runBlocking json.encodeToString(
+                                WebResult.error<String>("Cannot write to directory: ${e.message}")
+                            )
+                        }
+                        json.encodeToString(WebResult.success("OK"))
+                    }
+                    else -> json.encodeToString(WebResult.success("OK"))
+                }
+            } catch (e: Exception) {
+                json.encodeToString(WebResult.error<String>(e.message ?: "Invalid configuration"))
+            }
+        }
+    }
+
+    /**
      * Create a new Kopia repository.
      * Result is pushed to JavaScript via KopiaEvents.onRepositoryCreated.
      * @param requestJson JSON-encoded WebCreateRepositoryRequest

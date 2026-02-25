@@ -15,7 +15,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAlgorithms, useCreateRepository } from "@/hooks/useBackupApi";
+import { useAlgorithms, useCreateRepository, useTestConnection } from "@/hooks/useBackupApi";
 import type { ConnectionConfig, CreateRepositoryRequest, StorageType } from "@/types/kopia";
 
 type StorageType = "local" | "s3" | "webdav" | "sftp";
@@ -63,6 +63,7 @@ const CreateRepositoryScreen = () => {
 
   const { data: algorithms } = useAlgorithms();
   const createRepo = useCreateRepository();
+  const testConnection = useTestConnection();
 
   const encryptionOptions = algorithms?.encryption ?? ["AES256-GCM-HMAC-SHA256", "CHACHA20-POLY1305-HMAC-SHA256", "NONE"];
   const hashingOptions = algorithms?.hashing ?? ["BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"];
@@ -89,10 +90,17 @@ const CreateRepositoryScreen = () => {
 
   const handleTestConnection = async () => {
     setIsTesting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsTesting(false);
-    setTestPassed(true);
-    toast({ title: "Connection successful" });
+    try {
+      const config = buildConfig();
+      await testConnection.mutateAsync(config);
+      setTestPassed(true);
+      toast({ title: "Connection successful" });
+    } catch (err) {
+      setTestPassed(false);
+      toast({ title: "Connection failed", description: String(err), variant: "destructive" });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -185,36 +193,36 @@ const CreateRepositoryScreen = () => {
                   >
                     <FolderOpen className="w-5 h-5 text-primary" />
                   </button>
-                  <input type="text" placeholder="Repository Path" value={localPath} onChange={(e) => setLocalPath(e.target.value)} className="input-md3 flex-1" />
+                  <input type="text" placeholder="Repository Path" value={localPath} onChange={(e) => setLocalPath(e.target.value)} className="input-md3 flex-1" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
                 </div>
               </div>
             )}
 
             {storageType === "s3" && (
               <div className="space-y-3">
-                <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" />
-                <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" />
+                <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
               </div>
             )}
 
             {storageType === "webdav" && (
               <div className="space-y-3">
-                <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" />
-                <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" />
+                <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
               </div>
             )}
 
             {storageType === "sftp" && (
               <div className="space-y-3">
-                <input type="text" placeholder="Host" value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} className="input-md3" />
-                <input type="text" inputMode="numeric" placeholder="Port (22)" value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Username" value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} className="input-md3" />
-                <input type="text" placeholder="Path" value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} className="input-md3" />
-                <input type="password" placeholder="Password" value={sftpPassword} onChange={(e) => setSftpPassword(e.target.value)} className="input-md3" />
+                <input type="text" placeholder="Host" value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" inputMode="numeric" placeholder="Port (22)" value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Username" value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Path" value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="password" placeholder="Password" value={sftpPassword} onChange={(e) => setSftpPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
               </div>
             )}
 
@@ -242,6 +250,10 @@ const CreateRepositoryScreen = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input-md3 pr-12"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -253,6 +265,10 @@ const CreateRepositoryScreen = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="input-md3"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
               />
               {password && confirmPassword && password !== confirmPassword && (
                 <p className="text-xs text-destructive px-1">Passwords don't match</p>
@@ -282,7 +298,7 @@ const CreateRepositoryScreen = () => {
 
             <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Description (optional)</label>
-              <input type="text" placeholder="e.g. Phone backup repo" value={description} onChange={(e) => setDescription(e.target.value)} className="input-md3" />
+              <input type="text" placeholder="e.g. Phone backup repo" value={description} onChange={(e) => setDescription(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
             </div>
 
             <button onClick={() => setStep(4)} disabled={!password || password !== confirmPassword} className="btn-primary w-full">

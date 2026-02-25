@@ -15,6 +15,7 @@
 # values (Endpoint) use clearText instead of eraseText for reliability.
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp

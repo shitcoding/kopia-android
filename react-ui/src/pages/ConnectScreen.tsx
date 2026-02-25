@@ -280,11 +280,11 @@ const ConnectScreen = () => {
                   onChange={(e) => setLocalPath(e.target.value)}
                   className="input-md3 flex-1"
                   disabled={isConnecting}
-                  data-testid="repo-path-input"
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
+                  data-testid="repo-path-input"
                 />
               </div>
               <p className="text-sm text-muted-foreground mt-2 px-1">
@@ -304,11 +304,11 @@ const ConnectScreen = () => {
               onChange={(e) => setS3Bucket(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="s3-bucket-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="s3-bucket-input"
             />
             <input
               type="url"
@@ -317,11 +317,11 @@ const ConnectScreen = () => {
               onChange={(e) => setS3Endpoint(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="s3-endpoint-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="s3-endpoint-input"
             />
             <input
               type="text"
@@ -330,11 +330,11 @@ const ConnectScreen = () => {
               onChange={(e) => setS3Region(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="s3-region-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="s3-region-input"
             />
             <input
               type="text"
@@ -343,11 +343,11 @@ const ConnectScreen = () => {
               onChange={(e) => setS3AccessKey(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="s3-access-key-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="s3-access-key-input"
             />
             <input
               type="password"
@@ -356,6 +356,10 @@ const ConnectScreen = () => {
               onChange={(e) => setS3SecretKey(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               data-testid="s3-secret-key-input"
             />
           </div>
@@ -371,11 +375,11 @@ const ConnectScreen = () => {
               onChange={(e) => setWebdavUrl(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="webdav-url-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="webdav-url-input"
             />
             <input
               type="text"
@@ -384,11 +388,11 @@ const ConnectScreen = () => {
               onChange={(e) => setWebdavUsername(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="webdav-username-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="webdav-username-input"
             />
             <input
               type="password"
@@ -397,6 +401,10 @@ const ConnectScreen = () => {
               onChange={(e) => setWebdavPassword(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               data-testid="webdav-password-input"
             />
           </div>
@@ -412,11 +420,11 @@ const ConnectScreen = () => {
               onChange={(e) => setSftpHost(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="sftp-host-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="sftp-host-input"
             />
             <input
               type="number"
@@ -425,6 +433,10 @@ const ConnectScreen = () => {
               onChange={(e) => setSftpPort(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               data-testid="sftp-port-input"
             />
             <input
@@ -434,11 +446,11 @@ const ConnectScreen = () => {
               onChange={(e) => setSftpUsername(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="sftp-username-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="sftp-username-input"
             />
             <input
               type="text"
@@ -447,11 +459,11 @@ const ConnectScreen = () => {
               onChange={(e) => setSftpPath(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
-              data-testid="sftp-path-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="sftp-path-input"
             />
             <input
               type="password"
@@ -460,6 +472,10 @@ const ConnectScreen = () => {
               onChange={(e) => setSftpPassword(e.target.value)}
               className="input-md3"
               disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               data-testid="sftp-password-input"
             />
           </div>
@@ -500,11 +516,11 @@ const ConnectScreen = () => {
               }}
               className="input-md3 pr-12"
               disabled={isConnecting}
-              data-testid="password-input"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-testid="password-input"
             />
             <button
               type="button"

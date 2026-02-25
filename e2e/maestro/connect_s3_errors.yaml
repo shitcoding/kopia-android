@@ -19,6 +19,7 @@
 # obscuring lower fields and causing mistyped input.
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp

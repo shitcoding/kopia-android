@@ -15,6 +15,7 @@
 # values (Port) use longPress+erase for reliability.
 
 appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp

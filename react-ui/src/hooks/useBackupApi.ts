@@ -17,9 +17,11 @@ import {
   triggerMaintenance as triggerMaintenanceBridge,
   estimateBackup as estimateBackupBridge,
   createRepository as createRepositoryBridge,
+  testStorageConnection as testStorageConnectionBridge,
   getSupportedAlgorithms,
 } from "@/services/kopiaBridge";
 import type {
+  ConnectionConfig,
   WebSourceStatus,
   WebTaskInfo,
   CreateSourceRequest,
@@ -206,6 +208,12 @@ export function useEstimate() {
 export function useCreateRepository() {
   return useMutation({
     mutationFn: (request: CreateRepositoryRequest) => createRepositoryBridge(request),
+  });
+}
+
+export function useTestConnection() {
+  return useMutation({
+    mutationFn: (config: ConnectionConfig) => testStorageConnectionBridge(config),
   });
 }
 

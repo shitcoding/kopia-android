@@ -64,6 +64,7 @@ declare global {
       // New methods for sources, tasks, policies, maintenance
       getSupportedAlgorithms(): string;
       createRepository(json: string): void;
+      testStorageConnection(json: string): string;
       createSource(json: string): string;
       deleteSource(sourceId: string): string;
       getSourceStatus(sourceId: string): string;
@@ -453,6 +454,10 @@ export async function createRepository(request: CreateRepositoryRequest): Promis
 
     bridge.createRepository(JSON.stringify(request));
   });
+}
+
+export async function testStorageConnection(config: ConnectionConfig): Promise<string> {
+  return callBridge<string>("testStorageConnection", config);
 }
 
 export async function getAllSourceStatuses(): Promise<WebSourceStatus[]> {

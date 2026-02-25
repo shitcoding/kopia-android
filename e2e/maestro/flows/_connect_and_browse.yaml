@@ -4,6 +4,9 @@
 #
 # Navigation: ConnectScreen → SnapshotsScreen → SourceSnapshotsScreen → FileBrowserScreen
 
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
 # Connect to repository
 - extendedWaitUntil:
     visible: "KopiaKt"
