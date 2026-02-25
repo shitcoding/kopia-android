@@ -33,7 +33,7 @@ androidWebViewHierarchy: devtools
 
 # Select Local Filesystem
 - tapOn:
-    text: ".*Local Filesystem.*"
+    id: "storage-option-local"
 
 # Wait for step 2
 - extendedWaitUntil:
@@ -43,14 +43,14 @@ androidWebViewHierarchy: devtools
 
 # Enter an invalid path that cannot exist
 - tapOn:
-    text: "Repository Path"
+    id: "create-repo-path-input"
 - inputText: "/invalid/nonexistent/path"
 
 - hideKeyboard
 
 # Test connection -- should fail
 - tapOn:
-    text: ".*Test Connection.*"
+    id: "test-connection-button"
 
 # The wizard must NOT advance past step 2 (storage config).
 # If the path is invalid, clicking "Test Connection" should keep us here.
@@ -77,7 +77,7 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: ".*Local Filesystem.*"
+    id: "storage-option-local"
 
 - extendedWaitUntil:
     visible:
@@ -86,13 +86,13 @@ androidWebViewHierarchy: devtools
 
 # Enter a valid path
 - tapOn:
-    text: "Repository Path"
+    id: "create-repo-path-input"
 - inputText: "/sdcard/KopiaNegativeTestRepo"
 
 - hideKeyboard
 
 - tapOn:
-    text: ".*Test Connection.*"
+    id: "test-connection-button"
 
 - extendedWaitUntil:
     visible:
@@ -100,7 +100,7 @@ androidWebViewHierarchy: devtools
     timeout: 10000
 
 - tapOn:
-    text: "Next"
+    text: "Next step"
 
 # Step 3: Password screen
 - extendedWaitUntil:
@@ -114,7 +114,7 @@ androidWebViewHierarchy: devtools
 
 # Try to tap Review without entering passwords
 - tapOn:
-    text: "Review"
+    text: "Review settings"
     optional: true
 
 # The form must NOT advance to step 4 (review) without a password.
@@ -127,12 +127,12 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Enter password
 - tapOn:
-    text: "Password"
+    id: "create-password-input"
 - inputText: "testpassword123"
 
 # Enter different confirm password
 - tapOn:
-    text: "Confirm Password"
+    id: "create-confirm-password-input"
 - inputText: "differentpassword456"
 
 - hideKeyboard
@@ -140,7 +140,7 @@ androidWebViewHierarchy: devtools
 
 # Try to proceed
 - tapOn:
-    text: "Review"
+    text: "Review settings"
     optional: true
 
 # The form must NOT advance to step 4 (review) with mismatched passwords.

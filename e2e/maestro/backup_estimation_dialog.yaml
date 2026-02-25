@@ -27,15 +27,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for SnapshotsScreen
 - extendedWaitUntil:
@@ -103,8 +104,7 @@ androidWebViewHierarchy: devtools
 
 # Enter a test path via manual input
 - tapOn:
-    text: ".*emulated.*"
-    optional: true
+    id: "source-path-input"
 - inputText: "/storage/emulated/0/Documents"
 
 - hideKeyboard

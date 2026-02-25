@@ -36,43 +36,45 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to SFTP tab
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # ========================================
 # Test 1: Missing host validation
 # ========================================
 # Fill everything except host
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "sftp-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error about host
 - extendedWaitUntil:
@@ -92,18 +94,19 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # Fill everything except username
 - tapOn:
-    text: "Host"
+    id: "sftp-host-input"
 - inputText: "10.0.2.2"
 - hideKeyboard
 
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
@@ -111,23 +114,24 @@ androidWebViewHierarchy: devtools
 # Skip Username intentionally
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error about username
 - extendedWaitUntil:
@@ -147,45 +151,47 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # Fill with wrong SFTP password
 - tapOn:
-    text: "Host"
+    id: "sftp-host-input"
 - inputText: "10.0.2.2"
 - hideKeyboard
 
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "sftp-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "wrongpassword"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show SSH/auth error
 - extendedWaitUntil:
@@ -205,45 +211,47 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # Fill with correct SFTP credentials but wrong repo password
 - tapOn:
-    text: "Host"
+    id: "sftp-host-input"
 - inputText: "10.0.2.2"
 - hideKeyboard
 
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "sftp-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "wrongpassword"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show repo auth error
 - extendedWaitUntil:
@@ -263,45 +271,47 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # Fill with correct credentials
 - tapOn:
-    text: "Host"
+    id: "sftp-host-input"
 - inputText: "10.0.2.2"
 - hideKeyboard
 
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "sftp-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:

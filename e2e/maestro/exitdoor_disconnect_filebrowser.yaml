@@ -23,15 +23,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # SnapshotsScreen → SourceSnapshotsScreen
 - extendedWaitUntil:
@@ -73,5 +74,7 @@ androidWebViewHierarchy: devtools
     visible: "Connect Repository"
     timeout: 5000
 
-- assertVisible: "Local"
-- assertVisible: "S3"
+- assertVisible:
+    id: "storage-tab-local"
+- assertVisible:
+    id: "storage-tab-s3"

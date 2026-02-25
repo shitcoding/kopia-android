@@ -28,10 +28,11 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Try to connect without entering path
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error
 - extendedWaitUntil:
@@ -44,15 +45,16 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Enter path only, clear password
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - eraseText: 100
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show password required error
 - extendedWaitUntil:
@@ -64,11 +66,12 @@ androidWebViewHierarchy: devtools
 # Test 3: Wrong password
 # ========================================
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "wrongpassword"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show authentication error
 - extendedWaitUntil:
@@ -90,15 +93,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/nonexistent_repo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show path not found / directory error
 - extendedWaitUntil:
@@ -120,15 +124,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should successfully connect
 - extendedWaitUntil:

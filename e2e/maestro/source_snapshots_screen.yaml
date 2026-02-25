@@ -26,15 +26,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # SnapshotsScreen: tap source card
 - extendedWaitUntil:
@@ -79,11 +80,11 @@ androidWebViewHierarchy: devtools
     text: ".*selected.*"
 
 # Verify toolbar buttons
-- assertVisible: "Select All"
+- assertVisible: "Select all"
 - assertVisible: "Delete"
 
 # Tap Select All
-- tapOn: "Select All"
+- tapOn: "Select all"
 
 # Verify count updated (text may be multiline in toolbar)
 - extendedWaitUntil:

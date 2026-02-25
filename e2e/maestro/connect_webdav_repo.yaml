@@ -33,21 +33,22 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to WebDAV tab
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # Fill WebDAV fields -- hide keyboard between each to keep all fields visible
 - tapOn:
-    text: "WebDAV URL"
+    id: "webdav-url-input"
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -56,12 +57,13 @@ androidWebViewHierarchy: devtools
 
 # Fill repository password
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
 # Tap Connect button
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:

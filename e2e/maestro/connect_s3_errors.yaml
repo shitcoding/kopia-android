@@ -36,38 +36,40 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to S3 tab
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # ========================================
 # Test 1: Missing bucket validation
 # ========================================
 # Fill everything except bucket
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Secret Access Key"
+    id: "s3-secret-key-input"
 - inputText: "kopia123456"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error about bucket
 - extendedWaitUntil:
@@ -87,24 +89,25 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # Fill everything except secret key
 - tapOn:
-    text: "Bucket"
+    id: "s3-bucket-input"
 - inputText: "kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "kopia"
 - hideKeyboard
 
@@ -113,11 +116,12 @@ androidWebViewHierarchy: devtools
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error about secret key
 - extendedWaitUntil:
@@ -137,40 +141,42 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # Fill with wrong S3 credentials
 - tapOn:
-    text: "Bucket"
+    id: "s3-bucket-input"
 - inputText: "kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "wrong-key"
 - hideKeyboard
 
 - tapOn:
-    text: "Secret Access Key"
+    id: "s3-secret-key-input"
 - inputText: "wrong-secret"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show backend authentication error
 - extendedWaitUntil:
@@ -190,40 +196,42 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # Fill with correct S3 credentials but wrong repo password
 - tapOn:
-    text: "Bucket"
+    id: "s3-bucket-input"
 - inputText: "kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Secret Access Key"
+    id: "s3-secret-key-input"
 - inputText: "kopia123456"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "wrongpassword"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show error (repo auth)
 - extendedWaitUntil:
@@ -243,40 +251,42 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # Fill with correct credentials
 - tapOn:
-    text: "Bucket"
+    id: "s3-bucket-input"
 - inputText: "kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Secret Access Key"
+    id: "s3-secret-key-input"
 - inputText: "kopia123456"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:

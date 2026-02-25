@@ -18,15 +18,16 @@ androidWebViewHierarchy: devtools
 - assertVisible: "Connect Repository"
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/v1repo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for snapshot list - V1 repo has a snapshot
 - extendedWaitUntil:

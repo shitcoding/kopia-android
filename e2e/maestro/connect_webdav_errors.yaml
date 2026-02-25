@@ -36,30 +36,32 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to WebDAV tab
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # ========================================
 # Test 1: Missing URL validation
 # ========================================
 # Fill everything except URL
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show validation error about URL
 - extendedWaitUntil:
@@ -79,27 +81,29 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # Fill URL but no repository password
 - tapOn:
-    text: "WebDAV URL"
+    id: "webdav-url-input"
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 # Skip Repository Password intentionally
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show password required error
 - extendedWaitUntil:
@@ -119,32 +123,34 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # Fill with wrong WebDAV credentials
 - tapOn:
-    text: "WebDAV URL"
+    id: "webdav-url-input"
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "wrongpassword"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show auth/HTTP error
 - extendedWaitUntil:
@@ -164,32 +170,34 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # Fill with correct WebDAV credentials but wrong repo password
 - tapOn:
-    text: "WebDAV URL"
+    id: "webdav-url-input"
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "wrongpassword"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should show repo auth error
 - extendedWaitUntil:
@@ -209,32 +217,34 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Connect Repository"
     timeout: 5000
-- tapOn: "WebDAV"
+- tapOn:
+    id: "storage-tab-webdav"
 
 # Fill with correct credentials
 - tapOn:
-    text: "WebDAV URL"
+    id: "webdav-url-input"
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "webdav-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "WebDAV Password"
+    id: "webdav-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
 - scroll
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:

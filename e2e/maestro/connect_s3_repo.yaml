@@ -34,20 +34,21 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to S3 tab
-- tapOn: "S3"
+- tapOn:
+    id: "storage-tab-s3"
 
 # Fill S3 fields -- hide keyboard between each to keep all fields visible
 - tapOn:
-    text: "Bucket"
+    id: "s3-bucket-input"
 - inputText: "kopia-e2e"
 - hideKeyboard
 
 # Endpoint field has a default value "s3.amazonaws.com" -- clear it first
 # Use long press + select all to ensure full clearing in WebView
 - tapOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - longPressOn:
-    text: ".*amazonaws.*"
+    id: "s3-endpoint-input"
 - eraseText: 50
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
@@ -55,12 +56,12 @@ androidWebViewHierarchy: devtools
 # Region field defaults to "us-east-1" which is what we want -- leave it
 
 - tapOn:
-    text: "Access Key ID"
+    id: "s3-access-key-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Secret Access Key"
+    id: "s3-secret-key-input"
 - inputText: "kopia123456"
 - hideKeyboard
 
@@ -69,14 +70,15 @@ androidWebViewHierarchy: devtools
 
 # Fill repository password
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 # Hide keyboard before tapping Connect
 - hideKeyboard
 
 # Tap Connect button
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:

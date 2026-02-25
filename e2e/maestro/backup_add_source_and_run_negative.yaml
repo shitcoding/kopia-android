@@ -34,15 +34,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection
 - extendedWaitUntil:
@@ -103,7 +104,7 @@ androidWebViewHierarchy: devtools
 
 # Do NOT enter a path -- try to proceed with Next
 - tapOn:
-    text: "Next"
+    text: "Next step"
     optional: true
 
 # The form must NOT advance to step 2 (schedule config) without a valid path.
@@ -117,14 +118,13 @@ androidWebViewHierarchy: devtools
 
 # Enter an invalid path
 - tapOn:
-    text: ".*emulated.*"
-    optional: true
+    id: "source-path-input"
 - inputText: "/nonexistent/invalid/backup/path"
 - hideKeyboard
 
 # Proceed through wizard steps
 - tapOn:
-    text: "Next"
+    text: "Next step"
 
 - extendedWaitUntil:
     visible:
@@ -134,7 +134,7 @@ androidWebViewHierarchy: devtools
 # Skip policy config with defaults, go to review
 - scroll
 - tapOn:
-    text: "Review"
+    text: "Review settings"
 
 - extendedWaitUntil:
     visible:
@@ -147,7 +147,7 @@ androidWebViewHierarchy: devtools
 
 # Try to create source -- should fail with error toast
 - tapOn:
-    text: ".*Add Source.*"
+    id: "add-source-button"
 
 # Wait briefly for the error to appear
 - extendedWaitUntil:

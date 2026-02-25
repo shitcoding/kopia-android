@@ -56,7 +56,7 @@ androidWebViewHierarchy: devtools
 
 # Select Local Filesystem (tapping advances to step 2 automatically)
 - tapOn:
-    text: ".*Local Filesystem.*"
+    id: "storage-option-local"
 
 # ===== Step 2: Configure Local Storage =====
 - extendedWaitUntil:
@@ -66,14 +66,14 @@ androidWebViewHierarchy: devtools
 
 # Enter repository path in the input field
 - tapOn:
-    text: "Repository Path"
+    id: "create-repo-path-input"
 - inputText: "/sdcard/KopiaTestRepo"
 
 - hideKeyboard
 
 # Test connection -- button should say "Test Connection"
 - tapOn:
-    text: ".*Test Connection.*"
+    id: "test-connection-button"
 
 # Wait for test to complete -- button changes to "Connection OK"
 - extendedWaitUntil:
@@ -83,7 +83,7 @@ androidWebViewHierarchy: devtools
 
 # "Next" button should now be enabled, tap it
 - tapOn:
-    text: "Next"
+    text: "Next step"
 
 # ===== Step 3: Repository Settings (Password, Encryption) =====
 - extendedWaitUntil:
@@ -93,12 +93,12 @@ androidWebViewHierarchy: devtools
 
 # Enter password
 - tapOn:
-    text: "Password"
+    id: "create-password-input"
 - inputText: "testpassword123"
 
 # Enter confirm password
 - tapOn:
-    text: "Confirm Password"
+    id: "create-confirm-password-input"
 - inputText: "testpassword123"
 
 - hideKeyboard
@@ -121,7 +121,7 @@ androidWebViewHierarchy: devtools
 
 # Tap Review to go to step 4
 - tapOn:
-    text: "Review"
+    text: "Review settings"
 
 # ===== Step 4: Review and Create =====
 - extendedWaitUntil:
@@ -142,8 +142,7 @@ androidWebViewHierarchy: devtools
 # Tap Create Repository button (index 1 to skip the app bar title).
 # Text-based taps work for WebView buttons in this flow.
 - tapOn:
-    text: "Create Repository"
-    index: 1
+    id: "create-repo-button"
 
 # Wait for the result. The bridge's createRepository method is invoked.
 # Debug builds use scrypt N=1024 (via BuildConfig), so key derivation

@@ -41,15 +41,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection (key derivation may take time)
 - extendedWaitUntil:
@@ -101,14 +102,13 @@ androidWebViewHierarchy: devtools
 # Tap on the revealed input field and enter path
 # The placeholder text is "/storage/emulated/0/..."
 - tapOn:
-    text: ".*emulated.*"
-    optional: true
+    id: "source-path-input"
 - inputText: "/sdcard/Download"
 - hideKeyboard
 
 # Tap Next to go to policy step
 - tapOn:
-    text: "Next"
+    text: "Next step"
 
 # Step 2: Configure policy (keep defaults: auto backup every 24 hours, ZSTD)
 - extendedWaitUntil:
@@ -127,7 +127,7 @@ androidWebViewHierarchy: devtools
 
 # Proceed with defaults
 - tapOn:
-    text: "Review"
+    text: "Review settings"
 
 # Step 3: Review and add source
 - extendedWaitUntil:
@@ -148,7 +148,8 @@ androidWebViewHierarchy: devtools
     text: ".*Start first backup immediately.*"
 
 # Tap "Add Source" button.
-- tapOn: "Add Source"
+- tapOn:
+    id: "add-source-button"
 
 # ===== Phase 4: Verify Source on Dashboard =====
 

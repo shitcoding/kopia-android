@@ -21,17 +21,18 @@ androidWebViewHierarchy: devtools
 
 # Enter path
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/v1repo"
 
 # Enter password
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 # Hide keyboard and tap Connect button
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection and verify success
 - extendedWaitUntil:

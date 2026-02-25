@@ -35,4 +35,5 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Verify we're on the connect screen (has storage tabs)
-- assertVisible: "Local"
+- assertVisible:
+    id: "storage-tab-local"

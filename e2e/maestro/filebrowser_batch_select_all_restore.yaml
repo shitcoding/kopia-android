@@ -25,15 +25,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # SnapshotsScreen → SourceSnapshotsScreen
 - extendedWaitUntil:
@@ -76,29 +77,29 @@ androidWebViewHierarchy: devtools
 
 - assertVisible:
     text: ".*selected.*"
-- assertVisible: "Select All"
+- assertVisible: "Select all"
 
 # Tap Select All
-- tapOn: "Select All"
+- tapOn: "Select all"
 
 # Verify "Deselect" appears (meaning all items selected, same button toggles)
 - extendedWaitUntil:
-    visible: "Deselect"
+    visible: "Deselect all"
     timeout: 3000
 
-- assertVisible: "Deselect"
+- assertVisible: "Deselect all"
 
 # Verify selected count is greater than 1
 - assertVisible:
     text: ".*selected.*"
 
 # Tap Deselect to clear all
-- tapOn: "Deselect"
+- tapOn: "Deselect all"
 
 # Wait for "Select All" to reappear (Deselect toggled back)
 # and count should be 0 or the toolbar should update
 - extendedWaitUntil:
-    visible: "Select All"
+    visible: "Select all"
     timeout: 3000
 
 # Tap X to exit selection mode

@@ -28,15 +28,16 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 - hideKeyboard
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # SnapshotsScreen: tap source card
 - extendedWaitUntil:
@@ -94,11 +95,11 @@ androidWebViewHierarchy: devtools
     text: ".*selected.*"
 
 # Verify toolbar buttons visible
-- assertVisible: "Select All"
-- assertVisible: "Restore"
+- assertVisible: "Select all"
+- assertVisible: "Restore selected"
 
 # Tap Restore to open RestoreScreen
-- tapOn: "Restore"
+- tapOn: "Restore selected"
 
 # Wait for RestoreScreen and tap Select Destination to open SAF picker
 - extendedWaitUntil:
@@ -170,7 +171,7 @@ androidWebViewHierarchy: devtools
     text: ".*Restore Complete.*"
 
 # Tap Done to clear the restore bar
-- tapOn: "Done"
+- tapOn: "Dismiss restore complete"
 
 # Verify selection mode cleared and normal file list shown
 - extendedWaitUntil:

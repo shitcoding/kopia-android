@@ -34,35 +34,36 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Switch to SFTP tab
-- tapOn: "SFTP"
+- tapOn:
+    id: "storage-tab-sftp"
 
 # Fill SFTP fields -- hide keyboard between each to keep all fields visible
 - tapOn:
-    text: "Host"
+    id: "sftp-host-input"
 - inputText: "10.0.2.2"
 - hideKeyboard
 
 # Port field defaults to "22" -- clear it and enter 2222
 - tapOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - longPressOn:
-    text: ".*22.*"
+    id: "sftp-port-input"
 - eraseText: 10
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
-    text: "Username"
+    id: "sftp-username-input"
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
-    text: "Path"
+    id: "sftp-path-input"
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
-    text: "SFTP Password"
+    id: "sftp-password-input"
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -71,12 +72,13 @@ androidWebViewHierarchy: devtools
 
 # Fill repository password
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 - hideKeyboard
 
 # Tap Connect button
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:

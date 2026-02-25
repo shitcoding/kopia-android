@@ -26,28 +26,33 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 
 # Verify Local tab is visible (default selected)
-- assertVisible: "Local"
+- assertVisible:
+    id: "storage-tab-local"
 
 # Verify other storage tabs exist
-- assertVisible: "S3"
-- assertVisible: "WebDAV"
-- assertVisible: "SFTP"
+- assertVisible:
+    id: "storage-tab-s3"
+- assertVisible:
+    id: "storage-tab-webdav"
+- assertVisible:
+    id: "storage-tab-sftp"
 
 # Enter repository path
 - tapOn:
-    text: "Repository Path"
+    id: "repo-path-input"
 - inputText: "/sdcard/testrepo"
 
 # Enter password
 - tapOn:
-    text: "Repository Password"
+    id: "repo-password-input"
 - inputText: "test123"
 
 # Hide keyboard before tapping Connect
 - hideKeyboard
 
 # Tap Connect button
-- tapOn: "Connect"
+- tapOn:
+    id: "connect-button"
 
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:
