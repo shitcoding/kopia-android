@@ -43,12 +43,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/testrepo"
 - hideKeyboard
 
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 
 - hideKeyboard
@@ -107,6 +109,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "source-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/Download"
 - hideKeyboard
 

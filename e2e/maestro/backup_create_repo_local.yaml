@@ -68,6 +68,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "create-repo-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/KopiaTestRepo"
 
 - hideKeyboard
@@ -96,6 +97,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "create-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "testpassword123"
 - hideKeyboard
 
@@ -103,6 +105,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "create-confirm-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "testpassword123"
 
 - hideKeyboard

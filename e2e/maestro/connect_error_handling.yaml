@@ -30,6 +30,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 - hideKeyboard
 - tapOn:
@@ -48,6 +49,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/testrepo"
 - hideKeyboard
 
@@ -71,6 +73,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "wrongpassword"
 
 - hideKeyboard
@@ -99,12 +102,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/nonexistent_repo"
 - hideKeyboard
 
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 
 - hideKeyboard
@@ -133,12 +138,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/sdcard/testrepo"
 - hideKeyboard
 
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 
 - hideKeyboard

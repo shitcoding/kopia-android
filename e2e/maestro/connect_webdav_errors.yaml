@@ -46,12 +46,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -60,6 +62,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 - hideKeyboard
 
@@ -91,18 +94,21 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "webdav-url-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -136,18 +142,21 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "webdav-url-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "wrongpassword"
 - hideKeyboard
 
@@ -156,6 +165,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 - hideKeyboard
 
@@ -187,18 +197,21 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "webdav-url-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -207,6 +220,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "wrongpassword"
 - hideKeyboard
 
@@ -238,18 +252,21 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "webdav-url-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "webdav-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -258,6 +275,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 - hideKeyboard
 

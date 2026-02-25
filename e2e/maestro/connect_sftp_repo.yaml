@@ -41,6 +41,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "sftp-host-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "10.0.2.2"
 - hideKeyboard
 
@@ -51,24 +52,28 @@ androidWebViewHierarchy: devtools
     id: "sftp-port-input"
 - eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "2222"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-username-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-path-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "/upload/kopia-e2e"
 - hideKeyboard
 
 - tapOn:
     id: "sftp-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
 
@@ -79,6 +84,7 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
+- eraseText: 1
 - inputText: "test123"
 - hideKeyboard
 
