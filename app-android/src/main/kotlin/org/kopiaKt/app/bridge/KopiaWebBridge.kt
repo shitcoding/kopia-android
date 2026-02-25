@@ -941,22 +941,9 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun estimateBackup(requestJson: String): String {
-        return try {
-            val request = json.decodeFromString<WebEstimateBackupRequest>(requestJson)
-            val source = sourceManager.getSource(request.sourceId)
-                ?: return json.encodeToString(
-                    WebResult.error<String>("Source not found: ${request.sourceId}")
-                )
-            val taskId = taskManager.startTask(
-                kind = TaskKind.ESTIMATE,
-                description = "Estimate backup for ${source.displayName}"
-            ) { controller ->
-                controller.reportProgress("Estimating backup size for ${source.path}")
-            }
-            json.encodeToString(WebResult.success(taskId))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<String>(e.message ?: "Error estimating backup"))
-        }
+        return json.encodeToString(
+            WebResult.error<String>("Backup estimation is not yet implemented")
+        )
     }
 
     /**
@@ -966,23 +953,9 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun startBackup(sourceId: String): String {
-        return try {
-            val source = sourceManager.getSource(sourceId)
-                ?: return json.encodeToString(
-                    WebResult.error<String>("Source not found: $sourceId")
-                )
-            val taskId = taskManager.startTask(
-                kind = TaskKind.BACKUP,
-                description = "Backup ${source.displayName}"
-            ) { controller ->
-                // The actual backup work will be delegated to BackupWorker
-                // in a full implementation. For now, the task tracks lifecycle.
-                controller.reportProgress("Starting backup for ${source.path}")
-            }
-            json.encodeToString(WebResult.success(taskId))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<String>(e.message ?: "Error starting backup"))
-        }
+        return json.encodeToString(
+            WebResult.error<String>("Backup execution is not yet implemented")
+        )
     }
 
     /**
@@ -1044,12 +1017,9 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun getTaskLogs(taskId: String): String {
-        return try {
-            // Task log storage is not yet implemented; return empty list for now
-            json.encodeToString(WebResult.success(emptyList<WebTaskLogEntry>()))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<List<WebTaskLogEntry>>(e.message ?: "Error getting task logs"))
-        }
+        return json.encodeToString(
+            WebResult.error<List<WebTaskLogEntry>>("Task log storage is not yet implemented")
+        )
     }
 
     /**
@@ -1211,17 +1181,9 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun triggerMaintenance(mode: String): String {
-        return try {
-            val taskId = taskManager.startTask(
-                kind = TaskKind.MAINTENANCE,
-                description = "$mode maintenance"
-            ) { controller ->
-                controller.reportProgress("Running $mode maintenance...")
-            }
-            json.encodeToString(WebResult.success(taskId))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<String>(e.message ?: "Error triggering maintenance"))
-        }
+        return json.encodeToString(
+            WebResult.error<String>("Maintenance is not yet implemented")
+        )
     }
 
     /**
