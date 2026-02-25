@@ -106,7 +106,7 @@ const AddSourceScreen = () => {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Choose a folder to back up</p>
 
-            <button onClick={handlePickFolder} className="btn-primary w-full">
+            <button onClick={handlePickFolder} className="btn-primary w-full" id="choose-folder-button" aria-label="Choose folder">
               <FolderOpen className="w-5 h-5" />
               Choose Folder
             </button>
@@ -120,7 +120,7 @@ const AddSourceScreen = () => {
             )}
 
             <div className="pt-2">
-              <button onClick={() => setManualEntry(!manualEntry)} className="text-xs text-muted-foreground underline">
+              <button onClick={() => setManualEntry(!manualEntry)} className="text-xs text-muted-foreground underline" aria-label={manualEntry ? "Hide manual entry" : "Enter path manually"}>
                 {manualEntry ? "Hide" : "Enter path manually"}
               </button>
               {manualEntry && (
@@ -130,11 +130,13 @@ const AddSourceScreen = () => {
                   value={selectedPath}
                   onChange={(e) => setSelectedPath(e.target.value)}
                   className="input-md3 mt-2"
+                  id="source-path-input"
+                  aria-label="Source path"
                 />
               )}
             </div>
 
-            <button onClick={() => { if (selectedPath.trim()) setStep(2); }} disabled={!selectedPath.trim()} className="btn-primary w-full">
+            <button onClick={() => { if (selectedPath.trim()) setStep(2); }} disabled={!selectedPath.trim()} className="btn-primary w-full" aria-label="Next step">
               Next
             </button>
           </div>
@@ -152,7 +154,7 @@ const AddSourceScreen = () => {
                 <p className="text-xs text-muted-foreground">Run backups on a schedule</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={autoBackup} onChange={(e) => setAutoBackup(e.target.checked)} className="sr-only peer" />
+                <input type="checkbox" checked={autoBackup} onChange={(e) => setAutoBackup(e.target.checked)} className="sr-only peer" aria-label="Automatic backups" />
                 <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
               </label>
             </div>
@@ -161,11 +163,11 @@ const AddSourceScreen = () => {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground px-1 mb-1">Every</p>
-                  <input type="text" inputMode="numeric" value={intervalValue} onChange={(e) => setIntervalValue(e.target.value)} className="input-md3" />
+                  <input type="text" inputMode="numeric" value={intervalValue} onChange={(e) => setIntervalValue(e.target.value)} className="input-md3" aria-label="Backup interval value" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground px-1 mb-1">Unit</p>
-                  <select value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as "hours" | "days")} className="input-md3">
+                  <select value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as "hours" | "days")} className="input-md3" aria-label="Backup interval unit">
                     <option value="hours">Hours</option>
                     <option value="days">Days</option>
                   </select>
@@ -175,7 +177,7 @@ const AddSourceScreen = () => {
 
             <div>
               <p className="text-xs text-muted-foreground px-1 mb-1">Compression</p>
-              <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3">
+              <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3" aria-label="Compression algorithm">
                 {COMPRESSION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -188,11 +190,12 @@ const AddSourceScreen = () => {
                 rows={4}
                 className="input-md3 font-mono text-sm"
                 placeholder={"*.tmp\n.cache/**"}
+                aria-label="File exclusions"
               />
               <p className="text-xs text-muted-foreground px-1 mt-1">Glob patterns for files/directories to exclude</p>
             </div>
 
-            <button onClick={() => setStep(3)} className="btn-primary w-full">
+            <button onClick={() => setStep(3)} className="btn-primary w-full" aria-label="Review settings">
               Review
             </button>
           </div>
@@ -234,7 +237,7 @@ const AddSourceScreen = () => {
               <span className="text-sm text-foreground">Start first backup immediately</span>
             </label>
 
-            <button onClick={handleCreate} disabled={createSource.isPending} className="btn-primary w-full">
+            <button onClick={handleCreate} disabled={createSource.isPending} className="btn-primary w-full" id="add-source-button" aria-label="Add source">
               {createSource.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Adding Source...</> : "Add Source"}
             </button>
           </div>

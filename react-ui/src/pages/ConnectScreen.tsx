@@ -246,6 +246,8 @@ const ConnectScreen = () => {
                   ? "tab-active"
                   : "text-muted-foreground hover:text-foreground"
               }`}
+              id={`storage-tab-${tab.id}`}
+              aria-label={`${tab.label} storage`}
               data-testid={`storage-tab-${tab.id}`}
             >
               {tab.label}
@@ -268,6 +270,7 @@ const ConnectScreen = () => {
                   }}
                   disabled={isConnecting}
                   className="shrink-0 w-14 rounded-xl border border-border bg-card hover:bg-accent flex items-center justify-center transition-colors disabled:opacity-50"
+                  aria-label="Browse for directory"
                   title="Browse for directory"
                   data-testid="browse-folder-button"
                 >
@@ -284,6 +287,8 @@ const ConnectScreen = () => {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
+                  id="repo-path-input"
+                  aria-label="Repository path"
                   data-testid="repo-path-input"
                 />
               </div>
@@ -308,6 +313,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="s3-bucket-input"
+              aria-label="S3 bucket"
               data-testid="s3-bucket-input"
             />
             <input
@@ -321,6 +328,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="s3-endpoint-input"
+              aria-label="S3 endpoint"
               data-testid="s3-endpoint-input"
             />
             <input
@@ -334,6 +343,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="s3-region-input"
+              aria-label="S3 region"
               data-testid="s3-region-input"
             />
             <input
@@ -347,6 +358,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="s3-access-key-input"
+              aria-label="Access key ID"
               data-testid="s3-access-key-input"
             />
             <input
@@ -360,6 +373,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="s3-secret-key-input"
+              aria-label="Secret access key"
               data-testid="s3-secret-key-input"
             />
           </div>
@@ -379,6 +394,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="webdav-url-input"
+              aria-label="WebDAV URL"
               data-testid="webdav-url-input"
             />
             <input
@@ -392,6 +409,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="webdav-username-input"
+              aria-label="WebDAV username"
               data-testid="webdav-username-input"
             />
             <input
@@ -405,6 +424,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="webdav-password-input"
+              aria-label="WebDAV password"
               data-testid="webdav-password-input"
             />
           </div>
@@ -424,6 +445,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="sftp-host-input"
+              aria-label="SFTP host"
               data-testid="sftp-host-input"
             />
             <input
@@ -437,6 +460,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="sftp-port-input"
+              aria-label="SFTP port"
               data-testid="sftp-port-input"
             />
             <input
@@ -450,6 +475,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="sftp-username-input"
+              aria-label="SFTP username"
               data-testid="sftp-username-input"
             />
             <input
@@ -463,6 +490,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="sftp-path-input"
+              aria-label="SFTP path"
               data-testid="sftp-path-input"
             />
             <input
@@ -476,6 +505,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="sftp-password-input"
+              aria-label="SFTP password"
               data-testid="sftp-password-input"
             />
           </div>
@@ -520,6 +551,8 @@ const ConnectScreen = () => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              id="repo-password-input"
+              aria-label="Repository password"
               data-testid="password-input"
             />
             <button
@@ -531,6 +564,7 @@ const ConnectScreen = () => {
                   ? "text-muted-foreground/40 cursor-not-allowed"
                   : "text-muted-foreground hover:text-foreground"
               }`}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               title={isPasswordAutoFilled ? "Cannot view saved passwords" : "Show password"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -561,6 +595,8 @@ const ConnectScreen = () => {
           onClick={handleConnect}
           disabled={isConnecting}
           className="btn-primary w-full"
+          id="connect-button"
+          aria-label="Connect to repository"
           data-testid="connect-button"
         >
           {isConnecting ? (

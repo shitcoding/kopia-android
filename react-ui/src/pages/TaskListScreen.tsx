@@ -72,6 +72,8 @@ const TaskListScreen = () => {
               className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
                 filter === f.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
               }`}
+              id={`task-filter-${f.id}`}
+              aria-label={`Filter ${f.label.toLowerCase()} tasks`}
             >
               {f.label}
             </button>
@@ -169,6 +171,7 @@ const TaskListScreen = () => {
                       onClick={() => cancelTask.mutate(task.id)}
                       disabled={cancelTask.isPending || task.status === "CANCELING"}
                       className="text-xs text-destructive font-medium hover:underline"
+                      aria-label="Cancel task"
                     >
                       {task.status === "CANCELING" ? "Canceling..." : "Cancel Task"}
                     </button>

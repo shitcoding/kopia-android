@@ -155,6 +155,8 @@ const CreateRepositoryScreen = () => {
                 key={opt.id}
                 onClick={() => { setStorageType(opt.id); setStep(2); setTestPassed(false); }}
                 className="w-full card-elevated flex items-center gap-4 text-left hover:shadow-lg transition-all active:scale-[0.99]"
+                id={`storage-option-${opt.id}`}
+                aria-label={`${opt.label} storage`}
               >
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <opt.icon className="w-6 h-6 text-primary" />
@@ -189,48 +191,49 @@ const CreateRepositoryScreen = () => {
                       }
                     }}
                     className="shrink-0 w-14 rounded-xl border border-border bg-card hover:bg-accent flex items-center justify-center transition-colors"
+                    aria-label="Browse for directory"
                     title="Browse"
                   >
                     <FolderOpen className="w-5 h-5 text-primary" />
                   </button>
-                  <input type="text" placeholder="Repository Path" value={localPath} onChange={(e) => setLocalPath(e.target.value)} className="input-md3 flex-1" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                  <input type="text" placeholder="Repository Path" value={localPath} onChange={(e) => setLocalPath(e.target.value)} className="input-md3 flex-1" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-repo-path-input" aria-label="Repository path" />
                 </div>
               </div>
             )}
 
             {storageType === "s3" && (
               <div className="space-y-3">
-                <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-bucket-input" aria-label="S3 bucket" />
+                <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-endpoint-input" aria-label="S3 endpoint" />
+                <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-region-input" aria-label="S3 region" />
+                <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-access-key-input" aria-label="Access key ID" />
+                <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-secret-key-input" aria-label="Secret access key" />
               </div>
             )}
 
             {storageType === "webdav" && (
               <div className="space-y-3">
-                <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-url-input" aria-label="WebDAV URL" />
+                <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-username-input" aria-label="WebDAV username" />
+                <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-password-input" aria-label="WebDAV password" />
               </div>
             )}
 
             {storageType === "sftp" && (
               <div className="space-y-3">
-                <input type="text" placeholder="Host" value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" inputMode="numeric" placeholder="Port (22)" value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Username" value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="text" placeholder="Path" value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-                <input type="password" placeholder="Password" value={sftpPassword} onChange={(e) => setSftpPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                <input type="text" placeholder="Host" value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-host-input" aria-label="SFTP host" />
+                <input type="text" inputMode="numeric" placeholder="Port (22)" value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-port-input" aria-label="SFTP port" />
+                <input type="text" placeholder="Username" value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-username-input" aria-label="SFTP username" />
+                <input type="text" placeholder="Path" value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-path-input" aria-label="SFTP path" />
+                <input type="password" placeholder="Password" value={sftpPassword} onChange={(e) => setSftpPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-password-input" aria-label="SFTP password" />
               </div>
             )}
 
-            <button onClick={handleTestConnection} disabled={isTesting} className={`w-full ${testPassed ? "btn-secondary" : "btn-primary"}`}>
+            <button onClick={handleTestConnection} disabled={isTesting} className={`w-full ${testPassed ? "btn-secondary" : "btn-primary"}`} id="test-connection-button" aria-label="Test connection">
               {isTesting ? <><Loader2 className="w-5 h-5 animate-spin" /> Testing...</> : testPassed ? <><Check className="w-5 h-5" /> Connection OK</> : "Test Connection"}
             </button>
 
-            <button onClick={() => setStep(3)} disabled={!testPassed} className="btn-primary w-full">
+            <button onClick={() => setStep(3)} disabled={!testPassed} className="btn-primary w-full" aria-label="Next step">
               Next
             </button>
           </div>
@@ -254,8 +257,10 @@ const CreateRepositoryScreen = () => {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
+                  id="create-password-input"
+                  aria-label="Repository password"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground">
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -269,6 +274,8 @@ const CreateRepositoryScreen = () => {
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
+                id="create-confirm-password-input"
+                aria-label="Confirm password"
               />
               {password && confirmPassword && password !== confirmPassword && (
                 <p className="text-xs text-destructive px-1">Passwords don't match</p>
@@ -277,31 +284,31 @@ const CreateRepositoryScreen = () => {
 
             <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Encryption</label>
-              <select value={encryption} onChange={(e) => setEncryption(e.target.value)} className="input-md3">
+              <select value={encryption} onChange={(e) => setEncryption(e.target.value)} className="input-md3" id="encryption-select" aria-label="Encryption algorithm">
                 {encryptionOptions.map((e) => <option key={e} value={e}>{e}</option>)}
               </select>
             </div>
 
             <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Hashing</label>
-              <select value={hashing} onChange={(e) => setHashing(e.target.value)} className="input-md3">
+              <select value={hashing} onChange={(e) => setHashing(e.target.value)} className="input-md3" id="hashing-select" aria-label="Hashing algorithm">
                 {hashingOptions.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
 
             <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Compression</label>
-              <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3">
+              <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3" id="compression-select" aria-label="Compression algorithm">
                 {compressionOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
             <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Description (optional)</label>
-              <input type="text" placeholder="e.g. Phone backup repo" value={description} onChange={(e) => setDescription(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+              <input type="text" placeholder="e.g. Phone backup repo" value={description} onChange={(e) => setDescription(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-description-input" aria-label="Repository description" />
             </div>
 
-            <button onClick={() => setStep(4)} disabled={!password || password !== confirmPassword} className="btn-primary w-full">
+            <button onClick={() => setStep(4)} disabled={!password || password !== confirmPassword} className="btn-primary w-full" aria-label="Review settings">
               Review
             </button>
           </div>
@@ -337,7 +344,7 @@ const CreateRepositoryScreen = () => {
               )}
             </div>
 
-            <button onClick={handleCreate} disabled={createRepo.isPending} className="btn-primary w-full">
+            <button onClick={handleCreate} disabled={createRepo.isPending} className="btn-primary w-full" id="create-repo-button" aria-label="Create repository">
               {createRepo.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Creating...</> : "Create Repository"}
             </button>
           </div>

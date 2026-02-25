@@ -221,6 +221,9 @@ const SourceSnapshotsScreen = () => {
                 {/* Checkbox area */}
                 <div
                   className="pt-0.5 flex-shrink-0"
+                  role="checkbox"
+                  aria-checked={selectedIds.has(snap.id)}
+                  aria-label={`Select snapshot ${index + 1}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleSelection(snap.id);

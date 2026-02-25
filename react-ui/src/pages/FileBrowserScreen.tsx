@@ -290,6 +290,7 @@ const FileBrowserScreen = () => {
             <button
               onClick={selectedIds.size === files.length ? () => setSelectedIds(new Set()) : selectAll}
               className="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-foreground rounded-lg hover:bg-secondary transition-colors"
+              aria-label={selectedIds.size === files.length ? "Deselect all" : "Select all"}
             >
               <CheckSquare className="w-4 h-4 flex-shrink-0" />
               {selectedIds.size === files.length ? "Deselect" : "Select All"}
@@ -298,6 +299,7 @@ const FileBrowserScreen = () => {
               onClick={handleRestore}
               disabled={selectedIds.size === 0}
               className="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-primary rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-50"
+              aria-label="Restore selected"
             >
               <Download className="w-4 h-4 flex-shrink-0" />
               Restore
@@ -333,6 +335,7 @@ const FileBrowserScreen = () => {
           <button
             onClick={handleRestoreDone}
             className="px-3 py-1.5 text-sm font-medium text-foreground rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Dismiss restore complete"
           >
             Done
           </button>
@@ -349,6 +352,7 @@ const FileBrowserScreen = () => {
           <button
             onClick={handleRestoreDone}
             className="px-3 py-1.5 text-sm font-medium text-foreground rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Dismiss restore error"
           >
             Dismiss
           </button>
@@ -427,6 +431,8 @@ const FileBrowserScreen = () => {
                   !selectionModeActive && file.type !== "folder" ? "cursor-default" : ""
                 } ${selectedIds.has(file.id) ? "bg-primary/5" : ""}`}
                 style={{ animationDelay: `${index * 0.02}s` }}
+                role="button"
+                aria-label={`${file.type === "folder" ? "Folder" : "File"} ${file.name}`}
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
                   {selectionModeActive ? (

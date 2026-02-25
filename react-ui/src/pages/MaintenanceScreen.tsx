@@ -107,6 +107,8 @@ const MaintenanceScreen = () => {
             onClick={() => handleRunMaintenance("QUICK")}
             disabled={isRunning}
             className="btn-secondary w-full"
+            id="quick-maintenance-button"
+            aria-label="Run quick maintenance"
           >
             Run Quick Maintenance
           </button>
@@ -114,6 +116,8 @@ const MaintenanceScreen = () => {
             onClick={() => handleRunMaintenance("FULL")}
             disabled={isRunning}
             className="btn-primary w-full"
+            id="full-maintenance-button"
+            aria-label="Run full maintenance"
           >
             Run Full Maintenance
           </button>

@@ -125,7 +125,7 @@ const SourcesDashboardScreen = () => {
             </div>
             <p className="text-lg font-medium text-foreground mb-1">No backup sources configured</p>
             <p className="text-muted-foreground mb-6">Add a folder to start backing up</p>
-            <button onClick={() => navigate("/sources/add")} className="btn-primary">
+            <button onClick={() => navigate("/sources/add")} className="btn-primary" aria-label="Add your first source">
               <Plus className="w-5 h-5" />
               Add Your First Source
             </button>
@@ -136,6 +136,7 @@ const SourcesDashboardScreen = () => {
             <button
               onClick={() => navigate("/sources/add")}
               className="w-full card-elevated flex items-center gap-3 text-left hover:shadow-lg transition-all active:scale-[0.99] border-2 border-dashed border-primary/20"
+              aria-label="Add backup source"
             >
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <Plus className="w-5 h-5 text-primary" />
@@ -160,6 +161,7 @@ const SourcesDashboardScreen = () => {
                     <button
                       onClick={() => src.status === "UPLOADING" && src.currentTaskId ? setProgressTaskId(src.currentTaskId) : handleViewSnapshots(src)}
                       className="flex-1 text-left min-w-0"
+                      aria-label={`Source ${src.source.path.split("/").pop() || src.source.path}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-semibold text-foreground truncate text-sm">

@@ -180,10 +180,10 @@ const PolicyEditorScreen = () => {
       <Tabs defaultValue="retention" className="flex-1 flex flex-col">
         <div className="px-4 pt-2">
           <TabsList className="w-full grid grid-cols-4 h-10">
-            <TabsTrigger value="retention" className="text-xs">Retention</TabsTrigger>
-            <TabsTrigger value="schedule" className="text-xs">Schedule</TabsTrigger>
-            <TabsTrigger value="compress" className="text-xs">Compress</TabsTrigger>
-            <TabsTrigger value="files" className="text-xs">Files</TabsTrigger>
+            <TabsTrigger value="retention" className="text-xs" aria-label="Retention tab">Retention</TabsTrigger>
+            <TabsTrigger value="schedule" className="text-xs" aria-label="Schedule tab">Schedule</TabsTrigger>
+            <TabsTrigger value="compress" className="text-xs" aria-label="Compression tab">Compress</TabsTrigger>
+            <TabsTrigger value="files" className="text-xs" aria-label="Files tab">Files</TabsTrigger>
           </TabsList>
         </div>
 
@@ -220,8 +220,8 @@ const PolicyEditorScreen = () => {
                 <div className="card-elevated space-y-3">
                   <p className="text-sm font-medium text-foreground">Interval</p>
                   <div className="flex gap-2">
-                    <input type="text" inputMode="numeric" value={intervalNum} onChange={(e) => setIntervalNum(e.target.value)} className="input-md3 flex-1 text-sm py-2" />
-                    <select value={intervalUnit} onChange={(e) => setIntervalUnit(Number(e.target.value))} className="input-md3 flex-1 text-sm py-2">
+                    <input type="text" inputMode="numeric" value={intervalNum} onChange={(e) => setIntervalNum(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval value" />
+                    <select value={intervalUnit} onChange={(e) => setIntervalUnit(Number(e.target.value))} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval unit">
                       {INTERVAL_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                     </select>
                   </div>
@@ -230,8 +230,8 @@ const PolicyEditorScreen = () => {
                 <div className="card-elevated space-y-3">
                   <p className="text-sm font-medium text-foreground">Times of day</p>
                   <div className="flex gap-2">
-                    <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-md3 flex-1 text-sm py-2" />
-                    <button onClick={addTime} className="btn-secondary text-sm px-4 py-2">Add</button>
+                    <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Time of day" />
+                    <button onClick={addTime} className="btn-secondary text-sm px-4 py-2" aria-label="Add time">Add</button>
                   </div>
                   {timesOfDay.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -264,19 +264,19 @@ const PolicyEditorScreen = () => {
           <TabsContent value="compress" className="mt-0 space-y-3">
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Algorithm</p>
-              <select value={compressor} onChange={(e) => setCompressor(e.target.value)} className="input-md3 text-sm">
+              <select value={compressor} onChange={(e) => setCompressor(e.target.value)} className="input-md3 text-sm" aria-label="Compression algorithm">
                 {COMPRESSION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Only compress (globs)</p>
-              <textarea value={onlyCompress} onChange={(e) => setOnlyCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.txt\n*.log"} />
+              <textarea value={onlyCompress} onChange={(e) => setOnlyCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.txt\n*.log"} aria-label="Only compress globs" />
             </div>
 
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Never compress (globs)</p>
-              <textarea value={neverCompress} onChange={(e) => setNeverCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.jpg\n*.mp4"} />
+              <textarea value={neverCompress} onChange={(e) => setNeverCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.jpg\n*.mp4"} aria-label="Never compress globs" />
             </div>
 
             <div className="card-elevated space-y-3">
@@ -289,10 +289,10 @@ const PolicyEditorScreen = () => {
           <TabsContent value="files" className="mt-0 space-y-3">
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Ignore rules (one glob per line)</p>
-              <textarea value={ignoreRules} onChange={(e) => setIgnoreRules(e.target.value)} rows={5} className="input-md3 font-mono text-xs" />
+              <textarea value={ignoreRules} onChange={(e) => setIgnoreRules(e.target.value)} rows={5} className="input-md3 font-mono text-xs" aria-label="Ignore rules" />
               <div className="flex flex-wrap gap-2">
                 {FILTER_PRESETS.map((p) => (
-                  <button key={p.label} onClick={() => addPreset(p.patterns)} className="text-xs bg-secondary hover:bg-secondary/80 px-2.5 py-1 rounded-full text-foreground transition-colors">
+                  <button key={p.label} onClick={() => addPreset(p.patterns)} className="text-xs bg-secondary hover:bg-secondary/80 px-2.5 py-1 rounded-full text-foreground transition-colors" aria-label={`Add ${p.label} preset`}>
                     + {p.label}
                   </button>
                 ))}
@@ -319,10 +319,10 @@ const PolicyEditorScreen = () => {
 
       {/* Footer */}
       <div className="px-4 pb-6 flex gap-3">
-        <button onClick={handleReset} className="btn-secondary flex-1">
+        <button onClick={handleReset} className="btn-secondary flex-1" aria-label="Reset to defaults">
           <RotateCcw className="w-4 h-4" /> Defaults
         </button>
-        <button onClick={handleSave} disabled={mutatePolicy.isPending} className="btn-primary flex-1">
+        <button onClick={handleSave} disabled={mutatePolicy.isPending} className="btn-primary flex-1" id="save-policy-button" aria-label="Save policy">
           {mutatePolicy.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Policy"}
         </button>
       </div>
