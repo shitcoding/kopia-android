@@ -24,6 +24,7 @@ androidWebViewHierarchy: devtools
     id: "repo-path-input"
 - waitForAnimationToEnd
 - inputText: "/sdcard/testrepo"
+- hideKeyboard
 
 # Enter password
 - tapOn:

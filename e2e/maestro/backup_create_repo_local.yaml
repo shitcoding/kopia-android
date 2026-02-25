@@ -97,6 +97,7 @@ androidWebViewHierarchy: devtools
     id: "create-password-input"
 - waitForAnimationToEnd
 - inputText: "testpassword123"
+- hideKeyboard
 
 # Enter confirm password
 - tapOn:
