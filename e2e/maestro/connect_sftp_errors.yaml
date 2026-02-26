@@ -45,10 +45,8 @@ androidWebViewHierarchy: devtools
 # Fill everything except host
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard
@@ -117,10 +115,8 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard
@@ -184,10 +180,8 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard
@@ -256,10 +250,8 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard
@@ -328,10 +320,8 @@ androidWebViewHierarchy: devtools
 
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard

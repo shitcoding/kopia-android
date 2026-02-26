@@ -450,7 +450,8 @@ const ConnectScreen = () => {
               data-testid="sftp-host-input"
             />
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               placeholder="Port"
               value={sftpPort}
               onChange={(e) => setSftpPort(e.target.value)}

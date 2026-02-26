@@ -45,13 +45,11 @@ androidWebViewHierarchy: devtools
 - inputText: "10.0.2.2"
 - hideKeyboard
 
-# Port field defaults to "22" -- clear it and enter 2222
+# Port field defaults to "22" -- clear default and enter 2222
 - tapOn:
     id: "sftp-port-input"
-- longPressOn:
-    id: "sftp-port-input"
-- eraseText: 10
 - waitForAnimationToEnd
+- eraseText: 10
 - eraseText: 1
 - inputText: "2222"
 - hideKeyboard
