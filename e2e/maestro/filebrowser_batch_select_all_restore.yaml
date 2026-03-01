@@ -12,6 +12,7 @@ androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp
+- stopApp: "com.google.android.documentsui"
 - launchApp
 
 # Connect to repository
@@ -72,7 +73,7 @@ androidWebViewHierarchy: devtools
 
 # Enter selection mode by long-pressing on the hidden_dir row
 - longPressOn:
-    text: "Folder hidden_dir"
+    text: "Folder .hidden_dir"
 
 # Wait for selection toolbar (text may be split across lines in WebView)
 - extendedWaitUntil:
@@ -84,28 +85,42 @@ androidWebViewHierarchy: devtools
     text: ".*selected.*"
 - assertVisible: "Select all"
 
-# Tap Select All
-- tapOn: "Select all"
+# Dismiss any system context menu by tapping on a neutral area (middle of file list)
+- tapOn:
+    point: "50%,70%"
+
+# Wait for selection toolbar to stabilize after context menu dismissal
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+
+# Tap Select All using id to avoid collision with system "Select all" context menu
+- tapOn:
+    id: "select-all-button"
 
 # Verify "Deselect" appears (meaning all items selected, same button toggles)
+# The visible text is "Deselect" and aria-label is "Deselect all"
 - extendedWaitUntil:
-    visible: "Deselect all"
-    timeout: 3000
+    visible:
+      text: ".*Deselect.*"
+    timeout: 5000
 
-- assertVisible: "Deselect all"
+- assertVisible:
+    text: ".*Deselect.*"
 
 # Verify selected count is greater than 1
 - assertVisible:
     text: ".*selected.*"
 
-# Tap Deselect to clear all
-- tapOn: "Deselect all"
+# Tap Deselect to clear all (same button, toggled state)
+- tapOn:
+    id: "select-all-button"
 
 # Wait for "Select All" to reappear (Deselect toggled back)
 # and count should be 0 or the toolbar should update
 - extendedWaitUntil:
     visible: "Select all"
-    timeout: 3000
+    timeout: 5000
 
 # Tap X to exit selection mode
 - tapOn: "Clear selection"
@@ -114,4 +129,4 @@ androidWebViewHierarchy: devtools
 # and selection toolbar is gone
 - extendedWaitUntil:
     notVisible: "selected"
-    timeout: 3000
+    timeout: 5000

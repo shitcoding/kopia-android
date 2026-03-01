@@ -288,6 +288,7 @@ const FileBrowserScreen = () => {
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
+              id="select-all-button"
               onClick={selectedIds.size === files.length ? () => setSelectedIds(new Set()) : selectAll}
               className="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-foreground rounded-lg hover:bg-secondary transition-colors"
               aria-label={selectedIds.size === files.length ? "Deselect all" : "Select all"}

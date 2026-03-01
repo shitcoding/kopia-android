@@ -10,6 +10,7 @@ androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp
+- stopApp: "com.google.android.documentsui"
 - launchApp
 
 # Connect to repository first

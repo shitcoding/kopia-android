@@ -26,6 +26,7 @@ androidWebViewHierarchy: devtools
 # PHASE 1: Welcome Screen
 # ========================================
 - stopApp
+- stopApp: "com.google.android.documentsui"
 - launchApp
 
 # Verify welcome screen elements

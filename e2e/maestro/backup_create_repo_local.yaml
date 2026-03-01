@@ -25,6 +25,7 @@ androidWebViewHierarchy: devtools
 # Note: stopApp is used instead of clearState to avoid WebView DevTools timeout.
 # Run `adb shell pm clear org.kopiaKt.app` manually before the test if needed.
 - stopApp
+- stopApp: "com.google.android.documentsui"
 - launchApp
 
 # Wait for the welcome screen to load in WebView

@@ -27,7 +27,7 @@ echo "Setting up test repositories on AVD..."
 
 # Clean up existing test repos
 echo "Cleaning existing test repos..."
-$ADB shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest"
+$ADB shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest /sdcard/KopiaTestRepo /sdcard/KopiaNegativeTestRepo"
 
 # Push edge_case_repo
 echo "Pushing edge_case_repo to /sdcard/testrepo..."
@@ -50,3 +50,4 @@ echo "Test repos ready:"
 echo "  - Edge case repo: /sdcard/testrepo (password: test123)"
 echo "  - V1 format repo: /sdcard/v1repo (password: test123)"
 echo "  - Restore dest:   /sdcard/Download/restore_dest"
+echo "  - Cleaned up:     /sdcard/KopiaTestRepo, /sdcard/KopiaNegativeTestRepo"

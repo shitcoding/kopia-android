@@ -18,6 +18,7 @@ androidWebViewHierarchy: devtools
 ---
 # Clear app state and start fresh
 - stopApp
+- stopApp: "com.google.android.documentsui"
 - launchApp
 
 # Wait for welcome screen and navigate to Connect
