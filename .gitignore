@@ -95,6 +95,9 @@ Thumbs.db
 test-results/
 test-output/
 
+# Maestro E2E run reports
+report.xml
+
 # Coverage reports
 coverage/
 jacoco/
