@@ -50,8 +50,8 @@ tasks.test {
     useJUnitPlatform {
         excludeTags("integration")
     }
-    maxParallelForks = 2
-    maxHeapSize = "1024m"
+    maxParallelForks = 1
+    maxHeapSize = "768m"
     testLogging {
         events("passed", "skipped", "failed")
         showExceptions = true

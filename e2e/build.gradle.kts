@@ -61,8 +61,7 @@ tasks.test {
     // E2E tests can take longer
     systemProperty("junit.jupiter.execution.timeout.default", "10m")
 
-    // Increase heap for benchmark tests
-    maxHeapSize = "2g"
+    maxHeapSize = "1536m"
 
     // Run E2E tests only when explicitly requested or in CI
     val runE2E = System.getenv("RUN_E2E_TESTS")?.toBoolean() ?: false
@@ -94,7 +93,7 @@ tasks.register<Test>("benchmark") {
 
     // Benchmark tests need more time and memory
     systemProperty("junit.jupiter.execution.timeout.default", "30m")
-    maxHeapSize = "4g"
+    maxHeapSize = "2g"
 
     testLogging {
         events("passed", "skipped", "failed")

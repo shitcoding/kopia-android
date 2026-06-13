@@ -130,11 +130,11 @@ PlayStore.enabled=false
 abi.type=arm64-v8a
 avd.ini.displayname=$name
 avd.ini.encoding=UTF-8
-disk.dataPartition.size=6G
+disk.dataPartition.size=2G
 fastboot.chosenSnapshotFile=
 fastboot.forceChosenSnapshotBoot=no
-fastboot.forceColdBoot=no
-fastboot.forceFastBoot=yes
+fastboot.forceColdBoot=yes
+fastboot.forceFastBoot=no
 hw.accelerometer=yes
 hw.arc=false
 hw.audioInput=yes
@@ -142,18 +142,18 @@ hw.battery=yes
 hw.camera.back=none
 hw.camera.front=none
 hw.cpu.arch=arm64
-hw.cpu.ncore=4
+hw.cpu.ncore=2
 hw.dPad=no
 hw.device.hash2=MD5:dcecb1ba8ce173b79804663388815805
 hw.device.manufacturer=User
 hw.device.name=$name
 hw.gps=no
 hw.gpu.enabled=yes
-hw.gpu.mode=auto
+hw.gpu.mode=swiftshader_indirect
 hw.gyroscope=yes
 hw.initialOrientation=portrait
 hw.keyboard=yes
-hw.lcd.density=480
+hw.lcd.density=320
 hw.lcd.height=1980
 hw.lcd.width=882
 hw.mainKeys=yes
@@ -168,7 +168,7 @@ hw.trackBall=no
 image.sysdir.1=$SYSTEM_IMAGE_DIR
 runtime.network.latency=none
 runtime.network.speed=full
-sdcard.size=4G
+sdcard.size=512M
 showDeviceFrame=yes
 skin.dynamic=yes
 tag.display=Google APIs
@@ -225,8 +225,10 @@ cmd_start() {
             -avd "$name" \
             -port "$port" \
             -no-snapshot-load \
+            -no-snapshot-save \
             -no-boot-anim \
-            -no-audio &
+            -no-audio \
+            -gpu swiftshader_indirect &
         pids+=($!)
         started=$((started + 1))
     done
@@ -285,7 +287,7 @@ cmd_setup() {
 
             # Push test repos
             echo "    Pushing test repositories..."
-            $ADB -s "$serial" shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest /sdcard/Download/_kopia_restore" 2>/dev/null || true
+            $ADB -s "$serial" shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest /sdcard/Download/_kopia_restore /sdcard/KopiaTestRepo /sdcard/KopiaNegativeTestRepo" 2>/dev/null || true
             $ADB -s "$serial" push "$REPO_ROOT/core/src/test/resources/fixtures/edge_case_repos/edge_case_repo" /sdcard/testrepo 2>&1 | sed 's/^/    /'
             $ADB -s "$serial" push "$REPO_ROOT/core/src/test/resources/fixtures/edge_case_repos/v1_test_repo" /sdcard/v1repo 2>&1 | sed 's/^/    /'
             $ADB -s "$serial" shell "mkdir -p /sdcard/Download/restore_dest /sdcard/Download/_kopia_restore"
