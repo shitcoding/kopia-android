@@ -527,7 +527,7 @@ fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
 
 fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
     source = WebSourceInfo(
-        host = android.os.Build.MODEL,
+        host = android.os.Build.MODEL ?: "unknown",
         userName = "local",
         path = path
     ),
