@@ -15,16 +15,16 @@
 ### Task 1.1: Create Android App Module
 
 **Files:**
-- Create: `kopiaKt/app-android/build.gradle.kts`
-- Modify: `kopiaKt/settings.gradle.kts` (add `:app-android` module)
+- Create: `app-android/build.gradle.kts`
+- Modify: `settings.gradle.kts` (add `:app-android` module)
 
 **Step 1: Create app-android directory**
 
 ```bash
-mkdir -p kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app
-mkdir -p kopiaKt/app-android/src/main/res/values
-mkdir -p kopiaKt/app-android/src/test/kotlin/org/kopiaKt/app
-mkdir -p kopiaKt/app-android/src/androidTest/kotlin/org/kopiaKt/app
+mkdir -p app-android/src/main/kotlin/org/kopiaKt/app
+mkdir -p app-android/src/main/res/values
+mkdir -p app-android/src/test/kotlin/org/kopiaKt/app
+mkdir -p app-android/src/androidTest/kotlin/org/kopiaKt/app
 ```
 
 **Step 2: Create build.gradle.kts**
@@ -142,13 +142,13 @@ Add `include(":app-android")` to the includes.
 
 **Step 4: Verify build compiles**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 5: Commit**
 
 ```bash
-git add kopiaKt/app-android kopiaKt/settings.gradle.kts
+git add app-android settings.gradle.kts
 git commit -m "feat(android): add app-android module with Compose setup"
 ```
 
@@ -157,7 +157,7 @@ git commit -m "feat(android): add app-android module with Compose setup"
 ### Task 1.2: Add Missing Gradle Dependencies
 
 **Files:**
-- Modify: `kopiaKt/gradle/libs.versions.toml`
+- Modify: `gradle/libs.versions.toml`
 
 **Step 1: Add Compose and Hilt dependencies to version catalog**
 
@@ -196,13 +196,13 @@ ksp = { id = "com.google.devtools.ksp", version = "2.0.21-1.0.27" }
 
 **Step 2: Verify build**
 
-Run: `cd kopiaKt && ./gradlew :app-android:dependencies`
+Run: `./gradlew :app-android:dependencies`
 Expected: All dependencies resolve
 
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/gradle/libs.versions.toml
+git add gradle/libs.versions.toml
 git commit -m "build: add Compose, Hilt, Navigation dependencies"
 ```
 
@@ -211,8 +211,8 @@ git commit -m "build: add Compose, Hilt, Navigation dependencies"
 ### Task 1.3: Create Application Class with Hilt
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/KopiaApp.kt`
-- Create: `kopiaKt/app-android/src/main/AndroidManifest.xml`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/KopiaApp.kt`
+- Create: `app-android/src/main/AndroidManifest.xml`
 
 **Step 1: Create KopiaApp.kt**
 
@@ -261,7 +261,7 @@ class KopiaApp : Application()
 
 **Step 3: Create string resources**
 
-Create `kopiaKt/app-android/src/main/res/values/strings.xml`:
+Create `app-android/src/main/res/values/strings.xml`:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -271,7 +271,7 @@ Create `kopiaKt/app-android/src/main/res/values/strings.xml`:
 
 **Step 4: Create theme**
 
-Create `kopiaKt/app-android/src/main/res/values/themes.xml`:
+Create `app-android/src/main/res/values/themes.xml`:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -281,13 +281,13 @@ Create `kopiaKt/app-android/src/main/res/values/themes.xml`:
 
 **Step 5: Verify build**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 6: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main
+git add app-android/src/main
 git commit -m "feat(android): add Application class and manifest"
 ```
 
@@ -296,9 +296,9 @@ git commit -m "feat(android): add Application class and manifest"
 ### Task 1.4: Create MainActivity with Compose
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/MainActivity.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/theme/Theme.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/theme/Color.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/MainActivity.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/theme/Theme.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/theme/Color.kt`
 
 **Step 1: Create Theme.kt**
 
@@ -402,13 +402,13 @@ class MainActivity : ComponentActivity() {
 
 **Step 4: Verify build**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: Fails (KopiaNavHost not yet created - expected)
 
 **Step 5: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app
+git add app-android/src/main/kotlin/org/kopiaKt/app
 git commit -m "feat(android): add MainActivity with Compose theme"
 ```
 
@@ -419,8 +419,8 @@ git commit -m "feat(android): add MainActivity with Compose theme"
 ### Task 2.1: Create Navigation Graph
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/navigation/KopiaNavHost.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/navigation/Destinations.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/navigation/KopiaNavHost.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/navigation/Destinations.kt`
 
 **Step 1: Create Destinations.kt**
 
@@ -556,13 +556,13 @@ fun KopiaNavHost(
 
 **Step 3: Verify files created**
 
-Run: `ls -la kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/navigation/`
+Run: `ls -la app-android/src/main/kotlin/org/kopiaKt/app/navigation/`
 Expected: Destinations.kt, KopiaNavHost.kt
 
 **Step 4: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/navigation
+git add app-android/src/main/kotlin/org/kopiaKt/app/navigation
 git commit -m "feat(android): add navigation graph with type-safe routes"
 ```
 
@@ -571,12 +571,12 @@ git commit -m "feat(android): add navigation graph with type-safe routes"
 ### Task 2.2: Create Placeholder Screen Composables
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/welcome/WelcomeScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/settings/SettingsScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/welcome/WelcomeScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/settings/SettingsScreen.kt`
 
 **Step 1: Create WelcomeScreen.kt**
 
@@ -899,13 +899,13 @@ fun SettingsScreen(
 
 **Step 7: Verify build compiles**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 8: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens
 git commit -m "feat(android): add placeholder screen composables"
 ```
 
@@ -916,10 +916,10 @@ git commit -m "feat(android): add placeholder screen composables"
 ### Task 3.1: Create Domain Models
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/model/RepositoryConnection.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/model/SnapshotInfo.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/model/FileEntry.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/model/RestoreProgress.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/model/RepositoryConnection.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/model/SnapshotInfo.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/model/FileEntry.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/model/RestoreProgress.kt`
 
 **Step 1: Create RepositoryConnection.kt**
 
@@ -1075,7 +1075,7 @@ enum class RestoreState {
 **Step 5: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/model
+git add app-android/src/main/kotlin/org/kopiaKt/app/domain/model
 git commit -m "feat(android): add domain models"
 ```
 
@@ -1084,9 +1084,9 @@ git commit -m "feat(android): add domain models"
 ### Task 3.2: Create Repository Interfaces
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/KopiaRepositoryManager.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/SnapshotRepository.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/CredentialRepository.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/KopiaRepositoryManager.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/SnapshotRepository.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/repository/CredentialRepository.kt`
 
 **Step 1: Create KopiaRepositoryManager.kt**
 
@@ -1173,7 +1173,7 @@ interface CredentialRepository {
 **Step 4: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/repository
+git add app-android/src/main/kotlin/org/kopiaKt/app/domain/repository
 git commit -m "feat(android): add repository interfaces"
 ```
 
@@ -1182,10 +1182,10 @@ git commit -m "feat(android): add repository interfaces"
 ### Task 3.3: Create Use Cases
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/ConnectRepositoryUseCase.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/ListSnapshotsUseCase.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/BrowseSnapshotUseCase.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/RestoreFilesUseCase.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/ConnectRepositoryUseCase.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/ListSnapshotsUseCase.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/BrowseSnapshotUseCase.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase/RestoreFilesUseCase.kt`
 
 **Step 1: Create ConnectRepositoryUseCase.kt**
 
@@ -1294,7 +1294,7 @@ class RestoreFilesUseCase @Inject constructor(
 **Step 5: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase
+git add app-android/src/main/kotlin/org/kopiaKt/app/domain/usecase
 git commit -m "feat(android): add use cases"
 ```
 
@@ -1305,11 +1305,11 @@ git commit -m "feat(android): add use cases"
 ### Task 4.1: Implement Credential Repository with Encrypted SharedPreferences
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/EncryptedCredentialRepository.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/data/repository/EncryptedCredentialRepository.kt`
 
 **Step 1: Add security dependency**
 
-Add to `kopiaKt/app-android/build.gradle.kts` dependencies:
+Add to `app-android/build.gradle.kts` dependencies:
 ```kotlin
 implementation("androidx.security:security-crypto:1.1.0-alpha06")
 ```
@@ -1375,8 +1375,8 @@ class EncryptedCredentialRepository @Inject constructor(
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/EncryptedCredentialRepository.kt
-git add kopiaKt/app-android/build.gradle.kts
+git add app-android/src/main/kotlin/org/kopiaKt/app/data/repository/EncryptedCredentialRepository.kt
+git add app-android/build.gradle.kts
 git commit -m "feat(android): implement encrypted credential storage"
 ```
 
@@ -1385,7 +1385,7 @@ git commit -m "feat(android): implement encrypted credential storage"
 ### Task 4.2: Implement KopiaRepositoryManager
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/KopiaRepositoryManagerImpl.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/data/repository/KopiaRepositoryManagerImpl.kt`
 
 **Step 1: Create KopiaRepositoryManagerImpl.kt**
 
@@ -1569,7 +1569,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/KopiaRepositoryManagerImpl.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/data/repository/KopiaRepositoryManagerImpl.kt
 git commit -m "feat(android): implement KopiaRepositoryManager"
 ```
 
@@ -1578,7 +1578,7 @@ git commit -m "feat(android): implement KopiaRepositoryManager"
 ### Task 4.3: Implement SnapshotRepository
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/SnapshotRepositoryImpl.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/data/repository/SnapshotRepositoryImpl.kt`
 
 **Step 1: Create SnapshotRepositoryImpl.kt**
 
@@ -1804,7 +1804,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/data/repository/SnapshotRepositoryImpl.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/data/repository/SnapshotRepositoryImpl.kt
 git commit -m "feat(android): implement SnapshotRepository"
 ```
 
@@ -1813,7 +1813,7 @@ git commit -m "feat(android): implement SnapshotRepository"
 ### Task 4.4: Create Hilt DI Module
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/di/AppModule.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/di/AppModule.kt`
 
 **Step 1: Create AppModule.kt**
 
@@ -1858,13 +1858,13 @@ abstract class AppModule {
 
 **Step 2: Verify build**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/di
+git add app-android/src/main/kotlin/org/kopiaKt/app/di
 git commit -m "feat(android): add Hilt DI module"
 ```
 
@@ -1875,7 +1875,7 @@ git commit -m "feat(android): add Hilt DI module"
 ### Task 5.1: Create SnapshotListViewModel
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModel.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModel.kt`
 
 **Step 1: Create SnapshotListViewModel.kt**
 
@@ -1947,7 +1947,7 @@ data class SnapshotListUiState(
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModel.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModel.kt
 git commit -m "feat(android): add SnapshotListViewModel"
 ```
 
@@ -1956,7 +1956,7 @@ git commit -m "feat(android): add SnapshotListViewModel"
 ### Task 5.2: Create FileBrowserViewModel
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModel.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModel.kt`
 
 **Step 1: Create FileBrowserViewModel.kt**
 
@@ -2047,7 +2047,7 @@ data class PathSegment(
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModel.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModel.kt
 git commit -m "feat(android): add FileBrowserViewModel"
 ```
 
@@ -2056,7 +2056,7 @@ git commit -m "feat(android): add FileBrowserViewModel"
 ### Task 5.3: Create RestoreViewModel
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreViewModel.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreViewModel.kt`
 
 **Step 1: Create RestoreViewModel.kt**
 
@@ -2120,13 +2120,13 @@ data class RestoreUiState(
 
 **Step 2: Verify build**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreViewModel.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreViewModel.kt
 git commit -m "feat(android): add RestoreViewModel"
 ```
 
@@ -2137,7 +2137,7 @@ git commit -m "feat(android): add RestoreViewModel"
 ### Task 6.1: Implement SnapshotListScreen with ViewModel
 
 **Files:**
-- Modify: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt`
+- Modify: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt`
 
 **Step 1: Update SnapshotListScreen.kt with full implementation**
 
@@ -2146,7 +2146,7 @@ Replace placeholder with full implementation using the ViewModel, LazyColumn for
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListScreen.kt
 git commit -m "feat(android): implement SnapshotListScreen with ViewModel"
 ```
 
@@ -2155,7 +2155,7 @@ git commit -m "feat(android): implement SnapshotListScreen with ViewModel"
 ### Task 6.2: Implement FileBrowserScreen with ViewModel
 
 **Files:**
-- Modify: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt`
+- Modify: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt`
 
 **Step 1: Update FileBrowserScreen.kt with full implementation**
 
@@ -2164,7 +2164,7 @@ Implement file list with icons, breadcrumb navigation, size formatting, date for
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserScreen.kt
 git commit -m "feat(android): implement FileBrowserScreen with ViewModel"
 ```
 
@@ -2173,8 +2173,8 @@ git commit -m "feat(android): implement FileBrowserScreen with ViewModel"
 ### Task 6.3: Implement RepositoryConnectScreen
 
 **Files:**
-- Modify: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectScreen.kt`
-- Create: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectViewModel.kt`
+- Modify: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectScreen.kt`
+- Create: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect/RepositoryConnectViewModel.kt`
 
 **Step 1: Create RepositoryConnectViewModel.kt**
 
@@ -2187,7 +2187,7 @@ Implement tabbed interface for storage types, form fields for each type, passwor
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/repositoryconnect
 git commit -m "feat(android): implement RepositoryConnectScreen"
 ```
 
@@ -2196,7 +2196,7 @@ git commit -m "feat(android): implement RepositoryConnectScreen"
 ### Task 6.4: Implement RestoreScreen with Progress
 
 **Files:**
-- Modify: `kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt`
+- Modify: `app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt`
 
 **Step 1: Update RestoreScreen.kt**
 
@@ -2205,7 +2205,7 @@ Implement destination picker using SAF, progress display with file count and byt
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt
+git add app-android/src/main/kotlin/org/kopiaKt/app/ui/screens/restore/RestoreScreen.kt
 git commit -m "feat(android): implement RestoreScreen with progress"
 ```
 
@@ -2216,8 +2216,8 @@ git commit -m "feat(android): implement RestoreScreen with progress"
 ### Task 7.1: Add Unit Tests for ViewModels
 
 **Files:**
-- Create: `kopiaKt/app-android/src/test/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModelTest.kt`
-- Create: `kopiaKt/app-android/src/test/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModelTest.kt`
+- Create: `app-android/src/test/kotlin/org/kopiaKt/app/ui/screens/snapshotlist/SnapshotListViewModelTest.kt`
+- Create: `app-android/src/test/kotlin/org/kopiaKt/app/ui/screens/filebrowser/FileBrowserViewModelTest.kt`
 
 **Step 1: Create SnapshotListViewModelTest.kt**
 
@@ -2229,13 +2229,13 @@ Test directory loading, path history building, error states.
 
 **Step 3: Verify tests pass**
 
-Run: `cd kopiaKt && ./gradlew :app-android:testDebugUnitTest`
+Run: `./gradlew :app-android:testDebugUnitTest`
 Expected: All tests pass
 
 **Step 4: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/test
+git add app-android/src/test
 git commit -m "test(android): add ViewModel unit tests"
 ```
 
@@ -2244,8 +2244,8 @@ git commit -m "test(android): add ViewModel unit tests"
 ### Task 7.2: Add Launcher Icons
 
 **Files:**
-- Create: `kopiaKt/app-android/src/main/res/mipmap-*/ic_launcher.webp`
-- Create: `kopiaKt/app-android/src/main/res/mipmap-*/ic_launcher_round.webp`
+- Create: `app-android/src/main/res/mipmap-*/ic_launcher.webp`
+- Create: `app-android/src/main/res/mipmap-*/ic_launcher_round.webp`
 
 **Step 1: Create placeholder icons**
 
@@ -2254,7 +2254,7 @@ Use Android Studio Image Asset Studio or generate basic icons.
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/src/main/res/mipmap-*
+git add app-android/src/main/res/mipmap-*
 git commit -m "feat(android): add launcher icons"
 ```
 
@@ -2263,7 +2263,7 @@ git commit -m "feat(android): add launcher icons"
 ### Task 7.3: Add ProGuard Rules
 
 **Files:**
-- Create: `kopiaKt/app-android/proguard-rules.pro`
+- Create: `app-android/proguard-rules.pro`
 
 **Step 1: Create proguard-rules.pro**
 
@@ -2292,7 +2292,7 @@ git commit -m "feat(android): add launcher icons"
 **Step 2: Commit**
 
 ```bash
-git add kopiaKt/app-android/proguard-rules.pro
+git add app-android/proguard-rules.pro
 git commit -m "build(android): add ProGuard rules"
 ```
 
@@ -2302,17 +2302,17 @@ git commit -m "build(android): add ProGuard rules"
 
 **Step 1: Build release APK**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleRelease`
+Run: `./gradlew :app-android:assembleRelease`
 Expected: BUILD SUCCESSFUL
 
 **Step 2: Build debug APK**
 
-Run: `cd kopiaKt && ./gradlew :app-android:assembleDebug`
+Run: `./gradlew :app-android:assembleDebug`
 Expected: BUILD SUCCESSFUL
 
 **Step 3: Run all tests**
 
-Run: `cd kopiaKt && ./gradlew :app-android:test`
+Run: `./gradlew :app-android:test`
 Expected: All tests pass
 
 **Step 4: Create final commit**

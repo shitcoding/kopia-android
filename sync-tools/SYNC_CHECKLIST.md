@@ -20,7 +20,7 @@ Use this checklist when syncing KopiaKt with a new Go Kopia release.
 
 - [ ] Generate new API snapshot
   ```bash
-  cd kopiaKt/sync-tools
+  cd sync-tools
   ./bin/analyze -repo ../../kopia-go -output snapshots/v0.XX.0.json
   ```
 
@@ -181,7 +181,7 @@ When crypto/format changes detected:
 
 - [ ] Regenerate hash test vectors
   ```bash
-  cd kopiaKt/testvectors
+  cd testvectors
   go run cmd/generate/main.go
   ```
 

@@ -8,7 +8,7 @@
 #
 # Prerequisites:
 #   - Edge case repo must be pushed to /sdcard/testrepo on the device:
-#     adb push kopiaKt/core/src/test/resources/fixtures/edge_case_repos/edge_case_repo /sdcard/testrepo
+#     adb push core/src/test/resources/fixtures/edge_case_repos/edge_case_repo /sdcard/testrepo
 #   - Storage permissions granted:
 #     adb shell appops set org.kopiaKt.app MANAGE_EXTERNAL_STORAGE allow
 #

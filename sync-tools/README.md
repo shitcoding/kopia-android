@@ -96,7 +96,7 @@ sync-check:
 
     - name: Build tools
       run: |
-        cd kopiaKt/sync-tools
+        cd sync-tools
         go build -o bin/analyze ./cmd/analyze
         go build -o bin/compare ./cmd/compare
 
@@ -104,12 +104,12 @@ sync-check:
       run: git clone --depth 1 https://github.com/kopia/kopia.git kopia-go
 
     - name: Generate snapshot
-      run: ./kopiaKt/sync-tools/bin/analyze -repo kopia-go -output current.json
+      run: ./sync-tools/bin/analyze -repo kopia-go -output current.json
 
     - name: Compare with baseline
       run: |
-        ./kopiaKt/sync-tools/bin/compare \
-          -old kopiaKt/sync-tools/snapshots/baseline.json \
+        ./sync-tools/bin/compare \
+          -old sync-tools/snapshots/baseline.json \
           -new current.json \
           -markdown
       # Exits non-zero if breaking changes detected
@@ -198,7 +198,7 @@ interface BlobStorage {
 When Go algorithms change, regenerate test vectors:
 
 ```bash
-cd kopiaKt/testvectors
+cd testvectors
 go run cmd/generate/main.go
 
 # Copy to Kotlin test resources
@@ -256,7 +256,7 @@ Test vectors ensure byte-exact compatibility. Update when:
 
 ```bash
 # Regenerate all vectors
-cd kopiaKt/testvectors
+cd testvectors
 go run cmd/generate/main.go
 
 # Run Kotlin tests to verify

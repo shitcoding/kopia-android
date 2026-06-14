@@ -22,7 +22,7 @@ KopiaKt can open and read repositories created by the original Go implementation
 ## Architecture
 
 ```
-kopiaKt/
+.
 ├── core/         # Repository format: blob, content, encryption, compression, pack, index
 ├── snapshot/     # Snapshots: upload, restore, policy, maintenance
 ├── storage/      # Storage backends: S3, WebDAV, SFTP, filesystem
@@ -42,7 +42,6 @@ The app uses a React frontend rendered in a WebView, communicating with the Kotl
 ## Build
 
 ```bash
-cd kopiaKt
 ./gradlew :app-android:assembleDebug
 ./gradlew :app-android:installDebug
 ```

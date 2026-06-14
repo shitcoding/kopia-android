@@ -57,7 +57,7 @@ If these directories contain a Kopia repository from a prior run, the create-rep
 
 ## Task 1: Reorder cleanup preamble in all 38 flows
 
-**Files:** All 38 YAML files in `kopiaKt/e2e/maestro/*.yaml`
+**Files:** All 38 YAML files in `e2e/maestro/*.yaml`
 
 This is a mechanical find-and-replace across all 38 files. Every flow has the exact same 3-line pattern.
 
@@ -79,7 +79,7 @@ Replace with:
 
 Run this command from the project root:
 ```bash
-cd kopiaKt/e2e/maestro
+cd e2e/maestro
 for f in *.yaml; do
   sed -i '' '/^- stopApp$/{
     N
@@ -97,7 +97,7 @@ done
 
 Run:
 ```bash
-cd kopiaKt/e2e/maestro
+cd e2e/maestro
 grep -A2 '^- stopApp$' *.yaml | head -60
 ```
 
@@ -115,7 +115,7 @@ No file should still have the old order (`stopApp` → `launchApp` → `stopApp:
 This file has 2 additional internal `stopApp`/`launchApp`/`stopApp: documentsui` sequences (Test 2 at ~line 69 and Test 3 at ~line 134). The sed should have caught these too, but verify:
 
 ```bash
-grep -n -A2 'stopApp$' kopiaKt/e2e/maestro/backup_create_repo_local_negative.yaml
+grep -n -A2 'stopApp$' e2e/maestro/backup_create_repo_local_negative.yaml
 ```
 
 Expected: All 3 sequences (preamble + Test 2 + Test 3) should show the corrected order.
@@ -123,7 +123,7 @@ Expected: All 3 sequences (preamble + Test 2 + Test 3) should show the corrected
 **Step 4: Commit**
 
 ```bash
-git add kopiaKt/e2e/maestro/*.yaml
+git add e2e/maestro/*.yaml
 git commit -m "fix(e2e): reorder cleanup to kill DocumentsUI before launching KopiaKt
 
 stopApp for DocumentsUI was running AFTER launchApp, causing
@@ -138,7 +138,7 @@ in the same shard."
 ## Task 2: Add test data cleanup to setup_test_repo.sh
 
 **Files:**
-- Modify: `kopiaKt/e2e/maestro/scripts/setup_test_repo.sh:30`
+- Modify: `e2e/maestro/scripts/setup_test_repo.sh:30`
 
 **Step 1: Add cleanup lines for create-repo test paths**
 
@@ -155,7 +155,7 @@ $ADB shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest
 **Step 2: Verify the change**
 
 ```bash
-grep 'rm -rf' kopiaKt/e2e/maestro/scripts/setup_test_repo.sh
+grep 'rm -rf' e2e/maestro/scripts/setup_test_repo.sh
 ```
 
 Expected: The line should now include all 5 paths.
@@ -163,7 +163,7 @@ Expected: The line should now include all 5 paths.
 **Step 3: Commit**
 
 ```bash
-git add kopiaKt/e2e/maestro/scripts/setup_test_repo.sh
+git add e2e/maestro/scripts/setup_test_repo.sh
 git commit -m "fix(e2e): clean up create-repo test paths in setup script
 
 backup_create_repo_local and backup_create_repo_local_negative
@@ -178,14 +178,14 @@ test runs to prevent 'repo already exists' failures."
 
 **Prerequisites:**
 - 2 AVDs running (emulator-5554, emulator-5556)
-- App installed: `cd kopiaKt && ./gradlew :app-android:installDebug`
-- Test repos set up: `kopiaKt/e2e/maestro/scripts/setup_test_repo.sh`
-- Restore dir set up: `kopiaKt/e2e/maestro/scripts/setup_restore_dir.sh`
+- App installed: `./gradlew :app-android:installDebug`
+- Test repos set up: `e2e/maestro/scripts/setup_test_repo.sh`
+- Restore dir set up: `e2e/maestro/scripts/setup_restore_dir.sh`
 
 **Step 1: Set up both AVDs**
 
 ```bash
-cd kopiaKt/e2e/maestro/scripts
+cd e2e/maestro/scripts
 for serial in emulator-5554 emulator-5556; do
   ./setup_test_repo.sh $serial
   ./setup_restore_dir.sh $serial
@@ -195,14 +195,13 @@ done
 **Step 2: Install debug APK on both**
 
 ```bash
-cd kopiaKt
 ./gradlew :app-android:installDebug
 ```
 
 **Step 3: Run the full sharded test suite**
 
 ```bash
-cd kopiaKt/e2e/maestro
+cd e2e/maestro
 maestro --device emulator-5554,emulator-5556 test --shard-split 2 .
 ```
 
