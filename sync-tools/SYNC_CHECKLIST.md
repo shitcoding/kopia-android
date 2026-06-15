@@ -46,7 +46,7 @@ Check for changes in these areas:
 - `repo/hashing/blake*.go`
 
 **Kotlin files:**
-- `core/src/main/kotlin/org/kopiaKt/core/crypto/*Hasher.kt`
+- `core/src/main/kotlin/org/kopiaKt/core/hashing/*Hasher.kt`
 
 ### Encryption
 - [ ] New encryption algorithms?
@@ -59,7 +59,7 @@ Check for changes in these areas:
 - `repo/encryption/aes*.go`
 
 **Kotlin files:**
-- `core/src/main/kotlin/org/kopiaKt/core/crypto/*Encryptor.kt`
+- `core/src/main/kotlin/org/kopiaKt/core/encryption/*Encryptor.kt`
 - `core/src/main/kotlin/org/kopiaKt/core/format/KopiaRepositoryJson.kt`
 
 ### Key Derivation
@@ -97,7 +97,7 @@ Check for changes in these areas:
 - `repo/content/pack*.go`
 
 **Kotlin files:**
-- `core/src/main/kotlin/org/kopiaKt/core/content/pack/`
+- `core/src/main/kotlin/org/kopiaKt/core/pack/`
 
 ### Index Format
 - [ ] Index version changes?
@@ -108,7 +108,8 @@ Check for changes in these areas:
 - `repo/content/index/index*.go`
 
 **Kotlin files:**
-- `core/src/main/kotlin/org/kopiaKt/core/content/index/`
+- `core/src/main/kotlin/org/kopiaKt/core/index/`
+- `core/src/main/kotlin/org/kopiaKt/core/pack/PackIndex*.kt`
 
 ### Repository Format
 - [ ] Format blob structure changes?
@@ -134,7 +135,7 @@ Check for changes in these areas:
 - `snapshot/manifest*.go`
 
 **Kotlin files:**
-- `snapshot/src/main/kotlin/org/kopiaKt/snapshot/SnapshotManifest.kt`
+- `snapshot/src/main/kotlin/org/kopiaKt/snapshot/model/SnapshotManifest.kt`
 
 ### Directory Manifest
 - [ ] Entry format changes?
@@ -146,7 +147,7 @@ Check for changes in these areas:
 - `fs/entry.go`
 
 **Kotlin files:**
-- `snapshot/src/main/kotlin/org/kopiaKt/snapshot/SnapshotManifest.kt` (DirManifest)
+- `snapshot/src/main/kotlin/org/kopiaKt/snapshot/model/SnapshotManifest.kt` (DirManifest)
 
 ### Policy
 - [ ] New policy types?

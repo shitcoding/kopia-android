@@ -195,7 +195,7 @@ This document maps algorithms between Go Kopia and KopiaKt implementations.
 | Format Version | 1 byte | Same |
 | Pack ID Length | 1 byte | Same |
 | Pack Offset | 4 bytes (upper 4 bits for offset high bits, lower 28 for length) | Same |
-| File | `repo/content/index/index_v1.go` | `core/.../content/index/PackIndexV1.kt` |
+| File | `repo/content/index/index_v1.go` | `core/.../pack/PackIndexV1.kt` |
 
 ### Version 2
 
@@ -206,7 +206,7 @@ This document maps algorithms between Go Kopia and KopiaKt implementations.
 | Features | Compression headers, encryption key IDs | Same |
 | Format Info Table | Separate section | Same |
 | Pack Info Table | Separate section | Same |
-| File | `repo/content/index/index_v2.go` | `core/.../content/index/PackIndexV2.kt` |
+| File | `repo/content/index/index_v2.go` | `core/.../pack/PackIndexV2.kt` |
 
 ## Repository Format Blob
 

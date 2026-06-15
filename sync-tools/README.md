@@ -127,14 +127,14 @@ sync-check:
 | `repo/blob/webdav` | `:storage` | `org.kopiaKt.storage.webdav` |
 | `repo/blob/sftp` | `:storage` | `org.kopiaKt.storage.sftp` |
 | `repo/content` | `:core` | `org.kopiaKt.core.content` |
-| `repo/encryption` | `:core` | `org.kopiaKt.core.crypto` |
-| `repo/hashing` | `:core` | `org.kopiaKt.core.crypto` |
+| `repo/encryption` | `:core` | `org.kopiaKt.core.encryption` |
+| `repo/hashing` | `:core` | `org.kopiaKt.core.hashing` |
 | `repo/compression` | `:core` | `org.kopiaKt.core.compression` |
 | `repo/splitter` | `:core` | `org.kopiaKt.core.splitter` |
 | `repo/object` | `:core` | `org.kopiaKt.core.object` |
 | `repo/manifest` | `:core` | `org.kopiaKt.core.manifest` |
 | `repo/format` | `:core` | `org.kopiaKt.core.format` |
-| `repo` | `:core` | `org.kopiaKt.core.repo` |
+| `repo` | `:core` | `org.kopiaKt.core.repository` |
 | `snapshot` | `:snapshot` | `org.kopiaKt.snapshot` |
 | `snapshot/policy` | `:snapshot` | `org.kopiaKt.snapshot.policy` |
 | `snapshot/restore` | `:snapshot` | `org.kopiaKt.snapshot.restore` |
