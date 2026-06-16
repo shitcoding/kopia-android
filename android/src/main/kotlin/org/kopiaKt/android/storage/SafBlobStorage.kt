@@ -3,6 +3,7 @@ package org.kopiaKt.android.storage
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.StatFs
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
 import android.provider.DocumentsContract
@@ -276,15 +277,27 @@ class SafBlobStorage private constructor(
                         val uuid = matchingVolume.uuid?.let { java.util.UUID.fromString(it) }
                             ?: StorageManager.UUID_DEFAULT
 
-                        @Suppress("NewApi")
-                        val totalBytes = storageManager.getAllocatableBytes(uuid)
+                        // getAllocatableBytes reports free/allocatable space, not the total
+                        // volume size, so it must only be used for freeBytes.
                         @Suppress("NewApi")
                         val freeBytes = storageManager.getAllocatableBytes(uuid)
 
-                        return@withContext Capacity(
-                            sizeBytes = totalBytes,
-                            freeBytes = freeBytes
-                        )
+                        // Derive the real total from StatFs over the SAME volume's
+                        // directory (available on API 30+). If we can't resolve the
+                        // matched volume's real path, fall through rather than pair its
+                        // free space with an unrelated volume's total (e.g. /data).
+                        val statPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            matchingVolume.directory?.path
+                        } else {
+                            null
+                        }
+                        if (statPath != null) {
+                            val totalBytes = StatFs(statPath).totalBytes
+                            return@withContext Capacity(
+                                sizeBytes = totalBytes,
+                                freeBytes = freeBytes
+                            )
+                        }
                     } catch (_: Exception) {
                         // Fall through to alternative method
                     }

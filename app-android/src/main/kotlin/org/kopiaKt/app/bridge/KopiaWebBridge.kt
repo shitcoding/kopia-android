@@ -34,7 +34,6 @@ import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.snapshot.policy.PolicyManager
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Hilt EntryPoint for accessing DI-managed services from the WebView bridge.
@@ -128,7 +127,6 @@ class KopiaWebBridge private constructor(
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
-    private val bridgeCallCounter = AtomicInteger(0)
     private var restoreJob: Job? = null
 
     /**
@@ -303,7 +301,7 @@ class KopiaWebBridge private constructor(
     fun getSupportedAlgorithms(): String {
         return json.encodeToString(WebResult.success(WebSupportedAlgorithms(
             hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"),
-            encryption = listOf("AES256-GCM-HMAC-SHA256", "CHACHA20-POLY1305-HMAC-SHA256", "NONE"),
+            encryption = listOf("AES256-GCM-HMAC-SHA256", "NONE"),
             compression = listOf("zstd", "lz4", "gzip", "pgzip", "deflate-default", "none")
         )))
     }
@@ -442,13 +440,9 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun listSourcesWithStats(): String {
-        val callId = bridgeCallCounter.incrementAndGet()
-        android.util.Log.e(TAG, "listSourcesWithStats ENTER callId=$callId thread=${Thread.currentThread().name}")
         return runBlocking {
             try {
-                android.util.Log.e(TAG, "listSourcesWithStats RUN callId=$callId")
                 val sources = snapshotRepository.listSourcesWithStats()
-                android.util.Log.e(TAG, "listSourcesWithStats SUCCESS callId=$callId sourceCount=${sources.size}")
                 val webSources = sources.map { src ->
                     WebSourceWithStats(
                         source = src.source.toWeb(),
@@ -460,14 +454,12 @@ class KopiaWebBridge private constructor(
                 }
                 json.encodeToString(WebResult.success(webSources))
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "listSourcesWithStats ERROR callId=$callId", e)
+                android.util.Log.e(TAG, "listSourcesWithStats ERROR", e)
                 json.encodeToString(
                     WebResult.error<List<WebSourceWithStats>>(
                         "listSourcesWithStats failed (${e::class.java.simpleName}): ${e.message ?: "Unknown error"}"
                     )
                 )
-            } finally {
-                android.util.Log.e(TAG, "listSourcesWithStats EXIT callId=$callId")
             }
         }
     }

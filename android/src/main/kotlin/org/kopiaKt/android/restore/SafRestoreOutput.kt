@@ -45,16 +45,12 @@ class SafRestoreOutput(
 
     override suspend fun beginDirectory(relativePath: String, entry: DirEntry) {
         withContext(Dispatchers.IO) {
-            android.util.Log.d("SafRestoreOutput", "beginDirectory - relativePath: '$relativePath', entry.name: '${entry.name}'")
-
             // When restoring a single directory (first call with empty path), preserve its name
             if (relativePath.isEmpty() && rootDirectoryName == null) {
                 rootDirectoryName = entry.name
-                android.util.Log.d("SafRestoreOutput", "Set root directory name: '$rootDirectoryName'")
             }
 
             val effectivePath = mapPath(relativePath, entry.name)
-            android.util.Log.d("SafRestoreOutput", "Creating directory at: '$effectivePath'")
             getOrCreateDirectory(effectivePath)
         }
     }
@@ -77,14 +73,10 @@ class SafRestoreOutput(
         progressCallback: FileWriteProgress?
     ) {
         withContext(Dispatchers.IO) {
-            android.util.Log.d("SafRestoreOutput", "writeFile called - relativePath: '$relativePath', entry.name: '${entry.name}'")
-
             val effectivePath = mapPath(relativePath, entry.name)
 
             val parentPath = effectivePath.substringBeforeLast('/', "")
             val fileName = effectivePath.substringAfterLast('/')
-
-            android.util.Log.d("SafRestoreOutput", "Parsed - effectivePath: '$effectivePath', parentPath: '$parentPath', fileName: '$fileName'")
 
             val parentDir = getOrCreateDirectory(parentPath)
 

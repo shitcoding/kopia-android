@@ -73,21 +73,16 @@ class SnapshotRepositoryImpl @Inject constructor(
             labels[ManifestLabels.PATH] = it.path
         }
 
-        android.util.Log.d("SnapshotRepo", "Finding manifests with labels: $labels")
         val manifests = repo.findManifests(labels)
-        android.util.Log.d("SnapshotRepo", "Found ${manifests.size} manifests")
 
         manifests.mapNotNull { metadata ->
             try {
-                android.util.Log.d("SnapshotRepo", "Loading manifest: ${metadata.id}")
                 val (manifest, _) = repo.getManifest(
                     metadata.id,
                     SnapshotManifest.serializer()
                 )
-                android.util.Log.d("SnapshotRepo", "Loaded manifest with manifestId: ${metadata.id.value}")
                 manifest.toSnapshotInfo(metadata.id.value)
             } catch (e: Exception) {
-                android.util.Log.e("SnapshotRepo", "Error loading manifest: ${e.message}", e)
                 null
             }
         }
@@ -340,7 +335,6 @@ class SnapshotRepositoryImpl @Inject constructor(
                 val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
                 manifest
             } catch (e: Exception) {
-                android.util.Log.e("SnapshotRepo", "Error loading manifest for stats: ${e.message}")
                 null
             }
         }
@@ -349,14 +343,6 @@ class SnapshotRepositoryImpl @Inject constructor(
             .groupBy { SourceInfo(it.source.host, it.source.userName, it.source.path) }
             .map { (source, snapshots) ->
                 val latest = snapshots.maxByOrNull { it.startTime }!!
-
-                // Debug logging to see what values we have
-                android.util.Log.d("SnapshotRepo", "Source: ${source.path}")
-                android.util.Log.d("SnapshotRepo", "  stats.totalFileSize: ${latest.stats?.totalFileSize}")
-                android.util.Log.d("SnapshotRepo", "  storageStats: ${latest.storageStats}")
-                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.objectBytes: ${latest.storageStats?.runningTotal?.objectBytes}")
-                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.originalContentBytes: ${latest.storageStats?.runningTotal?.originalContentBytes}")
-                android.util.Log.d("SnapshotRepo", "  storageStats.runningTotal.packedContentBytes: ${latest.storageStats?.runningTotal?.packedContentBytes}")
 
                 SourceWithStats(
                     source = source,
@@ -387,7 +373,6 @@ class SnapshotRepositoryImpl @Inject constructor(
                 val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
                 metadata.id.value to manifest
             } catch (e: Exception) {
-                android.util.Log.e("SnapshotRepo", "Error loading manifest for retention: ${e.message}")
                 null
             }
         }
