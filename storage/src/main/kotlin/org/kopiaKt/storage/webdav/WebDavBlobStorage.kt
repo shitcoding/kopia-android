@@ -333,6 +333,9 @@ class WebDavBlobStorage private constructor(
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
         withContext(Dispatchers.IO) {
+            if (readOnly) {
+                throw IllegalStateException("Storage is read-only")
+            }
             // WebDAV doesn't support retention options
             if (options.retentionMode != org.kopiaKt.core.blob.RetentionMode.NONE) {
                 throw UnsupportedPutOptionException("blob-retention")
@@ -399,6 +402,9 @@ class WebDavBlobStorage private constructor(
         }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
         val filePath = getFilePath(blobId)
         val fileUrl = normalizeUrl(options.url) + filePath
 

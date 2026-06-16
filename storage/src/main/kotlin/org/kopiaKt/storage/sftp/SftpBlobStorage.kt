@@ -422,7 +422,10 @@ class SftpBlobStorage private constructor(
         }
     }
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
         withSftpClient { sftp ->
             // SFTP doesn't support retention options
             if (options.retentionMode != RetentionMode.NONE) {
@@ -484,6 +487,7 @@ class SftpBlobStorage private constructor(
                 throw e
             }
         }
+    }
 
     private fun ensureDirectoryExists(sftp: SFTPClient, path: String) {
         try {
@@ -497,18 +501,23 @@ class SftpBlobStorage private constructor(
         }
     }
 
-    override suspend fun deleteBlob(blobId: BlobId) = withSftpClient { sftp ->
-        val fullPath = getFullPath(blobId)
-
-        try {
-            sftp.rm(fullPath)
-        } catch (e: SFTPException) {
-            // Ignore "not found" errors - blob is already deleted
-            if (!isNotExist(e)) {
-                throw e
-            }
+    override suspend fun deleteBlob(blobId: BlobId) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
         }
-        Unit
+        withSftpClient { sftp ->
+            val fullPath = getFullPath(blobId)
+
+            try {
+                sftp.rm(fullPath)
+            } catch (e: SFTPException) {
+                // Ignore "not found" errors - blob is already deleted
+                if (!isNotExist(e)) {
+                    throw e
+                }
+            }
+            Unit
+        }
     }
 
     /**

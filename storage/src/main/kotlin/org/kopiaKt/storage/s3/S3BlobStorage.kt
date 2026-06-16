@@ -292,6 +292,9 @@ class S3BlobStorage private constructor(
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
         withContext(Dispatchers.IO) {
+            if (readOnly) {
+                throw IllegalStateException("Storage is read-only")
+            }
             // S3 doesn't support setModTime
             if (options.setModTime != null) {
                 throw UnsupportedPutOptionException("setModTime")
@@ -344,6 +347,9 @@ class S3BlobStorage private constructor(
         }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
         try {
             val request = DeleteObjectRequest.builder()
                 .bucket(options.bucketName)
@@ -363,6 +369,9 @@ class S3BlobStorage private constructor(
 
     override suspend fun extendBlobRetention(blobId: BlobId, options: ExtendBlobRetentionOptions) {
         withContext(Dispatchers.IO) {
+            if (readOnly) {
+                throw IllegalStateException("Storage is read-only")
+            }
             val retentionMode = when (options.retentionMode) {
                 RetentionMode.GOVERNANCE -> ObjectLockRetentionMode.GOVERNANCE
                 RetentionMode.COMPLIANCE -> ObjectLockRetentionMode.COMPLIANCE

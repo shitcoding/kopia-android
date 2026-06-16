@@ -196,6 +196,9 @@ class FilesystemBlobStorage private constructor(
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
         withContext(Dispatchers.IO) {
+            if (readOnly) {
+                throw IllegalStateException("Storage is read-only")
+            }
             val blobPath = getBlobPath(blobId)
 
             if (options.dontOverwrite && blobPath.exists()) {
@@ -224,6 +227,9 @@ class FilesystemBlobStorage private constructor(
         }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
         val blobPath = getBlobPath(blobId)
         blobPath.deleteIfExists()
         Unit

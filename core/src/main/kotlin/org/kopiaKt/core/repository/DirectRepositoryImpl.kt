@@ -228,6 +228,7 @@ class DirectRepositoryImpl private constructor(
 
     override suspend fun newDirectWriter(options: WriteSessionOptions): DirectRepositoryWriter {
         checkNotClosed()
+        check(!clientOptions.readOnly) { "Repository is read-only" }
 
         val writerId = writerIdCounter.incrementAndGet()
         val writerName = "writer-$writerId:${options.purpose}"
