@@ -63,6 +63,7 @@ class FormatBlobManagerTest {
         assertThrows<RepositoryAlreadyExistsException> {
             runBlocking { manager.createRepository(password, config) }
         }
+        Unit
     }
 
     // === Open Repository Tests ===
@@ -91,6 +92,7 @@ class FormatBlobManagerTest {
         assertThrows<InvalidPasswordException> {
             runBlocking { manager.openRepository("wrong-password") }
         }
+        Unit
     }
 
     @Test
@@ -98,6 +100,7 @@ class FormatBlobManagerTest {
         assertThrows<FormatBlobNotFoundException> {
             runBlocking { manager.openRepository("any-password") }
         }
+        Unit
     }
 
     @Test
@@ -146,6 +149,7 @@ class FormatBlobManagerTest {
         assertThrows<InvalidPasswordException> {
             runBlocking { manager.changePassword("wrong-password", "new-password") }
         }
+        Unit
     }
 
     @Test
@@ -161,6 +165,7 @@ class FormatBlobManagerTest {
         assertThrows<UnsupportedOperationException> {
             runBlocking { manager.changePassword(password, "new-password") }
         }
+        Unit
     }
 
     @Test
@@ -212,6 +217,7 @@ class FormatBlobManagerTest {
         assertThrows<FormatBlobNotFoundException> {
             runBlocking { manager.readFormatBlob() }
         }
+        Unit
     }
 
     // === Integration Tests ===
@@ -256,6 +262,7 @@ class FormatBlobManagerTest {
         assertThrows<InvalidPasswordException> {
             runBlocking { manager.openRepository(password) }
         }
+        Unit
     }
 
     // === Helper Functions ===

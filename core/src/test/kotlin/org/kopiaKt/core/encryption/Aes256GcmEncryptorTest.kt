@@ -309,7 +309,7 @@ class Aes256GcmEncryptorTest {
 
             val plaintext = "Hello, World!".toByteArray()
             val contentId1 = ContentId.parse("k0102030405060708090a0b0c0d0e0f")
-            val contentId2 = ContentId.parse("kf0e0d0c0b0a09080706050403020100")
+            val contentId2 = ContentId.parse("k0f0e0d0c0b0a090807060504030201")
 
             val ciphertext1 = encryptor.encrypt(plaintext, contentId1)
             val ciphertext2 = encryptor.encrypt(plaintext, contentId2)
@@ -322,6 +322,7 @@ class Aes256GcmEncryptorTest {
             assertThrows(DecryptionException::class.java) {
                 runBlocking { encryptor.decrypt(ciphertext1, contentId2) }
             }
+            Unit
         }
 
         @Test
@@ -345,6 +346,7 @@ class Aes256GcmEncryptorTest {
             assertThrows(DecryptionException::class.java) {
                 runBlocking { encryptor2.decrypt(ciphertext, contentId) }
             }
+            Unit
         }
 
         @Test
@@ -393,6 +395,7 @@ class Aes256GcmEncryptorTest {
             assertThrows(DecryptionException::class.java) {
                 runBlocking { encryptor.decrypt(shortCiphertext, contentId) }
             }
+            Unit
         }
 
         @Test
@@ -411,6 +414,7 @@ class Aes256GcmEncryptorTest {
             assertThrows(DecryptionException::class.java) {
                 runBlocking { encryptor.decrypt(ciphertext, contentId) }
             }
+            Unit
         }
     }
 
