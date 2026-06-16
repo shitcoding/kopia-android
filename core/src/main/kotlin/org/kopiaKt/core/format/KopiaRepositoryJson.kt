@@ -250,26 +250,16 @@ private fun decryptRepositoryBlobBytesAes256Gcm(
     masterKey: ByteArray,
     salt: ByteArray
 ): ByteArray? {
-    fun log(msg: String) = java.util.logging.Logger.getLogger("KopiaFormat").info(msg)
-    log("decryptRepositoryBlobBytesAes256Gcm - ciphertext.size=${ciphertext.size}, masterKey.size=${masterKey.size}, salt.size=${salt.size}")
-    log("masterKey=${masterKey.joinToString("") { "%02x".format(it) }}")
-    log("salt=${salt.joinToString("") { "%02x".format(it) }}")
-
     if (ciphertext.size < GCM_NONCE_SIZE) {
-        log("Ciphertext too short")
         return null
     }
 
     return try {
         // Derive AES key and auth data using HKDF (matching Go Kopia)
         val (aesKey, authData) = deriveAesKeyAndAuthData(masterKey, salt)
-        log("aesKey=${aesKey.joinToString("") { "%02x".format(it) }}")
-        log("authData=${authData.joinToString("") { "%02x".format(it) }}")
 
         val nonce = ciphertext.copyOfRange(0, GCM_NONCE_SIZE)
         val encryptedData = ciphertext.copyOfRange(GCM_NONCE_SIZE, ciphertext.size)
-        log("nonce=${nonce.joinToString("") { "%02x".format(it) }}")
-        log("encryptedData.size=${encryptedData.size}")
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val keySpec = SecretKeySpec(aesKey, "AES")
@@ -277,11 +267,8 @@ private fun decryptRepositoryBlobBytesAes256Gcm(
 
         cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec)
         cipher.updateAAD(authData)
-        val result = cipher.doFinal(encryptedData)
-        log("Decryption successful, result.size=${result.size}")
-        result
+        cipher.doFinal(encryptedData)
     } catch (e: Exception) {
-        log("Decryption failed: ${e.javaClass.simpleName}: ${e.message}")
         null
     }
 }
