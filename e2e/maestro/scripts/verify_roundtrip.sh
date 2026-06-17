@@ -7,10 +7,12 @@
 # "files aren't broken" guarantee.
 #
 # Unlike verify_restore.sh (which is permissive for partial restores), this verifier FAILS unless:
-#   - the restored tree is exactly _kopia_restore/roundtrip_source with no unexpected siblings,
+#   - the restored tree is exactly _kopia_restore/roundtrip_source with no unexpected top-level siblings,
 #   - every original file is restored and byte-identical (cmp),
-#   - every restored file maps to an original (no extras).
-# Any missing tooling / failed pull / missing retained source is a FAILURE, never a skip.
+#   - every restored file maps to an original (no extra files).
+# Comparison is on FILE content + paths (the deterministic source has no empty dirs, so extra/empty
+# directories deeper in the tree are not flagged). Any missing tooling / failed pull / missing
+# retained source is a FAILURE, never a skip.
 set -uo pipefail
 
 SERIAL="${1:?usage: verify_roundtrip.sh <serial>}"

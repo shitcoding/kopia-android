@@ -373,6 +373,15 @@ run_one() {
         # Always run a clean baseline pass FIRST and verify the failure reason in the artifacts.
         local timed_out=0
         case "$rc" in 124|137|143) timed_out=1 ;; esac
+        # For restore/roundtrip, the on-disk byte verifier is part of "did the flow pass" - consult it
+        # so a mutation that corrupts data (UI still shows "Restore Complete") counts as MUT-OK, not
+        # MUT-LEAK. Only when the UI itself passed (rc=0) and it wasn't an infra timeout.
+        if [ "$rc" -eq 0 ] && [ "$timed_out" -eq 0 ]; then
+            case "$cat" in
+                roundtrip) "$SCRIPT_DIR/verify_roundtrip.sh" "$serial" >/dev/null 2>&1 || rc=1 ;;
+                restore)   "$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" >/dev/null 2>&1 || rc=1 ;;
+            esac
+        fi
         if [ "$timed_out" -eq 1 ]; then
             RESULTS+=("$name|MUT-INCONCLUSIVE|timed out$mark - not proof the flow detected the break; rerun")
             capture_artifacts "$serial" "$name"
@@ -481,8 +490,17 @@ run_shard_mode() {
     for s in "${serials[@]}"; do ensure_device_configured "$s"; install_apk "$s"; ensure_test_repos "$s"; done
     ensure_remote_backends || warn "remote backends unavailable - remote flows will FAIL in shard mode (no per-flow skip)."
 
-    local files=() entry
-    for entry in "${MANIFEST[@]}"; do files+=("$FLOW_DIR/${entry%%|*}.yaml"); done
+    # Exclude restore/roundtrip flows: shard mode has no per-flow hooks, so the round-trip repo would
+    # not be set up (the flow would hit a missing repo) and restore byte-verification would be skipped
+    # (a UI-only pass is a false pass). Those flows must go through the per-flow runner.
+    local files=() entry skipped=()
+    for entry in "${MANIFEST[@]}"; do
+        case "${entry##*|}" in
+            restore|roundtrip) skipped+=("${entry%%|*}") ;;
+            *) files+=("$FLOW_DIR/${entry%%|*}.yaml") ;;
+        esac
+    done
+    [ "${#skipped[@]}" -eq 0 ] || warn "shard mode SKIPS restore/roundtrip flows (need per-flow setup + byte-verification; run them via the per-flow runner): ${skipped[*]}"
 
     log "Running ${#files[@]} flows sharded ${#serials[@]}-way..."
     maestro --device "$SHARD_SERIALS" test --shard-split "${#serials[@]}" "${files[@]}"
