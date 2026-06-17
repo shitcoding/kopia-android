@@ -55,8 +55,13 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 
-    // Set environment for E2E tests
-    environment("KOPIA_BINARY", rootProject.projectDir.resolve("../kopia-go/kopia").absolutePath)
+    // Cross-compat tests resolve the Go `kopia` binary via KOPIA_BINARY (inherited from the
+    // environment) or PATH (see KopiaCliRunner.defaultKopiaBinary). Do NOT hard-code a path — the
+    // old ../kopia-go/kopia vendor dir was purged in the 2026-06-14 restructure. Install the binary
+    // with `brew install kopia`, or export KOPIA_BINARY=/path/to/kopia.
+    System.getenv("KOPIA_BINARY")?.let { environment("KOPIA_BINARY", it) }
+    // Make `-Pe2e` reach the test JVM: isE2EEnabled() reads the `e2e` system property.
+    if (project.hasProperty("e2e")) systemProperty("e2e", "true")
 
     // E2E tests can take longer
     systemProperty("junit.jupiter.execution.timeout.default", "10m")
@@ -89,7 +94,9 @@ tasks.register<Test>("benchmark") {
     description = "Runs performance benchmark tests"
     group = "verification"
 
-    environment("KOPIA_BINARY", rootProject.projectDir.resolve("../kopia-go/kopia").absolutePath)
+    // Resolve the Go `kopia` binary via KOPIA_BINARY (env) or PATH; never the purged vendor path.
+    System.getenv("KOPIA_BINARY")?.let { environment("KOPIA_BINARY", it) }
+    if (project.hasProperty("e2e")) systemProperty("e2e", "true")
 
     // Benchmark tests need more time and memory
     systemProperty("junit.jupiter.execution.timeout.default", "30m")

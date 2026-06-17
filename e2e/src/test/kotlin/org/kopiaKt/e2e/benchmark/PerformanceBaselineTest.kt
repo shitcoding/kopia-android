@@ -3,6 +3,7 @@ package org.kopiaKt.e2e.benchmark
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
@@ -57,7 +58,9 @@ class PerformanceBaselineTest {
         @Timeout(value = 120, unit = TimeUnit.SECONDS)
         @DisplayName("Should write and read 100MB of data in under 30 seconds")
         fun `should write and read 100MB of data in under 30 seconds`() = runTest(timeout = 2.minutes) {
-            if (!isE2EEnabled()) return@runTest
+            assumeTrue(isE2EEnabled()) {
+                "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
+            }
 
             val chunkSize = ONE_MB
             val chunkCount = 100
@@ -112,7 +115,9 @@ class PerformanceBaselineTest {
         @Timeout(value = 60, unit = TimeUnit.SECONDS)
         @DisplayName("Should load 1000 index entries in under 5 seconds")
         fun `should load 1000 index entries in under 5 seconds`() = runTest(timeout = 1.minutes) {
-            if (!isE2EEnabled()) return@runTest
+            assumeTrue(isE2EEnabled()) {
+                "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
+            }
 
             val objectCount = 1000
             val objectSize = 512 // small objects to keep total size manageable
@@ -160,7 +165,9 @@ class PerformanceBaselineTest {
         @Timeout(value = 30, unit = TimeUnit.SECONDS)
         @DisplayName("Should compress 10MB with zstd in under 2 seconds")
         fun `should compress 10MB with zstd in under 2 seconds`() {
-            if (!isE2EEnabled()) return
+            assumeTrue(isE2EEnabled()) {
+                "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
+            }
 
             val dataSize = 10 * ONE_MB
             val data = LargeDataGenerator.generate(dataSize, seed = 77L)

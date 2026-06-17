@@ -83,7 +83,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(1)
     @DisplayName("Can put and get a blob")
     fun putAndGetBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}simple-blob")
         val data = "Hello, WebDAV!".toByteArray()
 
@@ -100,7 +100,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(2)
     @DisplayName("Can put and get binary blob")
     fun putAndGetBinaryBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}binary-blob")
 
         // Generate random binary data
@@ -121,7 +121,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(3)
     @DisplayName("Can get partial blob with offset")
     fun getPartialBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}partial-blob")
         val data = "0123456789ABCDEF".toByteArray()
 
@@ -143,7 +143,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(4)
     @DisplayName("Can get blob metadata")
     fun getBlobMetadata() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}metadata-blob")
         val data = "metadata test".toByteArray()
 
@@ -163,7 +163,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(5)
     @DisplayName("Returns null metadata for non-existent blob")
     fun getNonExistentBlobMetadata() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}non-existent")
 
         val metadata = s.getBlobMetadata(blobId)
@@ -175,7 +175,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(6)
     @DisplayName("Throws BlobNotFoundException for non-existent blob")
     fun getNonExistentBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}non-existent")
 
         assertThrows<BlobNotFoundException> {
@@ -187,7 +187,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(7)
     @DisplayName("Can delete blob")
     fun deleteBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}to-delete")
         val data = "delete me".toByteArray()
 
@@ -206,7 +206,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(8)
     @DisplayName("Delete non-existent blob does not throw")
     fun deleteNonExistentBlob() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}never-existed")
 
         // Should not throw
@@ -217,7 +217,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(9)
     @DisplayName("dontOverwrite prevents overwriting existing blob")
     fun dontOverwrite() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         val blobId = BlobId("${testPrefix}dont-overwrite")
         val data1 = "original".toByteArray()
         val data2 = "replacement".toByteArray()
@@ -237,7 +237,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(10)
     @DisplayName("Can list blobs with prefix")
     fun listBlobs() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
 
         // Create several blobs with common prefix
         val prefix = "${testPrefix}list-"
@@ -269,7 +269,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(11)
     @DisplayName("Sharding works for long blob IDs")
     fun shardedBlobs() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
 
         // Create a blob ID that triggers sharding (length > 20)
         val blobId = BlobId("${testPrefix}pack-longhexstring12345678")
@@ -293,7 +293,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(12)
     @DisplayName("Connection info and display name work")
     fun connectionInfo() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
 
         val info = s.connectionInfo()
         assertThat(info.type).isEqualTo("webdav")
@@ -307,7 +307,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(13)
     @DisplayName("create with isCreate=true initializes repository structure")
     fun create_withIsCreate_initializesRepoStructure() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         s.putBlob(BlobId("p_test"), "hello".toByteArray())
         val data = s.getBlob(BlobId("p_test"))
         assertArrayEquals("hello".toByteArray(), data)
@@ -332,7 +332,7 @@ class WebDavBlobStorageIntegrationTest {
     @Order(100)
     @DisplayName("Can close storage")
     fun closeStorage() = runTest {
-        val s = storage ?: return@runTest
+        val s = requireNotNull(storage) { "WebDAV storage not initialized (setup failed)" }
         s.close()
         // Storage is closed, don't use it after this
         storage = null

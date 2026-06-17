@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.kopiaKt.core.blob.BlobStorage
@@ -169,9 +170,8 @@ class GoKopiaRepositoryIntegrationTest {
     @DisplayName("Read manifests from Go Kopia repository")
     fun `read manifests from go kopia repository`() = runTest {
         val repoDir = File(testRepoPath)
-        if (!repoDir.exists()) {
-            println("Test repository not found at $testRepoPath. Run create_test_repo.sh first.")
-            return@runTest
+        assumeTrue(testRepoExists()) {
+            "Go Kopia test repository not found at $testRepoPath — run create_test_repo.sh first"
         }
 
         println("DEBUG: Opening repository at ${repoDir.absolutePath}")
@@ -225,9 +225,8 @@ class GoKopiaRepositoryIntegrationTest {
     @DisplayName("Find all manifest types in Go Kopia repository")
     fun `find all manifest types`() = runTest {
         val repoDir = File(testRepoPath)
-        if (!repoDir.exists()) {
-            println("Test repository not found at $testRepoPath. Run create_test_repo.sh first.")
-            return@runTest
+        assumeTrue(testRepoExists()) {
+            "Go Kopia test repository not found at $testRepoPath — run create_test_repo.sh first"
         }
 
         val storage = TestFilesystemBlobStorage(repoDir)
