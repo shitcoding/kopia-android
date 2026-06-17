@@ -65,7 +65,7 @@ check_avd_cap() {
         return 1
     fi
     if [ "$count" -gt "$MAX_AVDS" ] && [ "$FORCE" -ne 1 ]; then
-        echo "ERROR: Refusing $count AVDs — the hard cap is $MAX_AVDS." >&2
+        echo "ERROR: Refusing $count AVDs - the hard cap is $MAX_AVDS." >&2
         echo "  >$MAX_AVDS AVDs + a hot Gradle build OOM Apple-Silicon machines" >&2
         echo "  (see the internal troubleshooting notes). Re-run with --force to override at your own risk." >&2
         return 1
@@ -73,7 +73,7 @@ check_avd_cap() {
 }
 
 # Return list of running e2e emulator serials.
-# Use awk (not grep) for the filter so a no-match exits 0 — grep's exit 1 would abort
+# Use awk (not grep) for the filter so a no-match exits 0 - grep's exit 1 would abort
 # the `serials=$(...)` callers under `set -o pipefail` before they can handle "none running".
 running_e2e_serials() {
     $ADB devices 2>/dev/null | awk '/^emulator-/ {print $1}' | while read -r serial; do

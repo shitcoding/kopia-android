@@ -1,10 +1,15 @@
-# E2E Test: Add Backup Source - Negative / Error Cases
-# Connects to an existing repository, navigates to Sources dashboard,
-# and attempts to add a source with invalid inputs to verify error handling.
+# E2E Test: Add Backup Source - wizard path validation
+# Connects to a repository, opens the Add Source wizard, and verifies the CLIENT-SIDE path gate:
+# an empty path must NOT advance the wizard, and a valid path MUST advance it.
 #
 # Test scenarios:
-#   1. Empty source path (try to proceed without entering path)
-#   2. Invalid source path (non-existent directory)
+#   1. Empty source path -> the "Next step" button is gated; the wizard stays on step 1.
+#   2. Valid source path -> the wizard advances to the schedule step.
+#
+# NOTE: there is intentionally NO "invalid path -> error" scenario. `createSource` does not validate
+# the path (it accepts any non-empty string and registers the source in memory — tracked product
+# dependency), so an "invalid path" produces no error. The only real, mutation-testable negative here
+# is the empty-path client gate (AddSourceScreen disables "Next" when the path is blank).
 #
 # Prerequisites:
 #   - Edge case repo must be pushed to /sdcard/testrepo on the device:
@@ -117,20 +122,18 @@ androidWebViewHierarchy: devtools
 - assertNotVisible:
     text: ".*Configure backup schedule.*"
 
-# ===== Phase 4: Test Invalid Path =====
-# The UI allows any non-empty path through to the next step (validation is
-# deferred to source creation). So we walk through the wizard and verify
-# that creating a source with an invalid path produces an error.
-
-# Enter an invalid path
+# ===== Phase 4: A valid path advances the wizard (positive control) =====
+# This makes the empty-path assertion above meaningful: the gate must respond to path PRESENCE,
+# not be permanently blocked. Enter a valid path (we're still on step 1) and confirm step 2 is
+# reached. A mutation that removes the empty-path gate would make Phase 3 fail; one that always
+# blocks "Next" would make this phase fail.
 - tapOn:
     id: "source-path-input"
 - waitForAnimationToEnd
 - eraseText: 1
-- inputText: "/nonexistent/invalid/backup/path"
+- inputText: "/sdcard/Download"
 - hideKeyboard
 
-# Proceed through wizard steps
 - tapOn:
     text: "Next step"
 
@@ -138,27 +141,3 @@ androidWebViewHierarchy: devtools
     visible:
       text: ".*Configure backup schedule.*"
     timeout: 5000
-
-# Skip policy config with defaults, go to review
-- scroll
-- tapOn:
-    text: "Review settings"
-
-- extendedWaitUntil:
-    visible:
-      text: ".*Review and add source.*"
-    timeout: 5000
-
-# Verify the invalid path is shown in review
-- assertVisible:
-    text: ".*nonexistent.*"
-
-# Try to create source -- should fail with error toast
-- tapOn:
-    id: "add-source-button"
-
-# Wait briefly for the error to appear
-- extendedWaitUntil:
-    visible:
-      text: ".*Failed.*|.*Error.*|.*error.*|.*not found.*|.*invalid.*"
-    timeout: 10000

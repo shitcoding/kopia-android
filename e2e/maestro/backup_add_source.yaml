@@ -1,16 +1,19 @@
-# E2E Test: Add Backup Source and Trigger Backup
-# Connects to an existing repository, navigates to Sources dashboard,
-# adds a backup source using manual path entry, configures policy,
-# and triggers a backup.
+# E2E Test: Add Backup Source (creation only)
+# Connects to a repository, navigates to Sources, adds a source via manual path entry, walks the
+# policy/review wizard, creates the source, and verifies the created source ROW appears.
+#
+# NOTE: this verifies source *creation* only. No backup runs — the bridge `startBackup` is a stub and
+# `createSource` ignores the "Start first backup immediately" checkbox (tracked product dependency).
+# Do NOT add backup-execution assertions here until that is wired.
 #
 # Flow:
 #   1. Connect to existing edge_case_repo (/sdcard/testrepo, password: test123)
 #   2. Navigate to Settings -> Sources
-#   3. Tap "Add Your First Source" (or "Add Backup Source")
+#   3. Tap "Add ... Source"
 #   4. Enter source path manually (/sdcard/Download)
-#   5. Configure policy (keep defaults: auto backup every 24 hours, ZSTD)
-#   6. Review and add source with "Start first backup immediately" checked
-#   7. Verify source appears on Sources dashboard
+#   5. Configure policy (keep defaults)
+#   6. Review and create the source
+#   7. Verify the created source row (its path) appears on the Sources dashboard
 #
 # Prerequisites:
 #   - Edge case repo must be pushed to /sdcard/testrepo on the device:
@@ -159,12 +162,19 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "add-source-button"
 
-# ===== Phase 4: Verify Source on Dashboard =====
-
-# Wait for navigation back to Sources dashboard.
-# The bridge createSource method is invoked.
-# On success: navigates to /sources with the new source visible.
+# ===== Phase 4: Verify the created source ROW appears (not just the page header) =====
+# createSource registers the source and the app navigates back to the dashboard. Assert the new
+# source's path is rendered as a row — a unique post-action signal that the source was actually
+# created (the page header alone would show even if creation failed and we never left the wizard).
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
     timeout: 30000
+# The new source row's accessible name is "Source <basename>" (AddSourceScreen renders the basename;
+# the full path is not a matchable text node). For /sdcard/Download that is "Source Download".
+- extendedWaitUntil:
+    visible:
+      text: "Source Download"
+    timeout: 10000
+- assertVisible:
+    text: "Source Download"

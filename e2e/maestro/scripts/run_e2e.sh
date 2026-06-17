@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# run_e2e.sh — per-flow Maestro E2E runner with prerequisites, state reset, and artifacts.
+# run_e2e.sh - per-flow Maestro E2E runner with prerequisites, state reset, and artifacts.
 #
 # Why a runner instead of `maestro test e2e/maestro/`:
 #   - per-flow work queue: each flow runs in its own `maestro` process so one hang/crash
 #     can't poison the rest, and we can reset state + capture artifacts between flows;
 #   - explicit prerequisites per flow (fresh APK/bundle, test repos, restore-dir reset,
-#     Docker backends) that are LOUDLY failed or VISIBLY skipped — never silently green;
+#     Docker backends) that are LOUDLY failed or VISIBLY skipped - never silently green;
 #   - a mutation hook (--expect-fail) so a flow can be proven to FAIL on a broken build.
 #
 # This runner does NOT create/start AVDs (that's manage_avds.sh, which enforces the <=2 cap).
@@ -35,7 +35,7 @@ FLOW_DIR="$REPO_ROOT/e2e/maestro"
 APK="$REPO_ROOT/app-android/build/outputs/apk/debug/app-android-debug.apk"
 DOCUMENTSUI="com.google.android.documentsui"
 
-# Per-flow wall-clock timeout — a hung maestro/adb/WebView must not block the whole queue.
+# Per-flow wall-clock timeout - a hung maestro/adb/WebView must not block the whole queue.
 # macOS has no `timeout` by default; prefer coreutils timeout/gtimeout, else a bash watchdog.
 FLOW_TIMEOUT="${E2E_FLOW_TIMEOUT:-600}"
 TIMEOUT_BIN=""
@@ -44,13 +44,13 @@ command -v timeout  >/dev/null 2>&1 && TIMEOUT_BIN="timeout"
 
 # Flake policy: auto-retry a failing flow up to this many times before recording FAIL.
 RETRY_MAX="${E2E_RETRY_MAX:-1}"
-# Both knobs must be non-negative integers. A negative/garbage RETRY_MAX would make attempts=0 → the
-# run loop never executes → rc stays 0 → every flow false-greens. Abort loudly instead.
+# Both knobs must be non-negative integers. A negative/garbage RETRY_MAX would make attempts=0 -> the
+# run loop never executes -> rc stays 0 -> every flow false-greens. Abort loudly instead.
 case "$FLOW_TIMEOUT" in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_FLOW_TIMEOUT must be a non-negative integer, got '$FLOW_TIMEOUT'" >&2; exit 1 ;; esac
 case "$RETRY_MAX"    in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RETRY_MAX must be a non-negative integer, got '$RETRY_MAX'" >&2; exit 1 ;; esac
 
 # --------------------------------------------------------------------------- #
-#  Flow manifest — explicit + ordered. category drives per-flow prerequisites:
+#  Flow manifest - explicit + ordered. category drives per-flow prerequisites:
 #    local   : test repos pushed (default)
 #    restore : local + reset /sdcard/Download/_kopia_restore before the flow
 #    s3|webdav|sftp : local + Docker backend up & seeded (host `kopia` required)
@@ -74,8 +74,8 @@ MANIFEST=(
   "backup_settings_navigation|local"
   "backup_sources_dashboard|local"
   "backup_policy_editor|local"
-  "backup_add_source_and_run|local"
-  "backup_add_source_and_run_negative|local"
+  "backup_add_source|local"
+  "backup_add_source_validation|local"
   "backup_estimation_dialog|local"
   "backup_maintenance|local"
   "backup_task_list|local"
@@ -109,7 +109,7 @@ die()  { echo "[run_e2e] ERROR: $*" >&2; exit 1; }
 require_maestro() {
     command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
     local v major minor
-    # Extract the first dotted version number anywhere in the output — handles bare "2.2.0" and
+    # Extract the first dotted version number anywhere in the output - handles bare "2.2.0" and
     # labeled forms like "Maestro 2.2.0". The grep guarantees major/minor are numeric.
     v="$(maestro --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)"
     if [ -z "$v" ]; then
@@ -172,7 +172,7 @@ build_apk_if_stale() {
     if [ ! -f "$APK" ]; then
         need_build=1
     else
-        # Watch source trees AND build inputs (gradle/npm/vite) — a build-file change can also make
+        # Watch source trees AND build inputs (gradle/npm/vite) - a build-file change can also make
         # the APK stale. (src_dirs validated above, so a missing dir can't hide staleness.)
         local watch=( "${src_dirs[@]}" ) f
         for f in build.gradle.kts settings.gradle.kts gradle/libs.versions.toml app-android/build.gradle.kts \
@@ -182,14 +182,14 @@ build_apk_if_stale() {
         local newer
         newer="$(cd "$REPO_ROOT" && find "${watch[@]}" -type f -newer "$APK" -print -quit 2>/dev/null)"
         if [ -n "$newer" ]; then
-            log "Sources or build inputs newer than the APK — rebuilding."
+            log "Sources or build inputs newer than the APK - rebuilding."
             need_build=1
         fi
     fi
     if [ "$need_build" -eq 1 ]; then
-        log "Building React bundle (react-ui)…"
+        log "Building React bundle (react-ui)..."
         ( cd "$REPO_ROOT/react-ui" && npm run build ) || die "react-ui build failed"
-        log "Building debug APK…"
+        log "Building debug APK..."
         ( cd "$REPO_ROOT" && ./gradlew :app-android:assembleDebug ) || die "assembleDebug failed"
         [ -f "$APK" ] || die "APK still missing after build: $APK"
     fi
@@ -197,7 +197,7 @@ build_apk_if_stale() {
 
 install_apk() {
     local serial="$1"
-    log "Installing APK on $serial…"
+    log "Installing APK on $serial..."
     adb -s "$serial" install -r -g "$APK" >/dev/null || die "APK install failed on $serial"
 }
 
@@ -211,14 +211,14 @@ ensure_fresh_apk() {
 # valid entry point on its own, so don't assume `manage_avds.sh setup` already configured the device.
 ensure_device_configured() {
     local serial="$1"
-    log "Configuring $serial for E2E stability…"
+    log "Configuring $serial for E2E stability..."
     "$SCRIPT_DIR/configure_avd.sh" "$serial" >/dev/null 2>&1 || warn "configure_avd.sh reported issues on $serial"
 }
 
 # Push the read-only test repos + grant storage. Done once per run (fixtures don't mutate).
 ensure_test_repos() {
     local serial="$1"
-    log "Pushing test repositories to $serial…"
+    log "Pushing test repositories to $serial..."
     "$SCRIPT_DIR/setup_test_repo.sh" "$serial" >/dev/null || die "test repo setup failed on $serial"
 }
 
@@ -234,21 +234,21 @@ REMOTE_READY=-1   # -1 unknown, 0 unavailable, 1 ready
 ensure_remote_backends() {
     [ "$REMOTE_READY" -ne -1 ] && return $(( REMOTE_READY == 1 ? 0 : 1 ))
     if ! command -v docker >/dev/null 2>&1; then
-        warn "docker not found — remote (S3/WebDAV/SFTP) flows will be SKIPPED."
+        warn "docker not found - remote (S3/WebDAV/SFTP) flows will be SKIPPED."
         REMOTE_READY=0; return 1
     fi
     if ! command -v kopia >/dev/null 2>&1; then
-        warn "host 'kopia' CLI not found (brew install kopia) — remote flows will be SKIPPED (cannot seed)."
+        warn "host 'kopia' CLI not found (brew install kopia) - remote flows will be SKIPPED (cannot seed)."
         REMOTE_READY=0; return 1
     fi
-    log "Starting Docker storage backends…"
+    log "Starting Docker storage backends..."
     if ! "$SCRIPT_DIR/start_storage_backends.sh" >/dev/null 2>&1; then
-        warn "start_storage_backends.sh failed — remote flows will be SKIPPED."
+        warn "start_storage_backends.sh failed - remote flows will be SKIPPED."
         REMOTE_READY=0; return 1
     fi
-    log "Seeding Docker storage backends…"
+    log "Seeding Docker storage backends..."
     if ! "$SCRIPT_DIR/seed_storage_backends.sh" >/dev/null 2>&1; then
-        warn "seed_storage_backends.sh failed — remote flows will be SKIPPED."
+        warn "seed_storage_backends.sh failed - remote flows will be SKIPPED."
         REMOTE_READY=0; return 1
     fi
     REMOTE_READY=1; return 0
@@ -262,7 +262,7 @@ capture_artifacts() {
     local serial="$1" name="$2"
     local dest="$ARTIFACT_DIR/$name"
     mkdir -p "$dest"
-    # Resized screenshot (>2000px poisons the agent's context — keep <=1920px).
+    # Resized screenshot (>2000px poisons the agent's context - keep <=1920px).
     if adb -s "$serial" exec-out screencap -p > "$dest/raw.png" 2>/dev/null && [ -s "$dest/raw.png" ]; then
         if command -v sips >/dev/null 2>&1; then
             sips --resampleHeightWidthMax 1920 "$dest/raw.png" --out "$dest/screen.png" >/dev/null 2>&1 \
@@ -311,7 +311,7 @@ run_one() {
         RESULTS+=("$name|SKIP|no such flow file"); warn "$name: no such flow file"; return
     fi
 
-    # Remote backends: one-time availability gate; unavailable → VISIBLE skip, never a silent green.
+    # Remote backends: one-time availability gate; unavailable -> VISIBLE skip, never a silent green.
     case "$cat" in
         s3|webdav|sftp)
             if ! ensure_remote_backends; then
@@ -332,7 +332,7 @@ run_one() {
         adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
         case "$cat" in restore) reset_restore_dir "$serial" ;; esac
 
-        if [ "$i" -eq 1 ]; then log "RUN  $name ($cat)…"; else log "RETRY $name (attempt $i/$attempts)…"; retried=1; fi
+        if [ "$i" -eq 1 ]; then log "RUN  $name ($cat)..."; else log "RETRY $name (attempt $i/$attempts)..."; retried=1; fi
         rc=0
         # Per-attempt log so a pass-on-retry doesn't erase the failing attempt's evidence.
         logf="$ARTIFACT_DIR/$name.attempt-$i.maestro.log"
@@ -346,23 +346,23 @@ run_one() {
     [ "$retried" -eq 1 ] && mark="$mark (retried)"
 
     if [ -n "$EXPECT_FAIL" ] && [ "$EXPECT_FAIL" = "$name" ]; then
-        # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail — but only a
+        # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail - but only a
         # genuine assertion failure counts. A TIMEOUT (infra) is NOT proof the flow caught the break.
         # Always run a clean baseline pass FIRST and verify the failure reason in the artifacts.
         local timed_out=0
         case "$rc" in 124|137|143) timed_out=1 ;; esac
         if [ "$timed_out" -eq 1 ]; then
-            RESULTS+=("$name|MUT-INCONCLUSIVE|timed out$mark — not proof the flow detected the break; rerun")
+            RESULTS+=("$name|MUT-INCONCLUSIVE|timed out$mark - not proof the flow detected the break; rerun")
             capture_artifacts "$serial" "$name"
-            warn "MUT-INCONCLUSIVE $name — timed out; confirm a clean baseline first, then rerun."
+            warn "MUT-INCONCLUSIVE $name - timed out; confirm a clean baseline first, then rerun."
         elif [ "$rc" -ne 0 ]; then
-            RESULTS+=("$name|MUT-OK|failed on broken build$mark — verify reason in artifacts")
+            RESULTS+=("$name|MUT-OK|failed on broken build$mark - verify reason in artifacts")
             capture_artifacts "$serial" "$name"
-            log "MUT-OK $name — flow FAILED on the broken build (confirm the failure reason in artifacts)."
+            log "MUT-OK $name - flow FAILED on the broken build (confirm the failure reason in artifacts)."
         else
             RESULTS+=("$name|MUT-LEAK|passed on broken build (FALSE PASS!)")
             capture_artifacts "$serial" "$name"
-            warn "MUT-LEAK $name — flow PASSED on a broken build; it cannot detect this regression."
+            warn "MUT-LEAK $name - flow PASSED on a broken build; it cannot detect this regression."
         fi
         return
     fi
@@ -373,7 +373,7 @@ run_one() {
     else
         RESULTS+=("$name|FAIL|rc=$rc$mark; see $logf")
         capture_artifacts "$serial" "$name"
-        warn "FAIL $name (rc=$rc)$mark — log: $logf"
+        warn "FAIL $name (rc=$rc)$mark - log: $logf"
     fi
 }
 
@@ -404,7 +404,7 @@ print_summary() {
     [ "$fail" -eq 0 ] || return 1
     # If literally everything was skipped, that's not a real green.
     if [ "$pass" -eq 0 ] && [ "$skip" -gt 0 ]; then
-        warn "every requested flow was SKIPPED — nothing actually ran."
+        warn "every requested flow was SKIPPED - nothing actually ran."
         return 2
     fi
     return 0
@@ -414,7 +414,7 @@ print_summary() {
 #  Shard mode (fast, mutually-exclusive with the per-flow runner)
 # --------------------------------------------------------------------------- #
 # Runs the whole manifest natively sharded across up to 2 devices via maestro's own --shard-split.
-# This is a SPEED escape hatch: it does NOT do per-flow reset, retry, artifacts, or visible-skip —
+# This is a SPEED escape hatch: it does NOT do per-flow reset, retry, artifacts, or visible-skip -
 # for trustworthy results use the per-flow runner (the default).
 run_shard_mode() {
     require_maestro
@@ -432,16 +432,16 @@ run_shard_mode() {
     done
 
     log "SHARD mode across ${#serials[@]} device(s): $SHARD_SERIALS"
-    warn "FAST mode — NO per-flow reset / retry / artifacts / visible-skip. Use the per-flow runner for trustworthy results."
+    warn "FAST mode - NO per-flow reset / retry / artifacts / visible-skip. Use the per-flow runner for trustworthy results."
 
     build_apk_if_stale
     for s in "${serials[@]}"; do ensure_device_configured "$s"; install_apk "$s"; ensure_test_repos "$s"; done
-    ensure_remote_backends || warn "remote backends unavailable — remote flows will FAIL in shard mode (no per-flow skip)."
+    ensure_remote_backends || warn "remote backends unavailable - remote flows will FAIL in shard mode (no per-flow skip)."
 
     local files=() entry
     for entry in "${MANIFEST[@]}"; do files+=("$FLOW_DIR/${entry%%|*}.yaml"); done
 
-    log "Running ${#files[@]} flows sharded ${#serials[@]}-way…"
+    log "Running ${#files[@]} flows sharded ${#serials[@]}-way..."
     maestro --device "$SHARD_SERIALS" test --shard-split "${#serials[@]}" "${files[@]}"
 }
 
@@ -486,7 +486,7 @@ fi
 [ -n "$SERIAL" ] || die "missing <serial> (e.g. emulator-5554). See --help."
 
 # Validate explicitly named flows first (cheap; a typo must be a LOUD error, not a silent SKIP
-# that could still exit 0) — before touching the device or building.
+# that could still exit 0) - before touching the device or building.
 for name in ${REQUESTED[@]+"${REQUESTED[@]}"}; do
     [ -f "$FLOW_DIR/$name.yaml" ] || die "no such flow: $name (see --list)"
 done
