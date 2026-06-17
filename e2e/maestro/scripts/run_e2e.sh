@@ -12,13 +12,17 @@
 # Bring an emulator up first, then point this at its serial.
 #
 # Usage:
-#   run_e2e.sh <serial> [flow ...]        Run the whole manifest, or only the named flows.
+#   run_e2e.sh <serial> [flow ...]        Run the whole manifest, or only the named flows (default:
+#                                         per-flow queue with prereqs/reset/retry/artifacts).
 #   run_e2e.sh --list                     Print the flow manifest (name + category) and exit.
 #   run_e2e.sh <serial> --no-remote ...   Skip remote (Docker) flows instead of running them.
 #   run_e2e.sh <serial> --expect-fail F   Mutation test: run flow F and PASS only if it FAILS.
+#   run_e2e.sh --shard-split s1,s2        FAST mode: native maestro sharding across devices, NO
+#                                         per-flow reset/retry/artifacts (mutually exclusive w/ above).
 #   run_e2e.sh --help
 #
 # Flow args may be a bare name ("restore_files"), with or without ".yaml".
+# Env: E2E_FLOW_TIMEOUT (per-flow seconds, default 600); E2E_RETRY_MAX (auto-retries/flow, default 1).
 #
 # Exit code: 0 only if every executed flow passed (skips don't fail the run unless every
 # requested flow was skipped). Non-zero if any executed flow failed.
@@ -37,6 +41,13 @@ FLOW_TIMEOUT="${E2E_FLOW_TIMEOUT:-600}"
 TIMEOUT_BIN=""
 command -v timeout  >/dev/null 2>&1 && TIMEOUT_BIN="timeout"
 [ -z "$TIMEOUT_BIN" ] && command -v gtimeout >/dev/null 2>&1 && TIMEOUT_BIN="gtimeout"
+
+# Flake policy: auto-retry a failing flow up to this many times before recording FAIL.
+RETRY_MAX="${E2E_RETRY_MAX:-1}"
+# Both knobs must be non-negative integers. A negative/garbage RETRY_MAX would make attempts=0 → the
+# run loop never executes → rc stays 0 → every flow false-greens. Abort loudly instead.
+case "$FLOW_TIMEOUT" in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_FLOW_TIMEOUT must be a non-negative integer, got '$FLOW_TIMEOUT'" >&2; exit 1 ;; esac
+case "$RETRY_MAX"    in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RETRY_MAX must be a non-negative integer, got '$RETRY_MAX'" >&2; exit 1 ;; esac
 
 # --------------------------------------------------------------------------- #
 #  Flow manifest — explicit + ordered. category drives per-flow prerequisites:
@@ -121,8 +132,10 @@ print_manifest() {
 
 # Rebuild the APK if missing or if any source tree is newer, then (re)install it.
 # build-or-fail: a stale or unbuildable APK is a hard error, never a silent stale run.
-ensure_fresh_apk() {
-    local serial="$1" need_build=0
+# Rebuild the APK (React bundle + debug APK) if it's missing or any source is newer. build-or-fail:
+# a stale or unbuildable APK is a hard error, never a silent stale run. Builds at most once per run.
+build_apk_if_stale() {
+    local need_build=0
     local src_dirs=( react-ui/src app-android/src core/src snapshot/src storage/src android/src )
     local d
     for d in "${src_dirs[@]}"; do
@@ -147,8 +160,18 @@ ensure_fresh_apk() {
         ( cd "$REPO_ROOT" && ./gradlew :app-android:assembleDebug ) || die "assembleDebug failed"
         [ -f "$APK" ] || die "APK still missing after build: $APK"
     fi
+}
+
+install_apk() {
+    local serial="$1"
     log "Installing APK on $serial…"
     adb -s "$serial" install -r -g "$APK" >/dev/null || die "APK install failed on $serial"
+}
+
+# Single-device convenience: build (if stale) then install.
+ensure_fresh_apk() {
+    build_apk_if_stale
+    install_apk "$1"
 }
 
 # Push the read-only test repos + grant storage. Done once per run (fixtures don't mutate).
@@ -237,6 +260,7 @@ run_flow_cmd() {
 }
 
 RESULTS=()   # "name|STATUS|note"
+RETRIED=()   # names that were retried at least once
 run_one() {
     local serial="$1" name="$2"
     local flow="$FLOW_DIR/$name.yaml"
@@ -246,10 +270,8 @@ run_one() {
         RESULTS+=("$name|SKIP|no such flow file"); warn "$name: no such flow file"; return
     fi
 
-    # Per-flow state reset / prerequisites.
-    adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
+    # Remote backends: one-time availability gate; unavailable → VISIBLE skip, never a silent green.
     case "$cat" in
-        restore) reset_restore_dir "$serial" ;;
         s3|webdav|sftp)
             if ! ensure_remote_backends; then
                 RESULTS+=("$name|SKIP|remote backend unavailable ($cat)")
@@ -258,19 +280,36 @@ run_one() {
             ;;
     esac
 
-    log "RUN  $name ($cat)…"
-    local logf="$ARTIFACT_DIR/$name.maestro.log"
-    local rc=0
-    run_flow_cmd "$FLOW_TIMEOUT" "$serial" "$flow" "$logf" || rc=$?
-    local tnote=""
-    case "$rc" in 124|137|143) tnote=" (timed out after ${FLOW_TIMEOUT}s)" ;; esac
+    # Flake policy: up to RETRY_MAX auto-retries, then fail. Mutation mode never retries (we want the
+    # single deliberate result).
+    local attempts=$(( RETRY_MAX + 1 ))
+    if [ -n "$EXPECT_FAIL" ] && [ "$EXPECT_FAIL" = "$name" ]; then attempts=1; fi
+
+    local rc=0 i retried=0 logf=""
+    for (( i = 1; i <= attempts; i++ )); do
+        # Reset volatile state before EVERY attempt (including retries) so a retry starts clean.
+        adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
+        case "$cat" in restore) reset_restore_dir "$serial" ;; esac
+
+        if [ "$i" -eq 1 ]; then log "RUN  $name ($cat)…"; else log "RETRY $name (attempt $i/$attempts)…"; retried=1; fi
+        rc=0
+        # Per-attempt log so a pass-on-retry doesn't erase the failing attempt's evidence.
+        logf="$ARTIFACT_DIR/$name.attempt-$i.maestro.log"
+        run_flow_cmd "$FLOW_TIMEOUT" "$serial" "$flow" "$logf" || rc=$?
+        [ "$rc" -eq 0 ] && break
+    done
+    [ "$retried" -eq 1 ] && RETRIED+=("$name")
+
+    local mark=""
+    case "$rc" in 124|137|143) mark=" (timed out after ${FLOW_TIMEOUT}s)" ;; esac
+    [ "$retried" -eq 1 ] && mark="$mark (retried)"
 
     if [ -n "$EXPECT_FAIL" ] && [ "$EXPECT_FAIL" = "$name" ]; then
         # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail.
         # Run a clean baseline pass FIRST — a device/infra error also yields rc!=0, so always
         # capture artifacts and verify the failure happened for the right reason.
         if [ "$rc" -ne 0 ]; then
-            RESULTS+=("$name|MUT-OK|failed on broken build$tnote — verify reason in artifacts")
+            RESULTS+=("$name|MUT-OK|failed on broken build$mark — verify reason in artifacts")
             capture_artifacts "$serial" "$name"
             log "MUT-OK $name — flow FAILED on the broken build (confirm the failure reason in artifacts)."
         else
@@ -282,12 +321,12 @@ run_one() {
     fi
 
     if [ "$rc" -eq 0 ]; then
-        RESULTS+=("$name|PASS|")
-        log "PASS $name"
+        RESULTS+=("$name|PASS|${mark# }")
+        log "PASS $name$mark"
     else
-        RESULTS+=("$name|FAIL|rc=$rc$tnote; see $logf")
+        RESULTS+=("$name|FAIL|rc=$rc$mark; see $logf")
         capture_artifacts "$serial" "$name"
-        warn "FAIL $name (rc=$rc)$tnote — log: $logf"
+        warn "FAIL $name (rc=$rc)$mark — log: $logf"
     fi
 }
 
@@ -312,6 +351,7 @@ print_summary() {
     done
     echo "----------------------------------------------------"
     echo "pass=$pass  fail=$fail  skip=$skip  other=$other"
+    [ "${#RETRIED[@]}" -gt 0 ] && echo "retried (flaky): ${RETRIED[*]}"
     echo "artifacts: $ARTIFACT_DIR"
     echo "===================================================="
     [ "$fail" -eq 0 ] || return 1
@@ -324,22 +364,59 @@ print_summary() {
 }
 
 # --------------------------------------------------------------------------- #
+#  Shard mode (fast, mutually-exclusive with the per-flow runner)
+# --------------------------------------------------------------------------- #
+# Runs the whole manifest natively sharded across up to 2 devices via maestro's own --shard-split.
+# This is a SPEED escape hatch: it does NOT do per-flow reset, retry, artifacts, or visible-skip —
+# for trustworthy results use the per-flow runner (the default).
+run_shard_mode() {
+    command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
+    case "$SHARD_SERIALS" in
+        ,*|*,|*,,*) die "--shard-split: malformed serial list '$SHARD_SERIALS' (no leading/trailing/double commas)" ;;
+    esac
+    local serials
+    IFS=',' read -r -a serials <<< "$SHARD_SERIALS"
+    [ "${#serials[@]}" -ge 1 ] || die "--shard-split needs at least one serial"
+    [ "${#serials[@]}" -le 2 ] || die "--shard-split: at most 2 serials (the AVD cap)"
+    local s
+    for s in "${serials[@]}"; do
+        [ "$(adb -s "$s" get-state 2>/dev/null)" = "device" ] || die "device $s is not online (start it via manage_avds.sh)."
+    done
+
+    log "SHARD mode across ${#serials[@]} device(s): $SHARD_SERIALS"
+    warn "FAST mode — NO per-flow reset / retry / artifacts / visible-skip. Use the per-flow runner for trustworthy results."
+
+    build_apk_if_stale
+    for s in "${serials[@]}"; do install_apk "$s"; ensure_test_repos "$s"; done
+    ensure_remote_backends || warn "remote backends unavailable — remote flows will FAIL in shard mode (no per-flow skip)."
+
+    local files=() entry
+    for entry in "${MANIFEST[@]}"; do files+=("$FLOW_DIR/${entry%%|*}.yaml"); done
+
+    log "Running ${#files[@]} flows sharded ${#serials[@]}-way…"
+    maestro --device "$SHARD_SERIALS" test --shard-split "${#serials[@]}" "${files[@]}"
+}
+
+# --------------------------------------------------------------------------- #
 #  Main
 # --------------------------------------------------------------------------- #
 NO_REMOTE=0
 EXPECT_FAIL=""
 SERIAL=""
+SHARD_SERIALS=""
 REQUESTED=()
 
 # Parse args.
 while [ $# -gt 0 ]; do
     case "$1" in
-        --help|-h) sed -n '2,30p' "$0"; exit 0 ;;
+        --help|-h) sed -n '2,34p' "$0"; exit 0 ;;
         --list) print_manifest; exit 0 ;;
         --no-remote) NO_REMOTE=1 ;;
         --expect-fail) shift; EXPECT_FAIL="${1:-}"
                        case "$EXPECT_FAIL" in ""|--*) die "--expect-fail needs a flow name" ;; esac
                        EXPECT_FAIL="${EXPECT_FAIL%.yaml}" ;;
+        --shard-split) shift; SHARD_SERIALS="${1:-}"
+                       case "$SHARD_SERIALS" in ""|--*) die "--shard-split needs comma-separated serials" ;; esac ;;
         --*) die "unknown flag: $1" ;;
         *)
             if [ -z "$SERIAL" ]; then SERIAL="$1"; else REQUESTED+=("${1%.yaml}"); fi
@@ -347,6 +424,16 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# Shard mode is a separate, mutually-exclusive fast path (its own validation + execution).
+if [ -n "$SHARD_SERIALS" ]; then
+    [ -z "$EXPECT_FAIL" ] || die "--shard-split is mutually exclusive with --expect-fail"
+    [ "${#REQUESTED[@]}" -eq 0 ] || die "--shard-split runs the whole manifest; don't also name flows"
+    [ -z "$SERIAL" ] || die "--shard-split takes no positional serial/flow; pass serials to --shard-split"
+    [ "$NO_REMOTE" -eq 0 ] || die "--no-remote is not supported in --shard-split mode"
+    run_shard_mode
+    exit $?
+fi
 
 [ -n "$SERIAL" ] || die "missing <serial> (e.g. emulator-5554). See --help."
 
