@@ -1,0 +1,135 @@
+# E2E Test: Backup/restore ROUND-TRIP integrity (original-source byte match)
+#
+# Connects to a repo created by Go kopia from a deterministic source (roundtrip_source), restores the
+# snapshot to /sdcard/Download/_kopia_restore, then the runner's verify_roundtrip.sh compares the
+# restored bytes to the HELD-OUT ORIGINAL source (not a Go-kopia re-restore). This proves files are
+# backed up and restored without corruption.
+#
+# PREREQUISITE (handled by the runner's `roundtrip` category): setup_roundtrip_repo.sh generates the
+# source, backs it up with Go kopia, and pushes the repo to /sdcard/roundtriprepo (password: test123).
+#
+# NOTE: navigation selectors mirror the device-verified restore_files.yaml, with the source-specific
+# matchers swapped to "roundtrip_source". Confirm them on a device in the next session.
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- stopApp
+- stopApp: "com.google.android.documentsui"
+- launchApp
+
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+
+# Connect to the round-trip repo
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/roundtriprepo"
+- hideKeyboard
+
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "test123"
+- hideKeyboard
+- tapOn:
+    id: "connect-button"
+
+# Wait for SnapshotsScreen. Key derivation is CPU-heavy + cold WebView on the software-GPU AVD.
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 60000
+
+# Source card for the roundtrip_source snapshot -> SourceSnapshotsScreen
+- extendedWaitUntil:
+    visible:
+      text: ".*roundtrip_source.*"
+    timeout: 15000
+- tapOn:
+    text: ".*roundtrip_source.*"
+
+# SourceSnapshotsScreen: tap the snapshot card -> FileBrowserScreen
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*files.*"
+    timeout: 10000
+- tapOn:
+    text: ".*files.*"
+
+# File browser loaded (a known root entry of the deterministic source)
+- extendedWaitUntil:
+    visible:
+      text: ".*small.txt.*"
+    timeout: 15000
+
+# Open RestoreScreen from the app bar
+- tapOn: "Restore"
+- extendedWaitUntil:
+    visible: "Select Destination"
+    timeout: 20000
+- assertVisible:
+    text: ".*Source.*"
+
+# Pick destination via SAF picker -> Download -> _kopia_restore
+- tapOn: "Select Destination"
+- extendedWaitUntil:
+    visible:
+      text: "Download|Documents|Downloads"
+    timeout: 10000
+- tapOn:
+    text: "Download"
+    optional: true
+- runFlow:
+    when:
+      visible: "Downloads"
+    commands:
+      - tapOn: "Downloads"
+
+- extendedWaitUntil:
+    visible:
+      text: "_kopia_restore|USE THIS FOLDER|CREATE NEW FOLDER"
+    timeout: 5000
+- runFlow:
+    when:
+      visible: "_kopia_restore"
+    commands:
+      - tapOn: "_kopia_restore"
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 5000
+- tapOn: "USE THIS FOLDER"
+
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# Start restore and wait for completion (verify_roundtrip.sh does the byte-level check afterward)
+- extendedWaitUntil:
+    visible: "Start Restore"
+    timeout: 10000
+- tapOn: "Start Restore"
+- extendedWaitUntil:
+    visible:
+      text: ".*Preparing.*|.*Restoring.*|.*restored.*"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      text: ".*restored.*|.*Restore Complete.*"
+    timeout: 300000

@@ -98,6 +98,7 @@ test-output/
 # Maestro E2E run reports
 report.xml
 e2e/maestro/artifacts/
+e2e/maestro/.roundtrip/
 
 # Coverage reports
 coverage/

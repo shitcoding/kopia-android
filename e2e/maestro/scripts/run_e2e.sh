@@ -89,6 +89,7 @@ MANIFEST=(
   "filebrowser_batch_select_all_restore|local"
   "filebrowser_restore_directory_preservation|restore"
   "full_e2e_flow|restore"
+  "restore_roundtrip|roundtrip"
   "connect_s3_repo|s3"
   "connect_s3_errors|s3"
   "connect_webdav_repo|webdav"
@@ -332,6 +333,16 @@ run_one() {
             ;;
     esac
 
+    # Round-trip flows back up a deterministic source with Go kopia and push that repo (loud-fail,
+    # never skip — the whole point is an independent original-vs-restored byte check).
+    if [ "$cat" = "roundtrip" ]; then
+        if ! "$SCRIPT_DIR/setup_roundtrip_repo.sh" "$serial" >"$ARTIFACT_DIR/$name.setup.log" 2>&1; then
+            RESULTS+=("$name|FAIL|round-trip setup failed (Go kopia required); see $name.setup.log")
+            warn "FAIL $name - setup_roundtrip_repo.sh failed; see $ARTIFACT_DIR/$name.setup.log"
+            return
+        fi
+    fi
+
     # Flake policy: up to RETRY_MAX auto-retries, then fail. Mutation mode never retries (we want the
     # single deliberate result).
     local attempts=$(( RETRY_MAX + 1 ))
@@ -341,7 +352,7 @@ run_one() {
     for (( i = 1; i <= attempts; i++ )); do
         # Reset volatile state before EVERY attempt (including retries) so a retry starts clean.
         adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
-        case "$cat" in restore) reset_restore_dir "$serial" ;; esac
+        case "$cat" in restore|roundtrip) reset_restore_dir "$serial" ;; esac
 
         if [ "$i" -eq 1 ]; then log "RUN  $name ($cat)..."; else log "RETRY $name (attempt $i/$attempts)..."; retried=1; fi
         rc=0
@@ -381,9 +392,13 @@ run_one() {
     if [ "$rc" -eq 0 ]; then
         # Restore flows: a UI "Restore Complete" is not enough — verify the restored bytes match a
         # Go-kopia reference restore of the same snapshot (verify_restore.sh: count + per-file md5).
-        if [ "$cat" = "restore" ]; then
+        if [ "$cat" = "restore" ] || [ "$cat" = "roundtrip" ]; then
             local vout vrc=0 vlast
-            vout="$("$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" 2>&1)" || vrc=$?
+            if [ "$cat" = "roundtrip" ]; then
+                vout="$("$SCRIPT_DIR/verify_roundtrip.sh" "$serial" 2>&1)" || vrc=$?
+            else
+                vout="$("$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" 2>&1)" || vrc=$?
+            fi
             vlast="$(printf '%s' "$vout" | tail -1)"
             if [ "$vrc" -ne 0 ]; then
                 printf '%s\n' "$vout" > "$ARTIFACT_DIR/$name.restore-verify.log"
