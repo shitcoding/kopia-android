@@ -53,13 +53,13 @@ The app uses a React frontend rendered in a WebView, communicating with the Kotl
 ./gradlew test
 
 # E2E tests (Maestro UI flows; require a running AVD)
-./gradlew :app-android:assembleDebug                 # build the APK that setup installs
 bash e2e/maestro/scripts/manage_avds.sh create 1
 bash e2e/maestro/scripts/manage_avds.sh start 1
-bash e2e/maestro/scripts/manage_avds.sh setup 1      # installs APK + pushes test repos
+# run_e2e.sh builds a fresh APK, configures the device, pushes test repos, and runs each
+# flow with state reset + failure artifacts (prefer it over raw `maestro test`):
+bash e2e/maestro/scripts/run_e2e.sh emulator-5554
 # Remote-backend flows (S3/WebDAV/SFTP) also need Docker:
 #   bash e2e/maestro/scripts/start_storage_backends.sh && bash e2e/maestro/scripts/seed_storage_backends.sh
-maestro --device emulator-5554 test e2e/maestro/
 ```
 
 ## Storage Backends

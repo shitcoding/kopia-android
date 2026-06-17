@@ -109,14 +109,15 @@ die()  { echo "[run_e2e] ERROR: $*" >&2; exit 1; }
 require_maestro() {
     command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
     local v major minor
-    v="$(maestro --version 2>/dev/null | head -1 | tr -d '[:space:]')"
-    # Extract the first two dotted fields; require each to be PURELY numeric. This warns+continues
-    # (rather than mis-comparing) on "2" (no minor), "2.1-5", "v2.2.0", prerelease tails, etc.
-    # -s: suppress (empty) when there's no '.', so a bare "2" is treated as unparseable, not 2.2.
-    major="$(printf '%s' "$v" | cut -s -d. -f1)"
-    minor="$(printf '%s' "$v" | cut -s -d. -f2)"
-    case "$major" in ''|*[!0-9]*) warn "could not parse maestro version '$v'; need >=2.2.0"; return 0 ;; esac
-    case "$minor" in ''|*[!0-9]*) warn "could not parse maestro version '$v'; need >=2.2.0"; return 0 ;; esac
+    # Extract the first dotted version number anywhere in the output — handles bare "2.2.0" and
+    # labeled forms like "Maestro 2.2.0". The grep guarantees major/minor are numeric.
+    v="$(maestro --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)"
+    if [ -z "$v" ]; then
+        warn "could not parse maestro version (got: '$(maestro --version 2>/dev/null | head -1)'); need >=2.2.0"
+        return 0
+    fi
+    major="${v%%.*}"
+    minor="$(printf '%s' "${v#*.}" | cut -d. -f1)"
     if [ "$major" -lt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -lt 2 ]; }; then
         die "maestro $v is too old; need >=2.2.0 (API 36). Upgrade maestro."
     fi
@@ -144,6 +145,15 @@ print_manifest() {
     done
 }
 
+# Manifest integrity: every manifest flow must have a YAML file. A mismatch is a runner bug, not a
+# skippable condition, so fail loudly before running anything.
+validate_manifest() {
+    local entry
+    for entry in "${MANIFEST[@]}"; do
+        [ -f "$FLOW_DIR/${entry%%|*}.yaml" ] || die "manifest references a missing flow: ${entry%%|*}.yaml (runner bug)"
+    done
+}
+
 # --------------------------------------------------------------------------- #
 #  Prerequisites
 # --------------------------------------------------------------------------- #
@@ -162,12 +172,17 @@ build_apk_if_stale() {
     if [ ! -f "$APK" ]; then
         need_build=1
     else
-        # Any source newer than the built APK? (dirs validated above, so a missing dir can't
-        # silently hide staleness and let a stale APK look "fresh".)
+        # Watch source trees AND build inputs (gradle/npm/vite) — a build-file change can also make
+        # the APK stale. (src_dirs validated above, so a missing dir can't hide staleness.)
+        local watch=( "${src_dirs[@]}" ) f
+        for f in build.gradle.kts settings.gradle.kts gradle/libs.versions.toml app-android/build.gradle.kts \
+                 react-ui/package.json react-ui/package-lock.json react-ui/vite.config.ts react-ui/index.html; do
+            [ -e "$REPO_ROOT/$f" ] && watch+=("$f")
+        done
         local newer
-        newer="$(cd "$REPO_ROOT" && find "${src_dirs[@]}" -type f -newer "$APK" -print -quit 2>/dev/null)"
+        newer="$(cd "$REPO_ROOT" && find "${watch[@]}" -type f -newer "$APK" -print -quit 2>/dev/null)"
         if [ -n "$newer" ]; then
-            log "Sources newer than the APK — rebuilding."
+            log "Sources or build inputs newer than the APK — rebuilding."
             need_build=1
         fi
     fi
@@ -190,6 +205,14 @@ install_apk() {
 ensure_fresh_apk() {
     build_apk_if_stale
     install_apk "$1"
+}
+
+# Apply device-stability settings (animations/IME/autofill/doze off, screen on). The runner is a
+# valid entry point on its own, so don't assume `manage_avds.sh setup` already configured the device.
+ensure_device_configured() {
+    local serial="$1"
+    log "Configuring $serial for E2E stability…"
+    "$SCRIPT_DIR/configure_avd.sh" "$serial" >/dev/null 2>&1 || warn "configure_avd.sh reported issues on $serial"
 }
 
 # Push the read-only test repos + grant storage. Done once per run (fixtures don't mutate).
@@ -323,10 +346,16 @@ run_one() {
     [ "$retried" -eq 1 ] && mark="$mark (retried)"
 
     if [ -n "$EXPECT_FAIL" ] && [ "$EXPECT_FAIL" = "$name" ]; then
-        # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail.
-        # Run a clean baseline pass FIRST — a device/infra error also yields rc!=0, so always
-        # capture artifacts and verify the failure happened for the right reason.
-        if [ "$rc" -ne 0 ]; then
+        # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail — but only a
+        # genuine assertion failure counts. A TIMEOUT (infra) is NOT proof the flow caught the break.
+        # Always run a clean baseline pass FIRST and verify the failure reason in the artifacts.
+        local timed_out=0
+        case "$rc" in 124|137|143) timed_out=1 ;; esac
+        if [ "$timed_out" -eq 1 ]; then
+            RESULTS+=("$name|MUT-INCONCLUSIVE|timed out$mark — not proof the flow detected the break; rerun")
+            capture_artifacts "$serial" "$name"
+            warn "MUT-INCONCLUSIVE $name — timed out; confirm a clean baseline first, then rerun."
+        elif [ "$rc" -ne 0 ]; then
             RESULTS+=("$name|MUT-OK|failed on broken build$mark — verify reason in artifacts")
             capture_artifacts "$serial" "$name"
             log "MUT-OK $name — flow FAILED on the broken build (confirm the failure reason in artifacts)."
@@ -362,7 +391,7 @@ print_summary() {
         printf '%-44s %-9s %s\n' "$name" "$status" "$note"
         case "$status" in
             PASS|MUT-OK) pass=$((pass+1)) ;;
-            FAIL|MUT-LEAK) fail=$((fail+1)) ;;
+            FAIL|MUT-LEAK|MUT-INCONCLUSIVE) fail=$((fail+1)) ;;
             SKIP) skip=$((skip+1)) ;;
             *) other=$((other+1)) ;;
         esac
@@ -389,6 +418,7 @@ print_summary() {
 # for trustworthy results use the per-flow runner (the default).
 run_shard_mode() {
     require_maestro
+    validate_manifest
     case "$SHARD_SERIALS" in
         ,*|*,|*,,*) die "--shard-split: malformed serial list '$SHARD_SERIALS' (no leading/trailing/double commas)" ;;
     esac
@@ -405,7 +435,7 @@ run_shard_mode() {
     warn "FAST mode — NO per-flow reset / retry / artifacts / visible-skip. Use the per-flow runner for trustworthy results."
 
     build_apk_if_stale
-    for s in "${serials[@]}"; do install_apk "$s"; ensure_test_repos "$s"; done
+    for s in "${serials[@]}"; do ensure_device_configured "$s"; install_apk "$s"; ensure_test_repos "$s"; done
     ensure_remote_backends || warn "remote backends unavailable — remote flows will FAIL in shard mode (no per-flow skip)."
 
     local files=() entry
@@ -463,6 +493,7 @@ done
 [ -n "$EXPECT_FAIL" ] && { [ -f "$FLOW_DIR/$EXPECT_FAIL.yaml" ] || die "no such flow: $EXPECT_FAIL (see --list)"; }
 
 require_maestro
+validate_manifest
 [ "$(adb -s "$SERIAL" get-state 2>/dev/null)" = "device" ] || die "device $SERIAL is not online (start it via manage_avds.sh)."
 
 # Build the queue: requested flows, or the whole manifest in order.
@@ -493,6 +524,7 @@ mkdir -p "$ARTIFACT_DIR" || die "cannot create artifact dir: $ARTIFACT_DIR"
 log "serial=$SERIAL  flows=${#QUEUE[@]}  artifacts=$ARTIFACT_DIR"
 
 # Global prerequisites (once per run).
+ensure_device_configured "$SERIAL"
 ensure_fresh_apk "$SERIAL"
 ensure_test_repos "$SERIAL"
 
