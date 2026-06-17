@@ -228,6 +228,17 @@ reset_restore_dir() {
     "$SCRIPT_DIR/setup_restore_dir.sh" "$serial" >/dev/null || die "restore-dir reset failed on $serial"
 }
 
+# Minimum number of files a restore flow must leave on disk. A UI "Restore Complete" is not proof —
+# the writer could no-op. Per-flow exact counts where known; otherwise the generic floor (>=1) still
+# catches the gross false-pass (restore claimed complete but wrote nothing). The dir is reset before
+# the flow, so the count reflects only this flow's output.
+restore_min_files() {
+    case "$1" in
+        restore_files|restore_flow) echo 76 ;;   # whole edge_case_repo snapshot root
+        *) echo 1 ;;                              # generic: at least one file must land
+    esac
+}
+
 # Bring up + seed Docker backends. Returns non-zero (without aborting) when the tooling is
 # missing so remote flows become a VISIBLE skip rather than a silent green.
 REMOTE_READY=-1   # -1 unknown, 0 unavailable, 1 ready
@@ -368,6 +379,23 @@ run_one() {
     fi
 
     if [ "$rc" -eq 0 ]; then
+        # Restore flows: a UI "Restore Complete" is not enough — verify the restored bytes match a
+        # Go-kopia reference restore of the same snapshot (verify_restore.sh: count + per-file md5).
+        if [ "$cat" = "restore" ]; then
+            local vout vrc=0 vlast
+            vout="$("$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" 2>&1)" || vrc=$?
+            vlast="$(printf '%s' "$vout" | tail -1)"
+            if [ "$vrc" -ne 0 ]; then
+                printf '%s\n' "$vout" > "$ARTIFACT_DIR/$name.restore-verify.log"
+                RESULTS+=("$name|FAIL|restore integrity: $vlast$mark")
+                capture_artifacts "$serial" "$name"
+                warn "FAIL $name - restore integrity check failed: $vlast (see $ARTIFACT_DIR/$name.restore-verify.log)"
+                return
+            fi
+            RESULTS+=("$name|PASS|$vlast${mark:+;$mark}")
+            log "PASS $name - $vlast$mark"
+            return
+        fi
         RESULTS+=("$name|PASS|${mark# }")
         log "PASS $name$mark"
     else
