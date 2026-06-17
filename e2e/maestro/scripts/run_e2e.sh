@@ -54,7 +54,7 @@ case "$RETRY_MAX"    in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RETRY_MAX must b
 #    local   : test repos pushed (default)
 #    restore : local + reset /sdcard/Download/_kopia_restore before the flow
 #    s3|webdav|sftp : local + Docker backend up & seeded (host `kopia` required)
-#  flows/_connect_and_browse.yaml is intentionally excluded (dead/unused).
+#  (the dead flows/_connect_and_browse.yaml was removed in Phase 5.)
 # --------------------------------------------------------------------------- #
 MANIFEST=(
   "welcome_screen|local"
@@ -103,6 +103,24 @@ MANIFEST=(
 log()  { echo "[run_e2e] $*"; }
 warn() { echo "[run_e2e] WARNING: $*" >&2; }
 die()  { echo "[run_e2e] ERROR: $*" >&2; exit 1; }
+
+# Require maestro present and >= 2.2.0 (needed for API 36). Warn (don't block) on an unparseable
+# version so a format change upstream doesn't wedge the runner.
+require_maestro() {
+    command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
+    local v major minor
+    v="$(maestro --version 2>/dev/null | head -1 | tr -d '[:space:]')"
+    # Extract the first two dotted fields; require each to be PURELY numeric. This warns+continues
+    # (rather than mis-comparing) on "2" (no minor), "2.1-5", "v2.2.0", prerelease tails, etc.
+    # -s: suppress (empty) when there's no '.', so a bare "2" is treated as unparseable, not 2.2.
+    major="$(printf '%s' "$v" | cut -s -d. -f1)"
+    minor="$(printf '%s' "$v" | cut -s -d. -f2)"
+    case "$major" in ''|*[!0-9]*) warn "could not parse maestro version '$v'; need >=2.2.0"; return 0 ;; esac
+    case "$minor" in ''|*[!0-9]*) warn "could not parse maestro version '$v'; need >=2.2.0"; return 0 ;; esac
+    if [ "$major" -lt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -lt 2 ]; }; then
+        die "maestro $v is too old; need >=2.2.0 (API 36). Upgrade maestro."
+    fi
+}
 
 # --------------------------------------------------------------------------- #
 #  Manifest lookup
@@ -370,7 +388,7 @@ print_summary() {
 # This is a SPEED escape hatch: it does NOT do per-flow reset, retry, artifacts, or visible-skip —
 # for trustworthy results use the per-flow runner (the default).
 run_shard_mode() {
-    command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
+    require_maestro
     case "$SHARD_SERIALS" in
         ,*|*,|*,,*) die "--shard-split: malformed serial list '$SHARD_SERIALS' (no leading/trailing/double commas)" ;;
     esac
@@ -444,7 +462,7 @@ for name in ${REQUESTED[@]+"${REQUESTED[@]}"}; do
 done
 [ -n "$EXPECT_FAIL" ] && { [ -f "$FLOW_DIR/$EXPECT_FAIL.yaml" ] || die "no such flow: $EXPECT_FAIL (see --list)"; }
 
-command -v maestro >/dev/null 2>&1 || die "maestro not found (need >=2.2.0 for API 36)."
+require_maestro
 [ "$(adb -s "$SERIAL" get-state 2>/dev/null)" = "device" ] || die "device $SERIAL is not online (start it via manage_avds.sh)."
 
 # Build the queue: requested flows, or the whole manifest in order.
