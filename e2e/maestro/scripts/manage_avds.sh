@@ -31,6 +31,13 @@ BASE_PORT=5554
 # Boot timeout (seconds)
 BOOT_TIMEOUT=120
 
+# Hard cap on concurrent e2e AVDs. >2 AVDs + a hot Gradle build OOM Apple-Silicon
+# machines (see the internal troubleshooting notes). Override deliberately with --force.
+MAX_AVDS=2
+
+# Set to 1 when --force is passed (parsed in main, below).
+FORCE=0
+
 # --------------------------------------------------------------------------- #
 #  Helpers
 # --------------------------------------------------------------------------- #
@@ -47,9 +54,29 @@ avd_serial() {
     echo "emulator-$(avd_port "$1")"
 }
 
-# Return list of running e2e emulator serials
+# Reject a non-numeric count, or a count above MAX_AVDS unless --force was given.
+# Guards create/start/setup so a stray 3rd AVD can't be spun up by accident.
+check_avd_cap() {
+    local count="$1"
+    # Reject non-numeric or absurdly long counts BEFORE any arithmetic: on bash 3.2 a value past the
+    # 64-bit range makes `[ -gt ]` error out, which would make the guard fall open.
+    if ! [[ "$count" =~ ^[1-9][0-9]*$ ]] || [ "${#count}" -gt 3 ]; then
+        echo "ERROR: count must be a small positive integer, got: '$count'" >&2
+        return 1
+    fi
+    if [ "$count" -gt "$MAX_AVDS" ] && [ "$FORCE" -ne 1 ]; then
+        echo "ERROR: Refusing $count AVDs — the hard cap is $MAX_AVDS." >&2
+        echo "  >$MAX_AVDS AVDs + a hot Gradle build OOM Apple-Silicon machines" >&2
+        echo "  (see the internal troubleshooting notes). Re-run with --force to override at your own risk." >&2
+        return 1
+    fi
+}
+
+# Return list of running e2e emulator serials.
+# Use awk (not grep) for the filter so a no-match exits 0 — grep's exit 1 would abort
+# the `serials=$(...)` callers under `set -o pipefail` before they can handle "none running".
 running_e2e_serials() {
-    $ADB devices 2>/dev/null | grep "^emulator-" | awk '{print $1}' | while read -r serial; do
+    $ADB devices 2>/dev/null | awk '/^emulator-/ {print $1}' | while read -r serial; do
         # Check if this port belongs to one of our e2e AVDs
         local avd_name_on_device
         avd_name_on_device=$($ADB -s "$serial" emu avd name 2>/dev/null | head -1 | tr -d '\r' || true)
@@ -88,6 +115,7 @@ wait_for_boot() {
 
 cmd_create() {
     local count="${1:?Usage: manage_avds.sh create <count>}"
+    check_avd_cap "$count" || return 1
 
     # Verify system image exists
     local sysimg_path="$HOME/Library/Android/sdk/$SYSTEM_IMAGE_DIR"
@@ -194,8 +222,31 @@ EOF
 
 cmd_start() {
     local count="${1:?Usage: manage_avds.sh start <count>}"
+    check_avd_cap "$count" || return 1
+
+    # Resource-safety: the cap is on AVDs left *running*, not just on the requested count. If e2e AVDs
+    # outside the requested range are already up, refuse when the union would exceed MAX_AVDS.
+    if [ "$FORCE" -ne 1 ]; then
+        local after=()
+        local i s
+        for i in $(seq 1 "$count"); do after+=("$(avd_serial "$i")"); done
+        while read -r s; do
+            [ -n "$s" ] || continue
+            case " ${after[*]} " in
+                *" $s "*) ;;                # requested serial already counted
+                *) after+=("$s") ;;         # extra running e2e AVD
+            esac
+        done < <(running_e2e_serials)
+        if [ "${#after[@]}" -gt "$MAX_AVDS" ]; then
+            echo "ERROR: starting $count AVD(s) would leave ${#after[@]} e2e AVDs running (cap $MAX_AVDS)." >&2
+            echo "  Stop the extra AVD(s) first ('$(basename "$0") stop'), or re-run with --force." >&2
+            return 1
+        fi
+    fi
 
     echo "Starting $count AVD(s) with visible windows..."
+    echo "  Memory budget: ~1 GB RSS per AVD (swiftshader_indirect GPU + cold boot)."
+    echo "  Do NOT run the full Gradle test suite while AVDs are hot. See the internal troubleshooting notes."
 
     local pids=()
     local started=0
@@ -253,11 +304,12 @@ cmd_start() {
 
     echo "All $count AVD(s) booted successfully."
     echo "Running devices:"
-    $ADB devices | grep "^emulator-"
+    $ADB devices | grep "^emulator-" || true
 }
 
 cmd_setup() {
     local count="${1:?Usage: manage_avds.sh setup <count>}"
+    check_avd_cap "$count" || return 1
 
     # Find APK
     local apk_path="$REPO_ROOT/app-android/build/outputs/apk/debug/app-android-debug.apk"
@@ -393,7 +445,13 @@ cmd_help() {
     echo "  delete           Delete all e2e AVDs (stops first if running)"
     echo "  help             Show this help message"
     echo ""
-    echo "Examples (2 AVDs recommended for 16GB, 3+ for 32GB+):"
+    echo "Flags:"
+    echo "  --force          Override the ${MAX_AVDS}-AVD hard cap on create/start/setup (accept OOM risk)."
+    echo ""
+    echo "HARD CAP: ${MAX_AVDS} AVDs. More than ${MAX_AVDS} + a hot Gradle build OOMs Apple-Silicon"
+    echo "machines (see the internal troubleshooting notes). create/start/setup refuse >${MAX_AVDS} without --force."
+    echo ""
+    echo "Examples:"
     echo "  $(basename "$0") create 2          # Create 2 AVDs"
     echo "  $(basename "$0") start 2           # Start both with visible windows"
     echo "  $(basename "$0") setup 2           # Configure + install APK + push repos"
@@ -412,6 +470,16 @@ cmd_help() {
 
 command="${1:-help}"
 shift || true
+
+# Parse an optional --force flag (overrides the AVD cap); keep remaining positional args.
+positional=()
+for arg in "$@"; do
+    case "$arg" in
+        --force) FORCE=1 ;;
+        *) positional+=("$arg") ;;
+    esac
+done
+set -- ${positional[@]+"${positional[@]}"}
 
 case "$command" in
     create)  cmd_create "$@" ;;
