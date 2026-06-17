@@ -61,10 +61,11 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Wait for connection (key derivation may take time)
+# Wait for connection. Key derivation is CPU-heavy and the WebView is cold right after a fresh
+# APK install on a software-GPU emulator, so allow generous time (30s was flaky here).
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 30000
+    timeout: 60000
 
 # ===== Phase 2: Navigate to Sources Dashboard =====
 
