@@ -55,6 +55,16 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "test-connection-button"
 
+# Positive error assertion: the local write-test fails for a non-writable path and shows a "Connection
+# failed" toast (toasts persist in this app, so this is reliable - not just timing). Asserting the error
+# (not only no-advance) is what makes this a real negative test.
+- extendedWaitUntil:
+    visible:
+      text: ".*Connection failed.*"
+    timeout: 15000
+- assertVisible:
+    text: ".*Connection failed.*"
+
 # The wizard must NOT advance past step 2 (storage config).
 # If the path is invalid, clicking "Test Connection" should keep us here.
 - assertNotVisible:
@@ -124,9 +134,13 @@ androidWebViewHierarchy: devtools
     optional: true
 
 # The form must NOT advance to step 4 (review) without a password.
-# We verify by asserting the review screen is NOT visible.
 - assertNotVisible:
     text: ".*Review your settings.*"
+# Positive no-advance: confirm we're STILL on the password step. The "Review settings" tap above is
+# optional (the button is disabled without a password), so assertNotVisible alone could pass even if the
+# tap target simply weren't found - assert the password/encryption step is still shown.
+- assertVisible:
+    text: ".*encryption.*settings.*"
 
 # ========================================
 # Test 3: Mismatched passwords
@@ -195,6 +209,17 @@ androidWebViewHierarchy: devtools
 - inputText: "differentpassword456"
 
 - hideKeyboard
+
+# Positive error assertion: with both fields filled and differing, the form shows a persistent inline
+# "Passwords don't match" error (rendered right under the confirm field while they differ) - assert it,
+# not just that the wizard fails to advance.
+- extendedWaitUntil:
+    visible:
+      text: ".*Passwords don't match.*"
+    timeout: 10000
+- assertVisible:
+    text: ".*Passwords don't match.*"
+
 - scroll
 
 # Try to proceed

@@ -37,16 +37,21 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show validation error
+# Should show the exact validation error. (The old ".*Repository path.*" alternative also matched the
+# static field label, so it could pass without any error - a false pass. Assert the exact message.)
 - extendedWaitUntil:
     visible:
-      text: ".*path.*required.*|.*Repository path.*"
+      text: ".*Repository path is required.*"
     timeout: 5000
 
 # ========================================
 # Test 2: Empty password validation
 # ========================================
-# Enter path only, clear password
+# Enter path only, clear password.
+# NOTE (follow-up): /sdcard/testrepo is reused by Test 3 (which needs a VALID repo for the wrong-password
+# case). If a prior connect stored this repo's password ("Remember password"), ConnectScreen could
+# auto-fill it here and mask the empty-password validation (a flaky false-FAILURE). Robust fix: clear
+# stored credentials in setup, or split Test 2 onto a throwaway path and re-enter the repo in Test 3.
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
@@ -62,10 +67,10 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show password required error
+# Should show the exact validation error (not the static "Repository password" field label).
 - extendedWaitUntil:
     visible:
-      text: ".*password.*required.*|.*Repository password.*"
+      text: ".*Repository password is required.*"
     timeout: 5000
 
 # ========================================
@@ -81,10 +86,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show authentication error
+# Wrong password for a VALID repo -> connection fails. Dropped the ".*wrong.*" alternative: it matched
+# the typed "wrongpassword" input (still in the DOM), not an error - the original false pass. NOTE: the
+# displayed message is the React "Failed to connect to repository" fallback, NOT the core's
+# "Invalid password..." string (verified on device), so this stays a focused set of failure terms; pin
+# to the exact on-device text as a follow-up.
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*"
+      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*"
     timeout: 15000
 
 # ========================================
@@ -117,10 +126,13 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show path not found / directory error
+# Non-existent path -> connection fails. Dropped the ".*directory.*" alternative: it matched the static
+# "...repository directory on the device" help text on the Connect screen (a false pass). Kept
+# ".*must be.*" (matches the core "Base path must be a directory") plus the generic failure terms so it
+# still matches whichever message the bridge surfaces; pin to the exact on-device text as a follow-up.
 - extendedWaitUntil:
     visible:
-      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*|.*directory.*|.*must be.*"
+      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*|.*must be.*"
     timeout: 15000
 
 # ========================================
