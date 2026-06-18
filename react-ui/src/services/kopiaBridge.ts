@@ -123,10 +123,17 @@ function callBridge<T>(method: string, arg?: unknown): T {
     throw new BridgeError(`Bridge method '${method}' not found`);
   }
 
-  // Call with correct 'this' context (the bridge object)
+  // Call with correct 'this' context (the bridge object).
+  // Pass string args RAW: JSON.stringify("abc") yields '"abc"', which arrives at the Kotlin
+  // @JavascriptInterface double-quoted (e.g. getSource("\"abc\"") -> "Source not found"). Only
+  // non-string args are JSON-encoded. Use an explicit undefined check so a falsy-but-valid arg
+  // (e.g. "" or 0) is still forwarded rather than silently dropped. Mirrors callBridgeVoid.
   let raw: unknown;
   try {
-    raw = arg ? fn.call(bridge, JSON.stringify(arg)) : fn.call(bridge);
+    raw =
+      arg !== undefined
+        ? fn.call(bridge, typeof arg === "string" ? arg : JSON.stringify(arg))
+        : fn.call(bridge);
   } catch (invokeError) {
     console.error(`[kopiaBridge] Bridge invocation threw for '${method}'`, invokeError);
     throw invokeError;
