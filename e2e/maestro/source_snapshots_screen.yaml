@@ -79,11 +79,11 @@ androidWebViewHierarchy: devtools
 # Text may be split across lines ("1" + "selected") in the toolbar
 - extendedWaitUntil:
     visible:
-      text: ".*selected.*"
+      text: ".*1 selected.*"
     timeout: 15000
 
 - assertVisible:
-    text: ".*selected.*"
+    text: ".*1 selected.*"
 
 # Verify toolbar buttons
 - assertVisible: "Select all"
@@ -95,7 +95,7 @@ androidWebViewHierarchy: devtools
 # Verify count updated (text may be multiline in toolbar)
 - extendedWaitUntil:
     visible:
-      text: ".*selected.*"
+      text: ".*1 selected.*"
     timeout: 3000
 
 # Tap Delete to open confirmation dialog
@@ -116,7 +116,7 @@ androidWebViewHierarchy: devtools
 # After cancel, still in selection mode. Dismiss selection by tapping X button.
 - extendedWaitUntil:
     visible:
-      text: ".*selected.*"
+      text: ".*1 selected.*"
     timeout: 3000
 
 # Tap X to exit selection mode

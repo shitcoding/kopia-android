@@ -75,14 +75,14 @@ androidWebViewHierarchy: devtools
 - longPressOn:
     text: "Folder .hidden_dir"
 
-# Wait for selection toolbar (text may be split across lines in WebView)
+# Long-pressing one row selects exactly ONE item -> assert the exact count, not just ".*selected.*".
 - extendedWaitUntil:
     visible:
-      text: ".*selected.*"
+      text: ".*1 selected.*"
     timeout: 10000
 
 - assertVisible:
-    text: ".*selected.*"
+    text: ".*1 selected.*"
 - assertVisible: "Select all"
 
 # Dismiss any system context menu by tapping on a neutral area (middle of file list)
@@ -108,7 +108,8 @@ androidWebViewHierarchy: devtools
 - assertVisible:
     text: ".*Deselect.*"
 
-# Verify selected count is greater than 1
+# Selection mode is still active (a count is shown). The exact total isn't a fixed small number, so
+# this stays loose; the "Deselect" toggle above already proves ALL items are selected.
 - assertVisible:
     text: ".*selected.*"
 

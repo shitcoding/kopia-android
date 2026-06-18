@@ -90,11 +90,11 @@ androidWebViewHierarchy: devtools
 # Wait for selection toolbar (text may be split across lines in WebView)
 - extendedWaitUntil:
     visible:
-      text: ".*selected.*"
+      text: ".*1 selected.*"
     timeout: 10000
 
 - assertVisible:
-    text: ".*selected.*"
+    text: ".*1 selected.*"
 - assertVisible: "Restore selected"
 
 # Tap Restore to open SAF folder picker directly
