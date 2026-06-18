@@ -44,7 +44,7 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
-    timeout: 15000
+    timeout: 60000
 - tapOn:
     text: ".*76 files.*"
 

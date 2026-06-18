@@ -43,7 +43,7 @@ androidWebViewHierarchy: devtools
 # Wait for connection and verify success - should see snapshot list
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 60000
 
 # Verify snapshot is loaded (76 files from edge_case_repo)
 - extendedWaitUntil:

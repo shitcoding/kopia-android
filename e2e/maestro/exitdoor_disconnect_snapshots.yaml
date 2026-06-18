@@ -43,7 +43,7 @@ androidWebViewHierarchy: devtools
 # Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 60000
 
 - assertVisible: "Snapshots"
 

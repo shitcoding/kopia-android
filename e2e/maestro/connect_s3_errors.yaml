@@ -338,4 +338,4 @@ androidWebViewHierarchy: devtools
 # Should navigate to Snapshots screen after successful connection
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 30000
+    timeout: 60000

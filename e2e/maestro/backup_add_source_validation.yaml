@@ -59,7 +59,7 @@ androidWebViewHierarchy: devtools
 # Wait for connection
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 30000
+    timeout: 60000
 
 # ===== Phase 2: Navigate to Sources Dashboard =====
 

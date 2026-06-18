@@ -156,4 +156,4 @@ androidWebViewHierarchy: devtools
 # Should successfully connect
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 60000

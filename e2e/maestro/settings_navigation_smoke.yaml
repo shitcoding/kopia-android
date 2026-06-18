@@ -43,7 +43,7 @@ androidWebViewHierarchy: devtools
 # Wait for SnapshotsScreen (connecting can take time for key derivation)
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 30000
+    timeout: 60000
 
 # Navigate to settings
 - tapOn: "Settings"

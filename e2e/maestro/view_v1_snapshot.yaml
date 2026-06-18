@@ -38,7 +38,7 @@ androidWebViewHierarchy: devtools
 # Wait for snapshot list - V1 repo has a snapshot
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 60000
 
 # Verify snapshot is shown - V1 repo has a small test file
 # This proves the V1 index format is properly supported

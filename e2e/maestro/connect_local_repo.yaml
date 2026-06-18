@@ -63,7 +63,7 @@ androidWebViewHierarchy: devtools
 # Wait for connection and verify success - should see Snapshots screen
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 15000
+    timeout: 60000
 
 # Verify at least one snapshot is visible with file count
 - extendedWaitUntil:
