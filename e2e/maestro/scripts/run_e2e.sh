@@ -236,6 +236,9 @@ reset_restore_dir() {
 restore_min_files() {
     case "$1" in
         restore_files|restore_flow) echo 76 ;;   # whole edge_case_repo snapshot root
+        # Partial restore of two selected folders (.hidden_dir + level1), each holding exactly one
+        # file. Require both so a silently-dropped selection fails the count check (not just MIN=1).
+        filebrowser_batch_select_restore_files) echo 2 ;;
         *) echo 1 ;;                              # generic: at least one file must land
     esac
 }

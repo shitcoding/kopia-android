@@ -71,6 +71,9 @@ KOPIA_PASSWORD="$PW" kopia repository disconnect --config-file="$KCFG" >/dev/nul
 # Detect the full-restore wrapper precisely: exactly one top-level entry, it is a directory, and an
 # entry of that name does NOT exist in the reference. Everything else compares straight from
 # _kopia_restore (partial restores, a single selected dir that is itself a reference entry, lone files).
+# CAVEAT: a future partial restore of a single *nested* dir whose basename is absent from the reference
+# root could be misclassified as a full-restore wrapper; such flows should pass an explicit expected
+# path list instead of relying on this heuristic.
 adb -s "$SERIAL" pull "$DEST" "$DEV" >/dev/null 2>&1 || { echo "FAIL: could not pull $DEST"; exit 1; }
 DEVROOT="$DEV/_kopia_restore"
 [ -d "$DEVROOT" ] || DEVROOT="$DEV"
@@ -82,7 +85,9 @@ if [ "$top_count" -eq 1 ] && [ -d "$top_one" ] && [ ! -e "$REF/$(basename "$top_
 fi
 [ -n "$(find "$BASE" -type f 2>/dev/null | head -1)" ] || { echo "FAIL: no restored directory tree under $DEST"; exit 1; }
 
-# Compare every device file's md5 to the same relative path in the reference.
+# Compare every device file's md5 to the same relative path in the reference. NOTE: file content +
+# paths only -- empty directories and dir-only structure are not asserted (SAF restore drops no-file
+# dirs and the fixtures' coverage is file-based); per-flow completeness is covered by <min_files>.
 mismatch=0; checked=0
 while IFS= read -r rel; do
     [ -n "$rel" ] || continue
