@@ -61,14 +61,26 @@ fi
 KOPIA_PASSWORD="$PW" kopia snapshot restore "$SNAP" "$REF" --config-file="$KCFG" >/dev/null 2>&1
 KOPIA_PASSWORD="$PW" kopia repository disconnect --config-file="$KCFG" >/dev/null 2>&1 || true
 
-# Pull the device's restored tree. The SAF restore wraps content in the snapshot's source dir
-# (e.g. _kopia_restore/edge_case_data/...); strip _kopia_restore + that single wrapper dir so paths
-# line up with the Go-kopia reference (which has the snapshot contents at its root).
+# Pull the device's restored tree, then locate where the comparable files start:
+#   - FULL-snapshot restore (RestoreScreen): SAF wraps everything in the snapshot's source dir, e.g.
+#     _kopia_restore/edge_case_data/... That wrapper is NOT a top-level entry of the Go-kopia reference
+#     (which holds the snapshot CONTENTS at its root), so strip the single wrapper dir.
+#   - PARTIAL restore (FileBrowser "Restore selected"): the selected entries land DIRECTLY under
+#     _kopia_restore (e.g. _kopia_restore/.hidden_dir/, _kopia_restore/level1/), whose paths already
+#     line up with the reference, so do NOT strip.
+# Detect the full-restore wrapper precisely: exactly one top-level entry, it is a directory, and an
+# entry of that name does NOT exist in the reference. Everything else compares straight from
+# _kopia_restore (partial restores, a single selected dir that is itself a reference entry, lone files).
 adb -s "$SERIAL" pull "$DEST" "$DEV" >/dev/null 2>&1 || { echo "FAIL: could not pull $DEST"; exit 1; }
 DEVROOT="$DEV/_kopia_restore"
 [ -d "$DEVROOT" ] || DEVROOT="$DEV"
-WRAP="$(find "$DEVROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)"
-[ -n "$WRAP" ] || { echo "FAIL: no restored directory tree under $DEST"; exit 1; }
+BASE="$DEVROOT"
+top_count="$(find "$DEVROOT" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')"
+top_one="$(find "$DEVROOT" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)"
+if [ "$top_count" -eq 1 ] && [ -d "$top_one" ] && [ ! -e "$REF/$(basename "$top_one")" ]; then
+    BASE="$top_one"   # full-restore source-dir wrapper -> strip it
+fi
+[ -n "$(find "$BASE" -type f 2>/dev/null | head -1)" ] || { echo "FAIL: no restored directory tree under $DEST"; exit 1; }
 
 # Compare every device file's md5 to the same relative path in the reference.
 mismatch=0; checked=0
@@ -76,13 +88,13 @@ while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     checked=$((checked + 1))
     refmd5="$( [ -f "$REF/$rel" ] && md5 -q "$REF/$rel" 2>/dev/null || true )"
-    devmd5="$(md5 -q "$WRAP/$rel" 2>/dev/null || true)"
+    devmd5="$(md5 -q "$BASE/$rel" 2>/dev/null || true)"
     if [ -z "$refmd5" ]; then
         echo "  MISMATCH: $rel — not present in the Go-kopia reference"; mismatch=$((mismatch + 1))
     elif [ "$refmd5" != "$devmd5" ]; then
         echo "  BYTE MISMATCH: $rel — ref=$refmd5 dev=$devmd5"; mismatch=$((mismatch + 1))
     fi
-done < <(cd "$WRAP" && find . -type f | sed 's|^\./||')
+done < <(cd "$BASE" && find . -type f | sed 's|^\./||')
 
 if [ "$mismatch" -ne 0 ]; then
     echo "FAIL: $mismatch of $checked restored file(s) differ from the Go-kopia reference"

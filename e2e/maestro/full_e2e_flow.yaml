@@ -77,7 +77,7 @@ androidWebViewHierarchy: devtools
 # ========================================
 - extendedWaitUntil:
     visible: "Snapshots"
-    timeout: 30000
+    timeout: 60000
 
 # Verify source card with file count
 - extendedWaitUntil:

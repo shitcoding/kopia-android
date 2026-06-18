@@ -45,7 +45,12 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# SnapshotsScreen: tap source card
+# SnapshotsScreen: wait for the screen first. Key derivation is CPU-heavy and the WebView is cold on
+# the software-GPU AVD, so connect can exceed a direct count-assertion timeout (flaky under host load).
+# Mirror the robust restore_files.yaml pattern: wait 60s for "Snapshots", then tap the source card.
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 60000
 - extendedWaitUntil:
     visible:
       text: ".*76 files.*"
