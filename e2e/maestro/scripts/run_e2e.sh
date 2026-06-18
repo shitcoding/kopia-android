@@ -16,13 +16,18 @@
 #                                         per-flow queue with prereqs/reset/retry/artifacts).
 #   run_e2e.sh --list                     Print the flow manifest (name + category) and exit.
 #   run_e2e.sh <serial> --no-remote ...   Skip remote (Docker) flows instead of running them.
+#   run_e2e.sh <serial> --force ...       Override the pre-flight host-memory HARD gate (task-19).
 #   run_e2e.sh <serial> --expect-fail F   Mutation test: run flow F and PASS only if it FAILS.
 #   run_e2e.sh --shard-split s1,s2        FAST mode: native maestro sharding across devices, NO
 #                                         per-flow reset/retry/artifacts (mutually exclusive w/ above).
 #   run_e2e.sh --help
 #
 # Flow args may be a bare name ("restore_files"), with or without ".yaml".
-# Env: E2E_FLOW_TIMEOUT (per-flow seconds, default 600); E2E_RETRY_MAX (auto-retries/flow, default 1).
+# Env: E2E_FLOW_TIMEOUT (per-flow seconds, default 600); E2E_RETRY_MAX (auto-retries/flow, default 1);
+#      E2E_MAX_RECOVERIES (auto cold-boots on emulator ANR, default 3); E2E_RESTART_EVERY (proactive
+#      cold-boot every N flows, default 0=off); E2E_BOOT_TIMEOUT (boot wait seconds, default 120).
+#      A pre-flight health gate (swap/compressor, not the misleading "free %") WARNs, or in a HARD-low
+#      state aborts unless --force.
 #
 # Exit code: 0 only if every executed flow passed (skips don't fail the run unless every
 # requested flow was skipped). Non-zero if any executed flow failed.
@@ -34,6 +39,27 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 FLOW_DIR="$REPO_ROOT/e2e/maestro"
 APK="$REPO_ROOT/app-android/build/outputs/apk/debug/app-android-debug.apk"
 DOCUMENTSUI="com.google.android.documentsui"
+
+# Emulator binary (for mid-run recovery cold-boots; matches manage_avds.sh).
+EMULATOR="$HOME/Library/Android/sdk/emulator/emulator"
+
+# Shared host/emulator health helpers: pre-flight gate, ANR detection, robust stop (task-19).
+# shellcheck source=host_health.sh
+. "$SCRIPT_DIR/host_health.sh"
+
+# --force overrides the pre-flight HARD memory gate. Recovery knobs (env-overridable):
+FORCE=0
+# Auto-recover a wedged (ANR'd) emulator by cold-boot + re-setup, at most this many times per run.
+E2E_MAX_RECOVERIES="${E2E_MAX_RECOVERIES:-3}"
+# Proactively cold-boot the AVD every N flows on long runs (0 = disabled; reactive ANR recovery is the
+# safety net regardless).
+E2E_RESTART_EVERY="${E2E_RESTART_EVERY:-0}"
+BOOT_TIMEOUT_S="${E2E_BOOT_TIMEOUT:-120}"
+RECOVERIES_DONE=0
+HEALTH_LOG=""   # set in main once ARTIFACT_DIR exists
+case "$E2E_MAX_RECOVERIES" in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_MAX_RECOVERIES must be a non-negative integer" >&2; exit 1 ;; esac
+case "$E2E_RESTART_EVERY"  in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RESTART_EVERY must be a non-negative integer" >&2; exit 1 ;; esac
+case "$BOOT_TIMEOUT_S"     in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_BOOT_TIMEOUT must be a non-negative integer" >&2; exit 1 ;; esac
 
 # Per-flow wall-clock timeout - a hung maestro/adb/WebView must not block the whole queue.
 # macOS has no `timeout` by default; prefer coreutils timeout/gtimeout, else a bash watchdog.
@@ -293,6 +319,59 @@ capture_artifacts() {
 }
 
 # --------------------------------------------------------------------------- #
+#  Emulator recovery (task-19)
+# --------------------------------------------------------------------------- #
+# Append a one-line host/emulator health snapshot to the run's health log.
+log_health() {
+    local serial="$1" tag="$2"
+    [ -n "$HEALTH_LOG" ] || return 0
+    printf '%s  %-44s %s\n' "$(date +%H:%M:%S)" "$tag" "$(hh_snapshot "$serial")" >> "$HEALTH_LOG" 2>/dev/null || true
+}
+
+# Recover a wedged/degraded emulator: robustly stop it, cold-boot it fresh, wait for boot, re-run device
+# setup. The relaunched emulator's output is redirected to a file so the detached qemu can't inherit (and
+# pin open) the runner's stdout pipe. Returns 0 on success. task-19.
+restart_avd() {
+    local serial="$1" reason="${2:-}" port idx avd elapsed=0 booted=""
+    port="${serial##*-}"
+    idx=$(( (port - 5554) / 2 + 1 ))
+    avd="e2e_avd_${idx}"
+    warn "RECOVER $serial${reason:+ ($reason)} - cold-booting $avd. $(hh_snapshot "$serial")"
+    log_health "$serial" "recover-before:$reason"
+    hh_robust_stop "$serial" || warn "  could not confirm the old emulator exited; relaunching anyway"
+    "$EMULATOR" -avd "$avd" -port "$port" \
+        -no-snapshot-load -no-snapshot-save -no-boot-anim -no-audio -gpu swiftshader_indirect \
+        >"$ARTIFACT_DIR/emu-recover-$idx.log" 2>&1 &
+    # Bounded boot wait: poll boot_completed (each adb call time-boxed when a timeout binary exists) up
+    # to BOOT_TIMEOUT_S. No unbounded `adb wait-for-device` - it can hang forever if the device never
+    # reappears; the poll loop returns failure within the timeout instead.
+    while [ "$elapsed" -lt "$BOOT_TIMEOUT_S" ]; do
+        # shellcheck disable=SC2086  # intentional word-split: empty when no timeout binary is present
+        booted="$(${TIMEOUT_BIN:+$TIMEOUT_BIN 10} adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+        [ "$booted" = "1" ] && break
+        sleep 2; elapsed=$((elapsed + 2))
+    done
+    if [ "$booted" != "1" ]; then
+        warn "  $serial did not boot within ${BOOT_TIMEOUT_S}s after recovery"
+        return 1
+    fi
+    log "  $serial re-booted in ~${elapsed}s; re-running device setup..."
+    ensure_device_configured "$serial"
+    # Tolerant setup (NOT the die-ing install_apk/ensure_test_repos): a recovery-time install/push
+    # failure must degrade to a failed recovery (caller records INFRA / continues), never abort the run.
+    if ! adb -s "$serial" install -r -g "$APK" >/dev/null 2>&1; then
+        warn "  recovery: APK reinstall failed on $serial"; return 1
+    fi
+    if ! "$SCRIPT_DIR/setup_test_repo.sh" "$serial" >/dev/null 2>&1; then
+        warn "  recovery: test-repo push failed on $serial"; return 1
+    fi
+    log_health "$serial" "recover-after:$reason"
+    # NOTE: the recovery-budget counter (RECOVERIES_DONE) is incremented by the ANR-recovery caller, not
+    # here, so proactive (E2E_RESTART_EVERY) cold-boots don't consume the ANR budget.
+    return 0
+}
+
+# --------------------------------------------------------------------------- #
 #  Run one flow
 # --------------------------------------------------------------------------- #
 # Run `maestro test` with a wall-clock timeout. Returns the flow's exit code, or a
@@ -351,7 +430,8 @@ run_one() {
     local attempts=$(( RETRY_MAX + 1 ))
     if [ -n "$EXPECT_FAIL" ] && [ "$EXPECT_FAIL" = "$name" ]; then attempts=1; fi
 
-    local rc=0 i retried=0 logf=""
+    local rc=0 i retried=0 logf="" anr_infra=0
+    log_health "$serial" "$name"
     for (( i = 1; i <= attempts; i++ )); do
         # Reset volatile state before EVERY attempt (including retries) so a retry starts clean.
         adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
@@ -362,7 +442,27 @@ run_one() {
         # Per-attempt log so a pass-on-retry doesn't erase the failing attempt's evidence.
         logf="$ARTIFACT_DIR/$name.attempt-$i.maestro.log"
         run_flow_cmd "$FLOW_TIMEOUT" "$serial" "$flow" "$logf" || rc=$?
-        [ "$rc" -eq 0 ] && break
+        if [ "$rc" -eq 0 ]; then anr_infra=0; break; fi
+        # Failed attempt. Classify THIS attempt (anr_infra is per-attempt, NOT sticky): the GUEST is
+        # wedged (ANR -> infra) if the maestro log shows the ANR dialog OR a live probe says so. Keeping
+        # it per-attempt means a genuine regression on the FINAL attempt is reported as FAIL even if an
+        # earlier attempt ANR'd. Cold-boot before the next retry (within the ANR recovery budget).
+        anr_infra=0
+        if [ -z "$EXPECT_FAIL" ] && { grep -qiE "isn't responding" "$logf" 2>/dev/null || hh_detect_anr "$serial"; }; then
+            anr_infra=1
+            if [ "$i" -lt "$attempts" ]; then
+                if [ "$RECOVERIES_DONE" -lt "$E2E_MAX_RECOVERIES" ]; then
+                    # Count the recovery ATTEMPT against the budget (success or not) so repeated failed
+                    # cold-boots can't loop unbounded. If the cold-boot itself fails, the emulator is
+                    # unusable: stop retrying and keep anr_infra=1 so the flow is recorded INFRA, not FAIL.
+                    RECOVERIES_DONE=$((RECOVERIES_DONE + 1))
+                    restart_avd "$serial" "ANR during $name" || { warn "  recovery cold-boot failed; emulator likely unusable - stopping retries for $name."; break; }
+                else
+                    warn "  ANR during $name but recovery budget exhausted (E2E_MAX_RECOVERIES=$E2E_MAX_RECOVERIES) - stopping retries."
+                    break
+                fi
+            fi
+        fi
     done
     [ "$retried" -eq 1 ] && RETRIED+=("$name")
 
@@ -425,6 +525,12 @@ run_one() {
         fi
         RESULTS+=("$name|PASS|${mark# }")
         log "PASS $name$mark"
+    elif [ "$anr_infra" -eq 1 ]; then
+        # The guest was wedged (ANR), not the feature broken - record INFRA so degradation never
+        # masquerades as a code regression. Recovery was attempted; see health.log + the maestro log.
+        RESULTS+=("$name|INFRA|emulator ANR/degradation (recovered=$RECOVERIES_DONE), not a code failure$mark; see $logf")
+        capture_artifacts "$serial" "$name"
+        warn "INFRA $name - emulator wedged (ANR), not a code regression$mark - log: $logf"
     else
         RESULTS+=("$name|FAIL|rc=$rc$mark; see $logf")
         capture_artifacts "$serial" "$name"
@@ -436,7 +542,7 @@ run_one() {
 #  Summary
 # --------------------------------------------------------------------------- #
 print_summary() {
-    local r name status note pass=0 fail=0 skip=0 other=0
+    local r name status note pass=0 fail=0 skip=0 infra=0 other=0
     echo ""
     echo "==================== E2E SUMMARY ===================="
     printf '%-44s %-9s %s\n' "FLOW" "STATUS" "NOTE"
@@ -448,15 +554,17 @@ print_summary() {
             PASS|MUT-OK) pass=$((pass+1)) ;;
             FAIL|MUT-LEAK|MUT-INCONCLUSIVE) fail=$((fail+1)) ;;
             SKIP) skip=$((skip+1)) ;;
+            INFRA) infra=$((infra+1)) ;;
             *) other=$((other+1)) ;;
         esac
     done
     echo "----------------------------------------------------"
-    echo "pass=$pass  fail=$fail  skip=$skip  other=$other"
+    echo "pass=$pass  fail=$fail  skip=$skip  infra=$infra  other=$other"
     [ "${#RETRIED[@]}" -gt 0 ] && echo "retried (flaky): ${RETRIED[*]}"
+    [ "$infra" -gt 0 ] && warn "$infra flow(s) ended INFRA - emulator ANR/degradation, NOT a code failure. Free host RAM / restart the AVD and re-run (task-19; see ${HEALTH_LOG:-health.log})."
     echo "artifacts: $ARTIFACT_DIR"
     echo "===================================================="
-    [ "$fail" -eq 0 ] || return 1
+    [ "$fail" -eq 0 ] && [ "$infra" -eq 0 ] || return 1
     # If literally everything was skipped, that's not a real green.
     if [ "$pass" -eq 0 ] && [ "$skip" -gt 0 ]; then
         warn "every requested flow was SKIPPED - nothing actually ran."
@@ -524,6 +632,7 @@ while [ $# -gt 0 ]; do
         --help|-h) sed -n '2,34p' "$0"; exit 0 ;;
         --list) print_manifest; exit 0 ;;
         --no-remote) NO_REMOTE=1 ;;
+        --force) FORCE=1 ;;
         --expect-fail) shift; EXPECT_FAIL="${1:-}"
                        case "$EXPECT_FAIL" in ""|--*) die "--expect-fail needs a flow name" ;; esac
                        EXPECT_FAIL="${EXPECT_FAIL%.yaml}" ;;
@@ -560,6 +669,13 @@ require_maestro
 validate_manifest
 [ "$(adb -s "$SERIAL" get-state 2>/dev/null)" = "device" ] || die "device $SERIAL is not online (start it via manage_avds.sh)."
 
+# Pre-flight host/emulator health gate (task-19): swap/compressor (NOT the misleading "free %") drive
+# the call. HARD aborts unless --force; WARN proceeds (a mid-run ANR is then auto-recovered).
+hh_preflight "$SERIAL"; pf_rc=$?
+if [ "$pf_rc" -eq 2 ] && [ "$FORCE" -ne 1 ]; then
+    die "host memory too low for a reliable emulator run (see [health] HARD above). Free RAM (quit OrbStack/browsers/spare helper apps), or re-run with --force."
+fi
+
 # Build the queue: requested flows, or the whole manifest in order.
 QUEUE=()
 if [ "${#REQUESTED[@]}" -gt 0 ]; then
@@ -584,6 +700,8 @@ fi
 
 ARTIFACT_DIR="$REPO_ROOT/e2e/maestro/artifacts/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$ARTIFACT_DIR" || die "cannot create artifact dir: $ARTIFACT_DIR"
+HEALTH_LOG="$ARTIFACT_DIR/health.log"
+echo "# host/emulator health log (task-19): time  tag  metrics" > "$HEALTH_LOG"
 
 log "serial=$SERIAL  flows=${#QUEUE[@]}  artifacts=$ARTIFACT_DIR"
 
@@ -592,9 +710,16 @@ ensure_device_configured "$SERIAL"
 ensure_fresh_apk "$SERIAL"
 ensure_test_repos "$SERIAL"
 
-# Per-flow work queue.
+# Per-flow work queue. Optionally cold-boot the AVD every N flows (E2E_RESTART_EVERY) to keep memory
+# churn down on long runs; the reactive ANR recovery in run_one is the safety net regardless.
+flow_idx=0
 for name in ${QUEUE[@]+"${QUEUE[@]}"}; do
+    if [ "$E2E_RESTART_EVERY" -gt 0 ] && [ "$flow_idx" -gt 0 ] && [ $(( flow_idx % E2E_RESTART_EVERY )) -eq 0 ]; then
+        log "Proactive AVD cold-boot after $flow_idx flows (E2E_RESTART_EVERY=$E2E_RESTART_EVERY)."
+        restart_avd "$SERIAL" "proactive/${E2E_RESTART_EVERY}" || warn "proactive restart did not fully succeed; continuing."
+    fi
     run_one "$SERIAL" "$name"
+    flow_idx=$((flow_idx + 1))
 done
 
 print_summary

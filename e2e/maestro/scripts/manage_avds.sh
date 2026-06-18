@@ -18,6 +18,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
+# Shared health helpers (robust stop that waits for the emulator + qemu to actually exit). task-19.
+# shellcheck source=host_health.sh
+. "$SCRIPT_DIR/host_health.sh"
+
 # Tools
 EMULATOR="$HOME/Library/Android/sdk/emulator/emulator"
 ADB="adb"
@@ -245,8 +249,10 @@ cmd_start() {
     fi
 
     echo "Starting $count AVD(s) with visible windows..."
-    echo "  Memory budget: ~1 GB RSS per AVD (swiftshader_indirect GPU + cold boot)."
-    echo "  Do NOT run the full Gradle test suite while AVDs are hot. See the internal troubleshooting notes."
+    echo "  Memory budget: a FRESH cold-booted AVD is ~2.3 GB RSS on Android 36 and grows under E2E load"
+    echo "  (up to ~3.7 GB seen). It degrades faster when the host is swapping - the run_e2e.sh pre-flight"
+    echo "  gate + ANR auto-recovery handle this. Do NOT run the full Gradle suite while AVDs are hot."
+    echo "  See the internal troubleshooting notes and backlog task-19."
 
     local pids=()
     local started=0
@@ -272,6 +278,10 @@ cmd_start() {
         fi
 
         echo "  [$i/$count] Starting $name on port $port (serial: $serial)..."
+        # Redirect the emulator's output to a log file: a backgrounded emulator otherwise inherits this
+        # script's stdout, and if the caller piped us (e.g. `... | tail`) the detached qemu pins that
+        # pipe open forever (the classic "command never returns" hang). task-19.
+        local emu_log="${TMPDIR:-/tmp}/e2e_emulator_${name}.log"
         $EMULATOR \
             -avd "$name" \
             -port "$port" \
@@ -279,8 +289,9 @@ cmd_start() {
             -no-snapshot-save \
             -no-boot-anim \
             -no-audio \
-            -gpu swiftshader_indirect &
+            -gpu swiftshader_indirect >"$emu_log" 2>&1 &
         pids+=($!)
+        echo "      (emulator output -> $emu_log)"
         started=$((started + 1))
     done
 
@@ -398,12 +409,13 @@ cmd_stop() {
     fi
 
     echo "$serials" | while read -r serial; do
-        echo "  Stopping $serial..."
-        $ADB -s "$serial" emu kill 2>/dev/null || true
+        echo "  Stopping $serial (waiting for it to fully exit)..."
+        if hh_robust_stop "$serial"; then
+            echo "    $serial stopped."
+        else
+            echo "    WARNING: $serial may not have fully exited (qemu still present); check 'pgrep -f qemu-system'."
+        fi
     done
-
-    # Wait a moment for emulators to shut down
-    sleep 3
     echo "Done."
 }
 
