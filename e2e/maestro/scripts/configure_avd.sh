@@ -37,6 +37,11 @@ $ADB shell settings put system font_scale 1.0
 echo "[$DEVICE] Reducing noise (DND, accessibility, doze, blurs)..."
 $ADB shell settings put global zen_mode 2
 $ADB shell settings put secure enabled_accessibility_services null 2>/dev/null || true
+# TalkBack's Select to Speak popup can appear mid-flow EVEN with enabled_accessibility_services
+# null, and while active it CAPTURES ALL TAPS (to pick what to read aloud) - taps then "complete"
+# in Maestro but never reach the app (observed 2026-07-16: select-all tap no-oped, flow failed).
+# Test-only AVD: disable the whole package.
+$ADB shell pm disable-user --user 0 com.google.android.marvin.talkback 2>/dev/null || true
 $ADB shell dumpsys deviceidle disable 2>/dev/null || true
 $ADB shell settings put global disable_window_blurs 1 2>/dev/null || true
 
