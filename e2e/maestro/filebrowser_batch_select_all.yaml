@@ -85,16 +85,10 @@ androidWebViewHierarchy: devtools
     text: ".*1 selected.*"
 - assertVisible: "Select all"
 
-# Dismiss any system context menu by tapping on a neutral area (middle of file list)
-- tapOn:
-    point: "50%,70%"
-
-# Wait for selection toolbar to stabilize after context menu dismissal
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-
-# Tap Select All using id to avoid collision with system "Select all" context menu
+# No "dismiss the text-selection popup" tap here: the product prevents the popup (file rows have
+# CSS select-none + onContextMenu preventDefault), and the old "neutral area" tap at 50%,70% was
+# NOT neutral - it landed on a file row in selection mode and toggled a second item ("2 selected",
+# seen in failure artifacts 2026-07-16).
 - tapOn:
     id: "select-all-button"
 
