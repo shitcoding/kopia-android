@@ -166,10 +166,9 @@ export function useResolvedPolicy(sourceId: string | null) {
 export function useMutatePolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (request: SetPolicyRequest) => {
-      setPolicyBridge(request);
-      return Promise.resolve();
-    },
+    // Await the bridge call: firing-and-forgetting it made every save report success ("Policy
+    // saved" toast) even when the bridge rejected - the failure surfaced nowhere.
+    mutationFn: (request: SetPolicyRequest) => setPolicyBridge(request),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["policy"] }),
   });
 }

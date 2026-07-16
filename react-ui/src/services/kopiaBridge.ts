@@ -35,6 +35,7 @@ import type {
   EstimateBackupRequest,
   SetPolicyRequest,
 } from "../types/kopia";
+import { parseSourceId } from "@/lib/format";
 
 // Declare the global bridge interface injected by Android
 declare global {
@@ -72,11 +73,11 @@ declare global {
       resumeSource(sourceId: string): string;
       startBackup(sourceId: string): string;
       estimateBackup(json: string): string;
-      getPolicy(sourceId: string): string;
-      setPolicy(json: string): string;
-      deletePolicy(sourceId: string): string;
+      getPolicy(requestJson: string): string;
+      setPolicy(requestJson: string): string;
+      deletePolicy(requestJson: string): string;
       listPolicies(): string;
-      resolvePolicy(sourceId: string): string;
+      resolvePolicy(requestJson: string): string;
       listTasks(): string;
       getTask(taskId: string): string;
       cancelTask(taskId: string): string;
@@ -496,17 +497,23 @@ export async function resumeSource(sourceId: string): Promise<void> {
 }
 
 // ---------- Policy management ----------
+// The Kotlin policy methods decode TYPED requests (WebPolicySourceRequest {host, userName, path};
+// setPolicy: WebSetPolicyRequest {source, policy}) - NOT the UI's joined "user@host:path" id.
+// Translate here so the UI keeps speaking sourceId while the wire honors the bridge contract.
 
 export async function getPolicy(sourceId: string): Promise<WebPolicy> {
-  return callBridge<WebPolicy>("getPolicy", sourceId);
+  return callBridge<WebPolicy>("getPolicy", parseSourceId(sourceId));
 }
 
 export async function setPolicy(request: SetPolicyRequest): Promise<void> {
-  callBridge<void>("setPolicy", request);
+  return callBridge<void>("setPolicy", {
+    source: parseSourceId(request.sourceId),
+    policy: request.policy,
+  });
 }
 
 export async function resolvePolicy(sourceId: string): Promise<WebResolvedPolicy> {
-  return callBridge<WebResolvedPolicy>("resolvePolicy", sourceId);
+  return callBridge<WebResolvedPolicy>("resolvePolicy", parseSourceId(sourceId));
 }
 
 export async function listPolicies(): Promise<WebPolicyEntry[]> {
@@ -514,7 +521,7 @@ export async function listPolicies(): Promise<WebPolicyEntry[]> {
 }
 
 export async function deletePolicy(sourceId: string): Promise<void> {
-  callBridge<void>("deletePolicy", sourceId);
+  return callBridge<void>("deletePolicy", parseSourceId(sourceId));
 }
 
 // ---------- Task management ----------

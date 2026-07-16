@@ -6,7 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreateSource } from "@/hooks/useBackupApi";
 import type { WebPolicy } from "@/types/kopia";
 
-const COMPRESSION_OPTIONS = ["ZSTD", "LZ4", "GZIP", "PGZIP", "DEFLATE", "NONE"];
+// Values are the case-sensitive Kotlin/Go compressor wire IDs; labels are display-only.
+const COMPRESSION_OPTIONS = [
+  { value: "zstd", label: "ZSTD" },
+  { value: "lz4", label: "LZ4" },
+  { value: "gzip", label: "GZIP" },
+  { value: "deflate-default", label: "DEFLATE" },
+  { value: "none", label: "NONE" },
+];
 
 const AddSourceScreen = () => {
   const navigate = useNavigate();
@@ -22,7 +29,7 @@ const AddSourceScreen = () => {
   const [autoBackup, setAutoBackup] = useState(true);
   const [intervalValue, setIntervalValue] = useState("24");
   const [intervalUnit, setIntervalUnit] = useState<"hours" | "days">("hours");
-  const [compression, setCompression] = useState("ZSTD");
+  const [compression, setCompression] = useState("zstd");
   const [exclusions, setExclusions] = useState("*.tmp\n.cache/**");
 
   // Step 3
@@ -49,14 +56,17 @@ const AddSourceScreen = () => {
       ? parseInt(intervalValue, 10) * (intervalUnit === "days" ? 86400 : 3600)
       : undefined;
 
+    // Field names are the Kotlin/Go manifest wire format - see WebPolicy in types/kopia.ts.
+    // NOTE: the Kotlin WebCreateSourceRequest currently has no policy field at all, so this policy
+    // is silently ignored by createSource today (documented gap, tracked in the backlog).
     return {
-      schedulingPolicy: {
+      scheduling: {
         manual: !autoBackup,
         intervalSeconds,
         runMissed: true,
       },
-      compressionPolicy: { compressorName: compression },
-      filesPolicy: {
+      compression: { compressorName: compression },
+      files: {
         ignore: exclusions.split("\n").map((l) => l.trim()).filter(Boolean),
       },
     };
@@ -178,7 +188,7 @@ const AddSourceScreen = () => {
             <div>
               <p className="text-xs text-muted-foreground px-1 mb-1">Compression</p>
               <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3" aria-label="Compression algorithm">
-                {COMPRESSION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {COMPRESSION_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
 

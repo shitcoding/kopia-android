@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, RotateCcw, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +7,15 @@ import { useToast } from "@/hooks/use-toast";
 import { usePolicy, useMutatePolicy } from "@/hooks/useBackupApi";
 import type { WebPolicy } from "@/types/kopia";
 
-const COMPRESSION_OPTIONS = ["ZSTD", "LZ4", "GZIP", "PGZIP", "DEFLATE", "NONE"];
+// Values are the case-sensitive Kotlin/Go compressor wire IDs (core Compressor enum); an unknown
+// id silently resolves to no compression. Labels are display-only.
+const COMPRESSION_OPTIONS = [
+  { value: "zstd", label: "ZSTD" },
+  { value: "lz4", label: "LZ4" },
+  { value: "gzip", label: "GZIP" },
+  { value: "deflate-default", label: "DEFLATE" },
+  { value: "none", label: "NONE" },
+];
 const INTERVAL_UNITS = [
   { label: "Minutes", value: 60 },
   { label: "Hours", value: 3600 },
@@ -46,7 +54,7 @@ const PolicyEditorScreen = () => {
   const [newTime, setNewTime] = useState("09:00");
 
   // Compression
-  const [compressor, setCompressor] = useState("ZSTD");
+  const [compressor, setCompressor] = useState("zstd");
   const [onlyCompress, setOnlyCompress] = useState("");
   const [neverCompress, setNeverCompress] = useState("");
   const [minSize, setMinSize] = useState("");
@@ -58,10 +66,18 @@ const PolicyEditorScreen = () => {
   const [excludeDotFiles, setExcludeDotFiles] = useState(false);
   const [excludeDotDirs, setExcludeDotDirs] = useState(false);
 
+  // Raw loaded values, kept so a save doesn't mutate what the user didn't touch:
+  // - loadedPolicy: sections/fields this editor doesn't surface (errorHandling, splitter, cron,
+  //   ignoreDotFiles, ...) must survive an open->save round-trip, especially for Go-written policies.
+  // - sizes: the KB/MB display is rounded, so an untouched field re-encodes its ORIGINAL byte value.
+  const loadedPolicy = useRef<WebPolicy | undefined>(undefined);
+  const loadedSizes = useRef<{ minSize?: number; minSizeStr: string; maxSize?: number; maxSizeStr: string; maxFileSize?: number; maxFileSizeStr: string }>({ minSizeStr: "", maxSizeStr: "", maxFileSizeStr: "" });
+
   // Populate from existing policy
   useEffect(() => {
     if (!existingPolicy) return;
-    const r = existingPolicy.retentionPolicy;
+    loadedPolicy.current = existingPolicy;
+    const r = existingPolicy.retention;
     if (r) {
       setKeepLatest(r.keepLatest?.toString() ?? "");
       setKeepHourly(r.keepHourly?.toString() ?? "");
@@ -71,7 +87,7 @@ const PolicyEditorScreen = () => {
       setKeepAnnual(r.keepAnnual?.toString() ?? "");
       setIgnoreIdentical(r.ignoreIdenticalSnapshots ?? false);
     }
-    const s = existingPolicy.schedulingPolicy;
+    const s = existingPolicy.scheduling;
     if (s) {
       setManual(s.manual ?? false);
       if (s.intervalSeconds) {
@@ -80,20 +96,26 @@ const PolicyEditorScreen = () => {
         else { setIntervalNum(String(s.intervalSeconds / 60)); setIntervalUnit(60); }
       }
       setRunMissed(s.runMissed ?? true);
-      setTimesOfDay((s.timesOfDay ?? []).map((t) => `${String(t.hour).padStart(2, "0")}:${String(t.minute).padStart(2, "0")}`));
+      setTimesOfDay((s.timeOfDay ?? []).map((t) => `${String(t.hour).padStart(2, "0")}:${String(t.min).padStart(2, "0")}`));
     }
-    const c = existingPolicy.compressionPolicy;
+    const c = existingPolicy.compression;
     if (c) {
-      setCompressor(c.compressorName ?? "ZSTD");
+      setCompressor(c.compressorName || "zstd");
       setOnlyCompress((c.onlyCompress ?? []).join("\n"));
       setNeverCompress((c.neverCompress ?? []).join("\n"));
-      setMinSize(c.minSize?.toString() ?? "");
-      setMaxSize(c.maxSize?.toString() ?? "");
+      const minStr = c.minSize ? String(Math.round(c.minSize / 1024)) : "";
+      const maxStr = c.maxSize ? String(Math.round(c.maxSize / 1048576)) : "";
+      loadedSizes.current.minSize = c.minSize; loadedSizes.current.minSizeStr = minStr;
+      loadedSizes.current.maxSize = c.maxSize; loadedSizes.current.maxSizeStr = maxStr;
+      setMinSize(minStr);
+      setMaxSize(maxStr);
     }
-    const f = existingPolicy.filesPolicy;
+    const f = existingPolicy.files;
     if (f) {
       setIgnoreRules((f.ignore ?? []).join("\n"));
-      setMaxFileSize(f.maxFileSize?.toString() ?? "");
+      const mfsStr = f.maxFileSize ? String(Math.round(f.maxFileSize / 1048576)) : "";
+      loadedSizes.current.maxFileSize = f.maxFileSize; loadedSizes.current.maxFileSizeStr = mfsStr;
+      setMaxFileSize(mfsStr);
     }
   }, [existingPolicy]);
 
@@ -112,31 +134,47 @@ const PolicyEditorScreen = () => {
   };
 
   const optInt = (v: string) => { const n = parseInt(v, 10); return isNaN(n) ? undefined : n; };
+  // The UI labels these fields in KB/MB, but the manifest fields are BYTE sizes. The display is
+  // rounded, so an UNTOUCHED field re-encodes its original byte value (lossless round-trip).
+  const optBytes = (v: string, unit: number) => { const n = optInt(v); return n === undefined ? undefined : n * unit; };
+  const sizeBytes = (cur: string, origStr: string, origRaw: number | undefined, unit: number) =>
+    cur === origStr ? (origRaw || undefined) : optBytes(cur, unit);
 
   const handleSave = () => {
     if (!sourceId) return;
+    // Field names are the Kotlin/Go manifest wire format - see WebPolicy in types/kopia.ts.
+    // Spread the LOADED policy first: sections and fields this editor doesn't surface
+    // (errorHandling, splitter, scheduling.cron, files.ignoreDotFiles, ...) must survive an
+    // open->save round-trip - wiping them would silently mutate Go-written policies.
+    const loaded = loadedPolicy.current;
+    const sizes = loadedSizes.current;
     const policy: WebPolicy = {
-      retentionPolicy: {
+      ...loaded,
+      retention: {
+        ...loaded?.retention,
         keepLatest: optInt(keepLatest), keepHourly: optInt(keepHourly), keepDaily: optInt(keepDaily),
         keepWeekly: optInt(keepWeekly), keepMonthly: optInt(keepMonthly), keepAnnual: optInt(keepAnnual),
         ignoreIdenticalSnapshots: ignoreIdentical,
       },
-      schedulingPolicy: {
+      scheduling: {
+        ...loaded?.scheduling,
         manual,
         intervalSeconds: manual ? undefined : (parseInt(intervalNum, 10) || 24) * intervalUnit,
-        timesOfDay: timesOfDay.map((t) => { const [h, m] = t.split(":"); return { hour: parseInt(h, 10), minute: parseInt(m, 10) }; }),
+        timeOfDay: timesOfDay.map((t) => { const [h, m] = t.split(":"); return { hour: parseInt(h, 10), min: parseInt(m, 10) }; }),
         runMissed,
       },
-      compressionPolicy: {
+      compression: {
+        ...loaded?.compression,
         compressorName: compressor,
         onlyCompress: onlyCompress.split("\n").map((l) => l.trim()).filter(Boolean),
         neverCompress: neverCompress.split("\n").map((l) => l.trim()).filter(Boolean),
-        minSize: optInt(minSize),
-        maxSize: optInt(maxSize),
+        minSize: sizeBytes(minSize, sizes.minSizeStr, sizes.minSize, 1024),
+        maxSize: sizeBytes(maxSize, sizes.maxSizeStr, sizes.maxSize, 1048576),
       },
-      filesPolicy: {
+      files: {
+        ...loaded?.files,
         ignore: ignoreRules.split("\n").map((l) => l.trim()).filter(Boolean),
-        maxFileSize: optInt(maxFileSize),
+        maxFileSize: sizeBytes(maxFileSize, sizes.maxFileSizeStr, sizes.maxFileSize, 1048576),
       },
     };
     mutatePolicy.mutate(
@@ -152,16 +190,16 @@ const PolicyEditorScreen = () => {
     setKeepLatest("10"); setKeepHourly(""); setKeepDaily("7"); setKeepWeekly("4");
     setKeepMonthly("6"); setKeepAnnual("2"); setIgnoreIdentical(false);
     setManual(false); setIntervalNum("24"); setIntervalUnit(3600); setRunMissed(true);
-    setTimesOfDay([]); setCompressor("ZSTD"); setOnlyCompress(""); setNeverCompress("");
+    setTimesOfDay([]); setCompressor("zstd"); setOnlyCompress(""); setNeverCompress("");
     setMinSize(""); setMaxSize(""); setIgnoreRules("*.tmp\n.cache/**"); setMaxFileSize("");
     setExcludeDotFiles(false); setExcludeDotDirs(false);
     toast({ title: "Reset to defaults" });
   };
 
-  const NumberInput = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) => (
+  const NumberInput = ({ label, value, onChange, placeholder, id }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; id?: string }) => (
     <div className="flex items-center justify-between gap-4">
       <span className="text-sm text-foreground">{label}</span>
-      <input type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || "—"} className="input-md3 w-20 text-center text-sm py-2" />
+      <input type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || "—"} className="input-md3 w-20 text-center text-sm py-2" aria-label={label} id={id} />
     </div>
   );
 
@@ -192,7 +230,7 @@ const PolicyEditorScreen = () => {
           <TabsContent value="retention" className="mt-0 space-y-3">
             <p className="text-xs text-muted-foreground">Empty fields inherit from parent policy</p>
             <div className="card-elevated space-y-4">
-              <NumberInput label="Keep latest" value={keepLatest} onChange={setKeepLatest} />
+              <NumberInput label="Keep latest" value={keepLatest} onChange={setKeepLatest} id="keep-latest-input" />
               <NumberInput label="Keep hourly" value={keepHourly} onChange={setKeepHourly} />
               <NumberInput label="Keep daily" value={keepDaily} onChange={setKeepDaily} />
               <NumberInput label="Keep weekly" value={keepWeekly} onChange={setKeepWeekly} />
@@ -265,7 +303,7 @@ const PolicyEditorScreen = () => {
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Algorithm</p>
               <select value={compressor} onChange={(e) => setCompressor(e.target.value)} className="input-md3 text-sm" aria-label="Compression algorithm">
-                {COMPRESSION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {COMPRESSION_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
 

@@ -61,3 +61,17 @@ export function formatDuration(ms: number): string {
 export function sourceId(source: { userName: string; host: string; path: string }): string {
   return `${source.userName}@${source.host}:${source.path}`;
 }
+
+/**
+ * Inverse of sourceId(). userName is everything before the first "@", host everything up to the
+ * first ":" after it, path the remainder (paths may themselves contain ":", e.g. content URIs).
+ * The Kotlin bridge's policy methods expect these three parts, not the joined id.
+ */
+export function parseSourceId(id: string): { userName: string; host: string; path: string } {
+  const at = id.indexOf("@");
+  const colon = at < 0 ? -1 : id.indexOf(":", at + 1);
+  if (at <= 0 || colon <= at + 1) {
+    throw new Error(`Invalid source id: ${id}`);
+  }
+  return { userName: id.slice(0, at), host: id.slice(at + 1, colon), path: id.slice(colon + 1) };
+}

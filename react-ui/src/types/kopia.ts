@@ -245,10 +245,10 @@ export interface WebRetentionPolicy {
   ignoreIdenticalSnapshots?: boolean;
 }
 
-/** Scheduling policy */
+/** Scheduling policy. Field names follow the Kotlin/Go MANIFEST wire format ("timeOfDay", "min"). */
 export interface WebSchedulingPolicy {
   intervalSeconds?: number;
-  timesOfDay?: Array<{ hour: number; minute: number }>;
+  timeOfDay?: Array<{ hour: number; min: number }>;
   manual?: boolean;
   runMissed?: boolean;
 }
@@ -266,21 +266,23 @@ export interface WebCompressionPolicy {
 export interface WebFilesPolicy {
   ignore?: string[];
   maxFileSize?: number;
-  dotIgnore?: string[];
 }
 
-/** Full policy */
+/** Full policy. Field names follow the Kotlin Policy @SerialName wire format, which mirrors the
+ * Go kopia repository manifest JSON ("retention", "scheduling", "compression", "files") - NOT
+ * "*Policy"-suffixed names. The bridge Json uses ignoreUnknownKeys, so wrong names are silently
+ * dropped and the policy saves as empty defaults (the bug behind the broken policy surface). */
 export interface WebPolicy {
-  retentionPolicy?: WebRetentionPolicy;
-  schedulingPolicy?: WebSchedulingPolicy;
-  compressionPolicy?: WebCompressionPolicy;
-  filesPolicy?: WebFilesPolicy;
+  retention?: WebRetentionPolicy;
+  scheduling?: WebSchedulingPolicy;
+  compression?: WebCompressionPolicy;
+  files?: WebFilesPolicy;
 }
 
 /** Resolved policy (effective + definition) */
 export interface WebResolvedPolicy {
   effective: WebPolicy;
-  defined: WebPolicy;
+  defined?: WebPolicy;
   upcomingSnapshotTimes: number[];
 }
 
