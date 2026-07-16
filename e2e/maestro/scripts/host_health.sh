@@ -21,9 +21,13 @@ hh_swap_used_mb() {
     }' 2>/dev/null || echo 0
 }
 hh_swap_free_mb() {
+    # macOS swap is DYNAMIC: total==0 means no swapfile has been allocated yet (zero pressure, the OS
+    # grows swap on demand), NOT exhaustion - report the unconstrained sentinel, else free=0 would
+    # false-trip the HARD gate on a healthy host.
     sysctl -n vm.swapusage 2>/dev/null | awk '{
-        for (i=1;i<=NF;i++) if ($i=="free") v=$(i+2)
+        for (i=1;i<=NF;i++) { if ($i=="total") t=$(i+2); if ($i=="free") v=$(i+2) }
         if (v=="") { print 99999; exit }
+        sub(/[MG]/,"",t); if (t+0 == 0) { print 99999; exit }
         g=(v ~ /G/); sub(/[MG]/,"",v); printf "%d", (g ? v*1024 : v)
     }' 2>/dev/null || echo 99999
 }
