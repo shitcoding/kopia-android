@@ -5,6 +5,9 @@
 # UI is rendered in WebView (React app).
 # NOTE: eraseText does not work reliably in WebView inputs. We navigate back
 # and re-enter the Connect screen to get fresh empty fields between tests.
+#
+# Prerequisite: edge_case_repo fixture at /sdcard/testrepo (password: test123) - pushed by
+# scripts/setup_test_repo.sh (run_e2e.sh does this automatically).
 
 appId: org.kopiaKt.app
 androidWebViewHierarchy: devtools
@@ -47,16 +50,15 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Test 2: Empty password validation
 # ========================================
-# Enter path only, clear password.
-# NOTE (follow-up): /sdcard/testrepo is reused by Test 3 (which needs a VALID repo for the wrong-password
-# case). If a prior connect stored this repo's password ("Remember password"), ConnectScreen could
-# auto-fill it here and mask the empty-password validation (a flaky false-FAILURE). Robust fix: clear
-# stored credentials in setup, or split Test 2 onto a throwaway path and re-enter the repo in Test 3.
+# Enter a THROWAWAY path, clear password. A never-connected path cannot have a stored password, so
+# ConnectScreen's auto-fill effect can't race the empty-password validation here (a remembered
+# /sdcard/testrepo password used to make this flaky; the effect actively clears the password for
+# unknown paths). Validation checks the password before the path, so the path needn't exist.
 - tapOn:
     id: "repo-path-input"
 - waitForAnimationToEnd
 - eraseText: 1
-- inputText: "/sdcard/testrepo"
+- inputText: "/sdcard/e2e_validation_only"
 - hideKeyboard
 
 - tapOn:
@@ -76,6 +78,35 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Test 3: Wrong password
 # ========================================
+# Navigate back and re-enter Connect for a FRESH form. Test 2 filled the path field, and eraseText
+# cannot reliably clear a FILLED WebView field: the tap can drop the cursor mid-text and erase only
+# what is left of it (observed live: clearing "/sdcard/e2e_validation_only" + retyping produced
+# "/sdcard/testrepon_only"). Fresh empty fields only need the eraseText:1 CDP primer.
+- back
+# Anchor on a WELCOME-ONLY text before tapping. Waiting for "Connect to Repository" here could
+# match the Connect screen's own "Connect to repository" button (case-insensitive), so if `back`
+# ever silently failed, the tap would re-submit the stale form. (The app title "KopiaKt" is no
+# anchor either - the WebView node carries it as document title on EVERY screen.)
+- extendedWaitUntil:
+    visible: "Browse and restore your Kopia backups"
+    timeout: 5000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/testrepo"
+- hideKeyboard
+
+# Path first, password last: entering a known path can trigger the stored-password auto-fill effect
+# ("Remember password" defaults ON, so other flows may have stored /sdcard/testrepo's password).
+# ConnectScreen clears an auto-filled field entirely on the FIRST edit (swallowing that keystroke),
+# so typing below yields "wrongpassword" or a suffix of it - wrong either way, and the asserted
+# error is reached with or without a stored password.
 - tapOn:
     id: "repo-password-input"
 - waitForAnimationToEnd
@@ -86,14 +117,14 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Wrong password for a VALID repo -> connection fails. Dropped the ".*wrong.*" alternative: it matched
-# the typed "wrongpassword" input (still in the DOM), not an error - the original false pass. NOTE: the
-# displayed message is the React "Failed to connect to repository" fallback, NOT the core's
-# "Invalid password..." string (verified on device), so this stays a focused set of failure terms; pin
-# to the exact on-device text as a follow-up.
+# Wrong password for a VALID repo -> the EXACT core error, captured from the on-device view
+# hierarchy (2026-07-16). Generic terms like ".*wrong.*" previously false-passed by matching the
+# typed "wrongpassword" input still in the DOM. (An earlier session believed the app showed a
+# "Failed to connect to repository" fallback instead of this string - that was a degraded-emulator
+# misread; the bridge relays the core exception message verbatim.)
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*"
+      text: ".*Invalid password or corrupted format blob.*"
     timeout: 15000
 
 # ========================================
@@ -101,8 +132,12 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back to Welcome and re-enter Connect screen (fresh form)
 - back
+# Anchor on a WELCOME-ONLY text before tapping. Waiting for "Connect to Repository" here could
+# match the Connect screen's own "Connect to repository" button (case-insensitive), so if `back`
+# ever silently failed, the tap would re-submit the stale form. (The app title "KopiaKt" is no
+# anchor either - the WebView node carries it as document title on EVERY screen.)
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -126,13 +161,13 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Non-existent path -> connection fails. Dropped the ".*directory.*" alternative: it matched the static
-# "...repository directory on the device" help text on the Connect screen (a false pass). Kept
-# ".*must be.*" (matches the core "Base path must be a directory") plus the generic failure terms so it
-# still matches whichever message the bridge surfaces; pin to the exact on-device text as a follow-up.
+# Non-existent path -> the EXACT storage error, captured from the on-device view hierarchy
+# (2026-07-16). The message embeds the requested path, so it cannot match the static
+# "...repository directory on the device" help text (the old ".*directory.*" false pass) or the
+# typed path input.
 - extendedWaitUntil:
     visible:
-      text: ".*not found.*|.*does not exist.*|.*failed.*|.*error.*|.*must be.*"
+      text: ".*Base path must be a directory: /sdcard/nonexistent_repo.*"
     timeout: 15000
 
 # ========================================
@@ -140,8 +175,12 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back to Welcome and re-enter Connect screen (fresh form)
 - back
+# Anchor on a WELCOME-ONLY text before tapping. Waiting for "Connect to Repository" here could
+# match the Connect screen's own "Connect to repository" button (case-insensitive), so if `back`
+# ever silently failed, the tap would re-submit the stale form. (The app title "KopiaKt" is no
+# anchor either - the WebView node carries it as document title on EVERY screen.)
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
