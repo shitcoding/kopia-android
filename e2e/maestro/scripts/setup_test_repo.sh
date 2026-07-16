@@ -25,8 +25,11 @@ fi
 
 echo "Setting up test repositories on AVD..."
 
-# Clean up existing test repos
+# Clean up existing test repos. Force-stop the app FIRST: a connected app holds the repo blobs
+# open and the FUSE rm then silently leaves its written blobs behind (observed 2026-07-17: stale
+# session/index blobs from prior runs survived every "clean" and poisoned later runs).
 echo "Cleaning existing test repos..."
+$ADB shell am force-stop org.kopiaKt.app 2>/dev/null || true
 $ADB shell "rm -rf /sdcard/testrepo /sdcard/v1repo /sdcard/Download/restore_dest /sdcard/KopiaTestRepo /sdcard/KopiaNegativeTestRepo"
 
 # Push edge_case_repo
