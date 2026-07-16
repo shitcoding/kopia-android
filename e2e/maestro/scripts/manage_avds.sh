@@ -96,7 +96,9 @@ wait_for_boot() {
     local elapsed=0
 
     echo "  Waiting for $serial to boot (timeout: ${timeout}s)..."
-    $ADB -s "$serial" wait-for-device
+    # No `adb wait-for-device` here: it has NO timeout, so any path where the serial never appears
+    # (emulator died at launch, AVD missing, stale offline entry) would hang forever. The bounded
+    # poll below already tolerates an absent device (getprop just returns empty until it's up).
 
     while [ $elapsed -lt "$timeout" ]; do
         local booted
@@ -270,8 +272,10 @@ cmd_start() {
             continue
         fi
 
-        # Check if already running
-        if $ADB devices 2>/dev/null | grep -q "^${serial}"; then
+        # Check if already running. Require the healthy "device" state: right after a stop, adb can
+        # briefly list the serial as offline, and matching ANY state here skips the launch and then
+        # hangs forever in the boot-wait below (observed 2026-07-16 on a stop;start sequence).
+        if $ADB devices 2>/dev/null | grep -qE "^${serial}[[:space:]]+device"; then
             echo "  [$i/$count] $serial already running, skipping"
             started=$((started + 1))
             continue
