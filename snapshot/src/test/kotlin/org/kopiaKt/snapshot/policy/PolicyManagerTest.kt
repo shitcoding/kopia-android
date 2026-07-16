@@ -45,6 +45,23 @@ class PolicyManagerTest {
     inner class PolicyCrud {
 
         @Test
+        @DisplayName("policy persists across repository close and reopen")
+        fun `policy persists across repository close and reopen`() = runTest {
+            val (r, storage) = TestRepositoryFactory.createInMemory()
+            val policy = Policy(retentionPolicy = RetentionPolicy(keepLatest = 10))
+            PolicyManager.setPolicy(r, pathSource, policy)
+            r.close()
+
+            // Reopen against the same storage - the app-restart scenario the E2E flow exercises.
+            val reopened = DirectRepositoryImpl.open(storage, "test-password")
+            repo = reopened
+            val loaded = PolicyManager.getPolicy(reopened, pathSource)
+
+            assertThat(loaded).isNotNull()
+            assertThat(loaded!!.retentionPolicy?.keepLatest).isEqualTo(10)
+        }
+
+        @Test
         @DisplayName("setPolicy stores policy as manifest")
         fun `setPolicy stores policy as manifest`() = runTest {
             val r = createRepo()

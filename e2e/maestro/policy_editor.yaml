@@ -1,11 +1,13 @@
-# E2E Test: Policy Editor Screen (conditional)
-# Verifies the PolicyEditorScreen renders when accessed through sources
-# Since edge_case_repo may not have backup sources configured,
-# this test is resilient - it verifies the sources dashboard first,
-# and only navigates to policy editor if sources exist.
+# E2E Test: Policy Editor - edit, save, and PERSIST a policy (real A-flow)
+# The policy round-trip through the bridge: set "Keep latest" to a known value, Save (bridge
+# setPolicy -> PolicyManager writes a manifest to the repo + flush), then leave and re-open the
+# editor and assert the value came back via bridge getPolicy. Promoted from the old
+# navigation-only policy_editor_smoke once the JS<->Kotlin policy contract was fixed (the bridge
+# service now sends the typed WebPolicySourceRequest/WebSetPolicyRequest the Kotlin side decodes).
 #
-# Repository: /sdcard/testrepo (edge_case_repo)
-# Password: test123
+# Prerequisites: edge_case_repo at /sdcard/testrepo (password: test123) - scripts/setup_test_repo.sh
+# (run_e2e.sh does this automatically). Creates the /sdcard/Download backup source if missing, so
+# the flow is idempotent across runs on the same app data.
 #
 # UI is rendered in WebView (React app).
 
@@ -17,7 +19,7 @@ androidWebViewHierarchy: devtools
 - stopApp: "com.google.android.documentsui"
 - launchApp
 
-# Connect to repository first
+# ===== Connect =====
 - extendedWaitUntil:
     visible: "KopiaKt"
     timeout: 20000
@@ -44,19 +46,15 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Wait for SnapshotsScreen
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 60000
 
-# Navigate to Settings
+# ===== Navigate to the Sources dashboard =====
 - tapOn: "Settings"
-
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 15000
-
-# Scroll to Navigation section and tap Sources
 - scroll
 - extendedWaitUntil:
     visible:
@@ -64,58 +62,239 @@ androidWebViewHierarchy: devtools
     timeout: 5000
 - tapOn:
     text: ".*Sources.*Manage.*"
-
-# Wait for SourcesDashboardScreen
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
     timeout: 10000
 
-# If sources exist, try to access policy editor via the dropdown menu
-# If no sources (empty state), verify the empty state and consider test passed
+# ===== Ensure a backup source exists (idempotent; steps proven in backup_add_source) =====
+# Sources are IN-MEMORY only (BackupSourceManager ConcurrentHashMap) - the list is empty after
+# every app start, so this create block runs on each fresh launch. The list also loads
+# asynchronously: wait for it to SETTLE (empty state OR a source row) before the conditional,
+# else the when-check can race the fetch and silently skip both branches (observed live).
+- extendedWaitUntil:
+    visible:
+      text: ".*No backup sources configured.*|Source options"
+    timeout: 10000
 - runFlow:
     when:
       visible:
         text: ".*No backup sources.*"
     commands:
-      # Empty state -- verify it renders correctly
-      - assertVisible:
-          text: ".*No backup sources configured.*"
-      - assertVisible:
-          text: ".*Add Your First Source.*"
-      # Test passes -- no sources to edit policy for
+      - tapOn:
+          text: ".*Add.*Source.*"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Choose a folder.*"
+          timeout: 5000
+      - tapOn:
+          text: ".*Enter path manually.*"
+      - tapOn:
+          id: "source-path-input"
+      - waitForAnimationToEnd
+      - eraseText: 1
+      - inputText: "/sdcard/Download"
+      - hideKeyboard
+      - tapOn:
+          text: "Next step"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Configure backup schedule.*"
+          timeout: 5000
+      - scroll
+      - tapOn:
+          text: "Review settings"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Review and add source.*"
+          timeout: 5000
+      # UNCHECK "Start first backup immediately" (default ON): a background backup would run a
+      # concurrent repo writer session alongside the policy save, and concurrent sessions can lose
+      # the policy manifest (observed live; see the internal troubleshooting notes). This flow tests the
+      # policy round-trip, not backup concurrency.
+      - tapOn:
+          text: "Start first backup immediately"
+      - tapOn:
+          id: "add-source-button"
+      - extendedWaitUntil:
+          visible:
+            text: "Source Download"
+          timeout: 30000
 
-# If sources exist, try tapping the first source's dropdown and "Edit Policy"
+# ===== Open the policy editor for the first source =====
+- tapOn: "Source options"
+- extendedWaitUntil:
+    visible:
+      text: ".*Edit Policy.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Edit Policy.*"
+- extendedWaitUntil:
+    visible: "Save policy"
+    timeout: 10000
+
+# ===== Set "Keep latest" to a known value - via Reset, NO typing =====
+# Typing into the numeric field is hazardous here: it may hold a previous run's value (eraseText
+# on a filled WebView input erases from wherever the cursor lands), and hideKeyboard's BACK
+# fallback popped the whole screen when the IME wasn't up (observed live). "Reset to defaults"
+# sets Keep latest to exactly 10 synchronously - deterministic on every run, taps only.
+- tapOn:
+    text: "Reset to defaults"
+- extendedWaitUntil:
+    visible:
+      id: "keep-latest-input"
+      text: "10"
+    timeout: 5000
+
+# ===== Save: the bridge setPolicy must succeed (toasts persist in E2E builds) =====
+- tapOn:
+    id: "save-policy-button"
+- extendedWaitUntil:
+    visible:
+      text: ".*Policy saved.*"
+    timeout: 10000
+
+# ===== Same-session re-read: leave the editor and re-open it =====
+# The editor unmounts (back to the dashboard) and remounts; the save invalidated the usePolicy
+# query, so the remount REFETCHES via the bridge getPolicy -> PolicyManager -> repo. The pre-save
+# cache can only be empty (no policy existed on the pristine per-run fixture), so the asserted
+# "10" below must have round-tripped the full JS<->Kotlin policy contract - the point of this flow.
+- back
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+- tapOn: "Source options"
+- extendedWaitUntil:
+    visible:
+      text: ".*Edit Policy.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Edit Policy.*"
+- extendedWaitUntil:
+    visible: "Save policy"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "keep-latest-input"
+      text: "10"
+    timeout: 10000
+- assertVisible:
+    id: "keep-latest-input"
+    text: "10"
+
+# ===== Cold-restart + reconnect: the policy must ALSO survive a full app restart =====
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 20000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/testrepo"
+- hideKeyboard
+
+# The stored password may auto-fill here (Remember defaults ON after the first connect); the
+# erase+retype-through-the-clear-on-first-edit-guard pattern below is the fleet-proven way in.
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "test123"
+
+- hideKeyboard
+- tapOn:
+    id: "connect-button"
+
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 60000
+
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 15000
+- scroll
+- extendedWaitUntil:
+    visible:
+      text: ".*Sources.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Sources.*Manage.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 10000
+
+# Sources are in-memory, so after the cold restart the list is ALWAYS empty - recreate the same
+# /sdcard/Download source. Its SourceInfo (host/user/path) is identical, so getPolicy must load
+# the policy persisted in the REPO: the asserted "10" below cannot come from any app-local state.
+- extendedWaitUntil:
+    visible:
+      text: ".*No backup sources configured.*|Source options"
+    timeout: 10000
 - runFlow:
     when:
       visible:
-        text: ".*Add Backup Source.*"
+        text: ".*No backup sources.*"
     commands:
-      # There are sources. Tap the first source's options menu.
-      - tapOn: "Source options"
-      # Wait for dropdown menu
+      - tapOn:
+          text: ".*Add.*Source.*"
       - extendedWaitUntil:
           visible:
-            text: ".*Edit Policy.*"
+            text: ".*Choose a folder.*"
           timeout: 5000
       - tapOn:
-          text: ".*Edit Policy.*"
-      # Wait for PolicyEditorScreen
+          text: ".*Enter path manually.*"
+      - tapOn:
+          id: "source-path-input"
+      - waitForAnimationToEnd
+      - eraseText: 1
+      - inputText: "/sdcard/Download"
+      - hideKeyboard
+      - tapOn:
+          text: "Next step"
       - extendedWaitUntil:
           visible:
-            text: ".*Edit Policy.*"
-          timeout: 10000
-      # Verify tabs are visible
-      - assertVisible:
-          text: ".*Retention.*"
-      - assertVisible:
-          text: ".*Schedule.*"
-      - assertVisible:
-          text: ".*Compress.*"
-      - assertVisible:
-          text: ".*Files.*"
-      # Verify footer buttons
-      - assertVisible:
-          text: ".*Defaults.*"
-      - assertVisible:
-          text: ".*Save Policy.*"
+            text: ".*Configure backup schedule.*"
+          timeout: 5000
+      - scroll
+      - tapOn:
+          text: "Review settings"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Review and add source.*"
+          timeout: 5000
+      - tapOn:
+          text: "Start first backup immediately"
+      - tapOn:
+          id: "add-source-button"
+      - extendedWaitUntil:
+          visible:
+            text: "Source Download"
+          timeout: 30000
+- tapOn: "Source options"
+- extendedWaitUntil:
+    visible:
+      text: ".*Edit Policy.*"
+    timeout: 5000
+- tapOn:
+    text: ".*Edit Policy.*"
+- extendedWaitUntil:
+    visible: "Save policy"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "keep-latest-input"
+      text: "10"
+    timeout: 10000
+- assertVisible:
+    id: "keep-latest-input"
+    text: "10"

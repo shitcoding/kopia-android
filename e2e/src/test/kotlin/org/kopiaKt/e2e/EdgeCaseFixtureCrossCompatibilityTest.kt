@@ -78,6 +78,38 @@ class EdgeCaseFixtureCrossCompatibilityTest {
     }
 
     @Test
+    @DisplayName("policy saved to a Go-created repo persists across close and reopen")
+    fun policyPersistsInGoCreatedRepoAcrossReopen() = runTest(timeout = 2.minutes) {
+        // Regression: on a Go-created repo the policy save appeared to succeed but the manifest
+        // was not there after reopening (caught by the policy_editor E2E flow 2026-07-17).
+        val source = org.kopiaKt.snapshot.model.SourceInfo(
+            host = "sdk_gphone64_arm64",
+            userName = "local",
+            path = "/sdcard/Download"
+        )
+        val policy = org.kopiaKt.snapshot.policy.Policy(
+            retentionPolicy = org.kopiaKt.snapshot.policy.RetentionPolicy(keepLatest = 10)
+        )
+
+        val storage = FilesystemBlobStorage(fixtureRepoDir)
+        val repository = DirectRepositoryImpl.open(storage, fixturePassword)
+        repo = repository
+        org.kopiaKt.snapshot.policy.PolicyManager.setPolicy(repository, source, policy)
+        val visibleBeforeReopen =
+            org.kopiaKt.snapshot.policy.PolicyManager.getPolicy(repository, source)
+        repository.close()
+        repo = null
+
+        val reopened = DirectRepositoryImpl.open(FilesystemBlobStorage(fixtureRepoDir), fixturePassword)
+        repo = reopened
+        val loaded = org.kopiaKt.snapshot.policy.PolicyManager.getPolicy(reopened, source)
+
+        assertThat(visibleBeforeReopen).isNotNull()
+        assertThat(loaded).isNotNull()
+        assertThat(loaded!!.retentionPolicy?.keepLatest).isEqualTo(10)
+    }
+
+    @Test
     @DisplayName("Kotlin opens Go-created edge-case fixture and lists snapshots")
     fun kotlinOpensFixtureAndListsSnapshots() = runTest(timeout = 2.minutes) {
         val storage = FilesystemBlobStorage(fixtureRepoDir)

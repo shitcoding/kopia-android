@@ -99,7 +99,7 @@ MANIFEST=(
   "source_snapshots_screen|local"
   "settings_navigation_smoke|local"
   "sources_dashboard_smoke|local"
-  "policy_editor_smoke|local"
+  "policy_editor|local"
   "backup_add_source|local"
   "backup_add_source_validation|local"
   "add_source_form_smoke|local"
