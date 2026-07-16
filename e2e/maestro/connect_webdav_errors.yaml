@@ -70,10 +70,10 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show validation error about URL
+# Should show the exact validation error (ConnectScreen.validateForm literal).
 - extendedWaitUntil:
     visible:
-      text: ".*URL.*required.*|.*WebDAV.*required.*"
+      text: ".*WebDAV URL is required.*"
     timeout: 5000
 
 # ========================================
@@ -81,8 +81,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -91,12 +93,17 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "storage-tab-webdav"
 
-# Fill URL but no repository password
+# Fill URL but no repository password. Use a THROWAWAY url: a prior successful connect stores the
+# repo password for the real WebDAV config ("Remember password" defaults ON) and ConnectScreen
+# auto-fills it when the url matches - masking this empty-password validation on any second run
+# (observed live 2026-07-16). Validation checks the password before the URL, so it needn't exist.
+# Different HOST than the real backend so no typing-prefix of this URL ever transiently equals the
+# stored URL (which would briefly trigger the auto-fill mid-typing).
 - tapOn:
     id: "webdav-url-input"
 - waitForAnimationToEnd
 - eraseText: 1
-- inputText: "http://10.0.2.2:8080/"
+- inputText: "http://10.0.2.3:8080/e2e-validation-only/"
 - hideKeyboard
 
 - tapOn:
@@ -118,10 +125,11 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show password required error
+# Should show the exact validation error. The old ".*Repository password.*" alternative matched
+# the static "Repository encryption password" label - a tautology that could never fail.
 - extendedWaitUntil:
     visible:
-      text: ".*password.*required.*|.*Repository password.*"
+      text: ".*Repository password is required.*"
     timeout: 5000
 
 # ========================================
@@ -129,8 +137,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -173,10 +183,11 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show auth/HTTP error
+# The exact backend auth error, captured from the on-device hierarchy (2026-07-16): our WebDAV
+# client formats it as "Unauthorized (HTTP 401)" (OkHttpWebDavClient status mapping).
 - extendedWaitUntil:
     visible:
-      text: ".*401.*|.*[Uu]nauthorized.*|.*denied.*|.*failed.*|.*error.*|.*invalid.*"
+      text: ".*Unauthorized.*HTTP 401.*"
     timeout: 15000
 
 # ========================================
@@ -184,8 +195,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -229,9 +242,11 @@ androidWebViewHierarchy: devtools
     id: "connect-button"
 
 # Should show repo auth error
+# The exact core error, captured on device (2026-07-16). The old ".*wrong.*" matched the typed
+# "wrongpassword" input and ".*password.*" the static password label (tautologies).
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+      text: ".*Invalid password or corrupted format blob.*"
     timeout: 15000
 
 # ========================================
@@ -239,8 +254,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:

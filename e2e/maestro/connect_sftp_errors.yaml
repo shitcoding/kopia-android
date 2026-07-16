@@ -88,7 +88,7 @@ androidWebViewHierarchy: devtools
 # Should show validation error about host
 - extendedWaitUntil:
     visible:
-      text: ".*host.*required.*|.*Host.*required.*"
+      text: ".*SFTP host is required.*"
     timeout: 5000
 
 # ========================================
@@ -96,8 +96,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -153,7 +155,7 @@ androidWebViewHierarchy: devtools
 # Should show validation error about username
 - extendedWaitUntil:
     visible:
-      text: ".*username.*required.*|.*Username.*required.*"
+      text: ".*SFTP username is required.*"
     timeout: 5000
 
 # ========================================
@@ -161,8 +163,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -220,10 +224,12 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show SSH/auth error
+# The exact backend auth error, captured from the on-device hierarchy (2026-07-16): our literal
+# prefix from SftpBlobStorage ("SSH authentication failed: <lib detail>"). Pin the stable prefix -
+# the suffix comes from the SSH library and may change with its version.
 - extendedWaitUntil:
     visible:
-      text: ".*auth.*|.*denied.*|.*failed.*|.*error.*|.*ssh.*|.*handshake.*"
+      text: ".*SSH authentication failed.*"
     timeout: 15000
 
 # ========================================
@@ -231,8 +237,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -291,9 +299,11 @@ androidWebViewHierarchy: devtools
     id: "connect-button"
 
 # Should show repo auth error
+# The exact core error, captured on device (2026-07-16). The old ".*wrong.*" matched the typed
+# "wrongpassword" input and ".*password.*" the static password label (tautologies).
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+      text: ".*Invalid password or corrupted format blob.*"
     timeout: 15000
 
 # ========================================
@@ -301,8 +311,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:

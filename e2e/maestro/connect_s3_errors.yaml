@@ -80,10 +80,10 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show validation error about bucket
+# Should show the exact validation error (ConnectScreen.validateForm literal).
 - extendedWaitUntil:
     visible:
-      text: ".*bucket.*required.*|.*Bucket.*required.*"
+      text: ".*S3 bucket is required.*"
     timeout: 5000
 
 # ========================================
@@ -91,8 +91,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -140,10 +142,10 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show validation error about secret key
+# Should show the exact validation error (ConnectScreen.validateForm literal).
 - extendedWaitUntil:
     visible:
-      text: ".*[Ss]ecret.*key.*required.*|.*access key.*required.*"
+      text: ".*Secret access key is required.*"
     timeout: 5000
 
 # ========================================
@@ -151,8 +153,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -205,10 +209,13 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show backend authentication error
+# The exact backend auth error, captured from the on-device hierarchy (2026-07-16): core's
+# FormatBlobManager wraps MinIO's message as "Format blob not found: The Access Key Id you provided does not
+# exist in our records. (Service: S3, Status Code: 403, Request ID: ...)". Pin the stable core
+# (request IDs are per-run volatile; the sentence is MinIO's - revisit if the MinIO image changes).
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*denied.*|.*failed.*|.*error.*|.*credentials.*|.*403.*|.*Access Denied.*"
+      text: ".*Access Key Id you provided does not exist.*"
     timeout: 15000
 
 # ========================================
@@ -216,8 +223,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
@@ -270,10 +279,12 @@ androidWebViewHierarchy: devtools
 - tapOn:
     id: "connect-button"
 
-# Should show error (repo auth)
+# The exact core error, captured on device (2026-07-16) - same string as the local flow, relayed
+# verbatim by the bridge. The old ".*wrong.*" matched the typed "wrongpassword" input and
+# ".*password.*" matched the static "Repository encryption password" label (tautologies).
 - extendedWaitUntil:
     visible:
-      text: ".*invalid.*|.*incorrect.*|.*failed.*|.*error.*|.*wrong.*|.*password.*"
+      text: ".*Invalid password or corrupted format blob.*"
     timeout: 15000
 
 # ========================================
@@ -281,8 +292,10 @@ androidWebViewHierarchy: devtools
 # ========================================
 # Navigate back and re-enter for fresh form
 - back
+# Welcome-only anchor: "Connect to Repository" would also match the Connect screen's own submit
+# button (case-insensitive), so a silently failed `back` could re-submit the stale form.
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible: "Browse and restore your Kopia backups"
     timeout: 5000
 - tapOn: "Connect to Repository"
 - extendedWaitUntil:
