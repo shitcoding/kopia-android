@@ -36,6 +36,12 @@ export interface SftpConfig {
   username: string;
   path: string;
   password: string;
+  /** OpenSSH known_hosts content pinning the server key (preferred trust material). */
+  knownHostsData?: string;
+  /** Host key fingerprint to pin ("SHA256:<base64>"), used if no known_hosts is supplied. */
+  hostKeyFingerprint?: string;
+  /** Trust ANY server key — insecure, testing only; rejected by release builds. */
+  insecureSkipHostKeyVerification?: boolean;
 }
 
 export interface SafConfig {

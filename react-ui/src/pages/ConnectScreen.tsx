@@ -43,6 +43,9 @@ const ConnectScreen = () => {
   const [s3SecretKey, setS3SecretKey] = useState("");
   const [webdavPassword, setWebdavPassword] = useState("");
   const [sftpPassword, setSftpPassword] = useState("");
+  const [sftpKnownHosts, setSftpKnownHosts] = useState("");
+  const [sftpFingerprint, setSftpFingerprint] = useState("");
+  const [sftpInsecure, setSftpInsecure] = useState(false);
   const [password, setPassword] = useState("");
 
   // Subscribe to folder picker results
@@ -143,6 +146,9 @@ const ConnectScreen = () => {
           username: sftpUsername,
           path: sftpPath,
           password: sftpPassword,
+          knownHostsData: sftpKnownHosts,
+          hostKeyFingerprint: sftpFingerprint,
+          insecureSkipHostKeyVerification: sftpInsecure,
         };
         break;
     }
@@ -517,6 +523,53 @@ const ConnectScreen = () => {
               aria-label="SFTP password"
               data-testid="sftp-password-input"
             />
+            <p className="text-xs text-muted-foreground px-1 pt-1">
+              Host key verification: paste known_hosts or a fingerprint to pin the server, or enable
+              insecure trust for testing. Without one, the connection is rejected.
+            </p>
+            <textarea
+              placeholder="Known hosts (optional — OpenSSH known_hosts line)"
+              value={sftpKnownHosts}
+              onChange={(e) => setSftpKnownHosts(e.target.value)}
+              className="input-md3 min-h-[60px] font-mono text-xs"
+              disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              id="sftp-known-hosts-input"
+              aria-label="SFTP known hosts"
+              data-testid="sftp-known-hosts-input"
+            />
+            <input
+              type="text"
+              placeholder="Host key fingerprint (SHA256:… — optional)"
+              value={sftpFingerprint}
+              onChange={(e) => setSftpFingerprint(e.target.value)}
+              className="input-md3"
+              disabled={isConnecting}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              id="sftp-fingerprint-input"
+              aria-label="SFTP host key fingerprint"
+              data-testid="sftp-fingerprint-input"
+            />
+            <label className="flex items-center gap-3 cursor-pointer py-1">
+              <Checkbox
+                checked={sftpInsecure}
+                onCheckedChange={(checked) => setSftpInsecure(checked === true)}
+                disabled={isConnecting}
+                id="sftp-insecure-checkbox"
+                aria-label="Skip SFTP host key verification"
+                data-testid="sftp-insecure-checkbox"
+              />
+              <span className="text-sm text-warning flex items-center gap-1">
+                <ShieldAlert className="w-4 h-4" />
+                Trust any host key (insecure — testing only)
+              </span>
+            </label>
           </div>
         )}
 
