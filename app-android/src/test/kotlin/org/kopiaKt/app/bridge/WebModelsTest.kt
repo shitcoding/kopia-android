@@ -2,6 +2,8 @@ package org.kopiaKt.app.bridge
 
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.kopiaKt.app.domain.model.ConnectionConfig
 
@@ -88,5 +90,46 @@ class WebModelsTest {
         assertEquals("spass", domain.password)
         assertEquals("user", domain.username)
         assertEquals("/path", domain.path)
+    }
+
+    @Test
+    fun `toDomain maps SFTP host-key trust material`() {
+        val webConfig = WebConnectionConfig(
+            storageType = "SFTP",
+            sftp = WebSftpConfig(
+                host = "host", port = 22, username = "user", path = "/path", password = "spass",
+                knownHostsData = "host ssh-ed25519 AAAAKEY",
+                hostKeyFingerprint = "SHA256:abc123",
+                insecureSkipHostKeyVerification = true
+            )
+        )
+        val domain = webConfig.toDomain() as ConnectionConfig.SFTP
+        assertEquals("host ssh-ed25519 AAAAKEY", domain.knownHostsData)
+        assertEquals("SHA256:abc123", domain.hostKeyFingerprint)
+        assertTrue(domain.insecureSkipHostKeyVerification)
+    }
+
+    @Test
+    fun `toWeb echoes SFTP host-key trust material`() {
+        val domain = ConnectionConfig.SFTP(
+            host = "h", port = 22, username = "u", path = "/p", password = "pw",
+            knownHostsData = "kh", hostKeyFingerprint = "SHA256:fp",
+            insecureSkipHostKeyVerification = true
+        )
+        val web = domain.toWeb().sftp!!
+        assertEquals("kh", web.knownHostsData)
+        assertEquals("SHA256:fp", web.hostKeyFingerprint)
+        assertTrue(web.insecureSkipHostKeyVerification)
+    }
+
+    @Test
+    fun `WebSftpConfig host-key fields default to empty and secure when omitted`() {
+        // Older JS clients omit the new fields; they must decode to safe defaults — crucially,
+        // insecureSkipHostKeyVerification must NOT default to true.
+        val jsonStr = """{"host":"h","port":22,"username":"u","path":"/p","password":"x"}"""
+        val config = json.decodeFromString<WebSftpConfig>(jsonStr)
+        assertEquals("", config.knownHostsData)
+        assertEquals("", config.hostKeyFingerprint)
+        assertFalse(config.insecureSkipHostKeyVerification)
     }
 }

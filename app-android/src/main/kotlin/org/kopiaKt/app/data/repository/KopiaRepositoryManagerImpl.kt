@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import org.kopiaKt.android.storage.SafBlobStorage
 import org.kopiaKt.android.storage.SafOptions
+import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.app.domain.model.ConnectionConfig
 import org.kopiaKt.app.domain.model.RepositoryConnection
 import org.kopiaKt.app.domain.model.StorageType
@@ -188,13 +189,22 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         }
 
         is ConnectionConfig.SFTP -> {
+            // Release builds must never trust an arbitrary host key. The insecure opt-in is a
+            // dev/testing-only escape hatch, so reject it here at the connect/factory layer (not
+            // just by hiding a UI toggle) — a persisted or imported ConnectionConfig could carry
+            // the flag set. The storage layer itself already fails closed when no trust material
+            // is supplied (throws HostKeyNotTrustedException).
+            requireInsecureHostKeyAllowed(config.insecureSkipHostKeyVerification, BuildConfig.DEBUG)
             SftpBlobStorage.create(
                 SftpOptions(
                     host = config.host,
                     port = config.port,
                     username = config.username,
                     password = config.password,
-                    path = config.path
+                    path = config.path,
+                    knownHostsData = config.knownHostsData,
+                    hostKeyFingerprint = config.hostKeyFingerprint,
+                    insecureSkipHostKeyVerification = config.insecureSkipHostKeyVerification
                 )
             )
         }
@@ -239,5 +249,23 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             masterKey = masterKey,
             splitter = options.splitterAlgorithm ?: "DYNAMIC-4M-BUZHASH"
         )
+    }
+}
+
+/**
+ * Enforces the SFTP host-key security policy at the connect/factory layer: the insecure
+ * "trust any host key" opt-in ([ConnectionConfig.SFTP.insecureSkipHostKeyVerification]) is a
+ * dev/testing-only escape hatch and must be rejected in release builds, since a persisted or imported
+ * config could carry the flag set. Kept as a pure function (the build flag is injected) so the release
+ * rejection is unit-testable without building a release variant.
+ *
+ * @throws IllegalArgumentException if [insecureSkipHostKeyVerification] is set in a non-debug build.
+ */
+internal fun requireInsecureHostKeyAllowed(
+    insecureSkipHostKeyVerification: Boolean,
+    isDebugBuild: Boolean
+) {
+    require(isDebugBuild || !insecureSkipHostKeyVerification) {
+        "insecureSkipHostKeyVerification is not permitted in release builds"
     }
 }

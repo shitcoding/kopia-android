@@ -41,7 +41,13 @@ sealed interface ConnectionConfig {
         val port: Int,
         val username: String,
         val path: String,
-        val password: String = ""
+        val password: String = "",
+        /** OpenSSH known_hosts content pinning the server key (preferred trust material). */
+        val knownHostsData: String = "",
+        /** sshj host-key fingerprint to pin ("SHA256:<base64>" or MD5 hex), if no known_hosts. */
+        val hostKeyFingerprint: String = "",
+        /** Trust ANY server key — INSECURE, dev/testing only; rejected in release builds. */
+        val insecureSkipHostKeyVerification: Boolean = false
     ) : ConnectionConfig
 
     data class SAF(

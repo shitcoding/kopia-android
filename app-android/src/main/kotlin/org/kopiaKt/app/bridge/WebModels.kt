@@ -77,7 +77,10 @@ data class WebConnectionConfig(
             port = sftp?.port ?: 22,
             username = sftp?.username ?: "",
             path = sftp?.path ?: "",
-            password = sftp?.password ?: ""
+            password = sftp?.password ?: "",
+            knownHostsData = sftp?.knownHostsData ?: "",
+            hostKeyFingerprint = sftp?.hostKeyFingerprint ?: "",
+            insecureSkipHostKeyVerification = sftp?.insecureSkipHostKeyVerification ?: false
         )
         "SAF" -> ConnectionConfig.SAF(
             treeUri = saf?.treeUri ?: "",
@@ -112,7 +115,10 @@ data class WebSftpConfig(
     val port: Int,
     val username: String,
     val path: String,
-    val password: String = ""
+    val password: String = "",
+    val knownHostsData: String = "",
+    val hostKeyFingerprint: String = "",
+    val insecureSkipHostKeyVerification: Boolean = false
 )
 
 @Serializable
@@ -307,7 +313,10 @@ fun ConnectionConfig.toWeb(): WebConnectionConfig = when (this) {
             port = port,
             username = username,
             path = path,
-            password = password
+            password = password,
+            knownHostsData = knownHostsData,
+            hostKeyFingerprint = hostKeyFingerprint,
+            insecureSkipHostKeyVerification = insecureSkipHostKeyVerification
         )
     )
     is ConnectionConfig.SAF -> WebConnectionConfig(
