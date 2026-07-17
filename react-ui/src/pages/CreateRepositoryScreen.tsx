@@ -13,7 +13,9 @@ import {
   Check,
   ChevronRight,
   Settings,
+  ShieldAlert,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAlgorithms, useCreateRepository, useTestConnection } from "@/hooks/useBackupApi";
 import type { ConnectionConfig, CreateRepositoryRequest, StorageType } from "@/types/kopia";
@@ -48,6 +50,9 @@ const CreateRepositoryScreen = () => {
   const [sftpUsername, setSftpUsername] = useState("");
   const [sftpPath, setSftpPath] = useState("");
   const [sftpPassword, setSftpPassword] = useState("");
+  const [sftpKnownHosts, setSftpKnownHosts] = useState("");
+  const [sftpFingerprint, setSftpFingerprint] = useState("");
+  const [sftpInsecure, setSftpInsecure] = useState(false);
 
   // Repository settings
   const [password, setPassword] = useState("");
@@ -83,7 +88,7 @@ const CreateRepositoryScreen = () => {
       case "local": config.local = { path: localPath }; break;
       case "s3": config.s3 = { bucket: s3Bucket, endpoint: s3Endpoint, region: s3Region, accessKeyId: s3AccessKey, secretAccessKey: s3SecretKey }; break;
       case "webdav": config.webdav = { url: webdavUrl, username: webdavUsername, password: webdavPassword }; break;
-      case "sftp": config.sftp = { host: sftpHost, port: parseInt(sftpPort, 10) || 22, username: sftpUsername, path: sftpPath, password: sftpPassword }; break;
+      case "sftp": config.sftp = { host: sftpHost, port: parseInt(sftpPort, 10) || 22, username: sftpUsername, path: sftpPath, password: sftpPassword, knownHostsData: sftpKnownHosts, hostKeyFingerprint: sftpFingerprint, insecureSkipHostKeyVerification: sftpInsecure }; break;
     }
     return config;
   };
@@ -226,6 +231,13 @@ const CreateRepositoryScreen = () => {
                 <input type="text" placeholder="Username" value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-username-input" aria-label="SFTP username" />
                 <input type="text" placeholder="Path" value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-path-input" aria-label="SFTP path" />
                 <input type="password" placeholder="Password" value={sftpPassword} onChange={(e) => setSftpPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-password-input" aria-label="SFTP password" />
+                <p className="text-xs text-muted-foreground px-1">Host key verification: paste known_hosts or a fingerprint to pin the server, or enable insecure trust for testing. Without one, the connection is rejected.</p>
+                <textarea placeholder="Known hosts (optional — OpenSSH known_hosts line)" value={sftpKnownHosts} onChange={(e) => setSftpKnownHosts(e.target.value)} className="input-md3 min-h-[60px] font-mono text-xs" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-known-hosts-input" aria-label="SFTP known hosts" />
+                <input type="text" placeholder="Host key fingerprint (SHA256:… — optional)" value={sftpFingerprint} onChange={(e) => setSftpFingerprint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-sftp-fingerprint-input" aria-label="SFTP host key fingerprint" />
+                <label className="flex items-center gap-3 cursor-pointer py-1">
+                  <Checkbox checked={sftpInsecure} onCheckedChange={(checked) => setSftpInsecure(checked === true)} id="create-sftp-insecure-checkbox" aria-label="Skip SFTP host key verification" data-testid="create-sftp-insecure-checkbox" />
+                  <span className="text-sm text-warning flex items-center gap-1"><ShieldAlert className="w-4 h-4" />Trust any host key (insecure — testing only)</span>
+                </label>
               </div>
             )}
 
