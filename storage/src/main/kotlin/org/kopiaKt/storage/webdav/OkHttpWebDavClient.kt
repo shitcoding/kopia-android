@@ -82,22 +82,6 @@ class OkHttpWebDavClient(
     }
 
     /**
-     * Checks whether a resource exists at [url].
-     *
-     * @return true if a HEAD request returns 2xx
-     */
-    fun exists(url: String): Boolean {
-        val request = newRequestBuilder(url)
-            .head()
-            .build()
-
-        val response = httpClient.newCall(request).execute()
-        response.use { resp ->
-            return resp.isSuccessful
-        }
-    }
-
-    /**
      * Downloads the resource at [url].
      *
      * @param headers additional headers (e.g. Range)

@@ -18,6 +18,7 @@ import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URI
+import java.security.SecureRandom
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -64,6 +65,9 @@ class WebDavBlobStorage private constructor(
             DateTimeFormatter.RFC_1123_DATE_TIME
 
         private val json = Json { ignoreUnknownKeys = true }
+
+        /** Full-entropy source for non-atomic-write temp-file suffixes. */
+        private val secureRandom = SecureRandom()
 
         /**
          * Creates a new WebDAV blob storage instance.
@@ -378,7 +382,10 @@ class WebDavBlobStorage private constructor(
             val writePath = if (this@WebDavBlobStorage.options.atomicWrites) {
                 fileUrl
             } else {
-                "$fileUrl-${System.currentTimeMillis()}-${(Math.random() * Long.MAX_VALUE).toLong()}"
+                // A full 64-bit SecureRandom suffix (not Math.random) so two concurrent PUTs of the
+                // same blob are vanishingly unlikely to collide on the temp-file name and clobber
+                // each other's in-flight write.
+                "$fileUrl-${System.currentTimeMillis()}-${secureRandom.nextLong().toULong()}"
             }
 
             try {
