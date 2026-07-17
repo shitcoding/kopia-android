@@ -60,7 +60,6 @@ declare global {
       setStatusBarAppearance(isDarkMode: boolean): void;
       getSystemTheme(): string;
       hasStoredPassword(configJson: string): string;
-      getStoredPassword(configJson: string): string;
       storePassword(configJson: string, password: string): string;
       // New methods for sources, tasks, policies, maintenance
       getSupportedAlgorithms(): string;
@@ -335,12 +334,9 @@ class KopiaBridgeService {
     );
   }
 
-  async getStoredPassword(config: ConnectionConfig): Promise<string | null> {
-    if (!this.isAndroid) return null;
-    return this.parse<string | null>(
-      window.KopiaBridge!.getStoredPassword(JSON.stringify(config))
-    );
-  }
+  // Note: no getStoredPassword — the native side never returns the plaintext password to JS. When a
+  // password is stored, connect() with an empty password uses it natively. JS only checks existence
+  // via hasStoredPassword.
 
   async storePassword(config: ConnectionConfig, password: string): Promise<void> {
     if (!this.isAndroid) return;

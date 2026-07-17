@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import org.kopiaKt.android.restore.SafRestoreOutput
 import org.kopiaKt.app.domain.model.FileEntry
@@ -315,7 +316,7 @@ class SnapshotRepositoryImpl @Inject constructor(
         }
 
         awaitClose { restoreCancelled = true }
-    }
+    }.flowOn(Dispatchers.IO)
 
     override fun cancelRestore() {
         restoreCancelled = true

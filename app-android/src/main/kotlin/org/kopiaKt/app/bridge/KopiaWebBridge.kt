@@ -21,10 +21,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.security.MessageDigest
 import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.TaskKind
@@ -101,6 +104,9 @@ class KopiaWebBridge private constructor(
 
     private companion object {
         const val TAG = "KopiaWebBridge"
+        // Safety net so an unreachable backend can't hang the connect/create coroutine indefinitely.
+        const val NETWORK_TIMEOUT_MS = 120_000L
+        const val MILLIS_PER_SECOND = 1000L
     }
 
     private val entryPoint by lazy {
@@ -236,45 +242,54 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun connect(requestJson: String): String {
-        // Launch async to avoid blocking UI thread
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        // Launch on the bridge's cancellable scope (cancelled by cleanup()), off the UI thread.
+        scope.launch(Dispatchers.IO) {
             try {
                 val request = json.decodeFromString<WebConnectRequest>(requestJson)
 
                 // Check storage permission for local filesystem
                 if (request.config.storageType == "LOCAL_FILESYSTEM") {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                        val errorResult = json.encodeToString(
+                        pushConnectResult(
                             WebResult.error<WebRepositoryConnection>(
                                 "Storage permission required. Please grant \"All files access\" permission to access local repositories.",
                                 WebErrorCodes.STORAGE_PERMISSION_REQUIRED
                             )
                         )
-                        val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-                        callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
                         return@launch
                     }
                 }
 
-                // Fallback: accept legacy 'password' field for repository encryption password.
-                // Storage-specific credentials (s3.secretAccessKey, webdav.password, sftp.password)
-                // must always be sent in their respective config objects — there is no legacy mapping
-                // for them because the old single-password approach was non-functional for S3 and
-                // only worked for WebDAV/SFTP when the storage password coincidentally matched.
-                val repositoryPassword = request.repositoryPassword.ifEmpty { request.password }
-                val result = repositoryManager.connect(request.config.toDomain(), repositoryPassword)
-                val resultJson = result.fold(
-                    onSuccess = { json.encodeToString(WebResult.success(it.toWeb())) },
-                    onFailure = { json.encodeToString(WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error")) }
+                // Repository encryption password resolution, in order: the explicit field, the legacy
+                // 'password' field, then the securely-stored password for this repo. The stored
+                // password is retrieved and used entirely in native code — it is never exposed to JS
+                // (that is why getStoredPassword was removed): an empty password from the UI means
+                // "use the saved one". Storage-specific credentials (s3.secretAccessKey,
+                // webdav.password, sftp.password) must always be sent in their config objects.
+                val repositoryPassword = request.repositoryPassword
+                    .ifEmpty { request.password }
+                    .ifEmpty { credentialRepository.getPassword(generateConnectionId(request.config)).orEmpty() }
+                val result = withTimeout(NETWORK_TIMEOUT_MS) {
+                    repositoryManager.connect(request.config.toDomain(), repositoryPassword)
+                }
+                pushConnectResult(
+                    result.fold(
+                        onSuccess = { WebResult.success(it.toWeb()) },
+                        onFailure = { WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error") }
+                    )
                 )
-
-                // Escape JSON for JavaScript string
-                val escapedJson = resultJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-                callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
+            } catch (ignored: TimeoutCancellationException) {
+                // withTimeout's exception IS a CancellationException, so catch it FIRST and surface it —
+                // otherwise the rethrow below drops the JS callback and the connect promise hangs forever.
+                pushConnectResult(
+                    WebResult.error<WebRepositoryConnection>(
+                        "Connection timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s"
+                    )
+                )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                val errorResult = json.encodeToString(WebResult.error<WebRepositoryConnection>(e.message ?: "Parse error"))
-                val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-                callJavaScript("window.__kopiaConnectCallback('$escapedJson')")
+                pushConnectResult(WebResult.error<WebRepositoryConnection>(e.message ?: "Parse error"))
             }
         }
 
@@ -282,10 +297,25 @@ class KopiaWebBridge private constructor(
         return json.encodeToString(WebResult.success("connecting"))
     }
 
+    private fun pushConnectResult(result: WebResult<WebRepositoryConnection>) {
+        pushCallback("window.__kopiaConnectCallback", json.encodeToString(result))
+    }
+
     private fun callJavaScript(script: String) {
         activity?.runOnUiThread {
             webViewRef.get()?.evaluateJavascript(script, null)
         }
+    }
+
+    /**
+     * Invoke a JS callback with [payload] passed as a properly-escaped JS string literal. Encoding
+     * the string via JSON escapes quotes, backslashes, and all control chars < 0x20 (including the \r
+     * the old hand-rolled `replace("\\", ...)` chain missed) into a valid JS string literal. (U+2028/
+     * U+2029 are left raw — legal in JSON and, since ES2019, in JS string literals too, which every
+     * WebView this app runs on supports.)
+     */
+    private fun pushCallback(callbackExpr: String, payload: String) {
+        callJavaScript("$callbackExpr(${json.encodeToString(payload)})")
     }
 
     // ================================================================
@@ -365,7 +395,7 @@ class KopiaWebBridge private constructor(
      */
     @JavascriptInterface
     fun createRepository(requestJson: String) {
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {
             try {
                 val request = json.decodeFromString<WebCreateRepositoryRequest>(requestJson)
                 val connectionConfig = request.config.toDomain()
@@ -376,34 +406,45 @@ class KopiaWebBridge private constructor(
                     encryptionAlgorithm = request.options.encryption,
                     keyDerivationAlgorithm = keyDerivationAlgorithm
                 )
-                val result = repositoryManager.create(
-                    config = connectionConfig,
-                    repositoryPassword = request.password,
-                    options = options
-                )
+                val result = withTimeout(NETWORK_TIMEOUT_MS) {
+                    repositoryManager.create(
+                        config = connectionConfig,
+                        repositoryPassword = request.password,
+                        options = options
+                    )
+                }
                 val webResult = result.fold(
                     onSuccess = {
-                        json.encodeToString(WebResult.success(WebRepositoryCreationResult(
+                        WebResult.success(WebRepositoryCreationResult(
                             storageType = request.config.storageType,
                             encryption = request.options.encryption,
                             hashing = request.options.hash,
                             description = request.options.description
-                        )))
+                        ))
                     },
                     onFailure = {
-                        json.encodeToString(WebResult.error<WebRepositoryCreationResult>(
-                            it.message ?: "Repository creation failed"
-                        ))
+                        WebResult.error<WebRepositoryCreationResult>(it.message ?: "Repository creation failed")
                     }
                 )
-                val escapedJson = webResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-                callJavaScript("window.KopiaEvents?.onRepositoryCreated?.('$escapedJson')")
+                pushCallback("window.KopiaEvents?.onRepositoryCreated?.", json.encodeToString(webResult))
+            } catch (ignored: TimeoutCancellationException) {
+                // See connect(): surface the timeout instead of letting the CancellationException
+                // rethrow drop the callback and hang the create promise.
+                pushCallback(
+                    "window.KopiaEvents?.onRepositoryCreated?.",
+                    json.encodeToString(
+                        WebResult.error<WebRepositoryCreationResult>(
+                            "Repository creation timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s"
+                        )
+                    )
+                )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                val errorResult = json.encodeToString(WebResult.error<WebRepositoryCreationResult>(
-                    e.message ?: "Parse error"
-                ))
-                val escapedJson = errorResult.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-                callJavaScript("window.KopiaEvents?.onRepositoryCreated?.('$escapedJson')")
+                pushCallback(
+                    "window.KopiaEvents?.onRepositoryCreated?.",
+                    json.encodeToString(WebResult.error<WebRepositoryCreationResult>(e.message ?: "Parse error"))
+                )
             }
         }
     }
@@ -707,23 +748,11 @@ class KopiaWebBridge private constructor(
         }
     }
 
-    /**
-     * Retrieve stored password for the given repository configuration.
-     * @param configJson JSON-encoded ConnectionConfig
-     * @return JSON-encoded WebResult<String?>
-     */
-    @JavascriptInterface
-    fun getStoredPassword(configJson: String): String = runBlocking {
-        try {
-            val config = json.decodeFromString<WebConnectionConfig>(configJson)
-            val connectionId = generateConnectionId(config)
-            val password = credentialRepository.getPassword(connectionId)
-            json.encodeToString(WebResult.success(password))
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "getStoredPassword error", e)
-            json.encodeToString(WebResult.error<String?>(e.message ?: "Failed to get stored password"))
-        }
-    }
+    // Note: there is deliberately no getStoredPassword bridge method. The stored password is never
+    // returned to JavaScript — connect() resolves it natively when the UI sends an empty password
+    // (see the resolution order there). This keeps repository passwords off the JS surface, so a
+    // compromised/injected bundle can't read them back. JS only learns whether one exists
+    // (hasStoredPassword) so the UI can show a "using saved password" state.
 
     /**
      * Store password for the given repository configuration using encrypted storage.
@@ -745,25 +774,37 @@ class KopiaWebBridge private constructor(
     }
 
     /**
-     * Generate a stable connection ID from repository configuration.
-     * Used as a key for storing/retrieving passwords.
+     * Generate a stable connection ID from repository configuration, used as the key for
+     * storing/retrieving passwords. Uses a SHA-256 digest of the canonical config rather than
+     * `String.hashCode()`: a 32-bit hashCode collides in practice, and here a collision would return
+     * or clobber the WRONG repository's stored password.
      */
     private fun generateConnectionId(config: WebConnectionConfig): String {
         val parts = when (config.storageType) {
             "LOCAL_FILESYSTEM" ->
-                listOf("local", config.local?.path ?: "")
+                listOf("local", config.local?.path.orEmpty())
             "S3" ->
-                listOf("s3", config.s3?.bucket ?: "", config.s3?.endpoint ?: "")
+                listOf("s3", config.s3?.bucket.orEmpty(), config.s3?.endpoint.orEmpty())
             "WEBDAV" ->
-                listOf("webdav", config.webdav?.url ?: "")
+                listOf("webdav", config.webdav?.url.orEmpty(), config.webdav?.username.orEmpty())
             "SFTP" ->
-                listOf("sftp", config.sftp?.host ?: "", config.sftp?.port?.toString() ?: "")
+                // Include username + path: two repos on the same host:port are distinct credentials.
+                listOf(
+                    "sftp",
+                    config.sftp?.host.orEmpty(),
+                    config.sftp?.port?.toString().orEmpty(),
+                    config.sftp?.username.orEmpty(),
+                    config.sftp?.path.orEmpty()
+                )
             "SAF" ->
-                listOf("saf", config.saf?.treeUri ?: "")
+                listOf("saf", config.saf?.treeUri.orEmpty())
             else ->
                 listOf("unknown", config.storageType)
         }
-        return parts.joinToString(":").hashCode().toString()
+        val canonical = parts.joinToString(":")
+        return MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
     }
 
     /**

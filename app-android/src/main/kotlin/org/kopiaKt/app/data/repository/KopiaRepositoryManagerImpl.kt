@@ -3,6 +3,7 @@ package org.kopiaKt.app.data.repository
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +80,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             _connectionState.value = ConnectionState.Connected(connection)
             Result.success(connection)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e.message ?: "Connection failed")
             Result.failure(e)
@@ -126,6 +129,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             _connectionState.value = ConnectionState.Connected(connection)
             Result.success(connection)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e.message ?: "Repository creation failed")
             Result.failure(e)

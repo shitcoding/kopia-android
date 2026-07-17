@@ -26,7 +26,7 @@ const ConnectScreen = () => {
   const [rememberPassword, setRememberPassword] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const [isPasswordAutoFilled, setIsPasswordAutoFilled] = useState(false);
+  const [hasSavedPassword, setHasSavedPassword] = useState(false);
 
   // Form states for different storage types
   const [localPath, setLocalPath] = useState("");
@@ -62,33 +62,38 @@ const ConnectScreen = () => {
     return unsubscribe;
   }, []);
 
-  // Check for stored password when config changes
+  // Track only WHETHER a password is stored for this config — never fetch the plaintext into JS.
+  // We deliberately do NOT touch the `password` field here: clearing it would wipe a value the user
+  // just typed when they tweak another field. `cancelled` guards against a stale async response
+  // applying to a newer config.
   useEffect(() => {
+    let cancelled = false;
     const checkStoredPassword = async () => {
       try {
         const config = buildConnectionConfig();
         const hasPassword = await kopiaBridge.hasStoredPassword(config);
+        if (cancelled) return;
+        setHasSavedPassword(hasPassword);
         if (hasPassword) {
           setRememberPassword(true);
-          const storedPassword = await kopiaBridge.getStoredPassword(config);
-          if (storedPassword) {
-            setPassword(storedPassword);
-            setIsPasswordAutoFilled(true); // Mark as auto-filled
-            setShowPassword(false); // Hide password when auto-filled
-          }
-        } else {
-          // Clear password if switching to a config without stored password
-          setPassword("");
-          setRememberPassword(true);
-          setIsPasswordAutoFilled(false);
+          setShowPassword(false);
         }
       } catch (error) {
-        console.error("Failed to check stored password:", error);
+        if (!cancelled) console.error("Failed to check stored password:", error);
       }
     };
 
     checkStoredPassword();
+    return () => {
+      cancelled = true;
+    };
   }, [storageType, localPath, s3Bucket, s3Endpoint, webdavUrl, sftpHost, sftpPort]);
+
+  // A saved password is "in use" only while the field is empty; the moment the user types, their
+  // input takes over. Derived (not stored) so erasing back to empty restores the saved-password mode
+  // — an empty field then connects with the natively-resolved saved password — instead of dead-ending
+  // on the "password required" error.
+  const usingSavedPassword = hasSavedPassword && !password.trim();
 
   const tabs: { id: UIStorageType; label: string }[] = [
     { id: "local", label: "Local" },
@@ -146,7 +151,8 @@ const ConnectScreen = () => {
   };
 
   const validateForm = (): string | null => {
-    if (!password.trim()) {
+    // When a saved password exists, an empty field is valid — the native side supplies it.
+    if (!password.trim() && !hasSavedPassword) {
       return "Repository password is required";
     }
 
@@ -193,8 +199,9 @@ const ConnectScreen = () => {
 
       await kopiaBridge.connect(request);
 
-      // Store password if "Remember password" is checked
-      if (rememberPassword) {
+      // Store only a freshly-typed password. When the field is empty (a saved password is being
+      // used), do nothing — storing "" would clobber the existing saved password.
+      if (rememberPassword && password.trim()) {
         try {
           await kopiaBridge.storePassword(config, password);
         } catch (storeError) {
@@ -521,18 +528,13 @@ const ConnectScreen = () => {
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Repository Password"
+              placeholder={usingSavedPassword ? "Using saved password" : "Repository Password"}
               value={password}
               onChange={(e) => {
-                // Security: If password was auto-filled, clear it entirely on first edit
-                if (isPasswordAutoFilled) {
-                  setPassword(""); // Clear the saved password
-                  setIsPasswordAutoFilled(false);
-                  setShowPassword(false);
-                  // Don't set the new value yet - let user start typing from scratch
-                } else {
-                  setPassword(e.target.value);
-                }
+                // The field never holds plaintext, so typing just sets the value; `usingSavedPassword`
+                // derives from (saved exists && field empty), so it flips off automatically here and
+                // back on if the user erases to empty. No first-character swallow.
+                setPassword(e.target.value);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -559,14 +561,14 @@ const ConnectScreen = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              disabled={isPasswordAutoFilled}
+              disabled={usingSavedPassword}
               className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 transition-colors ${
-                isPasswordAutoFilled
+                usingSavedPassword
                   ? "text-muted-foreground/40 cursor-not-allowed"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              title={isPasswordAutoFilled ? "Cannot view saved passwords" : "Show password"}
+              title={usingSavedPassword ? "Cannot view saved passwords" : "Show password"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
