@@ -1,6 +1,8 @@
 package org.kopiaKt.core.pack
 
 import org.kopiaKt.core.content.ContentInfo
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Reads and extracts data from pack blobs.
@@ -14,6 +16,8 @@ import org.kopiaKt.core.content.ContentInfo
  * - Extract individual content blocks by offset
  */
 object PackBlobReader {
+
+    private val logger = Logger.getLogger(PackBlobReader::class.java.name)
 
     /**
      * Recovers the content index from a pack blob's local index.
@@ -46,6 +50,11 @@ object PackBlobReader {
             val index = PackIndexV1.open(localIndexData, encryptionOverhead)
             index.iterate().toList()
         } catch (e: Exception) {
+            // Best-effort recovery probe: a failure here just means this blob has no readable local
+            // index, which is an ordinary outcome (this is also called on arbitrary data). Log at
+            // FINE so it's available when debugging recovery without spamming normal operation —
+            // unlike the index/manifest load paths, a null here is not evidence of corruption.
+            logger.log(Level.FINE, "No recoverable local index in pack blob: ${e.message}", e)
             null
         }
     }

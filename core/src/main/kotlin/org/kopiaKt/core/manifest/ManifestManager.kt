@@ -1,5 +1,6 @@
 package org.kopiaKt.core.manifest
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
@@ -14,6 +15,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Clock
 import java.time.Instant
+import java.util.logging.Level
+import java.util.logging.Logger
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
@@ -398,9 +401,17 @@ class ManifestManager(
                         committedEntries[manifestId] = entry
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
-                // Skip malformed manifest content
-                // In Go, there's KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS env var
+                // Skip malformed manifest content so one bad blob can't fail the whole load, but log
+                // it — silently dropping it hides data loss. (Go keeps this non-fatal too, gated by
+                // KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS; making it fatal is deferred future work.)
+                logger.log(
+                    Level.WARNING,
+                    "Skipping malformed manifest content $contentId: ${e.message}",
+                    e
+                )
             }
         }
 
@@ -456,6 +467,8 @@ class ManifestManager(
     }
 
     companion object {
+        private val logger = Logger.getLogger(ManifestManager::class.java.name)
+
         const val CONTENT_PREFIX = 'm'
         const val TYPE_LABEL_KEY = "type"
         const val DEFAULT_AUTO_COMPACTION_THRESHOLD = 16

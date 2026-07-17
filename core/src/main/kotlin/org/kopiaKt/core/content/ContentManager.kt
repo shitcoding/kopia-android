@@ -1,5 +1,6 @@
 package org.kopiaKt.core.content
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.kopiaKt.core.blob.BlobId
@@ -22,6 +23,8 @@ import org.kopiaKt.core.pack.PackIndexFactory
 import org.kopiaKt.core.pack.PackIndexV1
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicLong
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Core content-addressable storage manager.
@@ -460,8 +463,18 @@ class ContentManager(
                         }
                         // Otherwise keep existing (it has higher or equal timestamp)
                     }
+                } catch (e: CancellationException) {
+                    throw e // never swallow coroutine cancellation
                 } catch (e: Exception) {
-                    // Skip invalid index blobs - log to stderr for debugging if needed
+                    // Skip an unreadable index blob so one bad blob can't fail the whole load, but
+                    // log it — silently dropping an index hides data loss (a decrypt/parse failure
+                    // means its contents disappear from the lookup). Surfacing a structured
+                    // corruption count to callers is future work; no caller consumes one yet.
+                    logger.log(
+                        Level.WARNING,
+                        "Skipping unreadable index blob ${metadata.blobId.value}: ${e.message}",
+                        e
+                    )
                 }
             }
         }
@@ -514,6 +527,8 @@ class ContentManager(
         private val SPECIAL_PREFIXES = setOf('m', 'x') // manifest, index content
 
         private val secureRandom = SecureRandom()
+
+        private val logger = Logger.getLogger(ContentManager::class.java.name)
     }
 }
 
