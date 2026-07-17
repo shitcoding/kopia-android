@@ -1,7 +1,6 @@
 package org.kopiaKt.core.pack
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -10,6 +9,8 @@ import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Tests for Pack Index V2 format parsing and building.
@@ -36,34 +37,29 @@ import org.kopiaKt.core.content.ContentInfo
 class PackIndexV2Test {
 
     // ===== Header Parsing Tests =====
+    // Header parsing is exercised through the public open() entry point (the parser itself is a
+    // private implementation detail of PackIndexV2Impl); these assert its behaviour on the boundary.
 
     @Test
-    fun `parseHeader should read valid V2 header`() {
-        // 1700000000 = 0x6553F100 in hex (big-endian)
-        // Header: version=2, keySize=17, entrySize=16, entryCount=5, packCount=2, formatCount=1, baseTimestamp=1700000000
+    fun `open should read a valid empty V2 header`() {
+        // Minimal valid header: version=2, keySize=17, entrySize=16, all counts 0.
         val header = byteArrayOf(
             0x02,                   // version
             0x11,                   // keySize = 17
             0x00, 0x10,             // entrySize = 16 (minimum)
-            0x00, 0x00, 0x00, 0x05, // entryCount = 5
-            0x00, 0x00, 0x00, 0x02, // packCount = 2
-            0x01,                   // formatCount = 1
-            0x65, 0x53, 0xF1.toByte(), 0x00 // baseTimestamp = 1700000000 (0x6553F100)
+            0x00, 0x00, 0x00, 0x00, // entryCount = 0
+            0x00, 0x00, 0x00, 0x00, // packCount = 0
+            0x00,                   // numFormatInfos = 0
+            0x65, 0x53, 0xF1.toByte(), 0x00 // baseTimestamp = 1700000000
         )
 
-        val info = PackIndexV2.parseHeader(header)
-
-        assertEquals(2, info.version)
-        assertEquals(17, info.keySize)
-        assertEquals(16, info.entrySize)
-        assertEquals(5, info.entryCount)
-        assertEquals(2u, info.packCount)
-        assertEquals(1, info.formatCount)
-        assertEquals(1700000000u, info.baseTimestamp)
+        val index = PackIndexV2.open(header)
+        assertEquals(0, index.approximateCount())
+        assertNull(index.getInfo(ContentId.parse("0123456789abcdef")))
     }
 
     @Test
-    fun `parseHeader should reject wrong version`() {
+    fun `open should reject wrong version`() {
         val header = byteArrayOf(
             0x01, // wrong version (V1)
             0x11, 0x00, 0x10, 0x00, 0x00, 0x00, 0x05,
@@ -71,17 +67,61 @@ class PackIndexV2Test {
         )
 
         assertThrows<IllegalArgumentException> {
-            PackIndexV2.parseHeader(header)
+            PackIndexV2.open(header)
         }
     }
 
     @Test
-    fun `parseHeader should reject too short header`() {
+    fun `open should reject too short header`() {
         val header = byteArrayOf(0x02, 0x11, 0x00, 0x10, 0x00, 0x00)
 
         assertThrows<IllegalArgumentException> {
-            PackIndexV2.parseHeader(header)
+            PackIndexV2.open(header)
         }
+    }
+
+    @Test
+    fun `build should emit the Go-compatible header field layout with nonzero counts`() {
+        // Two entries -> 2 distinct packs (p111/p222) and 2 distinct formats (gzip vs zstd), so every
+        // header count is nonzero. This pins the exact byte offsets/encoding against Go's index_v2;
+        // the round-trip tests only prove build/open are mutually consistent, not the wire layout.
+        val base = 1700000000L
+        val entries = listOf(
+            ContentInfo(
+                contentId = ContentId.parse("1111"),
+                packBlobId = BlobId("p111"),
+                timestampSeconds = base,
+                originalLength = 100u, packedLength = 90u, packOffset = 0u,
+                compressionHeaderId = 0x1000, formatVersion = 1, encryptionKeyId = 0
+            ),
+            ContentInfo(
+                contentId = ContentId.parse("2222"),
+                packBlobId = BlobId("p222"),
+                timestampSeconds = base + 5,
+                originalLength = 200u, packedLength = 180u, packOffset = 90u,
+                compressionHeaderId = 0x1100, formatVersion = 1, encryptionKeyId = 0
+            )
+        )
+
+        val data = PackIndexV2.build(entries)
+
+        // Layout: [0]=version [1]=keySize [2..3]=entrySize [4..7]=entryCount
+        //         [8..11]=packCount [12]=numFormatInfos [13..16]=baseTimestamp (all big-endian)
+        assertEquals(2, data[0].toInt() and 0xFF, "version")
+        assertEquals(3, data[1].toInt() and 0xFF, "keySize = 1 marker + 2 hash bytes")
+        assertEquals(
+            19,
+            ByteBuffer.wrap(data, 2, 2).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF,
+            "entrySize"
+        )
+        assertEquals(2, ByteBuffer.wrap(data, 4, 4).order(ByteOrder.BIG_ENDIAN).int, "entryCount")
+        assertEquals(2, ByteBuffer.wrap(data, 8, 4).order(ByteOrder.BIG_ENDIAN).int, "packCount")
+        assertEquals(2, data[12].toInt() and 0xFF, "numFormatInfos")
+        assertEquals(
+            base,
+            ByteBuffer.wrap(data, 13, 4).order(ByteOrder.BIG_ENDIAN).int.toLong() and 0xFFFFFFFFL,
+            "baseTimestamp"
+        )
     }
 
     // ===== Index Building Tests =====
