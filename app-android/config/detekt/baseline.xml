@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:WebViewSetup.kt$KopiaWebViewClient$(url.scheme == "http" || url.scheme == "https") &amp;&amp; request.isForMainFrame &amp;&amp; request.hasGesture()</ID>
+    <ID>ConstructorParameterNaming:KopiaWebBridge.kt$KopiaWebBridge$private val _repositoryManager: KopiaRepositoryManager?</ID>
+    <ID>ConstructorParameterNaming:KopiaWebBridge.kt$KopiaWebBridge$private val _sourceManager: BackupSourceManager?</ID>
+    <ID>ConstructorParameterNaming:KopiaWebBridge.kt$KopiaWebBridge$private val _taskManager: TaskManager?</ID>
+    <ID>CyclomaticComplexMethod:WebModels.kt$WebConnectionConfig$fun toDomain(): ConnectionConfig</ID>
+    <ID>ExpressionBodySyntax:EncryptedCredentialRepository.kt$EncryptedCredentialRepository$return sharedPreferences.contains(keyForConnection(connectionId))</ID>
+    <ID>ExpressionBodySyntax:EncryptedCredentialRepository.kt$EncryptedCredentialRepository$return sharedPreferences.getString(keyForConnection(connectionId), null)</ID>
+    <ID>ExpressionBodySyntax:HiltWorkerModule.kt$HiltWorkerModule$return KopiaWorkerFactory(repositoryManager)</ID>
+    <ID>ExpressionBodySyntax:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$return emptyList()</ID>
+    <ID>ExpressionBodySyntax:KopiaWebBridge.kt$KopiaWebBridge$return json.encodeToString(WebResult.success("pong"))</ID>
+    <ID>ExpressionBodySyntax:RestoreFilesUseCase.kt$RestoreFilesUseCase$return snapshotRepository.restore(snapshotId, sourcePath, destinationUri, options)</ID>
+    <ID>ExpressionBodySyntax:SnapshotInfo.kt$SourceInfo$return "$userName@$host:$path"</ID>
+    <ID>ExpressionBodySyntax:WebViewSetup.kt$KopiaWebViewClient$return assetLoader.shouldInterceptRequest(request.url) ?: blockedResponse()</ID>
+    <ID>ForbiddenComment:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$// TODO: Implement</ID>
+    <ID>ForbiddenComment:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$// TODO: Implement persistent storage of connections</ID>
+    <ID>LargeClass:KopiaWebBridge.kt$KopiaWebBridge</ID>
+    <ID>LongMethod:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$override fun restore( snapshotId: String, sourcePath: String, destinationUri: String, options: RestoreOptions ): Flow&lt;RestoreProgress&gt;</ID>
+    <ID>MagicNumber:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$32</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$"Storage permission required. Please grant \"All files access\" permission to access local repositories."</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$WebResult.error&lt;String&gt;("Directory does not exist and cannot be created: ${domainConfig.path}")</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$json.encodeToString(WebResult.error&lt;List&lt;WebSnapshotWithRetention&gt;&gt;(e.message ?: "Error listing snapshots with retention"))</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$onFailure = { json.encodeToString(WebResult.error&lt;WebRepositoryConnection&gt;(it.message ?: "Unknown error")) }</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$val errorResult = json.encodeToString(WebResult.error&lt;WebRepositoryConnection&gt;(e.message ?: "Parse error"))</ID>
+    <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$val keyDerivationAlgorithm = "scrypt-${BuildConfig.SCRYPT_N}-${BuildConfig.SCRYPT_R}-${BuildConfig.SCRYPT_P}"</ID>
+    <ID>MaxLineLength:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$override suspend</ID>
+    <ID>SwallowedException:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$e: Exception</ID>
+    <ID>TooManyFunctions:KopiaWebBridge.kt$KopiaWebBridge</ID>
+    <ID>UnnecessaryParentheses:KopiaWebBridge.kt$KopiaWebBridge$(if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)</ID>
+    <ID>UnnecessaryParentheses:RestoreProgress.kt$RestoreProgress$(restoredBytes * 100)</ID>
+    <ID>UnusedImports:WebModels.kt$import kotlinx.serialization.SerialName</ID>
+    <ID>UnusedImports:WebModels.kt$import org.kopiaKt.app.domain.model.FileEntryType</ID>
+    <ID>UnusedImports:WebModels.kt$import org.kopiaKt.app.domain.model.StorageType</ID>
+    <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$mode: String</ID>
+    <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$requestJson: String</ID>
+    <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$sourceId: String</ID>
+    <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$taskId: String</ID>
+    <ID>UnusedPrivateProperty:KopiaWebBridge.kt$KopiaWebBridge$val existing = sourceManager.getSource(sourceId) ?: return json.encodeToString( WebResult.error&lt;Boolean&gt;("Source not found: $sourceId") )</ID>
+    <ID>UseCheckOrError:KopiaWebBridge.kt$KopiaWebBridge$throw IllegalStateException("Context not available")</ID>
+    <ID>UseCheckOrError:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$throw IllegalStateException("Not connected to repository")</ID>
+  </CurrentIssues>
+</SmellBaseline>
