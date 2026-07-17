@@ -12,6 +12,7 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.ExtendBlobRetentionOptions
+import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
@@ -66,6 +67,7 @@ class S3BlobStorage private constructor(
         private const val S3_STORAGE_TYPE = "s3"
         private const val CONTENT_TYPE = "application/x-kopia"
         private const val CONFIG_NAME = ".storageconfig"
+        private const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
         /**
          * Creates a new S3 blob storage instance.
@@ -453,6 +455,12 @@ class S3BlobStorage private constructor(
         // Check for not found
         if (e.statusCode() == 404) {
             throw BlobNotFoundException(blobId)
+        }
+
+        // Requested range not satisfiable — map to the same typed error the SFTP/WebDAV backends use
+        // so an out-of-range read surfaces consistently instead of leaking a raw S3Exception.
+        if (e.statusCode() == HTTP_RANGE_NOT_SATISFIABLE) {
+            throw InvalidBlobRangeException("Requested range not satisfiable for blob ${blobId.value}")
         }
 
         throw e

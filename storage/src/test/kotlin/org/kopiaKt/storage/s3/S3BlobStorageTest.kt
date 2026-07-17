@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobNotFoundException
+import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
@@ -303,6 +304,22 @@ class S3BlobStorageTest {
 
             assertThrows<InvalidCredentialsException> {
                 storage.getBlob(blobId)
+            }
+        }
+
+        @Test
+        fun `should throw InvalidBlobRangeException for a 416 range-not-satisfiable response`() = runTest {
+            val blobId = BlobId("test-blob")
+
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder()
+                .message("Requested Range Not Satisfiable")
+                .statusCode(416)
+                .build()
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 1_000_000, length = 10)
             }
         }
 
