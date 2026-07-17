@@ -76,6 +76,16 @@ androidWebViewHierarchy: devtools
 - inputText: "kopia123"
 - hideKeyboard
 
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). The secure known_hosts / fingerprint paths
+# are covered by storage-layer unit tests.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
+
 # Scroll down to ensure repository password field is visible
 - scroll
 

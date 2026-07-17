@@ -73,6 +73,16 @@ androidWebViewHierarchy: devtools
 - inputText: "kopia123"
 - hideKeyboard
 
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). Harmless in the validation tests below —
+# they fail form validation before ever connecting.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
+
 - scroll
 
 - tapOn:
@@ -139,6 +149,16 @@ androidWebViewHierarchy: devtools
 - eraseText: 1
 - inputText: "kopia123"
 - hideKeyboard
+
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). Harmless in the validation tests below —
+# they fail form validation before ever connecting.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
 
 - scroll
 
@@ -211,6 +231,16 @@ androidWebViewHierarchy: devtools
 - eraseText: 1
 - inputText: "wrongpassword"
 - hideKeyboard
+
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). Harmless in the validation tests below —
+# they fail form validation before ever connecting.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
 
 - scroll
 
@@ -286,6 +316,16 @@ androidWebViewHierarchy: devtools
 - inputText: "kopia123"
 - hideKeyboard
 
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). Harmless in the validation tests below —
+# they fail form validation before ever connecting.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
+
 - scroll
 
 - tapOn:
@@ -360,6 +400,16 @@ androidWebViewHierarchy: devtools
 - inputText: "kopia123"
 - hideKeyboard
 
+# Tick the insecure "trust any host key" box so the fail-closed verifier accepts the container's
+# throwaway key (debug build only; release rejects it). Harmless in the validation tests below —
+# they fail form validation before ever connecting.
+- scrollUntilVisible:
+    element:
+      id: "sftp-insecure-checkbox"
+    direction: DOWN
+- tapOn:
+    id: "sftp-insecure-checkbox"
+
 - scroll
 
 - tapOn:
@@ -376,3 +426,80 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible: "Snapshots"
     timeout: 60000
+
+# ========================================
+# Test 6: Fail closed when no host-key material is supplied
+# ========================================
+# Correct credentials but NO known_hosts / fingerprint / insecure opt-in -> the storage layer must
+# reject the unknown host key (HostKeyNotTrustedException) instead of silently trusting it. This is
+# the whole point of the fail-closed change: host-key verification happens before password auth.
+# Test 5 left the app on the Snapshots screen (a successful connect), so a single `back` doesn't
+# reach Welcome. Reset with stopApp + launchApp — the same clean reset the flow opens with — which
+# returns to Welcome from any screen.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 15000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 5000
+- tapOn:
+    id: "storage-tab-sftp"
+
+- tapOn:
+    id: "sftp-host-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "10.0.2.2"
+- hideKeyboard
+
+- tapOn:
+    id: "sftp-port-input"
+- waitForAnimationToEnd
+- eraseText: 10
+- eraseText: 1
+- inputText: "2222"
+- hideKeyboard
+
+- tapOn:
+    id: "sftp-username-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "kopia"
+- hideKeyboard
+
+- tapOn:
+    id: "sftp-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/upload/kopia-e2e"
+- hideKeyboard
+
+- tapOn:
+    id: "sftp-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "kopia123"
+- hideKeyboard
+
+# Deliberately DO NOT tick the insecure checkbox or provide host-key material.
+- scroll
+
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "test123"
+- hideKeyboard
+
+- tapOn:
+    id: "connect-button"
+
+# The connection must be rejected with the fail-closed host-key error (message pinned during the
+# device run from the on-device hierarchy; "not trusted" is the stable distinctive phrase).
+- extendedWaitUntil:
+    visible:
+      text: ".*not trusted.*"
+    timeout: 15000
