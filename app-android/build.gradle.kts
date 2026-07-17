@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.robolectric.junit5)
 }
 
 android {
@@ -108,6 +109,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing.unit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.robolectric.junit5)
     testRuntimeOnly(libs.junit5.engine)
     androidTestImplementation(libs.bundles.testing.android)
 }

@@ -11,6 +11,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import dagger.hilt.android.AndroidEntryPoint
+import org.kopiaKt.app.bridge.APP_URL
 import org.kopiaKt.app.bridge.KopiaWebBridge
 import org.kopiaKt.app.bridge.configureForKopia
 
@@ -64,8 +65,8 @@ class MainActivity : ComponentActivity() {
                 bridge.attachWebView(this)
             }
 
-            // Load the React app from assets
-            loadUrl("file:///android_asset/react/index.html")
+            // Load the React app from the app-controlled HTTPS virtual origin (WebViewAssetLoader)
+            loadUrl(APP_URL)
         }
 
         container!!.addView(webView, FrameLayout.LayoutParams(
