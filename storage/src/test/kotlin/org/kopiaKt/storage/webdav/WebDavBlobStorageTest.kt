@@ -112,6 +112,35 @@ class WebDavBlobStorageTest {
         }
 
         @Test
+        fun `throws when the server returns a wrong-size body for a ranged read`() = runTest {
+            // Server ignored the Range header and returned the whole file instead of the 3 requested
+            // bytes; returning it as-is would hand back silently-wrong content for the blob.
+            val blobId = BlobId("short")
+            val wholeFile = "the entire file body".toByteArray() // 20 bytes, not the requested 3
+
+            every {
+                mockClient.get("${baseUrl}short.f", mapOf("Range" to "bytes=5-7"))
+            } returns ByteArrayInputStream(wholeFile)
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 5, length = 3)
+            }
+        }
+
+        @Test
+        fun `throws beyond-blob-size for an empty body on a fixed-length read`() = runTest {
+            // An empty 206 body for a positive-length range means the offset is at/past EOF.
+            val blobId = BlobId("short")
+            every {
+                mockClient.get("${baseUrl}short.f", mapOf("Range" to "bytes=5-7"))
+            } returns ByteArrayInputStream(ByteArray(0))
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 5, length = 3)
+            }
+        }
+
+        @Test
         fun `returns empty array for zero-length read`() = runTest {
             val blobId = BlobId("short")
 

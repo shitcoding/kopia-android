@@ -190,14 +190,22 @@ class WebDavBlobStorage private constructor(
                 inputStream.use { stream ->
                     val bytes = stream.readBytes()
 
-                    // Verify we got the expected length
+                    // A fixed-length ranged read must return exactly `length` bytes. An empty body
+                    // means the range is beyond EOF; any other wrong size means the server
+                    // mishandled the Range header (e.g. ignored it and returned the whole file — a
+                    // 200 instead of 206), in which case `bytes` is the wrong content entirely.
+                    // Returning it as-is would hand back silently-wrong data for a content-addressed
+                    // blob, so fail loudly instead.
                     if (length > 0 && bytes.size.toLong() != length) {
-                        // This might indicate the blob is smaller than expected
                         if (bytes.isEmpty()) {
                             throw InvalidBlobRangeException(
                                 "Requested offset $offset is beyond blob size"
                             )
                         }
+                        throw InvalidBlobRangeException(
+                            "Expected $length bytes for the range at offset $offset " +
+                                "but the server returned ${bytes.size}"
+                        )
                     }
 
                     bytes
