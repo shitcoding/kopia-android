@@ -1,6 +1,7 @@
 package org.kopiaKt.core.format
 
 import kotlinx.serialization.Serializable
+import org.kopiaKt.core.time.formatRfc3339Nano
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -54,7 +55,7 @@ object InstantSerializer : kotlinx.serialization.KSerializer<Instant> {
     )
 
     override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: Instant) {
-        encoder.encodeString(value.toString())
+        encoder.encodeString(formatRfc3339Nano(value))
     }
 
     override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Instant {

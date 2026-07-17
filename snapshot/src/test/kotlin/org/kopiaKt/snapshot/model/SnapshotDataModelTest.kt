@@ -710,8 +710,29 @@ class SnapshotDataModelTest {
 
             val serialized = json.encodeToString(entry)
 
-            // Should contain ISO-8601 format
-            assertTrue(serialized.contains("2024-01-15T10:30:00"))
+            assertTrue(serialized.contains(""""mtime":"2024-01-15T10:30:00.123456789Z""""), serialized)
+        }
+
+        // Byte-exact formatting is covered by core's Rfc3339NanoTest; these exercise the snapshot
+        // serializer end-to-end (through kotlinx serialization).
+
+        @Test
+        fun `serialized mtime never uses ISO_INSTANT zero-padded fraction`() {
+            val instant = java.time.Instant.parse("2024-01-15T10:30:00.5Z")
+            val entry = DirEntry(name = "t", type = EntryType.FILE, modTime = instant, objectId = "id")
+            val serialized = json.encodeToString(entry)
+            assertTrue(serialized.contains(""""mtime":"2024-01-15T10:30:00.5Z""""), serialized)
+            assertTrue(!serialized.contains(".500Z"), serialized)
+        }
+
+        @Test
+        fun `RFC3339Nano round-trips through the serializer for all fraction shapes`() {
+            listOf(0L, 500_000_000L, 120_000_000L, 1_000L, 123_456_789L).forEach { nanos ->
+                val instant = java.time.Instant.parse("2024-01-15T10:30:00Z").plusNanos(nanos)
+                val entry = DirEntry(name = "t", type = EntryType.FILE, modTime = instant, objectId = "id")
+                val decoded = json.decodeFromString<DirEntry>(json.encodeToString(entry))
+                assertEquals(instant, decoded.modTime, "round-trip failed for nanos=$nanos")
+            }
         }
     }
 }

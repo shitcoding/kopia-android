@@ -6,23 +6,20 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import org.kopiaKt.core.time.formatRfc3339Nano
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 
 /**
- * Serializer for java.time.Instant to/from RFC3339 format.
- *
- * Go uses RFC3339Nano format: "2006-01-02T15:04:05.999999999Z07:00"
- * This serializer handles both with and without nanoseconds.
+ * Serializer for java.time.Instant to/from Go's RFC3339Nano format
+ * ("2006-01-02T15:04:05.999999999Z07:00"). Serializes byte-identically to Go via
+ * [formatRfc3339Nano]; parses both fractional and non-fractional forms.
  */
 internal object InstantSerializer : KSerializer<Instant> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Instant", PrimitiveKind.STRING)
 
-    private val formatter = DateTimeFormatter.ISO_INSTANT
-
     override fun serialize(encoder: Encoder, value: Instant) {
-        encoder.encodeString(formatter.format(value))
+        encoder.encodeString(formatRfc3339Nano(value))
     }
 
     override fun deserialize(decoder: Decoder): Instant {

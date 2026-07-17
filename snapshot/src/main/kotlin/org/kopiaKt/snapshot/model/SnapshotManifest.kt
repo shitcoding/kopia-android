@@ -10,6 +10,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import org.kopiaKt.core.time.formatRfc3339Nano
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -360,9 +361,6 @@ internal object InstantSerializer : KSerializer<Instant> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Instant", PrimitiveKind.STRING)
 
-    // Formatter that outputs nanoseconds with trailing zeros trimmed
-    private val outputFormatter: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
-
     // Parser that handles various input formats including timezone offsets
     private val inputFormatter: DateTimeFormatter = DateTimeFormatterBuilder()
         .appendPattern("yyyy-MM-dd'T'HH:mm:ss")
@@ -378,7 +376,7 @@ internal object InstantSerializer : KSerializer<Instant> {
         .toFormatter()
 
     override fun serialize(encoder: Encoder, value: Instant) {
-        encoder.encodeString(outputFormatter.format(value))
+        encoder.encodeString(formatRfc3339Nano(value))
     }
 
     override fun deserialize(decoder: Decoder): Instant {
