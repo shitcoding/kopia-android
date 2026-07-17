@@ -61,6 +61,20 @@ data class SftpOptions(
     val knownHostsData: String = "",
 
     /**
+     * SSH host-key fingerprint to pin, in sshj format ("SHA256:<base64>" or MD5 hex "aa:bb:..").
+     * When set (and no known_hosts is used), the server's key must match this fingerprint — a secure
+     * way to trust a host without a known_hosts file.
+     */
+    val hostKeyFingerprint: String = "",
+
+    /**
+     * Explicitly disable SSH host-key verification (trust ANY server key). INSECURE — it exposes the
+     * connection to MITM and must never be enabled in release builds. For local/testing use only;
+     * production connections must supply known_hosts data/file or a pinned [hostKeyFingerprint].
+     */
+    val insecureSkipHostKeyVerification: Boolean = false,
+
+    /**
      * Whether to use external SSH command instead of built-in SSH client.
      * Not supported in Kotlin implementation.
      */

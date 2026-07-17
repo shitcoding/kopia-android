@@ -8,6 +8,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.sftp.FileAttributes
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobNotFoundException
+import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
@@ -60,6 +62,23 @@ class SftpBlobStorageTest {
             readOnly = false,
             directoryShards = listOf(1, 3)
         )
+    }
+
+    @Nested
+    @DisplayName("host key verification")
+    inner class HostKeyVerificationTests {
+
+        @Test
+        fun `create fails closed without known_hosts, fingerprint, or insecure opt-in`() {
+            // Point known_hosts at a path that cannot exist so the default ~/.ssh/known_hosts can't
+            // satisfy it; with no fingerprint and no insecure opt-in, the verifier must reject rather
+            // than trust any server key. The rejection happens before any network connection (host is
+            // a closed local port so that if the fail-closed path regressed, the RED failure is fast).
+            val failClosed = options.copy(host = "127.0.0.1", port = 1, knownHostsFile = "/dev/null/nonexistent")
+            assertThrows<HostKeyNotTrustedException> {
+                runBlocking { SftpBlobStorage.create(failClosed, isCreate = false) }
+            }
+        }
     }
 
     @Nested

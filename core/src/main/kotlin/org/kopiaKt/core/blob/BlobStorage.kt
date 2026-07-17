@@ -229,6 +229,13 @@ class InvalidBlobRangeException(message: String) : Exception(message)
 class InvalidCredentialsException(message: String = "The provided token has expired") : Exception(message)
 
 /**
+ * Thrown when a server's host key is not trusted (e.g. SFTP with no known_hosts entry or matching
+ * pinned fingerprint). Distinct from [InvalidCredentialsException] so callers/UI don't mistake a
+ * potential MITM for a wrong password. Never retryable.
+ */
+class HostKeyNotTrustedException(message: String) : Exception(message)
+
+/**
  * Exception thrown when a put option is not supported by the backend.
  */
 class UnsupportedPutOptionException(option: String) : Exception("Unsupported put option: $option")

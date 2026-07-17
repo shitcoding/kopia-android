@@ -12,6 +12,7 @@ import net.schmizz.sshj.sftp.OpenMode
 import net.schmizz.sshj.sftp.RemoteFile
 import net.schmizz.sshj.sftp.SFTPClient
 import net.schmizz.sshj.sftp.SFTPException
+import net.schmizz.sshj.transport.verification.FingerprintVerifier
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import org.kopiaKt.core.blob.BlobId
@@ -19,6 +20,7 @@ import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
+import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
@@ -218,6 +220,13 @@ class SftpBlobStorage private constructor(
         return ssh
     }
 
+    /**
+     * Builds the SSH host-key verifier, **failing closed** by default: if no host-key material is
+     * provided (known_hosts data/file or a pinned fingerprint) the connection is rejected rather than
+     * trusting any key. Trusting an unknown host key exposes SFTP credentials and backup data to MITM.
+     * The insecure "trust anything" path is reachable only when the caller explicitly opts in via
+     * [SftpOptions.insecureSkipHostKeyVerification] (dev/testing only — must be gated out of release).
+     */
     private fun createHostKeyVerifier(): HostKeyVerifier {
         return when {
             options.knownHostsData.isNotEmpty() -> {
@@ -227,16 +236,18 @@ class SftpBlobStorage private constructor(
                 tempFile.writeText(options.knownHostsData)
                 OpenSSHKnownHosts(tempFile)
             }
-            else -> {
-                val knownHostsPath = options.effectiveKnownHostsFile()
-                val knownHostsFile = File(knownHostsPath)
-                if (knownHostsFile.exists()) {
-                    OpenSSHKnownHosts(knownHostsFile)
-                } else {
-                    // Accept all host keys (not recommended for production)
-                    PromiscuousVerifier()
-                }
-            }
+            options.hostKeyFingerprint.isNotEmpty() ->
+                FingerprintVerifier.getInstance(options.hostKeyFingerprint)
+            File(options.effectiveKnownHostsFile()).exists() ->
+                OpenSSHKnownHosts(File(options.effectiveKnownHostsFile()))
+            options.insecureSkipHostKeyVerification ->
+                // Explicit opt-in ONLY. Trusts any server key — MITM-exposed; never in release builds.
+                PromiscuousVerifier()
+            else -> throw HostKeyNotTrustedException(
+                "SFTP host key for ${options.host}:${options.port} is not trusted: no knownHostsData, " +
+                    "no known_hosts file, and no hostKeyFingerprint. Provide one of those, or set " +
+                    "insecureSkipHostKeyVerification=true for local testing only.",
+            )
         }
     }
 
@@ -614,9 +625,9 @@ class SftpBlobStorage private constructor(
 }
 
 /**
- * Host key verifier that accepts all host keys.
- * Used when no known_hosts file is available.
- * NOT RECOMMENDED FOR PRODUCTION USE.
+ * Host key verifier that accepts ALL host keys (no MITM protection).
+ * Reachable only via an explicit [SftpOptions.insecureSkipHostKeyVerification] opt-in — the default
+ * now fails closed. For local/testing use only; must never be enabled in release builds.
  */
 private class PromiscuousVerifier : HostKeyVerifier {
     override fun verify(hostname: String?, port: Int, key: PublicKey?): Boolean = true

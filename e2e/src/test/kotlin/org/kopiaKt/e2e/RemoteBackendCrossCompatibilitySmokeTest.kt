@@ -583,7 +583,9 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             port = port,
             username = "testuser",
             password = "testpass",
-            knownHostsData = "" // Empty means accept all (uses PromiscuousVerifier)
+            // Ephemeral test SFTP server has a throwaway host key; opt into the insecure verifier
+            // explicitly (the default now fails closed on unknown host keys).
+            insecureSkipHostKeyVerification = true,
         )
         return SftpBlobStorage.create(options, isCreate = isCreate)
     }

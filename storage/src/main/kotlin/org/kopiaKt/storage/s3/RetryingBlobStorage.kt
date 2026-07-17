@@ -9,6 +9,7 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.ExtendBlobRetentionOptions
+import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import software.amazon.awssdk.services.s3.model.S3Exception
@@ -155,6 +156,7 @@ class RetryingBlobStorage(
         // Never retry these errors
         if (e is BlobNotFoundException) return false
         if (e is InvalidCredentialsException) return false
+        if (e is HostKeyNotTrustedException) return false
         if (e is IllegalArgumentException) return false
         if (e is UnsupportedOperationException) return false
 

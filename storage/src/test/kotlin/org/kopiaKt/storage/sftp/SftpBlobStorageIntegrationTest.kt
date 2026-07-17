@@ -65,7 +65,10 @@ class SftpBlobStorageIntegrationTest {
         port = sftp.getMappedPort(22),
         username = USERNAME,
         password = password,
+        // The ephemeral atmoz/sftp container generates a throwaway host key not in any known_hosts,
+        // so opt into the insecure verifier explicitly (test-only; the default now fails closed).
         knownHostsFile = "/dev/null/nonexistent",
+        insecureSkipHostKeyVerification = true,
         directoryShards = listOf(1, 3)
     )
 
