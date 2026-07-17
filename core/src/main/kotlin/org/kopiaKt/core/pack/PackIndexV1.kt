@@ -44,6 +44,16 @@ object PackIndexV1 {
     const val MAX_ENTRY_SIZE = 256
 
     /**
+     * Maximum key size for a populated index: 1 marker byte + up to [ContentId.MAX_HASH_SIZE]
+     * hash bytes. A larger value in the header means corruption (the empty-index sentinel uses
+     * keySize 0xFF, but only ever with entryCount 0).
+     */
+    const val MAX_KEY_SIZE = ContentId.MAX_HASH_SIZE + 1
+
+    /** Timestamp occupies the upper 48 bits of the entry's first 8 bytes. */
+    const val TIMESTAMP_48BIT_MASK = 0xFFFF_FFFF_FFFFL
+
+    /**
      * Header information parsed from a V1 index.
      */
     data class HeaderInfo(
@@ -97,6 +107,14 @@ object PackIndexV1 {
 
         require(entryCount >= 0) {
             "Invalid entry count: $entryCount"
+        }
+
+        // A populated index's key is 1 marker byte + up to MAX_HASH_SIZE hash bytes. A keySize past
+        // that is a corrupt header: getInfo would silently miss (size mismatch) and iterate would
+        // slice garbage content IDs — fail loudly instead. The empty-index sentinel (keySize 0xFF)
+        // is only ever written with entryCount 0, so leave it untouched.
+        require(entryCount == 0 || keySize <= MAX_KEY_SIZE) {
+            "Invalid key size: $keySize for $entryCount entries, must be <= $MAX_KEY_SIZE"
         }
 
         return HeaderInfo(version, keySize, entrySize, entryCount)
@@ -360,7 +378,9 @@ object PackIndexV1 {
         val packBlobId = entry.packBlobId.value
         val packBlobIdLength = packBlobId.length
 
-        var timestampAndFlags = entry.timestampSeconds shl 16
+        // Mask to 48 bits so an out-of-range timestamp can't bleed into the format-version/length
+        // bytes. For any realistic timestamp this is a no-op and matches Go's uint64<<16 truncation.
+        var timestampAndFlags = (entry.timestampSeconds and TIMESTAMP_48BIT_MASK) shl 16
         timestampAndFlags = timestampAndFlags or ((entry.formatVersion.toLong() and 0xFF) shl 8)
         timestampAndFlags = timestampAndFlags or (packBlobIdLength.toLong() and 0xFF)
 

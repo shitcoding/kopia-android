@@ -268,6 +268,27 @@ class PackIndexFuzzTest {
         }
 
         @Test
+        fun `V1 should reject keySize exceeding max for a populated index`() {
+            // keySize=200 (> MAX_KEY_SIZE 33) with entries -> corrupt header, iterate would slice
+            // garbage content IDs. Provide enough bytes so parseHeader (not the capacity check) fails.
+            val stride = 200 + PackIndexV1.ENTRY_SIZE
+            val data = buildV1Header(keySize = 200, entryCount = 1) + ByteArray(stride)
+            assertThrows<IllegalArgumentException> {
+                PackIndexV1.open(data, 0u)
+            }
+        }
+
+        @Test
+        fun `V1 should accept the empty-index sentinel keySize`() {
+            // The empty index is written with the keySize 0xFF sentinel and entryCount 0; the
+            // upper-bound check must not reject it.
+            val emptyIndex = PackIndexV1.build(emptyList())
+            assertDoesNotThrow {
+                PackIndexV1.open(emptyIndex, 0u)
+            }
+        }
+
+        @Test
         fun `V2 should reject zero keySize and entrySize with nonzero entryCount`() {
             // V2 header with keySize=0, entrySize=0, entryCount=1000 -> stride=0, CPU DoS
             val data = ByteArray(17)
