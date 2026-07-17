@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* KopiaKt Design System - Material Design 3 Inspired */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Fonts are served from the app's own origin only (no remote fetch); the font stack falls back to
+   system-ui so the WebView stays self-contained under the strict Content-Security-Policy. */
 
 @layer base {
   :root {
