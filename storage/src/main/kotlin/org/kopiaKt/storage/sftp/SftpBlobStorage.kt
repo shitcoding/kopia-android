@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.sftp.FileAttributes
 import net.schmizz.sshj.sftp.OpenMode
+import net.schmizz.sshj.sftp.RemoteFile
 import net.schmizz.sshj.sftp.SFTPClient
 import net.schmizz.sshj.sftp.SFTPException
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
@@ -56,6 +57,9 @@ class SftpBlobStorage private constructor(
         private const val COMPLETE_BLOB_SUFFIX = ".f"
         private const val TEMP_FILE_RANDOM_SUFFIX_LEN = 8
         private const val MAX_NON_SHARDED_LENGTH = 20
+
+        /** Maximum directory recursion depth to prevent infinite loops (mirrors WebDAV). */
+        private const val MAX_WALK_DEPTH = 10
 
         /**
          * Creates a new SFTP blob storage instance.
@@ -273,50 +277,11 @@ class SftpBlobStorage private constructor(
                         }
                         length < 0 -> {
                             // Read from offset to end
-                            val bytesToRead = (fileSize - offset).toInt()
-                            val buffer = ByteArray(bytesToRead)
-                            if (bytesToRead > 0) {
-                                var totalRead = 0
-                                while (totalRead < bytesToRead) {
-                                    val read = remoteFile.read(
-                                        offset + totalRead,
-                                        buffer,
-                                        totalRead,
-                                        bytesToRead - totalRead
-                                    )
-                                    if (read <= 0) break
-                                    totalRead += read
-                                }
-                                if (totalRead < bytesToRead) {
-                                    buffer.copyOf(totalRead)
-                                } else {
-                                    buffer
-                                }
-                            } else {
-                                ByteArray(0)
-                            }
+                            readFully(remoteFile, offset, fileSize - offset)
                         }
                         else -> {
-                            // Read specific length
-                            val bytesToRead = length.toInt()
-                            val buffer = ByteArray(bytesToRead)
-                            var totalRead = 0
-                            while (totalRead < bytesToRead) {
-                                val read = remoteFile.read(
-                                    offset + totalRead,
-                                    buffer,
-                                    totalRead,
-                                    bytesToRead - totalRead
-                                )
-                                if (read <= 0) break
-                                totalRead += read
-                            }
-                            if (totalRead < bytesToRead) {
-                                throw InvalidBlobRangeException(
-                                    "Could only read $totalRead bytes, expected $bytesToRead"
-                                )
-                            }
-                            buffer
+                            // Read a specific length
+                            readFully(remoteFile, offset, length)
                         }
                     }
                 }
@@ -327,6 +292,40 @@ class SftpBlobStorage private constructor(
                 throw e
             }
         }
+
+    /**
+     * Reads exactly [bytesToRead] bytes from [remoteFile] starting at [fileOffset].
+     *
+     * Throws [InvalidBlobRangeException] on a short read so a truncated read never silently
+     * masquerades as complete blob data — both getBlob length branches route through here. The
+     * open-ended branch previously returned the partial buffer instead of failing, which for a
+     * content-addressed backup store means a silently corrupt restore.
+     *
+     * [bytesToRead] is a Long computed and validated before narrowing to Int: a non-positive value
+     * means a read at/past EOF and yields an empty result (matching Go kopia fs semantics), while a
+     * value beyond [Int.MAX_VALUE] (a >2 GiB range that can't fit one JVM array) fails loudly rather
+     * than overflowing to a negative Int and silently returning empty.
+     */
+    private fun readFully(remoteFile: RemoteFile, fileOffset: Long, bytesToRead: Long): ByteArray {
+        if (bytesToRead <= 0) {
+            return ByteArray(0)
+        }
+        if (bytesToRead > Int.MAX_VALUE) {
+            throw InvalidBlobRangeException("Requested read is too large: $bytesToRead bytes")
+        }
+        val size = bytesToRead.toInt()
+        val buffer = ByteArray(size)
+        var totalRead = 0
+        while (totalRead < size) {
+            val read = remoteFile.read(fileOffset + totalRead, buffer, totalRead, size - totalRead)
+            if (read <= 0) break
+            totalRead += read
+        }
+        if (totalRead < size) {
+            throw InvalidBlobRangeException("Could only read $totalRead bytes, expected $size")
+        }
+        return buffer
+    }
 
     override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
         withSftpClient { sftp ->
@@ -351,7 +350,7 @@ class SftpBlobStorage private constructor(
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         val results = withSftpClient { sftp ->
             val collected = mutableListOf<BlobMetadata>()
-            walkDirectory(sftp, options.path, "", prefix, collected)
+            walkDirectory(sftp, options.path, "", prefix, collected, depth = 0)
             collected
         }
 
@@ -365,8 +364,13 @@ class SftpBlobStorage private constructor(
         dirPath: String,
         currentPrefix: String,
         filterPrefix: String,
-        results: MutableList<BlobMetadata>
+        results: MutableList<BlobMetadata>,
+        depth: Int
     ) {
+        // Bound recursion so a server-side symlink cycle can't StackOverflow the walk (mirrors
+        // WebDAV). Real repos are only 1-2 shard levels deep, so the cap is never hit legitimately.
+        if (depth > MAX_WALK_DEPTH) return
+
         try {
             val entries = sftp.ls(dirPath)
 
@@ -390,7 +394,8 @@ class SftpBlobStorage private constructor(
                             "$dirPath/$name",
                             newPrefix,
                             filterPrefix,
-                            results
+                            results,
+                            depth + 1
                         )
                     }
                 } else {

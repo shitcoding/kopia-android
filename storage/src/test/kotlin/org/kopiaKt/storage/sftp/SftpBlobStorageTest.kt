@@ -230,6 +230,49 @@ class SftpBlobStorageTest {
                 storage.getBlob(blobId, offset = -1)
             }
         }
+
+        @Test
+        fun `throws on a short open-ended read instead of silently truncating`() = runTest {
+            // File claims 10 bytes but the server delivers only 4 then EOF. The open-ended (length
+            // = -1) branch used to return the truncated 4 bytes silently — a corrupt restore.
+            val blobId = BlobId("short")
+            every {
+                mockSftpClient.open("$basePath/short.f", any<EnumSet<OpenMode>>())
+            } returns truncatedReadFile(claimedLength = 10L, deliver = 4)
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId)
+            }
+        }
+
+        @Test
+        fun `throws on a short fixed-length read`() = runTest {
+            val blobId = BlobId("short")
+            every {
+                mockSftpClient.open("$basePath/short.f", any<EnumSet<OpenMode>>())
+            } returns truncatedReadFile(claimedLength = 10L, deliver = 4)
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 0, length = 10)
+            }
+        }
+
+        @Test
+        fun `throws on a read larger than Int MAX instead of overflowing to empty`() = runTest {
+            // A >2 GiB range can't fit one JVM array; narrowing to Int would overflow negative and
+            // (pre-fix) silently return empty. It must fail loudly instead.
+            val blobId = BlobId("huge")
+            val mockFile = mockk<RemoteFile>(relaxed = true) {
+                every { length() } returns 3_000_000_000L // > Int.MAX_VALUE
+            }
+            every {
+                mockSftpClient.open("$basePath/huge.f", any<EnumSet<OpenMode>>())
+            } returns mockFile
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId) // open-ended read of the whole 3 GB "file"
+            }
+        }
     }
 
     @Nested
@@ -480,6 +523,18 @@ class SftpBlobStorageTest {
             assertThat(results).hasSize(1)
             assertThat(results[0].blobId.value).isEqualTo("valid")
         }
+
+        @Test
+        fun `does not stack overflow on a directory cycle`() = runTest {
+            // Every directory lists a subdirectory of the same name (a server-side symlink cycle).
+            // Without the recursion-depth cap this walks forever and StackOverflows.
+            val loopDir = mockResourceInfo("loop", isDirectory = true)
+            every { mockSftpClient.ls(any<String>()) } returns listOf(loopDir)
+
+            val results = storage.listBlobs("").toList()
+
+            assertThat(results).isEmpty()
+        }
     }
 
     @Nested
@@ -592,6 +647,28 @@ class SftpBlobStorageTest {
 
             verify { mockSftpClient.close() }
             verify { mockSshClient.disconnect() }
+        }
+    }
+
+    /**
+     * A [RemoteFile] that reports [claimedLength] bytes but delivers only [deliver] bytes and then
+     * signals EOF (-1), simulating a truncated/short read from a misbehaving or racing server.
+     */
+    private fun truncatedReadFile(claimedLength: Long, deliver: Int): RemoteFile {
+        var served = false
+        return mockk(relaxed = true) {
+            every { length() } returns claimedLength
+            every { read(any(), any<ByteArray>(), any(), any()) } answers {
+                if (served) {
+                    -1
+                } else {
+                    served = true
+                    val buffer = secondArg<ByteArray>()
+                    val bufferOffset = thirdArg<Int>()
+                    ByteArray(deliver) { 'a'.code.toByte() }.copyInto(buffer, bufferOffset, 0, deliver)
+                    deliver
+                }
+            }
         }
     }
 
