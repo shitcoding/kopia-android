@@ -286,6 +286,15 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
 
         val formatsOffset = packsOffset + packCount * PackIndexV2.PACK_INFO_SIZE
 
+        // The declared format region must fit within the data (Long arithmetic avoids overflow).
+        // Failing here surfaces a truncated/corrupt header instead of silently defaulting the format
+        // metadata (parseFormats would otherwise skip out-of-range entries and mis-attribute
+        // compression/format instead of failing).
+        val formatsEnd = formatsOffset.toLong() + numFormatInfos.toLong() * PackIndexV2.FORMAT_INFO_SIZE
+        require(formatsEnd <= data.size) {
+            "Format region ($numFormatInfos formats at offset $formatsOffset) exceeds data size ${data.size}"
+        }
+
         return V2HeaderInfo(version, keySize, entrySize, entryCount, packCount, numFormatInfos, baseTimestamp, entriesOffset, packsOffset, formatsOffset)
     }
 
@@ -308,9 +317,11 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
             val packInfoOffset = header.packsOffset + i * PackIndexV2.PACK_INFO_SIZE
             if (packInfoOffset + PackIndexV2.PACK_INFO_SIZE <= data.size) {
                 val nameLength = data[packInfoOffset].toInt() and 0xFF
-                // The nameOffset is an absolute offset in the index file
+                // The nameOffset is an absolute offset in the index file. Use Long arithmetic for the
+                // bounds check: a corrupted nameOffset near Int.MAX would otherwise overflow to a
+                // negative value, pass `<= data.size`, and crash String() with an out-of-range index.
                 val nameOffset = ByteBuffer.wrap(data, packInfoOffset + 1, 4).order(ByteOrder.BIG_ENDIAN).int
-                if (nameOffset >= 0 && nameOffset + nameLength <= data.size) {
+                if (nameOffset >= 0 && nameOffset.toLong() + nameLength <= data.size) {
                     packIds.add(String(data, nameOffset, nameLength, Charsets.UTF_8))
                 } else {
                     packIds.add("")

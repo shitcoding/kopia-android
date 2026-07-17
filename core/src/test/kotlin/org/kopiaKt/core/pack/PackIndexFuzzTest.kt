@@ -305,5 +305,40 @@ class PackIndexFuzzTest {
                 PackIndexV2.open(data)
             }
         }
+
+        @Test
+        fun `V2 should reject a truncated format region`() {
+            // Header declares 10 format infos but there is no room for them after the (empty)
+            // entry/pack regions -> must fail instead of silently defaulting the format metadata.
+            val data = ByteArray(PackIndexV2.HEADER_SIZE)
+            data[0] = 2 // V2 version
+            data[1] = 17 // keySize
+            ByteBuffer.wrap(data, 2, 2).order(ByteOrder.BIG_ENDIAN).putShort(16) // entrySize
+            // entryCount = 0, packCount = 0
+            data[12] = 10 // numFormatInfos, but no bytes follow the header for them
+            assertThrows<IllegalArgumentException> {
+                PackIndexV2.open(data)
+            }
+        }
+
+        @Test
+        fun `V2 should not crash on a pack-blob nameOffset that overflows Int`() {
+            // packCount=1 with nameOffset = Int.MAX. Int arithmetic in the bounds check would overflow
+            // to a negative value, pass `<= data.size`, and crash String(); Long arithmetic must
+            // reject it and yield an empty name instead.
+            val data = ByteArray(PackIndexV2.HEADER_SIZE + PackIndexV2.PACK_INFO_SIZE)
+            data[0] = 2 // V2 version
+            data[1] = 17 // keySize
+            ByteBuffer.wrap(data, 2, 2).order(ByteOrder.BIG_ENDIAN).putShort(16) // entrySize
+            // entryCount = 0
+            ByteBuffer.wrap(data, 8, 4).order(ByteOrder.BIG_ENDIAN).putInt(1) // packCount = 1
+            // numFormatInfos = 0
+            val packInfoOffset = PackIndexV2.HEADER_SIZE
+            data[packInfoOffset] = 255.toByte() // nameLength
+            ByteBuffer.wrap(data, packInfoOffset + 1, 4).order(ByteOrder.BIG_ENDIAN).putInt(Int.MAX_VALUE)
+            assertDoesNotThrow {
+                PackIndexV2.open(data)
+            }
+        }
     }
 }
