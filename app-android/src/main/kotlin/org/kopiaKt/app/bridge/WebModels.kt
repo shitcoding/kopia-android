@@ -2,6 +2,8 @@ package org.kopiaKt.app.bridge
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.app.domain.model.ConnectionConfig
 import org.kopiaKt.app.domain.model.FileEntry
 import org.kopiaKt.app.domain.model.FileEntryType
@@ -13,6 +15,16 @@ import org.kopiaKt.app.domain.model.SnapshotStats
 import org.kopiaKt.app.domain.model.SourceInfo
 import org.kopiaKt.app.domain.model.StorageType
 import org.kopiaKt.app.domain.repository.RestoreOptions
+
+/**
+ * Shared Json config for the JS bridge: [KopiaWebBridge] encodes/decodes with this, and the bridge
+ * contract tests assert wire shapes against it, so the pins can't drift from the real encoder.
+ * `ignoreUnknownKeys` tolerates older/newer JS clients; `encodeDefaults` keeps optional fields present.
+ */
+internal val bridgeJson: Json = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
 
 /**
  * Generic result wrapper for JSON responses to JavaScript.
@@ -422,6 +434,10 @@ data class WebTaskInfo(
     val status: String,
     val progressInfo: String = "",
     val counters: Map<String, WebTaskCounterValue> = emptyMap(),
+    // The TS bridge contract names this field `error` (types/kopia.ts WebTaskInfo.error), unlike
+    // WebRestoreProgress which uses `errorMessage` on both sides. Emit `error` so the task UI's
+    // `task.error` actually populates on FAILED tasks.
+    @SerialName("error")
     val errorMessage: String? = null,
     val startTimeEpochMs: Long,
     val endTimeEpochMs: Long? = null
@@ -548,7 +564,15 @@ fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
 
 fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(
     id = id,
-    kind = kind.name,
+    // The TS contract (types/kopia.ts WebTaskInfo.kind, TaskListScreen TASK_KIND_ICON) keys on
+    // Go-style names; emitting the raw enum name (BACKUP/…) makes TASK_KIND_ICON[kind] undefined and
+    // crashes the task-list render. A backup task produces a snapshot, hence BACKUP -> "Snapshot".
+    kind = when (kind) {
+        TaskKind.BACKUP -> "Snapshot"
+        TaskKind.RESTORE -> "Restore"
+        TaskKind.MAINTENANCE -> "Maintenance"
+        TaskKind.ESTIMATE -> "Estimate"
+    },
     description = description,
     status = status.name,
     progressInfo = progressInfo,

@@ -415,7 +415,8 @@ class BridgeBackupMethodsTest {
 
             val task1 = data[0].jsonObject
             assertEquals("task-1", task1["id"]!!.jsonPrimitive.content)
-            assertEquals("BACKUP", task1["kind"]!!.jsonPrimitive.content)
+            // BACKUP maps to the Go-style wire name the UI expects (see WebModels.TaskInfo.toWeb).
+            assertEquals("Snapshot", task1["kind"]!!.jsonPrimitive.content)
             assertEquals("RUNNING", task1["status"]!!.jsonPrimitive.content)
             assertEquals("50%", task1["progressInfo"]!!.jsonPrimitive.content)
 
@@ -445,7 +446,7 @@ class BridgeBackupMethodsTest {
             val obj = assertSuccess(result)
             val data = obj["data"]!!.jsonObject
             assertEquals("task-5", data["id"]!!.jsonPrimitive.content)
-            assertEquals("MAINTENANCE", data["kind"]!!.jsonPrimitive.content)
+            assertEquals("Maintenance", data["kind"]!!.jsonPrimitive.content)
         }
 
         @Test

@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.android.worker.BackupSourceManager
@@ -129,10 +128,8 @@ class KopiaWebBridge private constructor(
         get() = _sourceManager ?: lazySourceManager
 
     private val webViewRef = AtomicReference<WebView?>()
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    // Shared with the bridge contract tests via WebModels.bridgeJson so the test pins can't drift.
+    private val json = bridgeJson
     private var restoreJob: Job? = null
 
     /**
