@@ -77,6 +77,7 @@ class S3BlobStorage private constructor(
          * @return A new S3BlobStorage instance
          */
         suspend fun create(options: S3Options, readOnly: Boolean = false): S3BlobStorage {
+            requireSupportedOptions(options)
             val client = createClient(options)
             val storageConfig = loadStorageConfig(client, options)
             return S3BlobStorage(client, options, storageConfig, readOnly)
@@ -91,7 +92,27 @@ class S3BlobStorage private constructor(
             storageConfig: S3StorageConfig = S3StorageConfig(),
             readOnly: Boolean = false
         ): S3BlobStorage {
+            requireSupportedOptions(options)
             return S3BlobStorage(client, options, storageConfig, readOnly)
+        }
+
+        /**
+         * Rejects options this backend silently used to ignore. Failing closed is safer than
+         * pretending they took effect: a caller that sets `rootCa` or (for WebDAV) a cert
+         * fingerprint would otherwise believe the connection is pinned/using a custom CA when it is
+         * not — a security downgrade masquerading as configuration. Implement one of these here (and
+         * drop its guard) if the backend ever gains real support.
+         */
+        private fun requireSupportedOptions(options: S3Options) {
+            require(!options.doNotVerifyTls) {
+                "doNotVerifyTls is not supported by the S3 backend (TLS verification cannot be disabled)"
+            }
+            require(options.rootCa == null) {
+                "A custom rootCa is not supported by the S3 backend"
+            }
+            require(options.roleArn.isEmpty()) {
+                "AssumeRole (roleArn) is not supported by the S3 backend"
+            }
         }
 
         private fun createClient(options: S3Options): S3Client {

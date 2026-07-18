@@ -82,6 +82,7 @@ class WebDavBlobStorage private constructor(
             isCreate: Boolean = false,
             readOnly: Boolean = false
         ): WebDavBlobStorage = withContext(Dispatchers.IO) {
+            requireSupportedOptions(options)
             val client = createClient(options)
             val shardingParams = loadOrCreateShardingParams(client, options, isCreate)
             WebDavBlobStorage(client, options, shardingParams, readOnly)
@@ -96,7 +97,22 @@ class WebDavBlobStorage private constructor(
             shardingParams: ShardingParameters = ShardingParameters(),
             readOnly: Boolean = false
         ): WebDavBlobStorage {
+            requireSupportedOptions(options)
             return WebDavBlobStorage(client, options, shardingParams, readOnly)
+        }
+
+        /**
+         * Rejects `trustedServerCertificateFingerprint`, which this backend does not implement. The
+         * OkHttp client uses the platform trust store, so honouring a pin would need a custom
+         * CertificatePinner/TrustManager. Failing closed is safer than silently ignoring it: a caller
+         * who set a fingerprint would otherwise believe the server cert is pinned when any CA-valid
+         * cert is in fact accepted. Implement pinning here (and drop this guard) to support it.
+         */
+        private fun requireSupportedOptions(options: WebDavOptions) {
+            require(options.trustedServerCertificateFingerprint.isEmpty()) {
+                "trustedServerCertificateFingerprint (certificate pinning) is not supported by the " +
+                    "WebDAV backend"
+            }
         }
 
         private fun createClient(options: WebDavOptions): OkHttpWebDavClient {

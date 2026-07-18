@@ -774,4 +774,21 @@ class WebDavBlobStorageTest {
             verify { mockClient.shutdown() }
         }
     }
+
+    @Nested
+    @DisplayName("unsupported options")
+    inner class UnsupportedOptionsTests {
+        // Cert pinning is not implemented; the backend fails fast rather than silently ignoring the
+        // fingerprint (which would leave the caller believing the server cert is pinned when any
+        // CA-valid cert is accepted).
+        @Test
+        fun `rejects trustedServerCertificateFingerprint`() {
+            assertThrows<IllegalArgumentException> {
+                WebDavBlobStorage.createWithClient(
+                    mockClient,
+                    WebDavOptions(url = baseUrl, trustedServerCertificateFingerprint = "SHA256:abc")
+                )
+            }
+        }
+    }
 }

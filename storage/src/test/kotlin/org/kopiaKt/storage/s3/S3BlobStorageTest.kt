@@ -368,4 +368,41 @@ class S3BlobStorageTest {
             assertEquals("GLACIER", requestSlot.captured.storageClass()?.toString())
         }
     }
+
+    @Nested
+    @DisplayName("unsupported options")
+    inner class UnsupportedOptionsTests {
+        // These options were silently ignored; the backend now fails fast so a caller can't believe
+        // they took effect (a security downgrade for rootCa, which the user would think pins/uses a
+        // custom CA).
+        @Test
+        fun `rejects doNotVerifyTls`() {
+            assertThrows<IllegalArgumentException> {
+                S3BlobStorage.createWithClient(
+                    mockClient,
+                    S3Options(bucketName = testBucket, doNotVerifyTls = true)
+                )
+            }
+        }
+
+        @Test
+        fun `rejects a custom rootCa`() {
+            assertThrows<IllegalArgumentException> {
+                S3BlobStorage.createWithClient(
+                    mockClient,
+                    S3Options(bucketName = testBucket, rootCa = byteArrayOf(1, 2, 3))
+                )
+            }
+        }
+
+        @Test
+        fun `rejects AssumeRole roleArn`() {
+            assertThrows<IllegalArgumentException> {
+                S3BlobStorage.createWithClient(
+                    mockClient,
+                    S3Options(bucketName = testBucket, roleArn = "arn:aws:iam::123:role/x")
+                )
+            }
+        }
+    }
 }
