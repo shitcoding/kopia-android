@@ -11,7 +11,7 @@ data class RestoreProgress(
 ) {
     val progressPercent: Int
         get() = if (totalBytes > 0) {
-            ((restoredBytes * 100) / totalBytes).toInt().coerceIn(0, 100)
+            (restoredBytes * 100 / totalBytes).toInt().coerceIn(0, 100)
         } else {
             0
         }

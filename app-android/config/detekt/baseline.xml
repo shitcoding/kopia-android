@@ -30,10 +30,6 @@
     <ID>SwallowedException:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$e: Exception</ID>
     <ID>TooManyFunctions:KopiaWebBridge.kt$KopiaWebBridge</ID>
     <ID>UnnecessaryParentheses:KopiaWebBridge.kt$KopiaWebBridge$(if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)</ID>
-    <ID>UnnecessaryParentheses:RestoreProgress.kt$RestoreProgress$(restoredBytes * 100)</ID>
-    <ID>UnusedImports:WebModels.kt$import kotlinx.serialization.SerialName</ID>
-    <ID>UnusedImports:WebModels.kt$import org.kopiaKt.app.domain.model.FileEntryType</ID>
-    <ID>UnusedImports:WebModels.kt$import org.kopiaKt.app.domain.model.StorageType</ID>
     <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$mode: String</ID>
     <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$requestJson: String</ID>
     <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$sourceId: String</ID>

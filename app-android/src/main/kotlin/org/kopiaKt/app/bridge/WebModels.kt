@@ -6,14 +6,12 @@ import kotlinx.serialization.json.Json
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.app.domain.model.ConnectionConfig
 import org.kopiaKt.app.domain.model.FileEntry
-import org.kopiaKt.app.domain.model.FileEntryType
 import org.kopiaKt.app.domain.model.RepositoryConnection
 import org.kopiaKt.app.domain.model.RestoreProgress
 import org.kopiaKt.app.domain.model.RestoreState
 import org.kopiaKt.app.domain.model.SnapshotInfo
 import org.kopiaKt.app.domain.model.SnapshotStats
 import org.kopiaKt.app.domain.model.SourceInfo
-import org.kopiaKt.app.domain.model.StorageType
 import org.kopiaKt.app.domain.repository.RestoreOptions
 
 /**
