@@ -540,8 +540,10 @@ export async function getTaskLogs(taskId: string): Promise<WebTaskLogEntry[]> {
 
 // ---------- Backup estimation ----------
 
-export async function estimateBackup(request: EstimateBackupRequest): Promise<void> {
-  callBridge<void>("estimateBackup", request);
+export async function estimateBackup(request: EstimateBackupRequest): Promise<string> {
+  // Returns the estimation task id so the dialog can poll it. The native method rejects while
+  // estimation is unimplemented (callers handle the error); once implemented it returns the id.
+  return callBridge<string>("estimateBackup", request);
 }
 
 // ---------- Maintenance ----------

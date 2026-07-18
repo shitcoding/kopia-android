@@ -107,10 +107,11 @@ export function useResumeSource() {
 export function useTasks(filter?: WebTaskInfo["status"]) {
   return useQuery({
     queryKey: ["tasks", filter],
-    queryFn: () => {
-      const tasks = listTasks();
-      if (filter) return tasks.filter((t) => t.status === filter);
-      return tasks;
+    queryFn: async () => {
+      // listTasks() is async; awaiting it before filtering avoids `.filter` on a Promise
+      // (a TypeError that fired on every non-"all" filter tab).
+      const tasks = await listTasks();
+      return filter ? tasks.filter((t) => t.status === filter) : tasks;
     },
     retry: 1,
   });

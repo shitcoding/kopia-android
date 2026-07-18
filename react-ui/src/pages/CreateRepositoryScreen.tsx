@@ -188,7 +188,8 @@ const CreateRepositoryScreen = () => {
                     type="button"
                     onClick={() => {
                       if (!window.KopiaEvents) { (window as any).KopiaEvents = {}; }
-                      window.KopiaEvents!.onDestinationPicked = (path: string) => setLocalPath(path);
+                      // The native picker pushes a SafPickResult object, not a bare path string.
+                      window.KopiaEvents!.onDestinationPicked = (result) => { if (result?.uri) setLocalPath(result.uri); };
                       if (window.KopiaBridge?.pickRestoreDestination) {
                         window.KopiaBridge.pickRestoreDestination();
                       } else {

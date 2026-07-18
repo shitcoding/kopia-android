@@ -12,6 +12,7 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
   const estimate = useEstimate();
   const startBackup = useStartBackup();
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
   const { data: task } = useTask(taskId);
 
   // Kick off estimation on mount
@@ -19,13 +20,19 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
     estimate.mutate(
       { sourceId },
       {
-        onSuccess: (id) => setTaskId(id),
+        onSuccess: (id) =>
+          id ? setTaskId(id) : setEstimateError("Estimation returned no task id"),
+        // Estimation may be unsupported (the bridge rejects with an error). Surface it as a failure
+        // state instead of leaving the dialog spinning on `!task` forever.
+        onError: (err) =>
+          setEstimateError(err instanceof Error ? err.message : "Estimation failed"),
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceId]);
 
-  const isEstimating = !task || task.status === "RUNNING" || task.status === "CANCELING";
+  const isEstimating =
+    !estimateError && (!task || task.status === "RUNNING" || task.status === "CANCELING");
   const isComplete = task?.status === "SUCCESS";
   const counters = task?.counters;
 
@@ -82,10 +89,10 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
                 </button>
               </div>
             </div>
-          ) : task?.status === "FAILED" ? (
+          ) : task?.status === "FAILED" || estimateError ? (
             <div className="flex flex-col items-center py-8">
               <p className="text-sm text-destructive font-medium">Estimation failed</p>
-              <p className="text-xs text-muted-foreground mt-1">{task.error || "Unknown error"}</p>
+              <p className="text-xs text-muted-foreground mt-1">{task?.error || estimateError || "Unknown error"}</p>
               <button onClick={onClose} className="btn-secondary mt-4">Close</button>
             </div>
           ) : null}

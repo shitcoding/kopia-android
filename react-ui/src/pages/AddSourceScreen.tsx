@@ -39,8 +39,10 @@ const AddSourceScreen = () => {
     if (!window.KopiaEvents) {
       (window as any).KopiaEvents = {};
     }
-    window.KopiaEvents!.onDestinationPicked = (path: string) => {
-      setSelectedPath(path);
+    // The native picker pushes a SafPickResult object ({ uri, displayName }), not a bare path
+    // string; read result.uri (the value we submit to createSource) and ignore a cancelled pick.
+    window.KopiaEvents!.onDestinationPicked = (result) => {
+      if (result?.uri) setSelectedPath(result.uri);
     };
     const bridge = window.KopiaBridge as any;
     if (bridge?.pickRestoreDestination) {
