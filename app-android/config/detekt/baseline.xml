@@ -35,7 +35,5 @@
     <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$sourceId: String</ID>
     <ID>UnusedParameter:KopiaWebBridge.kt$KopiaWebBridge$taskId: String</ID>
     <ID>UnusedPrivateProperty:KopiaWebBridge.kt$KopiaWebBridge$val existing = sourceManager.getSource(sourceId) ?: return json.encodeToString( WebResult.error&lt;Boolean&gt;("Source not found: $sourceId") )</ID>
-    <ID>UseCheckOrError:KopiaWebBridge.kt$KopiaWebBridge$throw IllegalStateException("Context not available")</ID>
-    <ID>UseCheckOrError:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$throw IllegalStateException("Not connected to repository")</ID>
   </CurrentIssues>
 </SmellBaseline>

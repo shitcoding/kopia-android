@@ -716,7 +716,7 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun persistUriPermission(requestJson: String): String {
         return try {
-            val ctx = context ?: throw IllegalStateException("Context not available")
+            val ctx = context ?: error("Context not available")
             val request = json.decodeFromString<WebPersistUriRequest>(requestJson)
             val flags = (if (request.read) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
                 (if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)

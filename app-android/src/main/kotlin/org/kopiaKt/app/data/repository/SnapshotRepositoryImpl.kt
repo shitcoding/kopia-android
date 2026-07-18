@@ -49,7 +49,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun listSources(): List<SourceInfo> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         val manifests = repo.findManifests(mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT))
 
@@ -65,7 +65,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun listSnapshots(source: SourceInfo?): List<SnapshotInfo> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         source?.let {
@@ -91,7 +91,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun getSnapshot(snapshotId: String): SnapshotInfo? = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         try {
             val manifestId = ManifestId.invoke(snapshotId)
@@ -107,7 +107,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun browseDirectory(snapshotId: String, path: String): List<FileEntry> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         val manifestId = ManifestId.invoke(snapshotId)
         val (manifest, _) = repo.getManifest(
@@ -166,7 +166,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
         try {
             val repo = repositoryManager.getRepository()
-                ?: throw IllegalStateException("Not connected to repository")
+                ?: error("Not connected to repository")
 
             // Load snapshot manifest
             val manifestId = ManifestId.invoke(snapshotId)
@@ -325,7 +325,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun listSourcesWithStats(): List<SourceWithStats> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         // Need to load full manifests to get storageStats
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
@@ -359,7 +359,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun listSnapshotsWithRetention(source: SourceInfo): List<SnapshotWithRetention> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         labels[ManifestLabels.HOST] = source.host
@@ -405,7 +405,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
     override suspend fun deleteSnapshots(snapshotIds: List<String>) = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
-            ?: throw IllegalStateException("Not connected to repository")
+            ?: error("Not connected to repository")
 
         val writer = repo.newDirectWriter()
         try {
