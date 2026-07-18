@@ -611,28 +611,28 @@ func funcSignature(f FunctionInfo) string {
 func (c *Comparer) identifyKotlinImpact() []string {
 	// Map Go packages to Kotlin files
 	goToKotlin := map[string][]string{
-		"repo/blob":                {"core/src/main/kotlin/org/kopiaKt/core/blob/"},
-		"repo/blob/filesystem":     {"storage/src/main/kotlin/org/kopiaKt/storage/filesystem/"},
-		"repo/blob/s3":             {"storage/src/main/kotlin/org/kopiaKt/storage/s3/"},
-		"repo/blob/webdav":         {"storage/src/main/kotlin/org/kopiaKt/storage/webdav/"},
-		"repo/blob/sftp":           {"storage/src/main/kotlin/org/kopiaKt/storage/sftp/"},
-		"repo/content":             {"core/src/main/kotlin/org/kopiaKt/core/content/"},
-		"repo/content/index":       {"core/src/main/kotlin/org/kopiaKt/core/index/", "core/src/main/kotlin/org/kopiaKt/core/pack/"},
-		"repo/encryption":          {"core/src/main/kotlin/org/kopiaKt/core/encryption/"},
-		"repo/hashing":             {"core/src/main/kotlin/org/kopiaKt/core/hashing/"},
-		"repo/compression":         {"core/src/main/kotlin/org/kopiaKt/core/compression/"},
-		"repo/splitter":            {"core/src/main/kotlin/org/kopiaKt/core/splitter/"},
-		"repo/object":              {"core/src/main/kotlin/org/kopiaKt/core/object/"},
-		"repo/manifest":            {"core/src/main/kotlin/org/kopiaKt/core/manifest/"},
-		"repo/format":              {"core/src/main/kotlin/org/kopiaKt/core/format/"},
-		"repo":                     {"core/src/main/kotlin/org/kopiaKt/core/repository/"},
-		"snapshot":                 {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/"},
-		"snapshot/policy":          {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/policy/"},
-		"snapshot/restore":         {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/restore/"},
-		"snapshot/snapshotfs":      {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/snapshotfs/"},
+		"repo/blob":                    {"core/src/main/kotlin/org/kopiaKt/core/blob/"},
+		"repo/blob/filesystem":         {"storage/src/main/kotlin/org/kopiaKt/storage/filesystem/"},
+		"repo/blob/s3":                 {"storage/src/main/kotlin/org/kopiaKt/storage/s3/"},
+		"repo/blob/webdav":             {"storage/src/main/kotlin/org/kopiaKt/storage/webdav/"},
+		"repo/blob/sftp":               {"storage/src/main/kotlin/org/kopiaKt/storage/sftp/"},
+		"repo/content":                 {"core/src/main/kotlin/org/kopiaKt/core/content/"},
+		"repo/content/index":           {"core/src/main/kotlin/org/kopiaKt/core/index/", "core/src/main/kotlin/org/kopiaKt/core/pack/"},
+		"repo/encryption":              {"core/src/main/kotlin/org/kopiaKt/core/encryption/"},
+		"repo/hashing":                 {"core/src/main/kotlin/org/kopiaKt/core/hashing/"},
+		"repo/compression":             {"core/src/main/kotlin/org/kopiaKt/core/compression/"},
+		"repo/splitter":                {"core/src/main/kotlin/org/kopiaKt/core/splitter/"},
+		"repo/object":                  {"core/src/main/kotlin/org/kopiaKt/core/object/"},
+		"repo/manifest":                {"core/src/main/kotlin/org/kopiaKt/core/manifest/"},
+		"repo/format":                  {"core/src/main/kotlin/org/kopiaKt/core/format/"},
+		"repo":                         {"core/src/main/kotlin/org/kopiaKt/core/repository/"},
+		"snapshot":                     {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/"},
+		"snapshot/policy":              {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/policy/"},
+		"snapshot/restore":             {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/restore/"},
+		"snapshot/snapshotfs":          {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/snapshotfs/"},
 		"snapshot/snapshotmaintenance": {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/maintenance/"},
-		"fs":                       {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/fs/"},
-		"fs/localfs":               {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/fs/"},
+		"fs":                           {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/fs/"},
+		"fs/localfs":                   {"snapshot/src/main/kotlin/org/kopiaKt/snapshot/fs/"},
 	}
 
 	impacted := make(map[string]bool)
@@ -740,28 +740,28 @@ func generateMarkdownReport(result ComparisonResult, filename string) {
 	var sb strings.Builder
 
 	sb.WriteString("# Go Kopia API Changes Report\n\n")
-	sb.WriteString(fmt.Sprintf("**Old Version**: %s\n", result.OldVersion))
-	sb.WriteString(fmt.Sprintf("**New Version**: %s\n\n", result.NewVersion))
+	fmt.Fprintf(&sb, "**Old Version**: %s\n", result.OldVersion)
+	fmt.Fprintf(&sb, "**New Version**: %s\n\n", result.NewVersion)
 
 	sb.WriteString("## Summary\n\n")
-	sb.WriteString(fmt.Sprintf("- **Breaking Changes**: %d\n", result.BreakingCount))
-	sb.WriteString(fmt.Sprintf("- **Warnings**: %d\n", result.WarningCount))
-	sb.WriteString(fmt.Sprintf("- **Info**: %d\n\n", result.InfoCount))
+	fmt.Fprintf(&sb, "- **Breaking Changes**: %d\n", result.BreakingCount)
+	fmt.Fprintf(&sb, "- **Warnings**: %d\n", result.WarningCount)
+	fmt.Fprintf(&sb, "- **Info**: %d\n\n", result.InfoCount)
 
 	if result.BreakingCount > 0 {
 		sb.WriteString("## Breaking Changes\n\n")
 		sb.WriteString("These changes require updates to the Kotlin implementation.\n\n")
 		for _, ch := range result.Changes {
 			if ch.Severity == SeverityBreaking {
-				sb.WriteString(fmt.Sprintf("### %s - %s\n\n", ch.Package, ch.Name))
-				sb.WriteString(fmt.Sprintf("- **Type**: %s\n", ch.Type))
-				sb.WriteString(fmt.Sprintf("- **Change**: %s\n", ch.ChangeType))
-				sb.WriteString(fmt.Sprintf("- **Description**: %s\n", ch.Description))
+				fmt.Fprintf(&sb, "### %s - %s\n\n", ch.Package, ch.Name)
+				fmt.Fprintf(&sb, "- **Type**: %s\n", ch.Type)
+				fmt.Fprintf(&sb, "- **Change**: %s\n", ch.ChangeType)
+				fmt.Fprintf(&sb, "- **Description**: %s\n", ch.Description)
 				if ch.OldValue != "" {
-					sb.WriteString(fmt.Sprintf("- **Old**: `%s`\n", ch.OldValue))
+					fmt.Fprintf(&sb, "- **Old**: `%s`\n", ch.OldValue)
 				}
 				if ch.NewValue != "" {
-					sb.WriteString(fmt.Sprintf("- **New**: `%s`\n", ch.NewValue))
+					fmt.Fprintf(&sb, "- **New**: `%s`\n", ch.NewValue)
 				}
 				sb.WriteString("\n")
 			}
@@ -773,7 +773,7 @@ func generateMarkdownReport(result ComparisonResult, filename string) {
 		sb.WriteString("These changes may affect compatibility.\n\n")
 		for _, ch := range result.Changes {
 			if ch.Severity == SeverityWarning {
-				sb.WriteString(fmt.Sprintf("- **%s/%s**: %s\n", ch.Package, ch.Name, ch.Description))
+				fmt.Fprintf(&sb, "- **%s/%s**: %s\n", ch.Package, ch.Name, ch.Description)
 			}
 		}
 		sb.WriteString("\n")
@@ -782,7 +782,7 @@ func generateMarkdownReport(result ComparisonResult, filename string) {
 	if len(result.KotlinImpacted) > 0 {
 		sb.WriteString("## Kotlin Files to Review\n\n")
 		for _, path := range result.KotlinImpacted {
-			sb.WriteString(fmt.Sprintf("- `%s`\n", path))
+			fmt.Fprintf(&sb, "- `%s`\n", path)
 		}
 		sb.WriteString("\n")
 	}
@@ -792,7 +792,7 @@ func generateMarkdownReport(result ComparisonResult, filename string) {
 		sb.WriteString("New APIs that may be implemented in Kotlin.\n\n")
 		for _, ch := range result.Changes {
 			if ch.Severity == SeverityInfo {
-				sb.WriteString(fmt.Sprintf("- **%s/%s**: %s\n", ch.Package, ch.Name, ch.Description))
+				fmt.Fprintf(&sb, "- **%s/%s**: %s\n", ch.Package, ch.Name, ch.Description)
 			}
 		}
 	}
