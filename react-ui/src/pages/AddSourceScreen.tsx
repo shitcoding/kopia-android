@@ -54,14 +54,30 @@ const AddSourceScreen = () => {
   };
 
   const buildPolicy = (): WebPolicy => {
-    const intervalSeconds = autoBackup
-      ? parseInt(intervalValue, 10) * (intervalUnit === "days" ? 86400 : 3600)
-      : undefined;
+    // Guard against a blank/invalid interval: NaN would serialize to null and fail the whole
+    // createSource (Kotlin SchedulingPolicy.intervalSeconds is a non-nullable Long). Undefined is
+    // omitted from the request, leaving the wire default.
+    const parsedInterval = parseInt(intervalValue, 10);
+    const intervalSeconds =
+      autoBackup && Number.isFinite(parsedInterval) && parsedInterval > 0
+        ? parsedInterval * (intervalUnit === "days" ? 86400 : 3600)
+        : undefined;
 
     // Field names are the Kotlin/Go manifest wire format - see WebPolicy in types/kopia.ts.
-    // NOTE: the Kotlin WebCreateSourceRequest currently has no policy field at all, so this policy
-    // is silently ignored by createSource today (documented gap, tracked in the backlog).
+    // Kotlin createSource applies this policy to the new source (WebCreateSourceRequest.policy),
+    // storing it under the source's policy identity so it shows up in the policy editor.
     return {
+      // Give a new source sensible retention defaults (matching the policy editor's "Reset to
+      // defaults"). Kotlin's Policy.retention is a non-nullable object, so an omitted retention
+      // round-trips as an all-null object that the editor renders as blank rather than inherited —
+      // set explicit defaults so the source has meaningful retention out of the box.
+      retention: {
+        keepLatest: 10,
+        keepDaily: 7,
+        keepWeekly: 4,
+        keepMonthly: 6,
+        keepAnnual: 2,
+      },
       scheduling: {
         manual: !autoBackup,
         intervalSeconds,

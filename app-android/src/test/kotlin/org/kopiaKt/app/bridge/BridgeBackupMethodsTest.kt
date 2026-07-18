@@ -1,6 +1,7 @@
 package org.kopiaKt.app.bridge
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -154,6 +155,45 @@ class BridgeBackupMethodsTest {
         fun `returns error on invalid JSON`() {
             val result = bridge.createSource("not valid json")
             assertError(result)
+        }
+
+        @Test
+        fun `applies the add-source wizard policy under the source's policy identity`() {
+            val fakeSource = SourceInfo(id = "src-9", path = "/data", displayName = "/data", createdAt = Instant.now())
+            every { sourceManager.createSource("/data", "") } returns fakeSource
+            coEvery { PolicyManager.setPolicy(any(), any(), any()) } returns Unit
+
+            val result = bridge.createSource("""{"uri":"/data","policy":{"retention":{"keepLatest":7}}}""")
+            assertSuccess(result)
+
+            // The wizard policy must be stored under the EXACT SourceInfo the policy editor resolves for
+            // this source (localSnapshotSourceInfo) — assert the whole identity incl. host, since host
+            // drift is exactly the silent-drop class this fix guards against.
+            coVerify(exactly = 1) {
+                PolicyManager.setPolicy(repository, match { it == localSnapshotSourceInfo("/data") }, any())
+            }
+        }
+
+        @Test
+        fun `fails without creating an orphaned source when a policy is supplied but no repo is connected`() {
+            every { repositoryManager.getRepository() } returns null
+
+            val result = bridge.createSource("""{"uri":"/data","policy":{}}""")
+
+            assertError(result)
+            verify(exactly = 0) { sourceManager.createSource(any(), any()) }
+        }
+
+        @Test
+        fun `does not create a source when applying its policy fails`() {
+            // The policy is applied before the source is created, so a setPolicy failure (read-only /
+            // write error) must leave no orphaned source.
+            coEvery { PolicyManager.setPolicy(any(), any(), any()) } throws RuntimeException("write failed")
+
+            val result = bridge.createSource("""{"uri":"/data","policy":{}}""")
+
+            assertError(result)
+            verify(exactly = 0) { sourceManager.createSource(any(), any()) }
         }
     }
 

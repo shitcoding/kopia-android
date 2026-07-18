@@ -878,6 +878,23 @@ class KopiaWebBridge private constructor(
     fun createSource(requestJson: String): String {
         return try {
             val request = json.decodeFromString<WebCreateSourceRequest>(requestJson)
+            // Apply the wizard's policy (schedule/compression/exclusions) BEFORE creating the in-memory
+            // source record. setPolicy does real repo I/O and can fail (not connected, read-only, write
+            // error); sourceManager.createSource is a pure in-memory op that cannot. Doing the fallible
+            // step first means a failure leaves no orphaned source with a missing policy. Store it under
+            // the SAME SourceInfo the policy editor resolves (localSnapshotSourceInfo) so it persists and
+            // shows up when the user opens the editor for this source.
+            request.policy?.let { policy ->
+                val repo = repositoryManager.getRepository()
+                    ?: return json.encodeToString(
+                        WebResult.error<WebBackupSourceInfo>(
+                            "Repository not connected; cannot save the source policy"
+                        )
+                    )
+                runBlocking {
+                    PolicyManager.setPolicy(repo, localSnapshotSourceInfo(request.path), policy)
+                }
+            }
             val source = sourceManager.createSource(request.path, request.displayName)
             json.encodeToString(WebResult.success(source.toWeb()))
         } catch (e: Exception) {

@@ -393,7 +393,13 @@ fun RestoreState.isTerminal() =
 data class WebCreateSourceRequest(
     val uri: String,
     val displayName: String = "",
-    val startBackup: Boolean = false
+    val startBackup: Boolean = false,
+    /**
+     * Policy chosen in the add-source wizard (schedule/compression/exclusions). Applied to the new
+     * source at creation so the choices actually persist. Null/omitted = leave the source on the
+     * inherited/global policy.
+     */
+    val policy: org.kopiaKt.snapshot.policy.Policy? = null
 ) {
     /** Alias for bridge method that uses `path` parameter */
     val path: String get() = uri
@@ -550,12 +556,21 @@ fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
     createdAtEpochMs = createdAt.toEpochMilli()
 )
 
-fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
-    source = WebSourceInfo(
+/**
+ * The snapshot-policy identity of a local backup source. createSource stores the wizard policy under
+ * this SourceInfo, and [toWebStatus] surfaces the same one to the UI, so the policy editor resolves the
+ * exact policy the wizard set. Keep these two in sync via this single helper — a drift would silently
+ * store the policy under a key the editor never reads.
+ */
+internal fun localSnapshotSourceInfo(path: String): org.kopiaKt.snapshot.model.SourceInfo =
+    org.kopiaKt.snapshot.model.SourceInfo(
         host = android.os.Build.MODEL ?: "unknown",
         userName = "local",
         path = path
-    ),
+    )
+
+fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
+    source = localSnapshotSourceInfo(path).toWeb(),
     status = status.name,
     lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
     snapshotCount = 0,
