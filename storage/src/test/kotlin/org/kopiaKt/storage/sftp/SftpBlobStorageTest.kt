@@ -737,4 +737,33 @@ class SftpBlobStorageTest {
             every { attributes } returns mockAttrs
         }
     }
+
+    @Nested
+    @DisplayName("connection timeouts")
+    inner class ConnectionTimeoutTests {
+
+        @Test
+        fun `applyConnectionTimeouts sets connect and socket timeouts from options`() {
+            val ssh = SSHClient()
+            SftpBlobStorage.applyConnectionTimeouts(
+                ssh,
+                options.copy(connectTimeoutMillis = 15_000, socketTimeoutMillis = 45_000)
+            )
+            assertThat(ssh.connectTimeout).isEqualTo(15_000)
+            assertThat(ssh.timeout).isEqualTo(45_000)
+        }
+
+        @Test
+        fun `non-positive timeouts leave the sshj defaults untouched`() {
+            val ssh = SSHClient()
+            val defaultConnect = ssh.connectTimeout
+            val defaultSocket = ssh.timeout
+            SftpBlobStorage.applyConnectionTimeouts(
+                ssh,
+                options.copy(connectTimeoutMillis = 0, socketTimeoutMillis = 0)
+            )
+            assertThat(ssh.connectTimeout).isEqualTo(defaultConnect)
+            assertThat(ssh.timeout).isEqualTo(defaultSocket)
+        }
+    }
 }

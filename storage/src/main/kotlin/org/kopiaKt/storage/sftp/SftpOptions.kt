@@ -110,7 +110,23 @@ data class SftpOptions(
     /**
      * Upload speed limit in bytes per second (0 = unlimited).
      */
-    val maxUploadSpeedBytesPerSecond: Long = 0
+    val maxUploadSpeedBytesPerSecond: Long = 0,
+
+    /**
+     * TCP connect timeout in milliseconds. Guards against an unreachable host hanging the connect
+     * indefinitely. A coroutine `withTimeout` cannot preempt a blocking socket connect, so this must
+     * be enforced at the socket layer. 0 = library default (no explicit timeout).
+     */
+    val connectTimeoutMillis: Int = 30_000,
+
+    /**
+     * Socket read timeout (SO_TIMEOUT) in milliseconds on the transport socket. Its main value is
+     * bounding the pre-key-exchange banner read during connect (sshj already caps SFTP data requests
+     * at its own ~30s timeout, so data ops were mostly covered already). It is a per-read idle
+     * timeout, not a total-transfer cap — an active download keeps resetting it and sshj's transport
+     * reader loops on it — so it can be generous. 0 = library default (no explicit timeout).
+     */
+    val socketTimeoutMillis: Int = 120_000
 ) {
     /**
      * Gets the effective known_hosts file path.

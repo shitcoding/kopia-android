@@ -64,6 +64,20 @@ class SftpBlobStorage private constructor(
         private const val MAX_WALK_DEPTH = 10
 
         /**
+         * Applies the connect and socket-read timeouts from [options] to a freshly-created SSH client,
+         * before it connects. Kept as a separate helper so the timeout wiring is unit-testable without
+         * opening a real connection. A non-positive value leaves the sshj default in place.
+         */
+        internal fun applyConnectionTimeouts(ssh: SSHClient, options: SftpOptions) {
+            if (options.connectTimeoutMillis > 0) {
+                ssh.connectTimeout = options.connectTimeoutMillis
+            }
+            if (options.socketTimeoutMillis > 0) {
+                ssh.timeout = options.socketTimeoutMillis
+            }
+        }
+
+        /**
          * Creates a new SFTP blob storage instance.
          *
          * @param options SFTP connection options
@@ -185,6 +199,7 @@ class SftpBlobStorage private constructor(
         }
 
         val ssh = SSHClient()
+        applyConnectionTimeouts(ssh, options)
 
         // Configure host key verification
         val verifier = createHostKeyVerifier()
