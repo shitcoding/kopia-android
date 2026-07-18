@@ -19,7 +19,6 @@
     <ID>ForbiddenComment:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$// TODO: Implement persistent storage of connections</ID>
     <ID>LargeClass:KopiaWebBridge.kt$KopiaWebBridge</ID>
     <ID>LongMethod:SnapshotRepositoryImpl.kt$SnapshotRepositoryImpl$override fun restore( snapshotId: String, sourcePath: String, destinationUri: String, options: RestoreOptions ): Flow&lt;RestoreProgress&gt;</ID>
-    <ID>MagicNumber:KopiaRepositoryManagerImpl.kt$KopiaRepositoryManagerImpl$32</ID>
     <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$"Storage permission required. Please grant \"All files access\" permission to access local repositories."</ID>
     <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$WebResult.error&lt;String&gt;("Directory does not exist and cannot be created: ${domainConfig.path}")</ID>
     <ID>MaxLineLength:KopiaWebBridge.kt$KopiaWebBridge$json.encodeToString(WebResult.error&lt;List&lt;WebSnapshotWithRetention&gt;&gt;(e.message ?: "Error listing snapshots with retention"))</ID>

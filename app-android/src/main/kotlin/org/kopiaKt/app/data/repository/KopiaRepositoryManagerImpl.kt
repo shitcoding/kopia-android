@@ -44,6 +44,11 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : KopiaRepositoryManager {
 
+    private companion object {
+        /** Length in bytes of the repository secret and master key (256-bit). */
+        const val REPOSITORY_KEY_SIZE_BYTES = 32
+    }
+
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -239,8 +244,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
     private fun buildRepositoryConfig(options: RepositoryCreateOptions): RepositoryConfig {
         val random = SecureRandom()
-        val secret = ByteArray(32).also { random.nextBytes(it) }
-        val masterKey = ByteArray(32).also { random.nextBytes(it) }
+        val secret = ByteArray(REPOSITORY_KEY_SIZE_BYTES).also { random.nextBytes(it) }
+        val masterKey = ByteArray(REPOSITORY_KEY_SIZE_BYTES).also { random.nextBytes(it) }
 
         return RepositoryConfig(
             hash = options.hashAlgorithm ?: HashAlgorithm.DEFAULT.id,
