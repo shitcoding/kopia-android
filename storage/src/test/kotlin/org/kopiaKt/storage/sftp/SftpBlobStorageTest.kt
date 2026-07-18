@@ -598,6 +598,34 @@ class SftpBlobStorageTest {
 
             assertThat(readOnlyStorage.isReadOnly()).isTrue()
         }
+
+        @Test
+        fun `putBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = SftpBlobStorage.createWithConnections(
+                options = options,
+                sshClient = mockSshClient,
+                sftpClient = mockSftpClient,
+                readOnly = true,
+                directoryShards = listOf(1, 3)
+            )
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.putBlob(BlobId("ro"), "data".toByteArray())
+            }
+        }
+
+        @Test
+        fun `deleteBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = SftpBlobStorage.createWithConnections(
+                options = options,
+                sshClient = mockSshClient,
+                sftpClient = mockSftpClient,
+                readOnly = true,
+                directoryShards = listOf(1, 3)
+            )
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.deleteBlob(BlobId("ro"))
+            }
+        }
     }
 
     @Nested

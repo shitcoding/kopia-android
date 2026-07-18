@@ -445,4 +445,28 @@ class S3BlobStorageTest {
             assertEquals(S3StorageConfig(), S3BlobStorage.loadStorageConfig(mockClient, opts))
         }
     }
+
+    @Nested
+    @DisplayName("read-only enforcement")
+    inner class ReadOnlyTests {
+        private fun readOnlyStorage() = S3BlobStorage.createWithClient(
+            client = mockClient,
+            options = S3Options(bucketName = testBucket, prefix = testPrefix),
+            readOnly = true
+        )
+
+        @Test
+        fun `putBlob is rejected in read-only mode`() = runTest {
+            assertThrows<IllegalStateException> {
+                readOnlyStorage().putBlob(BlobId("ro"), "data".toByteArray())
+            }
+        }
+
+        @Test
+        fun `deleteBlob is rejected in read-only mode`() = runTest {
+            assertThrows<IllegalStateException> {
+                readOnlyStorage().deleteBlob(BlobId("ro"))
+            }
+        }
+    }
 }

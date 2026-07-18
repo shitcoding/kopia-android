@@ -684,6 +684,32 @@ class WebDavBlobStorageTest {
 
             assertThat(readOnlyStorage.isReadOnly()).isTrue()
         }
+
+        @Test
+        fun `putBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = WebDavBlobStorage.createWithClient(
+                client = mockClient,
+                options = options,
+                shardingParams = shardingParams,
+                readOnly = true
+            )
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.putBlob(BlobId("ro"), "data".toByteArray())
+            }
+        }
+
+        @Test
+        fun `deleteBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = WebDavBlobStorage.createWithClient(
+                client = mockClient,
+                options = options,
+                shardingParams = shardingParams,
+                readOnly = true
+            )
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.deleteBlob(BlobId("ro"))
+            }
+        }
     }
 
     @Nested

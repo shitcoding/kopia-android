@@ -7,6 +7,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobStorageContractTest
@@ -90,6 +91,22 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
 
             val readOnlyStorage = FilesystemBlobStorage.create(storageDir!!, readOnly = true)
             assertTrue(readOnlyStorage.isReadOnly(), "Read-only storage should report read-only")
+        }
+
+        @Test
+        fun `putBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = FilesystemBlobStorage.create(storageDir!!, readOnly = true)
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.putBlob(org.kopiaKt.core.blob.BlobId("ro"), "data".toByteArray())
+            }
+        }
+
+        @Test
+        fun `deleteBlob is rejected in read-only mode`() = runTest {
+            val readOnlyStorage = FilesystemBlobStorage.create(storageDir!!, readOnly = true)
+            assertThrows<IllegalStateException> {
+                readOnlyStorage.deleteBlob(org.kopiaKt.core.blob.BlobId("ro"))
+            }
         }
     }
 }
