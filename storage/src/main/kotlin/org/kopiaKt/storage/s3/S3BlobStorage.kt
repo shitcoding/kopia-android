@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
@@ -187,7 +188,7 @@ class S3BlobStorage private constructor(
             }
         }
 
-        private suspend fun loadStorageConfig(
+        internal suspend fun loadStorageConfig(
             client: S3Client,
             options: S3Options
         ): S3StorageConfig = withContext(Dispatchers.IO) {
@@ -201,12 +202,17 @@ class S3BlobStorage private constructor(
                 val json = bytes.asUtf8String()
                 Json.decodeFromString<S3StorageConfig>(json)
             } catch (e: NoSuchKeyException) {
-                // No storage config file, use defaults
+                // No storage config yet (e.g. a fresh bucket) — use defaults.
                 S3StorageConfig()
-            } catch (e: Exception) {
-                // Log warning and use defaults
+            } catch (e: SerializationException) {
+                // The config blob exists but isn't parseable (corrupt or a newer format). It only
+                // holds non-critical sharding/storage-class hints, so fall back to defaults rather
+                // than failing the whole connect.
                 S3StorageConfig()
             }
+            // Any other failure (bad credentials, access denied, missing bucket, connectivity) is
+            // deliberately NOT caught: swallowing it here used to return defaults and make create()
+            // falsely "succeed" with unusable credentials. Let it propagate so the connect fails loudly.
         }
 
         private fun getObjectKey(prefix: String, blobId: String): String {

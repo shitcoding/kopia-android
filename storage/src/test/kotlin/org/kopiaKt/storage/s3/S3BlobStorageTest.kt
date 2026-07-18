@@ -405,4 +405,44 @@ class S3BlobStorageTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("loadStorageConfig error handling")
+    inner class LoadStorageConfigTests {
+        private val opts = S3Options(bucketName = testBucket, prefix = testPrefix)
+
+        @Test
+        fun `surfaces auth errors instead of silently using defaults`() = runTest {
+            // Reverting to the old broad catch would return defaults here (create() falsely succeeds
+            // with bad creds); the fix lets the auth error propagate.
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder().message("InvalidAccessKeyId").statusCode(403).build()
+
+            assertThrows<S3Exception> {
+                S3BlobStorage.loadStorageConfig(mockClient, opts)
+            }
+        }
+
+        @Test
+        fun `uses defaults when no config blob exists`() = runTest {
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws NoSuchKeyException.builder().message("NoSuchKey").build()
+
+            assertEquals(S3StorageConfig(), S3BlobStorage.loadStorageConfig(mockClient, opts))
+        }
+
+        @Test
+        fun `uses defaults when the config blob is unparseable`() = runTest {
+            val responseBytes = mockk<ResponseBytes<GetObjectResponse>> {
+                every { asUtf8String() } returns "not valid json {{"
+            }
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } returns responseBytes
+
+            assertEquals(S3StorageConfig(), S3BlobStorage.loadStorageConfig(mockClient, opts))
+        }
+    }
 }
