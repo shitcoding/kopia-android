@@ -92,6 +92,23 @@ class MultiSnapshotGCTest {
     inner class BasicGCExecution {
 
         @Test
+        fun `run with delete=true fails loud until Phase 2 is implemented`() = runTest {
+            // Phase 2 (content sweep/delete) is a stub, so delete=true must throw rather than silently
+            // report success while reclaiming nothing (task-9). The throw precedes any repository access.
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            repo = repository
+
+            var thrown: UnsupportedOperationException? = null
+            try {
+                SnapshotGC(repository).run(GCOptions(delete = true))
+            } catch (e: UnsupportedOperationException) {
+                thrown = e
+            }
+            assertThat(thrown).isNotNull()
+            assertThat(thrown!!.message).contains("Phase 2")
+        }
+
+        @Test
         fun `should run GC without errors on repository with snapshots`() = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository

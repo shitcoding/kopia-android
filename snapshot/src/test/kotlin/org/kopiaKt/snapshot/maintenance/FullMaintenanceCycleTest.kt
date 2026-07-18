@@ -135,6 +135,30 @@ class FullMaintenanceCycleTest {
     inner class RepositoryValidityAfterMaintenance {
 
         @Test
+        fun `full maintenance with gcDelete=true fails loud without deleting`() = runTest {
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            repo = repository
+
+            populateRepository(
+                repository, SourceInfo("host", "user", "/data"), "snap-nodelete",
+                mapOf("f.txt" to "data".toByteArray())
+            )
+
+            // Requesting content-deleting GC must fail loud (Phase 2 is unimplemented). The guard is the
+            // first statement in runMaintenance, so it fails before retention could delete any manifest.
+            val result = MaintenanceRunner(repository).run(
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true, gcDelete = true)
+            )
+
+            assertThat(result.success).isFalse()
+            // Assert the MaintenanceRunner guard fired, not the downstream SnapshotGC.run throw: only
+            // the guard's message says "gcDelete=false" (SnapshotGC says "delete=false"). If the guard
+            // were removed, retention would run first and then GC would throw a similar "Phase 2"
+            // message — so matching "gcDelete=false" is what makes this test bite on the fail-fast path.
+            assertThat(result.error).contains("gcDelete=false")
+        }
+
+        @Test
         fun `should leave repository valid after full maintenance cycle`() = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository

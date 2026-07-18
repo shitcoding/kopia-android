@@ -82,8 +82,13 @@ data class MaintenanceOptions(
     /**
      * Whether to actually delete content during GC.
      * If false, GC will be a dry run.
+     *
+     * Defaults to false because GC Phase 2 (content sweep/delete) is not yet implemented — requesting
+     * deletion throws [UnsupportedOperationException] (see [SnapshotGC.run]). Maintenance therefore does
+     * retention (snapshot-manifest deletion) plus a GC dry run; it does not reclaim content storage yet.
+     * Flip back to true once Phase 2 lands (backlog task-9).
      */
-    val gcDelete: Boolean = true,
+    val gcDelete: Boolean = false,
 
     /**
      * Progress callback.
@@ -130,6 +135,17 @@ class MaintenanceRunner(
         val startTime = Instant.now()
 
         try {
+            // Refuse a delete-GC request up front: GC content deletion (Phase 2) is unimplemented and
+            // throws (see SnapshotGC.run). Failing here — before retention deletes any snapshot
+            // manifests — avoids doing partial destructive work and then soft-failing. Surfaces as
+            // success=false via the catch below. Use gcDelete=false (the default) for retention + a GC
+            // dry run. (task-9)
+            if (options.gcDelete) {
+                throw UnsupportedOperationException(
+                    "GC content deletion (Phase 2) is not yet implemented; run with gcDelete=false."
+                )
+            }
+
             // Determine mode
             val mode = if (options.mode == MaintenanceMode.AUTO) {
                 determineMode(options)

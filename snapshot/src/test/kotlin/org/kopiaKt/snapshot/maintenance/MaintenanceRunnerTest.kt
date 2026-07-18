@@ -14,7 +14,8 @@ class MaintenanceRunnerTest {
         assertThat(options.mode).isEqualTo(MaintenanceMode.AUTO)
         assertThat(options.force).isFalse()
         assertThat(options.safety).isEqualTo(SafetyParameters.Default)
-        assertThat(options.gcDelete).isTrue()
+        // Defaults to a GC dry run: content deletion (Phase 2) is unimplemented and throws (task-9).
+        assertThat(options.gcDelete).isFalse()
         assertThat(options.onProgress).isNull()
     }
 

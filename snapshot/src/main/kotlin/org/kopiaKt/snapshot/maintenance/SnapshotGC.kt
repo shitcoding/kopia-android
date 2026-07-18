@@ -10,6 +10,7 @@ import org.kopiaKt.core.repository.DirectRepositoryWriter
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
+import org.kopiaKt.snapshot.snapshotfs.isDirectoryId
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
@@ -89,6 +90,9 @@ data class GCOptions(
     /**
      * Whether to actually delete unreferenced content.
      * If false, only reports what would be deleted (dry run).
+     *
+     * NOTE: Phase 2 (content sweep/delete) is not implemented, so delete=true currently throws
+     * [UnsupportedOperationException] from [SnapshotGC.run] rather than silently no-op'ing. See task-9.
      */
     val delete: Boolean = false,
 
@@ -133,6 +137,16 @@ class SnapshotGC(
      * @return Statistics about the GC run
      */
     suspend fun run(options: GCOptions = GCOptions()): SnapshotGCStats {
+        // Phase 2 (content sweep/delete) is not implemented: iterateContentByPrefix is a stub, so no
+        // content is ever reclaimed. Fail loudly rather than let a caller believe delete=true freed
+        // storage — it would silently no-op while the repository keeps growing. Dry runs (delete=false)
+        // still execute Phase 1. See backlog task-9 (Phase 2 needs new ContentManager soft-delete APIs).
+        if (options.delete) {
+            throw UnsupportedOperationException(
+                "GC content deletion (Phase 2) is not yet implemented; run with delete=false. " +
+                    "Deleting snapshot manifests currently reclaims no content."
+            )
+        }
         return withContext(Dispatchers.Default) {
             runGC(options)
         }
@@ -223,8 +237,17 @@ class SnapshotGC(
             inUseSet.add(contentId)
         }
 
-        // If this is a directory, recursively process children
-        if (isDirectoryObject(objectId)) {
+        // If this is a directory, recursively process children.
+        // isDirectoryId strips indirection (the 'I' prefix of large/indirect directory objects) before
+        // checking the 'k' content prefix — the previous firstOrNull()=='k' heuristic saw the 'I' and
+        // never recursed into large directories, undercounting the in-use set (a data-loss hazard once
+        // Phase 2 deletes).
+        // KNOWN LIMITATION (task-9 Phase-2 prerequisite): production directory objects are written
+        // WITHOUT the 'k' prefix (FileUploader.uploadDirectoryManifest omits ObjectWriterOptions.prefix),
+        // so isDirectoryId returns false for them and this recursion is skipped for real snapshots. That
+        // is inert today (Phase 2 deletes nothing), but the prefix write MUST be fixed (or traversal
+        // switched to DirEntry.type) before enabling deletion, or GC would drop live directory content.
+        if (isDirectoryId(objectId)) {
             val dirManifest = try {
                 val data = repository.readObject(objectId)
                 DirManifest.fromJson(data.decodeToString())
@@ -242,16 +265,6 @@ class SnapshotGC(
                 walkObjectTree(childObjectId, inUseSet)
             }
         }
-    }
-
-    private fun isDirectoryObject(objectId: ObjectId): Boolean {
-        // Directory objects have 'k' prefix in their content ID
-        // This is determined by looking at the first character of the content ID
-        val contentIdStr = objectId.toString()
-        // For direct objects, the string is the content ID
-        // For indirect objects, we need to check the underlying content
-        // A 'k' prefix indicates a directory (JSON content type)
-        return contentIdStr.firstOrNull()?.let { it == 'k' } ?: false
     }
 
     private suspend fun findAndProcessUnreferencedContent(
