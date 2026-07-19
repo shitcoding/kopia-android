@@ -1,13 +1,16 @@
 package org.kopiaKt.snapshot.maintenance
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ObjectId
+import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.DirectRepositoryWriter
 import org.kopiaKt.core.`object`.ObjectWriterOptions
@@ -56,6 +59,19 @@ class MultiSnapshotGCTest {
     ): ObjectId {
         val json = DirManifest.json.encodeToString(DirManifest.serializer(), dirManifest)
         return writeObject(json.toByteArray(Charsets.UTF_8), ObjectWriterOptions(prefix = 'k'))
+    }
+
+    /**
+     * Helper to write a DirManifest the way PRODUCTION did before task-9 prerequisite #1:
+     * WITHOUT the 'k' prefix. isDirectoryId(objectId) is therefore false for these objects, so GC
+     * traversal must recurse via DirEntry.type instead of the content prefix, or it under-collects
+     * the in-use set. Deliberately distinct from writeDirManifestObject (which mimics prefixed dirs).
+     */
+    private suspend fun DirectRepositoryWriter.writeProductionDirManifestObject(
+        dirManifest: DirManifest
+    ): ObjectId {
+        val json = DirManifest.json.encodeToString(DirManifest.serializer(), dirManifest)
+        return writeObject(json.toByteArray(Charsets.UTF_8))
     }
 
     /**
@@ -335,6 +351,130 @@ class MultiSnapshotGCTest {
 
             val parsedDir2 = DirManifest.fromJson(repository.readObject(dirOid2).decodeToString())
             assertThat(parsedDir2.entries).hasSize(2)
+        }
+    }
+
+    @Nested
+    @DisplayName("Production-style directory traversal")
+    inner class ProductionDirectoryTraversal {
+
+        @Test
+        fun `in-use set includes content nested under directories written without the k prefix`() = runTest {
+            // Production directory objects are written WITHOUT the 'k' prefix, so isDirectoryId is
+            // false for them. GC must still recurse into them (via DirEntry.type) or it under-collects
+            // the in-use set and would delete live content once Phase 2 lands. Build a two-level tree
+            // root/ -> subdir/ -> deep.txt using prefix-less dir objects, then assert the deeply-nested
+            // file's content is collected as in-use. (task-9 prerequisite #2 regression)
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            repo = repository
+
+            val writer = repository.newDirectWriter()
+
+            val deepData = "deep-nested-content-must-survive-gc".toByteArray()
+            val deepOid = writer.writeFileObject(deepData)
+
+            // Subdirectory manifest, written WITHOUT the 'k' prefix (like production FileUploader).
+            val subDir = DirManifest(
+                entries = listOf(
+                    DirEntry(
+                        name = "deep.txt",
+                        type = EntryType.FILE,
+                        permissions = 420,
+                        fileSize = deepData.size.toLong(),
+                        modTime = Instant.now(),
+                        objectId = deepOid.toString()
+                    )
+                )
+            )
+            val subDirOid = writer.writeProductionDirManifestObject(subDir)
+
+            // Root manifest referencing the subdirectory, also WITHOUT the 'k' prefix.
+            val rootDir = DirManifest(
+                entries = listOf(
+                    DirEntry(
+                        name = "subdir",
+                        type = EntryType.DIRECTORY,
+                        permissions = 493,
+                        modTime = Instant.now(),
+                        objectId = subDirOid.toString()
+                    )
+                )
+            )
+            val rootOid = writer.writeProductionDirManifestObject(rootDir)
+
+            writer.flush()
+            repository.refresh()
+
+            val source = SourceInfo("testhost", "testuser", "/nested")
+            writer.createSnapshot("snap-nested", source, rootOid)
+            writer.flush()
+            repository.refresh()
+            writer.close()
+
+            // The content backing the deeply nested file must be reachable only via
+            // root -> subdir -> deep.txt, so it is collected iff GC recurses into prefix-less dirs.
+            val deepContentIds = repository.verifyObject(deepOid)
+            assertThat(deepContentIds).isNotEmpty()
+
+            val inUseSet = SnapshotGC(repository).buildInUseSet()
+            try {
+                for (contentId in deepContentIds) {
+                    assertThat(inUseSet.contains(contentId)).isTrue()
+                }
+            } finally {
+                inUseSet.close()
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Cancellation safety")
+    inner class CancellationSafety {
+
+        @Test
+        fun `buildInUseSet propagates coroutine cancellation instead of returning a partial in-use set`() = runTest {
+            // A cancelled GC coroutine (e.g. WorkManager stops the job mid-walk) must NOT be swallowed by
+            // the walk's generic catches and reported as a completed-but-under-collected in-use set — that
+            // would let a future deletion pass drop live data. Simulate cancellation by throwing
+            // CancellationException from verifyObject mid-walk; buildInUseSet must propagate it. (task-9)
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            repo = repository
+
+            val writer = repository.newDirectWriter()
+            val fileData = "cancel-me".toByteArray()
+            val fileOid = writer.writeFileObject(fileData)
+            val dir = DirManifest(
+                entries = listOf(
+                    DirEntry(
+                        name = "f.txt",
+                        type = EntryType.FILE,
+                        fileSize = fileData.size.toLong(),
+                        modTime = Instant.now(),
+                        objectId = fileOid.toString()
+                    )
+                )
+            )
+            val dirOid = writer.writeDirManifestObject(dir)
+            writer.flush()
+            repository.refresh()
+            writer.createSnapshot("snap-cancel", SourceInfo("h", "u", "/p"), dirOid)
+            writer.flush()
+            repository.refresh()
+            writer.close()
+
+            // Delegate everything to the real repo, but make the tree walk hit a cancellation.
+            val cancellingRepo = object : DirectRepository by repository {
+                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> =
+                    throw CancellationException("cancelled mid-walk")
+            }
+
+            var thrown: CancellationException? = null
+            try {
+                SnapshotGC(cancellingRepo).buildInUseSet()
+            } catch (e: CancellationException) {
+                thrown = e
+            }
+            assertThat(thrown).isNotNull()
         }
     }
 

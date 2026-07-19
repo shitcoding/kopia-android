@@ -6,12 +6,15 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.kopiaKt.core.content.ObjectId
+import org.kopiaKt.core.testutil.TestRepositoryFactory
 import org.kopiaKt.snapshot.fs.DeviceInfo
 import org.kopiaKt.snapshot.fs.OwnerInfo
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.EntryType
 import org.kopiaKt.snapshot.policy.CompressionPolicy
+import org.kopiaKt.snapshot.snapshotfs.isDirectoryId
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.time.Instant
@@ -167,6 +170,34 @@ class FileUploaderTest {
             val json = writtenData.toString(Charsets.UTF_8)
             assertTrue(json.contains("kopia:directory"))
             assertTrue(json.contains("file.txt"))
+        }
+
+        @Test
+        fun `directory manifest object is recognized as a directory (Go-compatible k prefix)`() = runBlocking {
+            // Go kopia writes directory manifests with the 'k' content prefix; snapshotfs.isDirectoryId
+            // (and therefore snapshot GC's tree walk) relies on it. The mock writer ignores the prefix,
+            // so this exercises a real in-memory repository where the prefix actually lands on the
+            // content ID. Regression guard for task-9 prerequisite #1 (data-loss / Go cross-compat).
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            try {
+                val writer = repository.newDirectWriter()
+                val uploader = FileUploader(writer, NullUploadProgress())
+
+                val manifest = DirManifest(
+                    entries = listOf(
+                        DirEntry(name = "file.txt", type = EntryType.FILE, fileSize = 100)
+                    )
+                )
+
+                val objectId = uploader.uploadDirectoryManifest(manifest)
+
+                assertTrue(
+                    isDirectoryId(ObjectId.parse(objectId)),
+                    "uploadDirectoryManifest must produce a directory object id, got '$objectId'"
+                )
+            } finally {
+                repository.close()
+            }
         }
     }
 

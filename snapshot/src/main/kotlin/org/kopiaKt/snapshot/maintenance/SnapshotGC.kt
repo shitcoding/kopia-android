@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.maintenance
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.kopiaKt.core.content.ContentId
@@ -7,7 +8,9 @@ import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryWriter
+import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
+import org.kopiaKt.snapshot.model.EntryType
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.snapshotfs.isDirectoryId
@@ -153,22 +156,61 @@ class SnapshotGC(
     }
 
     private suspend fun runGC(options: GCOptions): SnapshotGCStats {
-        val inUseSet = InUseContentSetFactory.create()
+        // Phase 1: Build in-use content set
+        options.onProgress?.invoke(GCProgress("Loading snapshots", 0, 0))
+        val inUseSet = buildInUseSet(options.onProgress)
 
         try {
-            // Phase 1: Build in-use content set
-            options.onProgress?.invoke(GCProgress("Loading snapshots", 0, 0))
+            // Phase 2: Find and mark unreferenced content
+            options.onProgress?.invoke(
+                GCProgress(
+                    "Scanning content",
+                    inUseContents = inUseSet.size().toInt()
+                )
+            )
 
+            return findAndProcessUnreferencedContent(inUseSet, options)
+        } finally {
+            inUseSet.close()
+        }
+    }
+
+    /**
+     * Phase 1 of GC: walks every snapshot tree and builds the set of content IDs that are still
+     * referenced ("in use"). The caller owns the returned set and MUST close it.
+     *
+     * Exposed (internal) so the in-use set can be asserted directly in tests. Phase 2 is still a
+     * stub, so an under-collected in-use set here is otherwise invisible through [run] (all stats
+     * are zero). Correctly collecting the in-use set is the whole safety property of GC — deleting
+     * anything not in this set would drop live data. See task-9.
+     *
+     * ⚠ FAILS OPEN by design (dry-run only). [loadAllSnapshots], [collectInUseContent] and
+     * [walkObjectTree] SKIP snapshots/objects they cannot read or parse (unreadable manifest, missing
+     * pack blob, malformed directory JSON, or a `DirEntry.type=UNKNOWN` over a prefix-less directory),
+     * so a transient/partial read error under-collects the in-use set instead of aborting. That is
+     * acceptable while GC never deletes (Phase 2 is a stub and [run] throws on `delete=true`), because
+     * a dry run should report best-effort rather than abort. It is a HARD PREREQUISITE that Phase 2
+     * (real deletion) make this path FAIL CLOSED — any snapshot-load / object-read / parse failure
+     * during the in-use walk must abort the delete run before removing anything. See task-9.
+     */
+    internal suspend fun buildInUseSet(
+        onProgress: ((GCProgress) -> Unit)? = null
+    ): InUseContentSet {
+        val inUseSet = InUseContentSetFactory.create()
+        // The caller owns the returned set, but if Phase 1 throws mid-build we must close it here —
+        // otherwise the set leaks (it is Closeable and may become disk-backed). This restores the
+        // close-on-failure guarantee the previous inline try/finally in runGC had.
+        try {
             val snapshots = loadAllSnapshots()
             val totalSnapshots = snapshots.size
 
-            options.onProgress?.invoke(GCProgress("Walking snapshot trees", 0, totalSnapshots))
+            onProgress?.invoke(GCProgress("Walking snapshot trees", 0, totalSnapshots))
 
             var processedSnapshots = 0
             for (snapshot in snapshots) {
                 collectInUseContent(snapshot, inUseSet)
                 processedSnapshots++
-                options.onProgress?.invoke(
+                onProgress?.invoke(
                     GCProgress(
                         "Walking snapshot trees",
                         processedSnapshots,
@@ -178,19 +220,10 @@ class SnapshotGC(
                 )
             }
 
-            // Phase 2: Find and mark unreferenced content
-            options.onProgress?.invoke(
-                GCProgress(
-                    "Scanning content",
-                    processedSnapshots,
-                    totalSnapshots,
-                    inUseContents = inUseSet.size().toInt()
-                )
-            )
-
-            return findAndProcessUnreferencedContent(inUseSet, options)
-        } finally {
+            return inUseSet
+        } catch (t: Throwable) {
             inUseSet.close()
+            throw t
         }
     }
 
@@ -202,6 +235,8 @@ class SnapshotGC(
         return manifests.mapNotNull { metadata ->
             try {
                 repository.getManifest(metadata.id, SnapshotManifest.serializer()).first
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
                 // Skip invalid manifests
                 null
@@ -219,16 +254,23 @@ class SnapshotGC(
             return
         }
 
-        // Walk the snapshot tree and collect all content IDs
-        walkObjectTree(rootObjectId, inUseSet)
+        // Walk the snapshot tree and collect all content IDs. The snapshot root is a directory; trust
+        // the manifest's declared entry type (with an object-id-prefix fallback) to decide recursion.
+        walkObjectTree(rootObjectId, isDirectory(rootEntry, rootObjectId), inUseSet)
     }
 
-    private suspend fun walkObjectTree(objectId: ObjectId, inUseSet: InUseContentSet) {
+    private suspend fun walkObjectTree(
+        objectId: ObjectId,
+        isDirectory: Boolean,
+        inUseSet: InUseContentSet
+    ) {
         // Get all content IDs backing this object
         val contentIds = try {
             repository.verifyObject(objectId)
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
         } catch (e: Exception) {
-            // Object not found or corrupted
+            // Object not found or corrupted (fails open — see buildInUseSet: dry-run only)
             return
         }
 
@@ -237,35 +279,47 @@ class SnapshotGC(
             inUseSet.add(contentId)
         }
 
-        // If this is a directory, recursively process children.
-        // isDirectoryId strips indirection (the 'I' prefix of large/indirect directory objects) before
-        // checking the 'k' content prefix — the previous firstOrNull()=='k' heuristic saw the 'I' and
-        // never recursed into large directories, undercounting the in-use set (a data-loss hazard once
-        // Phase 2 deletes).
-        // KNOWN LIMITATION (task-9 Phase-2 prerequisite): production directory objects are written
-        // WITHOUT the 'k' prefix (FileUploader.uploadDirectoryManifest omits ObjectWriterOptions.prefix),
-        // so isDirectoryId returns false for them and this recursion is skipped for real snapshots. That
-        // is inert today (Phase 2 deletes nothing), but the prefix write MUST be fixed (or traversal
-        // switched to DirEntry.type) before enabling deletion, or GC would drop live directory content.
-        if (isDirectoryId(objectId)) {
-            val dirManifest = try {
-                val data = repository.readObject(objectId)
-                DirManifest.fromJson(data.decodeToString())
-            } catch (e: Exception) {
-                return
-            }
+        // Only directories have child entries to recurse into.
+        if (!isDirectory) {
+            return
+        }
 
-            for (entry in dirManifest.entries) {
-                val childOid = entry.objectId ?: continue
-                val childObjectId = try {
-                    ObjectId.parse(childOid)
-                } catch (e: Exception) {
-                    continue
-                }
-                walkObjectTree(childObjectId, inUseSet)
+        val dirManifest = try {
+            val data = repository.readObject(objectId)
+            DirManifest.fromJson(data.decodeToString())
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
+        } catch (e: Exception) {
+            // Unreadable / non-directory JSON (fails open — see buildInUseSet: dry-run only)
+            return
+        }
+
+        // ponytail: no visited-set, so a subtree shared across N incremental snapshots is re-walked
+        // N times (correctness is fine — set semantics, content is hash-addressed/acyclic — but it is
+        // O(references) not O(unique objects)). Thread a HashSet<ObjectId> visited-set through the walk
+        // if Phase-1 cost matters on-device.
+        for (entry in dirManifest.entries) {
+            val childOid = entry.objectId ?: continue
+            val childObjectId = try {
+                ObjectId.parse(childOid)
+            } catch (e: Exception) {
+                continue
             }
+            walkObjectTree(childObjectId, isDirectory(entry, childObjectId), inUseSet)
         }
     }
+
+    /**
+     * Whether [entry] refers to a directory object. Traversal keys on the manifest's declared
+     * [DirEntry.type] first, because production directory objects are written WITHOUT the 'k' content
+     * prefix, so [isDirectoryId] alone would miss them and under-collect the in-use set — a data-loss
+     * hazard once GC deletes. The [isDirectoryId] fallback still catches a directory declared with an
+     * UNKNOWN type but a 'k'-prefixed / indirect object id. The union never under-collects: a false
+     * positive merely tries to parse a non-directory as a manifest, which fails and stops harmlessly
+     * (that object's own content was already recorded). See task-9.
+     */
+    private fun isDirectory(entry: DirEntry, objectId: ObjectId): Boolean =
+        entry.type == EntryType.DIRECTORY || isDirectoryId(objectId)
 
     private suspend fun findAndProcessUnreferencedContent(
         inUseSet: InUseContentSet,

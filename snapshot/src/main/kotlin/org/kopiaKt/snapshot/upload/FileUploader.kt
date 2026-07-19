@@ -99,6 +99,11 @@ class FileUploader(
         val objectId = writer.writeObject(
             jsonBytes,
             ObjectWriterOptions(
+                // 'k' is the Go kopia directory content prefix (objectIDPrefixDirectory). It makes the
+                // resulting object a directory ID (snapshotfs.isDirectoryId) so Go can list Kotlin-written
+                // directory manifests and snapshot GC can recognise directory objects. Omitting it was a
+                // Go cross-compat divergence and a GC data-loss hazard (task-9 prerequisite #1).
+                prefix = DIRECTORY_CONTENT_PREFIX,
                 compression = DIRECTORY_COMPRESSION
             )
         )
@@ -233,5 +238,8 @@ class FileUploader(
     companion object {
         private const val BUFFER_SIZE = 64 * 1024 // 64KB buffer
         private val DIRECTORY_COMPRESSION = CompressionAlgorithm.ZSTD_DEFAULT // Use zstd for directory manifests
+
+        // Go kopia's objectIDPrefixDirectory: directory manifest content is stored with a 'k' prefix.
+        private const val DIRECTORY_CONTENT_PREFIX = 'k'
     }
 }
