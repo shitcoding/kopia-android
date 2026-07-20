@@ -20,6 +20,8 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -29,6 +31,7 @@ import org.kopiaKt.android.notification.BackupNotificationManager
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.upload.UploadCounters
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * WorkManager worker for executing backups.
@@ -56,6 +59,15 @@ class BackupWorker(
 
     private val checkpointStore: CheckpointStore by lazy {
         CheckpointStore(applicationContext)
+    }
+
+    // Latest progress, published (cheaply) by the upload callback and read by the throttled foreground
+    // loop -- so we never build a Notification per uploaded byte-chunk.
+    private val latestCounters = AtomicReference<UploadCounters?>(null)
+
+    // Built once: the cancel action's PendingIntent is identical for the whole run.
+    private val cancelPendingIntent: PendingIntent by lazy {
+        createCancelIntent(inputData.getString(KEY_SOURCE_ID) ?: "")
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -88,7 +100,7 @@ class BackupWorker(
             notificationManager.createNotificationChannels()
 
             // Set foreground with initial notification
-            setForeground(createInitialForegroundInfo(notificationId, sourcePath))
+            setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters = null))
 
             // Check for existing checkpoint
             val checkpointResult = checkpointStore.getCheckpoint(sourceId)
@@ -102,14 +114,24 @@ class BackupWorker(
                 CheckpointResult.NotFound -> null
             }
 
+            // Drive progress through setForeground (throttled) rather than notificationManager.notify:
+            // notify() is silently dropped when POST_NOTIFICATIONS is denied on API 33+ (freezing the
+            // notification at "Preparing..."), and is throttled past its ~5/sec rate limit even when
+            // granted. The foreground-service update path avoids both; when the permission is denied the
+            // FGS notification may surface only in the system's Task Manager, but it no longer freezes.
+            val progressJob = launch { runForegroundProgressLoop(notificationId, sourcePath) }
+
             // Open repository and run backup
-            val result = runBackup(
-                sourceId = sourceId,
-                sourcePath = sourcePath,
-                config = config,
-                notificationId = notificationId,
-                existingCheckpoint = existingCheckpoint
-            )
+            val result = try {
+                runBackup(
+                    sourceId = sourceId,
+                    sourcePath = sourcePath,
+                    config = config,
+                    existingCheckpoint = existingCheckpoint
+                )
+            } finally {
+                progressJob.cancel()
+            }
 
             // Handle result
             when (result) {
@@ -166,7 +188,6 @@ class BackupWorker(
         sourceId: String,
         sourcePath: String,
         config: BackupWorkerConfig,
-        notificationId: Int,
         existingCheckpoint: BackupCheckpoint?
     ): BackupSessionResult {
         // Get repository from the repository provider
@@ -190,12 +211,9 @@ class BackupWorker(
 
         val callback = object : BackupSessionCallback {
             override fun onProgress(counters: UploadCounters) {
-                updateProgressNotification(
-                    notificationId = notificationId,
-                    sourceId = sourceId,
-                    sourcePath = sourcePath,
-                    counters = counters
-                )
+                // Cheap: just publish the latest counters. The throttled foreground loop turns them into a
+                // notification at most once per interval, instead of rebuilding one per uploaded byte-chunk.
+                latestCounters.set(counters)
             }
 
             override fun onCheckpointSaved(checkpoint: BackupCheckpoint) {
@@ -230,16 +248,52 @@ class BackupWorker(
         return repositoryProvider?.invoke(applicationContext)
     }
 
-    private fun createInitialForegroundInfo(notificationId: Int, sourcePath: String): ForegroundInfo {
-        val cancelIntent = createCancelIntent(inputData.getString(KEY_SOURCE_ID) ?: "")
+    /**
+     * Periodically refreshes the foreground notification with the latest progress. Time-throttled to one
+     * update per [PROGRESS_UPDATE_INTERVAL_MILLIS] (the upload publishes counters far more often), so we
+     * neither rebuild a Notification per byte-chunk nor hit the framework's notification rate limit.
+     * Cancelled by [doWork] once the backup finishes; a failed foreground update is best-effort and must
+     * not abort the backup.
+     */
+    private suspend fun runForegroundProgressLoop(notificationId: Int, sourcePath: String) {
+        while (true) {
+            delay(PROGRESS_UPDATE_INTERVAL_MILLIS)
+            val counters = latestCounters.get() ?: continue
+            try {
+                setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Best-effort progress update; keep backing up.
+            }
+        }
+    }
 
-        val notification = notificationManager.buildProgressNotification(
-            sourceId = inputData.getString(KEY_SOURCE_ID) ?: "",
-            sourcePath = sourcePath,
-            currentFile = null,
-            progress = null,
-            cancelIntent = cancelIntent
-        )
+    private fun buildProgressForegroundInfo(
+        notificationId: Int,
+        sourcePath: String,
+        counters: UploadCounters?
+    ): ForegroundInfo {
+        val notification = if (counters == null) {
+            notificationManager.buildProgressNotification(
+                sourceId = inputData.getString(KEY_SOURCE_ID) ?: "",
+                sourcePath = sourcePath,
+                currentFile = null,
+                progress = null,
+                cancelIntent = cancelPendingIntent
+            )
+        } else {
+            notificationManager.buildProgressNotification(
+                sourceId = inputData.getString(KEY_SOURCE_ID) ?: "",
+                sourcePath = sourcePath,
+                currentFile = counters.currentDirectory.takeIf { it.isNotEmpty() },
+                progress = computeProgressPercent(counters),
+                processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
+                totalBytes = counters.estimatedBytes,
+                processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
+                cancelIntent = cancelPendingIntent
+            )
+        }
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
@@ -252,35 +306,18 @@ class BackupWorker(
         }
     }
 
-    private fun updateProgressNotification(
-        notificationId: Int,
-        sourceId: String,
-        sourcePath: String,
-        counters: UploadCounters
-    ) {
+    /**
+     * Percentage (0..99) of [counters] against the estimated total, or null (indeterminate) when no
+     * estimate is available yet. Capped at 99 so the bar never shows 100% before completion.
+     */
+    internal fun computeProgressPercent(counters: UploadCounters): Int? {
         val totalBytes = counters.totalCachedBytes + counters.totalHashedBytes
         val estimatedBytes = counters.estimatedBytes
-
-        val progress = if (estimatedBytes > 0) {
+        return if (estimatedBytes > 0) {
             ((totalBytes * 100) / estimatedBytes).toInt().coerceIn(0, 99)
         } else {
             null
         }
-
-        val cancelIntent = createCancelIntent(sourceId)
-
-        val notification = notificationManager.buildProgressNotification(
-            sourceId = sourceId,
-            sourcePath = sourcePath,
-            currentFile = counters.currentDirectory.takeIf { it.isNotEmpty() },
-            progress = progress,
-            processedBytes = totalBytes,
-            totalBytes = estimatedBytes,
-            processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
-            cancelIntent = cancelIntent
-        )
-
-        notificationManager.notify(notificationId, notification)
     }
 
     private fun showCompletionNotification(
@@ -335,6 +372,9 @@ class BackupWorker(
         private const val MAX_RETRY_COUNT = 3
         private const val UNIQUE_WORK_PREFIX = "backup_"
         private const val BACKOFF_DELAY_MINUTES = 5L
+
+        /** Minimum interval between foreground progress-notification refreshes (throttle). */
+        private const val PROGRESS_UPDATE_INTERVAL_MILLIS = 1000L
 
         /**
          * Repository provider function.

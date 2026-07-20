@@ -7,6 +7,7 @@ import androidx.work.testing.WorkManagerTestInitHelper
 import androidx.work.workDataOf
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
+import org.kopiaKt.snapshot.upload.UploadCounters
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -146,5 +147,51 @@ class BackupWorkerExecutionTest {
         // when the worker reached the runBackup stage.
         assertThat(capturedContext).isNotNull()
         assertThat(capturedContext).isEqualTo(context)
+    }
+
+    private fun buildWorker(): BackupWorker =
+        TestListenableWorkerBuilder<BackupWorker>(context)
+            .setInputData(
+                workDataOf(
+                    BackupWorker.KEY_SOURCE_ID to "s",
+                    BackupWorker.KEY_SOURCE_PATH to "/p"
+                )
+            )
+            .build()
+
+    @Test
+    fun `computeProgressPercent is null when no estimate is available`() {
+        assertThat(
+            buildWorker().computeProgressPercent(
+                UploadCounters(totalHashedBytes = 500, estimatedBytes = 0)
+            )
+        ).isNull()
+    }
+
+    @Test
+    fun `computeProgressPercent computes the partial percentage from cached plus hashed bytes`() {
+        val worker = buildWorker()
+        assertThat(
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 25, estimatedBytes = 100))
+        ).isEqualTo(25)
+        // Both cached and hashed bytes count toward progress: 30 + 20 of 200 == 25%.
+        assertThat(
+            worker.computeProgressPercent(
+                UploadCounters(totalCachedBytes = 30, totalHashedBytes = 20, estimatedBytes = 200)
+            )
+        ).isEqualTo(25)
+    }
+
+    @Test
+    fun `computeProgressPercent caps at 99 until completion`() {
+        val worker = buildWorker()
+        // Exactly at the estimate must not show 100% before the backup actually finishes.
+        assertThat(
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 100, estimatedBytes = 100))
+        ).isEqualTo(99)
+        // Overshooting the estimate stays clamped at 99.
+        assertThat(
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 150, estimatedBytes = 100))
+        ).isEqualTo(99)
     }
 }
