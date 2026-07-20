@@ -82,10 +82,11 @@ data class MaintenanceOptions(
      * Whether to actually delete content during GC.
      * If false, GC will be a dry run.
      *
-     * Defaults to false because GC Phase 2 (content sweep/delete) is not yet implemented — requesting
-     * deletion throws [UnsupportedOperationException] (see [SnapshotGC.run]). Maintenance therefore does
-     * retention (snapshot-manifest deletion) plus a GC dry run; it does not reclaim content storage yet.
-     * Flip back to true once Phase 2 lands (backlog task-9).
+     * Defaults to false, and an explicit `true` is currently refused (see [runMaintenance]). GC Phase 2
+     * deletion IS implemented and tested at the [SnapshotGC] level, but driving it from the full
+     * maintenance cycle needs on-device wiring + E2E and a refresh between retention and GC so GC sees
+     * retention's manifest deletions (task-14). Until then maintenance stays non-destructive: retention
+     * (snapshot-manifest deletion) plus a GC dry run. (backlog task-9 / task-14)
      */
     val gcDelete: Boolean = false,
 
@@ -134,14 +135,18 @@ class MaintenanceRunner(
         val startTime = Instant.now()
 
         try {
-            // Refuse a delete-GC request up front: GC content deletion (Phase 2) is unimplemented and
-            // throws (see SnapshotGC.run). Failing here — before retention deletes any snapshot
-            // manifests — avoids doing partial destructive work and then soft-failing. Surfaces as
-            // success=false via the catch below. Use gcDelete=false (the default) for retention + a GC
-            // dry run. (task-9)
+            // Refuse a delete-GC request up front. SnapshotGC Phase 2 deletion works, but driving it
+            // through the full maintenance cycle is gated pending on-device wiring + E2E, a refresh
+            // between retention and GC, AND a guarantee that no backup runs concurrently with the delete
+            // run (SnapshotGC.run's concurrency contract — a concurrent dedup-reuse of old content would
+            // otherwise be tombstoned; task-14 must serialize backup and delete-GC). Failing here —
+            // before retention deletes any snapshot manifests — avoids partial destructive work and then
+            // soft-failing. Surfaces as success=false via the catch below. Use gcDelete=false (the
+            // default) for retention + a GC dry run. (task-9 / task-14)
             if (options.gcDelete) {
                 throw UnsupportedOperationException(
-                    "GC content deletion (Phase 2) is not yet implemented; run with gcDelete=false."
+                    "Maintenance-driven GC content deletion is gated pending on-device wiring; " +
+                        "run with gcDelete=false."
                 )
             }
 

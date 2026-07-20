@@ -91,6 +91,12 @@ class ContentManager(
     private val committedIndexes = mutableListOf<PackIndex>()
     private val committedContents = mutableMapOf<ContentId, ContentInfo>()
 
+    // Whether the most recent loadCommittedIndexes read every index blob successfully. False if any
+    // index blob was unreadable and skipped — the committed view is then PARTIAL (hidden content),
+    // which a destructive caller (snapshot GC delete) must treat as fail-closed. See [isIndexLoadComplete].
+    @Volatile
+    private var indexLoadComplete = true
+
     // Written packs (flushed but not yet in committed index)
     private val writtenPacks = mutableMapOf<BlobId, ByteArray>()
     private val writtenContents = mutableMapOf<ContentId, ContentInfo>()
@@ -547,11 +553,20 @@ class ContentManager(
         writtenPacks.clear()
     }
 
+    /**
+     * Whether the most recent index load read every index blob (no blob was skipped as unreadable).
+     * A false result means the committed content view is partial — content may be hidden — so a
+     * destructive caller (snapshot GC delete) MUST NOT act on it. See task-9.
+     */
+    fun isIndexLoadComplete(): Boolean = indexLoadComplete
+
     private suspend fun loadCommittedIndexes() {
         // Clear existing
         committedIndexes.forEach { it.close() }
         committedIndexes.clear()
         committedContents.clear()
+        // Assume complete until an index blob fails to load below.
+        indexLoadComplete = true
 
         // Load index blobs from storage
         // Support both old 'n' prefix and new 'x' prefix for backward compatibility
@@ -582,9 +597,12 @@ class ContentManager(
                     throw e // never swallow coroutine cancellation
                 } catch (e: Exception) {
                     // Skip an unreadable index blob so one bad blob can't fail the whole load, but
-                    // log it — silently dropping an index hides data loss (a decrypt/parse failure
-                    // means its contents disappear from the lookup). Surfacing a structured
-                    // corruption count to callers is future work; no caller consumes one yet.
+                    // log it AND mark the load incomplete — silently dropping an index hides data loss
+                    // (a decrypt/parse failure means its contents disappear from the lookup, which could
+                    // make a live snapshot's content look unreferenced to GC). isIndexLoadComplete()
+                    // now returns false so a destructive GC delete run fails closed instead of deleting
+                    // over a partial view.
+                    indexLoadComplete = false
                     logger.log(
                         Level.WARNING,
                         "Skipping unreadable index blob ${metadata.blobId.value}: ${e.message}",

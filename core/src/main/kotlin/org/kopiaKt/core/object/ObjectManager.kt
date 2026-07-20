@@ -246,6 +246,14 @@ class ObjectManager(
      * @throws ObjectNotFoundException if any backing content is missing
      */
     suspend fun verifyObject(objectId: ObjectId): List<org.kopiaKt.core.content.ContentId> {
+        // The empty object (e.g. a zero-byte file, whose DirEntry.obj is "") is backed by no content —
+        // it has nothing to verify. Mirror readObject/openReader, which special-case ObjectId.Empty.
+        // Without this, getContentInfo(ContentId.Empty) is null and verifyObject throws, which makes
+        // snapshot GC's fail-closed walk abort on any snapshot containing an empty file. (task-9)
+        if (objectId == ObjectId.Empty) {
+            return emptyList()
+        }
+
         val contentIds = mutableListOf<org.kopiaKt.core.content.ContentId>()
 
         iterateBackingContents(objectId) { contentId ->

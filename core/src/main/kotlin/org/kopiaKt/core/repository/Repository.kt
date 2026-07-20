@@ -218,6 +218,31 @@ interface DirectRepository : Repository {
     fun deriveKey(purpose: String, keyLength: Int): ByteArray
 
     /**
+     * Iterates the merge-resolved [ContentInfo] for every content id in the repository.
+     *
+     * Surfaces tombstones (deleted=true) only when [includeDeleted] is true. Used by snapshot GC
+     * Phase 2 to enumerate all content and find what is unreferenced. Delegates to
+     * `ContentManager.iterateContentInfos`.
+     *
+     * @param includeDeleted whether to yield tombstone entries as well as live ones
+     * @param callback invoked once per content id with its current [ContentInfo]
+     */
+    suspend fun iterateContentInfos(
+        includeDeleted: Boolean,
+        callback: suspend (ContentInfo) -> Unit
+    )
+
+    /**
+     * Whether the most recent [refresh] loaded the repository's index AND manifest state completely,
+     * i.e. no index blob or manifest content block was skipped as unreadable/malformed.
+     *
+     * A false result means the in-memory view is PARTIAL — content or entire snapshots may be hidden.
+     * A destructive caller (snapshot GC content deletion) MUST refuse to act on a partial view: a hidden
+     * snapshot would make its still-referenced content look unreferenced and be deleted. See task-9.
+     */
+    fun lastLoadWasComplete(): Boolean
+
+    /**
      * Creates a new DirectRepositoryWriter session.
      *
      * @param options Write session options
@@ -239,6 +264,23 @@ interface DirectRepositoryWriter : RepositoryWriter, DirectRepository {
      * Returns the blob storage for direct access.
      */
     fun blobStorage(): BlobStorage
+
+    /**
+     * Soft-deletes [contentId] by writing a Go-compatible tombstone (deleted=true, strictly-increasing
+     * timestamp). No-op if the content is unknown or already deleted. The bytes are not removed; the
+     * tombstone supersedes the live entry once flushed. Reversible with [undeleteContent].
+     *
+     * Used by snapshot GC Phase 2 to reclaim unreferenced content. Delegates to
+     * `ContentManager.deleteContent`. Must be flushed ([flush]) to persist.
+     */
+    suspend fun deleteContent(contentId: ContentId)
+
+    /**
+     * Revives a soft-deleted [contentId] by writing a live entry with a strictly-increasing timestamp.
+     * No-op if the content is unknown or already live. Used by GC to recover content that was deleted
+     * but turns out to still be referenced. Delegates to `ContentManager.undeleteContent`.
+     */
+    suspend fun undeleteContent(contentId: ContentId)
 }
 
 /**

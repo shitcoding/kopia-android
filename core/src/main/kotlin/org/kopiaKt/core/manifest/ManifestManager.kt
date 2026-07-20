@@ -62,6 +62,12 @@ class ManifestManager(
     // Content IDs of committed manifest blocks
     private val committedContentIds = mutableSetOf<ContentId>()
 
+    // Whether the most recent load parsed every manifest content block. False if any malformed manifest
+    // content was skipped — the manifest view is then partial (a snapshot could be hidden), which a
+    // destructive caller (snapshot GC delete) must treat as fail-closed. See [isManifestLoadComplete].
+    @Volatile
+    private var manifestLoadComplete = true
+
     // Last revision of content manager when we loaded
     private var lastRevision: Long = -1
 
@@ -323,6 +329,13 @@ class ManifestManager(
     }
 
     /**
+     * Whether the most recent load parsed every manifest content block (no block was skipped as
+     * malformed). A false result means the manifest view is partial — a snapshot may be hidden — so a
+     * destructive caller (snapshot GC delete) MUST NOT act on it. See task-9.
+     */
+    fun isManifestLoadComplete(): Boolean = manifestLoadComplete
+
+    /**
      * Compacts manifest content blocks.
      *
      * This consolidates all committed manifest blocks into a single block,
@@ -377,6 +390,10 @@ class ManifestManager(
     private suspend fun loadCommittedManifests() {
         committedEntries.clear()
         committedContentIds.clear()
+        // Assume complete until a manifest content block fails to parse below. Note that the content
+        // load inside contentManager.refresh() maintains its OWN completeness flag
+        // (ContentManager.isIndexLoadComplete) — this flag covers only manifest-content decode failures.
+        manifestLoadComplete = true
 
         // First refresh the content manager to load new indexes
         contentManager.refresh()
@@ -405,8 +422,11 @@ class ManifestManager(
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
                 // Skip malformed manifest content so one bad blob can't fail the whole load, but log
-                // it — silently dropping it hides data loss. (Go keeps this non-fatal too, gated by
-                // KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS; making it fatal is deferred future work.)
+                // it AND mark the load incomplete — silently dropping it hides data loss (a hidden
+                // snapshot manifest makes its content look unreferenced to GC). isManifestLoadComplete()
+                // now returns false so a destructive GC delete run fails closed. (Go keeps the skip
+                // non-fatal, gated by KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS.)
+                manifestLoadComplete = false
                 logger.log(
                     Level.WARNING,
                     "Skipping malformed manifest content $contentId: ${e.message}",

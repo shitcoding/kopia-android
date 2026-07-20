@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.DirectRepository
+import org.kopiaKt.core.repository.DirectRepositoryWriter
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.EntryType
@@ -75,6 +76,9 @@ data class SnapshotGCStats(
 
     /**
      * Number of contents that were recovered (undeleted).
+     *
+     * Always 0 today: Go's in-GC self-heal (undelete referenced-but-deleted content) is not performed
+     * here. Such content instead trips the fail-closed walk and aborts a delete run. See [run]. (task-9)
      */
     val recoveredContentCount: Int = 0,
 
@@ -91,9 +95,6 @@ data class GCOptions(
     /**
      * Whether to actually delete unreferenced content.
      * If false, only reports what would be deleted (dry run).
-     *
-     * NOTE: Phase 2 (content sweep/delete) is not implemented, so delete=true currently throws
-     * [UnsupportedOperationException] from [SnapshotGC.run] rather than silently no-op'ing. See task-9.
      */
     val delete: Boolean = false,
 
@@ -123,43 +124,99 @@ data class GCProgress(
  * Performs garbage collection on snapshot content.
  *
  * The GC algorithm has two phases:
- * 1. Build a set of all content IDs that are in use by walking all snapshot trees
- * 2. Iterate all content and mark/delete those not in the in-use set
+ * 1. Build a set of all content IDs that are in use by walking all snapshot trees.
+ * 2. Iterate all content and delete those not in the in-use set (soft-delete tombstones).
  *
  * Go implementation: snapshot/snapshotgc/gc.go
+ *
+ * @param repository the repository to garbage-collect. A delete run ([GCOptions.delete] == true)
+ *   requires this to be a [DirectRepositoryWriter] (deletion writes tombstones and flushes).
+ * @param maxDirectoryManifestSize the largest object (bytes) GC will load and parse as a directory
+ *   manifest. Guards against OOM when a corrupt/lying `DirEntry(type=DIRECTORY)` points at a huge file
+ *   object. A real directory manifest is far below this cap. See [readDirectoryManifest].
  */
 class SnapshotGC(
-    private val repository: DirectRepository
+    private val repository: DirectRepository,
+    private val maxDirectoryManifestSize: Long = MAX_DIRECTORY_MANIFEST_SIZE
 ) {
     /**
      * Runs garbage collection.
+     *
+     * A delete run reclaims unreferenced content by soft-deleting it (Go-compatible tombstones) and
+     * flushing. It requires a writable [DirectRepositoryWriter] and builds the in-use set FAIL CLOSED:
+     * any snapshot/object that cannot be loaded, verified, or parsed aborts the run before anything is
+     * deleted, because a partial in-use set would drop live data. A dry run (`delete == false`) only
+     * reads, is best-effort (fail open), and never mutates the repository.
+     *
+     * ⚠ CONCURRENCY CONTRACT (delete runs): the caller MUST guarantee that NO backup / write session
+     * runs against the repository for the duration of a delete run. A delete run builds ONE point-in-time
+     * in-use set and then tombstones content missing from it. If a concurrent backup de-duplicates against
+     * old content `C` (reusing it WITHOUT rewriting it, so `C` keeps its old timestamp) after GC captured
+     * its view but before `C` is tombstoned, GC will soft-delete `C` while the new snapshot references it —
+     * that snapshot then fails to restore. This is the standard GC-vs-backup race; the fix is exclusive
+     * maintenance, NOT more logic here. Go additionally hardens this with `requireTwoGCCycles` +
+     * `MarginBetweenSnapshotGC` (a tombstone is only physically dropped after a second cycle confirms it,
+     * giving the recovery/undelete pass time to revive re-referenced content) — neither the two-cycle
+     * margin nor the recovery pass is implemented here yet. Until they are, the ON-DEVICE wiring (task-14)
+     * MUST serialize backup and delete-GC (e.g. a repository maintenance lock / unique WorkManager work).
+     * There is no production caller today (`MaintenanceRunner` still refuses `gcDelete=true`), so this
+     * primitive is enabled + tested but not yet reachable from a concurrent path. See task-9 / task-14.
+     *
+     * Note on recovery: Go additionally un-deletes content that is referenced but marked deleted (a
+     * self-heal for an abnormal state). Here such content instead makes the fail-closed walk abort
+     * (`verifyObject` cannot resolve a tombstoned content), which is safe — GC refuses rather than
+     * proceeds on a corrupt state. Active in-GC recovery is deferred (needs a verifyObject-with-deleted
+     * variant); the `undeleteContent` primitive exists for a future recovery pass. See task-9.
      *
      * @param options GC options
      * @return Statistics about the GC run
      */
     suspend fun run(options: GCOptions = GCOptions()): SnapshotGCStats {
-        // Phase 2 (content sweep/delete) is not implemented: iterateContentByPrefix is a stub, so no
-        // content is ever reclaimed. Fail loudly rather than let a caller believe delete=true freed
-        // storage — it would silently no-op while the repository keeps growing. Dry runs (delete=false)
-        // still execute Phase 1. See backlog task-9 (Phase 2 needs new ContentManager soft-delete APIs).
-        if (options.delete) {
-            throw UnsupportedOperationException(
-                "GC content deletion (Phase 2) is not yet implemented; run with delete=false. " +
-                    "Deleting snapshot manifests currently reclaims no content."
-            )
+        val writer = if (options.delete) {
+            // Fail fast (before the whole Phase-1 walk) if this repository cannot be written to. A
+            // read-only-opened DirectRepositoryImpl still implements DirectRepositoryWriter, so the cast
+            // alone would only surface the failure at the first deleteContent's checkWritable().
+            check(!repository.clientOptions().readOnly) {
+                "GC content deletion requires a writable repository, but it was opened read-only."
+            }
+            repository as? DirectRepositoryWriter
+                ?: throw IllegalStateException(
+                    "GC content deletion requires a DirectRepositoryWriter."
+                )
+        } else {
+            null
         }
         return withContext(Dispatchers.Default) {
-            runGC(options)
+            if (writer != null) {
+                // Fail closed on a PARTIAL repository view before deleting anything. Reload the index +
+                // manifest state and refuse to delete if any index blob or manifest content was skipped
+                // as unreadable: a hidden snapshot would make its still-referenced content look
+                // unreferenced and get tombstoned. buildInUseSet's per-object fail-closed walk cannot
+                // catch this — a hidden snapshot is simply absent from findManifests. See task-9.
+                repository.refresh()
+                check(repository.lastLoadWasComplete()) {
+                    "Refusing to run delete-GC: the repository index/manifest load was incomplete " +
+                        "(an unreadable index blob or malformed manifest content was skipped). A partial " +
+                        "view could tombstone live data. Repair or fully load the repository first."
+                }
+            }
+            runGC(options, writer)
         }
     }
 
-    private suspend fun runGC(options: GCOptions): SnapshotGCStats {
-        // Phase 1: Build in-use content set
+    private suspend fun runGC(options: GCOptions, writer: DirectRepositoryWriter?): SnapshotGCStats {
+        // Capture a single reference instant at the START of the run (before Phase 1), matching Go's
+        // maintenanceStartTime — every content's age is measured against it, and measuring from run start
+        // (not Phase-2 start) is strictly more conservative about what is "too recent" to delete. Uses the
+        // repository's injected clock.
+        val now = repository.time()
+
+        // Phase 1: Build in-use content set. Fail closed only when we are going to delete.
         options.onProgress?.invoke(GCProgress("Loading snapshots", 0, 0))
-        val inUseSet = buildInUseSet(options.onProgress)
+        val inUseSet = buildInUseSet(options.onProgress, failClosed = options.delete)
 
         try {
-            // Phase 2: Find and mark unreferenced content
+            // Phase 2: Find and (optionally) delete unreferenced content.
             options.onProgress?.invoke(
                 GCProgress(
                     "Scanning content",
@@ -167,7 +224,13 @@ class SnapshotGC(
                 )
             )
 
-            return findAndProcessUnreferencedContent(inUseSet, options)
+            val stats = findAndProcessUnreferencedContent(inUseSet, writer, options, now)
+
+            // Persist tombstones written during the sweep. Harmless no-op when nothing was deleted
+            // (flushIndex returns early on an empty written set).
+            writer?.flush()
+
+            return stats
         } finally {
             inUseSet.close()
         }
@@ -177,36 +240,32 @@ class SnapshotGC(
      * Phase 1 of GC: walks every snapshot tree and builds the set of content IDs that are still
      * referenced ("in use"). The caller owns the returned set and MUST close it.
      *
-     * Exposed (internal) so the in-use set can be asserted directly in tests. Phase 2 is still a
-     * stub, so an under-collected in-use set here is otherwise invisible through [run] (all stats
-     * are zero). Correctly collecting the in-use set is the whole safety property of GC — deleting
-     * anything not in this set would drop live data. See task-9.
+     * Exposed (internal) so the in-use set can be asserted directly in tests. Correctly collecting the
+     * in-use set is the whole safety property of GC — deleting anything not in this set would drop live
+     * data. See task-9.
      *
-     * ⚠ FAILS OPEN by design (dry-run only). [loadAllSnapshots], [collectInUseContent] and
-     * [walkObjectTree] SKIP snapshots/objects they cannot read or parse (unreadable manifest, missing
-     * pack blob, malformed directory JSON, or a `DirEntry.type=UNKNOWN` over a prefix-less directory),
-     * so a transient/partial read error under-collects the in-use set instead of aborting. That is
-     * acceptable while GC never deletes (Phase 2 is a stub and [run] throws on `delete=true`), because
-     * a dry run should report best-effort rather than abort. It is a HARD PREREQUISITE that Phase 2
-     * (real deletion) make this path FAIL CLOSED — any snapshot-load / object-read / parse failure
-     * during the in-use walk must abort the delete run before removing anything. See task-9.
+     * @param failClosed when true (a delete run), any snapshot-load / object-read / parse failure during
+     *   the walk is RETHROWN so the caller aborts before deleting — a partial in-use set could drop live
+     *   data. When false (a dry run), such failures are SKIPPED (best-effort), so a transient/partial read
+     *   error under-collects the in-use set instead of aborting. `CancellationException` is always
+     *   propagated regardless of this flag (never swallow coroutine cancellation).
      */
     internal suspend fun buildInUseSet(
-        onProgress: ((GCProgress) -> Unit)? = null
+        onProgress: ((GCProgress) -> Unit)? = null,
+        failClosed: Boolean = false
     ): InUseContentSet {
         val inUseSet = InUseContentSetFactory.create()
         // The caller owns the returned set, but if Phase 1 throws mid-build we must close it here —
-        // otherwise the set leaks (it is Closeable and may become disk-backed). This restores the
-        // close-on-failure guarantee the previous inline try/finally in runGC had.
+        // otherwise the set leaks (it is Closeable and may become disk-backed).
         try {
-            val snapshots = loadAllSnapshots()
+            val snapshots = loadAllSnapshots(failClosed)
             val totalSnapshots = snapshots.size
 
             onProgress?.invoke(GCProgress("Walking snapshot trees", 0, totalSnapshots))
 
             var processedSnapshots = 0
             for (snapshot in snapshots) {
-                collectInUseContent(snapshot, inUseSet)
+                collectInUseContent(snapshot, inUseSet, failClosed)
                 processedSnapshots++
                 onProgress?.invoke(
                     GCProgress(
@@ -225,7 +284,7 @@ class SnapshotGC(
         }
     }
 
-    private suspend fun loadAllSnapshots(): List<SnapshotManifest> {
+    private suspend fun loadAllSnapshots(failClosed: Boolean): List<SnapshotManifest> {
         val manifests = repository.findManifests(
             mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         )
@@ -236,31 +295,53 @@ class SnapshotGC(
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
-                // Skip invalid manifests
+                // Deletion must not proceed on a partially-loaded snapshot set (a snapshot we cannot read
+                // may reference live content). A dry run skips the unreadable manifest.
+                if (failClosed) throw e
                 null
             }
         }
     }
 
-    private suspend fun collectInUseContent(snapshot: SnapshotManifest, inUseSet: InUseContentSet) {
-        val rootEntry = snapshot.rootEntry ?: return
-        val rootObjectIdStr = rootEntry.objectId ?: return
+    private suspend fun collectInUseContent(
+        snapshot: SnapshotManifest,
+        inUseSet: InUseContentSet,
+        failClosed: Boolean
+    ) {
+        val rootEntry = snapshot.rootEntry
+        val rootObjectIdStr = rootEntry?.objectId
+        if (rootEntry == null || rootObjectIdStr == null) {
+            // No root reference => the snapshot references no tree. That is expected for an explicitly
+            // INCOMPLETE snapshot (an interrupted backup). For a COMPLETE snapshot it is suspicious — a
+            // dropped/renamed root field (schema drift) could hide a live tree — so a delete run aborts
+            // rather than treat that tree as unreferenced. A dry run skips it (best-effort).
+            if (failClosed && snapshot.incompleteReason == null) {
+                throw IllegalStateException(
+                    "snapshot ${snapshot.id} has no usable root entry; refusing delete-GC over a " +
+                        "possibly-incomplete/drifted view"
+                )
+            }
+            return
+        }
 
         val rootObjectId = try {
             ObjectId.parse(rootObjectIdStr)
         } catch (e: Exception) {
+            // An unparseable root reference means we cannot enumerate this snapshot's live tree.
+            if (failClosed) throw e
             return
         }
 
         // Walk the snapshot tree and collect all content IDs. The snapshot root is a directory; trust
         // the manifest's declared entry type (with an object-id-prefix fallback) to decide recursion.
-        walkObjectTree(rootObjectId, isDirectory(rootEntry, rootObjectId), inUseSet)
+        walkObjectTree(rootObjectId, isDirectory(rootEntry, rootObjectId), inUseSet, failClosed)
     }
 
     private suspend fun walkObjectTree(
         objectId: ObjectId,
         isDirectory: Boolean,
-        inUseSet: InUseContentSet
+        inUseSet: InUseContentSet,
+        failClosed: Boolean
     ) {
         // Get all content IDs backing this object
         val contentIds = try {
@@ -268,7 +349,9 @@ class SnapshotGC(
         } catch (e: CancellationException) {
             throw e // never swallow coroutine cancellation
         } catch (e: Exception) {
-            // Object not found or corrupted (fails open — see buildInUseSet: dry-run only)
+            // Object not found or corrupted. A delete run must abort (we cannot trust the in-use set);
+            // a dry run fails open and skips it.
+            if (failClosed) throw e
             return
         }
 
@@ -283,13 +366,24 @@ class SnapshotGC(
         }
 
         val dirManifest = try {
-            val data = repository.readObject(objectId)
-            DirManifest.fromJson(data.decodeToString())
+            readDirectoryManifest(objectId)
         } catch (e: CancellationException) {
             throw e // never swallow coroutine cancellation
         } catch (e: Exception) {
-            // Unreadable / non-directory JSON (fails open — see buildInUseSet: dry-run only)
+            // Unreadable / oversized / non-directory JSON. Delete run aborts; dry run fails open.
+            if (failClosed) throw e
             return
+        }
+
+        // We decided this object IS a directory; if the parsed stream type disagrees, we mis-identified
+        // a non-directory (or read foreign JSON). A delete run must abort rather than under-collect that
+        // object's (unknown) real children. (A genuine directory always carries the directory stream
+        // type, so this never fires for real directories — no false aborts.)
+        if (failClosed && !dirManifest.isValidDirectoryStream()) {
+            throw IllegalStateException(
+                "object $objectId was treated as a directory but its stream type is " +
+                    "'${dirManifest.streamType}'; refusing delete-GC"
+            )
         }
 
         // ponytail: no visited-set, so a subtree shared across N incremental snapshots is re-walked
@@ -297,33 +391,101 @@ class SnapshotGC(
         // O(references) not O(unique objects)). Thread a HashSet<ObjectId> visited-set through the walk
         // if Phase-1 cost matters on-device.
         for (entry in dirManifest.entries) {
-            val childOid = entry.objectId ?: continue
+            val childOid = entry.objectId
+            if (childOid == null) {
+                // Our writer never emits a null object id (empty files use "" => ObjectId.Empty). In a
+                // delete run a null child obj is schema drift/corruption that could hide a real child's
+                // live subtree, so abort. A dry run skips it.
+                if (failClosed) {
+                    throw IllegalStateException(
+                        "directory $objectId has child entry '${entry.name}' with no object id; " +
+                            "refusing delete-GC"
+                    )
+                }
+                continue
+            }
             val childObjectId = try {
                 ObjectId.parse(childOid)
             } catch (e: Exception) {
+                if (failClosed) throw e
                 continue
             }
-            walkObjectTree(childObjectId, isDirectory(entry, childObjectId), inUseSet)
+            walkObjectTree(childObjectId, isDirectory(entry, childObjectId), inUseSet, failClosed)
         }
     }
 
     /**
-     * Whether [entry] refers to a directory object. Traversal keys on the manifest's declared
-     * [DirEntry.type] first, because production directory objects are written WITHOUT the 'k' content
-     * prefix, so [isDirectoryId] alone would miss them and under-collect the in-use set — a data-loss
-     * hazard once GC deletes. The [isDirectoryId] fallback still catches a directory declared with an
-     * UNKNOWN type but a 'k'-prefixed / indirect object id. The union never under-collects: a false
-     * positive merely tries to parse a non-directory as a manifest, which fails and stops harmlessly
-     * (that object's own content was already recorded). See task-9.
+     * Reads and parses [objectId] as a directory manifest, guarding against OOM.
+     *
+     * A corrupt or lying `DirEntry(type=DIRECTORY)` can point at a huge file object; loading it whole
+     * into RAM to parse as JSON would OOM GC on-device. [org.kopiaKt.core.`object`.ObjectReader.length]
+     * is cheap for large (INDIRECT) objects — it reads only the seek table — so we cap the object size
+     * BEFORE reading the bytes. This fully covers the realistic hazard: a huge backed-up file is always
+     * split into an indirect object, so its length is known without loading it. A real directory manifest
+     * is far below [maxDirectoryManifestSize].
+     *
+     * ponytail: for a DIRECT object, length() must load the single content block to measure it — but a
+     * direct object is bounded by the content-block max (a few MB), so it cannot OOM UNLESS it carries
+     * object-level ('Z') compression that decompresses to a huge size (a crafted compression bomb). That
+     * residual is a systemic decompression-limit concern shared with the restore path (which also
+     * decompresses 'Z' objects), not specific to GC; a bounded-decompression primitive would close it
+     * everywhere at once. Deferred.
+     *
+     * Throws if the object exceeds the cap or is not valid directory JSON; the caller's fail-closed /
+     * fail-open policy decides whether that aborts the run or skips the object.
+     */
+    private suspend fun readDirectoryManifest(objectId: ObjectId): DirManifest {
+        val reader = repository.openObject(objectId)
+        try {
+            val length = reader.length()
+            require(length <= maxDirectoryManifestSize) {
+                "object $objectId under a directory entry is $length bytes, exceeding the " +
+                    "$maxDirectoryManifestSize-byte directory-manifest cap; refusing to load it"
+            }
+            return DirManifest.fromJson(reader.read().decodeToString())
+        } finally {
+            reader.close()
+        }
+    }
+
+    /**
+     * Whether [entry] refers to a directory object (i.e. whether GC must recurse into it).
+     *
+     * Recursion is intentionally over-inclusive — it NEVER under-collects the in-use set, which would be
+     * a data-loss hazard once GC deletes. It recurses when ANY of the following holds:
+     * - the declared [DirEntry.type] is DIRECTORY (the normal case);
+     * - the declared type is UNKNOWN, i.e. AMBIGUOUS (a corrupt/older/unrecognized entry). Production
+     *   directory objects are written WITHOUT the 'k' content prefix, so an UNKNOWN-typed entry over a
+     *   prefix-less directory would otherwise be treated as a file and its whole subtree dropped. We
+     *   attempt to parse it as a directory instead: if it IS one, its children are collected; if it is
+     *   not, [readDirectoryManifest] fails and the caller aborts (delete run) or skips (dry run);
+     * - [isDirectoryId] is true (a 'k'-prefixed / indirect directory object id), even if the type field
+     *   somehow says otherwise.
+     *
+     * A false positive is harmless: parsing a non-directory as a manifest fails and stops (that object's
+     * own content was already recorded). A false NEGATIVE would drop a live subtree — hence UNKNOWN is
+     * treated as "recurse". See task-9.
      */
     private fun isDirectory(entry: DirEntry, objectId: ObjectId): Boolean =
-        entry.type == EntryType.DIRECTORY || isDirectoryId(objectId)
+        entry.type == EntryType.DIRECTORY ||
+            entry.type == EntryType.UNKNOWN ||
+            isDirectoryId(objectId)
 
+    /**
+     * Phase 2: iterate ALL content (including tombstones) and classify each item. Manifest ('m') content
+     * is always kept; content referenced by a live snapshot tree is kept; unreferenced content old enough
+     * to be safe is reclaimed (soft-deleted) when [writer] is non-null (a delete run).
+     *
+     * Mirrors Go's snapshotgc classification loop. Stats sizes use `packedLength` (as Go does). The
+     * iteration is over ALL content ids, not a fixed prefix set — file data lives under the empty prefix,
+     * so a by-prefix scan would miss it entirely (the previous stub's bug). See task-9.
+     */
     private suspend fun findAndProcessUnreferencedContent(
         inUseSet: InUseContentSet,
-        options: GCOptions
+        writer: DirectRepositoryWriter?,
+        options: GCOptions,
+        now: Instant
     ): SnapshotGCStats {
-        val now = Instant.now()
         val minAge = options.safety.minContentAgeSubjectToGC
 
         val unreferencedCount = AtomicInteger(0)
@@ -336,34 +498,16 @@ class SnapshotGC(
         val inUseSize = AtomicLong(0)
         val systemCount = AtomicInteger(0)
         val systemSize = AtomicLong(0)
-        val recoveredCount = AtomicInteger(0)
-        val recoveredSize = AtomicLong(0)
 
-        // Note: In a full implementation, we would need a method on ContentManager
-        // to iterate all content including deleted. For now, we iterate known prefixes.
-        // This is a simplified version - the real Go implementation uses
-        // rep.ContentReader().IterateContents() with IncludeDeleted option.
-
-        // Process manifest content (prefix 'm')
-        iterateContentByPrefix('m') { info ->
-            val contentSize = info.originalLength.toLong()
-            systemCount.incrementAndGet()
-            systemSize.addAndGet(contentSize)
-        }
-
-        // Process regular content (no prefix - but we check common prefixes)
-        for (prefix in listOf(null, 'k', 'p', 'x')) {
-            val prefixChar = prefix ?: continue // Skip null for now
-            iterateContentByPrefix(prefixChar) { info ->
-                processContent(
-                    info, inUseSet, options, now, minAge,
-                    unreferencedCount, unreferencedSize,
-                    deletedCount, deletedSize,
-                    recentCount, recentSize,
-                    inUseCount, inUseSize,
-                    recoveredCount, recoveredSize
-                )
-            }
+        repository.iterateContentInfos(includeDeleted = true) { info ->
+            processContent(
+                info, inUseSet, writer, now, minAge,
+                unreferencedCount, unreferencedSize,
+                deletedCount, deletedSize,
+                recentCount, recentSize,
+                inUseCount, inUseSize,
+                systemCount, systemSize
+            )
         }
 
         return SnapshotGCStats(
@@ -376,25 +520,16 @@ class SnapshotGC(
             inUseContentCount = inUseCount.get(),
             inUseContentSize = inUseSize.get(),
             inUseSystemContentCount = systemCount.get(),
-            inUseSystemContentSize = systemSize.get(),
-            recoveredContentCount = recoveredCount.get(),
-            recoveredContentSize = recoveredSize.get()
+            inUseSystemContentSize = systemSize.get()
+            // recoveredContent* stays 0 — see SnapshotGCStats.recoveredContentCount.
         )
     }
 
-    private suspend fun iterateContentByPrefix(prefix: Char, callback: suspend (ContentInfo) -> Unit) {
-        // Note: This requires access to ContentManager's iterateContents
-        // In the actual implementation, we would call:
-        // contentManager.iterateContentsWithInfo(prefix, includeDeleted = true, callback)
-
-        // For now, this is a placeholder that would need ContentManager enhancement
-        // to support iterating with full ContentInfo including deleted flag
-    }
-
+    @Suppress("LongParameterList")
     private suspend fun processContent(
         info: ContentInfo,
         inUseSet: InUseContentSet,
-        options: GCOptions,
+        writer: DirectRepositoryWriter?,
         now: Instant,
         minAge: Duration,
         unreferencedCount: AtomicInteger,
@@ -405,37 +540,48 @@ class SnapshotGC(
         recentSize: AtomicLong,
         inUseCount: AtomicInteger,
         inUseSize: AtomicLong,
-        recoveredCount: AtomicInteger,
-        recoveredSize: AtomicLong
+        systemCount: AtomicInteger,
+        systemSize: AtomicLong
     ) {
         val contentId = info.contentId
-        val contentSize = info.originalLength.toLong()
-        val contentTime = Instant.ofEpochSecond(info.timestampSeconds)
+        val size = info.packedLength.toLong()
 
+        // Branch 1: manifest/system content is always kept, never GC'd (Go keeps `manifest.ContentPrefix`).
+        if (contentId.prefix == MANIFEST_CONTENT_PREFIX) {
+            systemCount.incrementAndGet()
+            systemSize.addAndGet(size)
+            return
+        }
+
+        // Branch 2: content referenced by a live snapshot tree is kept.
         if (inUseSet.contains(contentId)) {
-            // Content is in use
             inUseCount.incrementAndGet()
-            inUseSize.addAndGet(contentSize)
+            inUseSize.addAndGet(size)
+            return
+        }
 
-            // If content was previously marked as deleted, recover it
-            // Note: This requires ContentManager to track deleted flag
-            // and provide an undelete method
-        } else {
-            // Content is not in use
-            unreferencedCount.incrementAndGet()
-            unreferencedSize.addAndGet(contentSize)
+        // Not referenced. Content already reclaimed (a tombstone) has nothing left to do — skip it so it
+        // is not re-counted as reclaimable on every run (we have no index compaction to drop tombstones).
+        if (info.deleted) {
+            return
+        }
 
-            // Check if content is too recent to delete
-            val age = Duration.between(contentTime, now)
-            if (age < minAge) {
-                recentCount.incrementAndGet()
-                recentSize.addAndGet(contentSize)
-            } else if (options.delete) {
-                // Delete the content
-                // Note: This requires ContentManager.deleteContent method
-                deletedCount.incrementAndGet()
-                deletedSize.addAndGet(contentSize)
-            }
+        // Branch 3: unreferenced but too recent to delete. Protects content a concurrent snapshot may
+        // still be attaching (Go's MinContentAgeSubjectToGC grace).
+        val age = Duration.between(Instant.ofEpochSecond(info.timestampSeconds), now)
+        if (age < minAge) {
+            recentCount.incrementAndGet()
+            recentSize.addAndGet(size)
+            return
+        }
+
+        // Branch 4: unreferenced and old enough — reclaim it. A dry run (writer == null) only counts.
+        unreferencedCount.incrementAndGet()
+        unreferencedSize.addAndGet(size)
+        if (writer != null) {
+            writer.deleteContent(contentId)
+            deletedCount.incrementAndGet()
+            deletedSize.addAndGet(size)
         }
     }
 
@@ -444,5 +590,15 @@ class SnapshotGC(
          * Content ID prefix for manifest content.
          */
         const val MANIFEST_CONTENT_PREFIX = 'm'
+
+        /**
+         * Default cap on the size of an object GC will load as a directory manifest (128 MiB).
+         *
+         * ponytail: a generous ceiling that separates any realistic on-device directory manifest from a
+         * raw file mislabeled `type=DIRECTORY` (the OOM hazard). A genuinely enormous legit directory
+         * (> cap) would make a delete run abort fail-closed rather than OOM; a streaming DirManifest
+         * parser would remove the cap entirely.
+         */
+        const val MAX_DIRECTORY_MANIFEST_SIZE: Long = 128L * 1024 * 1024
     }
 }

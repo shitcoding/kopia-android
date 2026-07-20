@@ -223,6 +223,20 @@ class DirectRepositoryImpl private constructor(
         )
     }
 
+    override suspend fun iterateContentInfos(
+        includeDeleted: Boolean,
+        callback: suspend (ContentInfo) -> Unit
+    ) {
+        checkNotClosed()
+        contentManager.iterateContentInfos(includeDeleted, callback)
+    }
+
+    override fun lastLoadWasComplete(): Boolean {
+        // Both the content index load AND the manifest load must have been complete. A skip in either
+        // hides content/snapshots and makes a partial view unsafe for destructive GC. See task-9.
+        return contentManager.isIndexLoadComplete() && manifestManager.isManifestLoadComplete()
+    }
+
     override suspend fun newDirectWriter(options: WriteSessionOptions): DirectRepositoryWriter {
         checkNotClosed()
         check(!clientOptions.readOnly) { "Repository is read-only" }
@@ -270,6 +284,18 @@ class DirectRepositoryImpl private constructor(
 
     override fun blobStorage(): BlobStorage {
         return blobStorage
+    }
+
+    override suspend fun deleteContent(contentId: ContentId) {
+        checkNotClosed()
+        checkWritable()
+        contentManager.deleteContent(contentId)
+    }
+
+    override suspend fun undeleteContent(contentId: ContentId) {
+        checkNotClosed()
+        checkWritable()
+        contentManager.undeleteContent(contentId)
     }
 
     // ===== Private Helpers =====
