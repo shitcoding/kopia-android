@@ -118,6 +118,7 @@ class BackupWorker(
             when (result) {
                 is BackupSessionResult.Success -> {
                     showCompletionNotification(
+                        sourceId = sourceId,
                         sourcePath = sourcePath,
                         counters = result.counters,
                         durationMillis = result.durationMillis
@@ -144,7 +145,7 @@ class BackupWorker(
                         // Retry with checkpoint
                         Result.retry()
                     } else {
-                        showErrorNotification(sourcePath, result.error.message ?: "Unknown error")
+                        showErrorNotification(sourceId, sourcePath, result.error.message ?: "Unknown error")
                         Result.failure(
                             workDataOf(KEY_ERROR to result.error.message)
                         )
@@ -158,7 +159,7 @@ class BackupWorker(
             if (runAttemptCount < MAX_RETRY_COUNT) {
                 Result.retry()
             } else {
-                showErrorNotification(sourcePath, e.message ?: "Unknown error")
+                showErrorNotification(sourceId, sourcePath, e.message ?: "Unknown error")
                 Result.failure(workDataOf(KEY_ERROR to e.message))
             }
         }
@@ -283,6 +284,7 @@ class BackupWorker(
     }
 
     private fun showCompletionNotification(
+        sourceId: String,
         sourcePath: String,
         counters: UploadCounters,
         durationMillis: Long
@@ -293,18 +295,15 @@ class BackupWorker(
             totalBytes = counters.totalCachedBytes + counters.totalHashedBytes,
             duration = durationMillis
         )
-        notificationManager.notify(BackupNotificationIds.BACKUP_COMPLETE, notification)
+        notificationManager.notify(BackupNotificationIds.completionForSource(sourceId), notification)
     }
 
-    private fun showErrorNotification(sourcePath: String, errorMessage: String) {
-        val retryIntent = createRetryIntent()
-
+    private fun showErrorNotification(sourceId: String, sourcePath: String, errorMessage: String) {
         val notification = notificationManager.buildErrorNotification(
             sourcePath = sourcePath,
-            errorMessage = errorMessage,
-            retryIntent = retryIntent
+            errorMessage = errorMessage
         )
-        notificationManager.notify(BackupNotificationIds.BACKUP_ERROR, notification)
+        notificationManager.notify(BackupNotificationIds.errorForSource(sourceId), notification)
     }
 
     private fun createCancelIntent(sourceId: String): PendingIntent {
@@ -318,13 +317,6 @@ class BackupWorker(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
-
-    private fun createRetryIntent(): PendingIntent? {
-        // Create an intent to retry the backup
-        // This would typically open the app to the backup screen
-        // For now, return null - apps can implement their own retry mechanism
-        return null
     }
 
     companion object {

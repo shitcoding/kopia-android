@@ -14,15 +14,9 @@ import androidx.core.app.NotificationCompat
  * Notification IDs used by backup operations.
  */
 object BackupNotificationIds {
-    // The four fixed IDs below live BELOW [BACKUP_PROGRESS_BASE, ...), the range the per-source progress
-    // registry hands out (incrementing from BACKUP_PROGRESS_BASE), so a source id can never collide with
-    // a fixed id even after many distinct sources in one process.
-
-    /** ID for backup completion notifications. */
-    const val BACKUP_COMPLETE = 1
-
-    /** ID for backup error notifications. */
-    const val BACKUP_ERROR = 2
+    // The two fixed restore IDs below live BELOW [BACKUP_PROGRESS_BASE, ...), the range the per-source
+    // backup registry hands out, so a per-source backup id can never collide with a fixed id. Restore is a
+    // single-at-a-time operation, so it keeps fixed ids.
 
     /** ID for restore progress notifications. */
     const val RESTORE_PROGRESS = 3
@@ -30,21 +24,30 @@ object BackupNotificationIds {
     /** ID for restore completion notifications. */
     const val RESTORE_COMPLETE = 4
 
-    /** Base ID for per-source backup progress notifications; source IDs increment upward from here. */
+    /** Base ID for per-source backup notifications; each source owns a contiguous slot of [SLOT_SIZE] ids. */
     const val BACKUP_PROGRESS_BASE = 1000
 
-    // Distinct, stable notification IDs per source. The old `BASE + hash % 1000` collided whenever two
-    // sources' hashes shared a residue mod 1000, so their progress notifications overwrote each other. A
-    // per-source registry gives every source a unique id; ids only need to be stable within a process (a
-    // backup runs in one WorkManager worker process, and notifications don't survive process death).
-    private val idsBySource = java.util.concurrent.ConcurrentHashMap<String, Int>()
-    private val nextId = java.util.concurrent.atomic.AtomicInteger(BACKUP_PROGRESS_BASE)
+    // Each source gets a slot of 3 consecutive ids: progress, completion, error. The old design used a
+    // single per-source progress id PLUS the fixed BACKUP_COMPLETE/BACKUP_ERROR shared by ALL sources, so
+    // two sources finishing close together overwrote each other's completion/error notification. Handing
+    // each source its own {progress, completion, error} triple is collision-free by construction — a
+    // single registry + counter, no separate ranges to keep disjoint. Ids only need to be stable within a
+    // process (a backup runs in one WorkManager worker process; notifications don't survive process death).
+    private const val SLOT_SIZE = 3
+    private val slotBySource = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val nextSlot = java.util.concurrent.atomic.AtomicInteger(0)
 
-    /**
-     * Returns a distinct, stable progress-notification ID for [sourceId] (collision-free across sources).
-     */
-    fun forSource(sourceId: String): Int =
-        idsBySource.computeIfAbsent(sourceId) { nextId.getAndIncrement() }
+    private fun slotBase(sourceId: String): Int =
+        BACKUP_PROGRESS_BASE + SLOT_SIZE * slotBySource.computeIfAbsent(sourceId) { nextSlot.getAndIncrement() }
+
+    /** Returns a distinct, stable progress-notification ID for [sourceId] (collision-free across sources). */
+    fun forSource(sourceId: String): Int = slotBase(sourceId)
+
+    /** Returns a distinct, stable completion-notification ID for [sourceId] (collision-free across sources). */
+    fun completionForSource(sourceId: String): Int = slotBase(sourceId) + 1
+
+    /** Returns a distinct, stable error-notification ID for [sourceId] (collision-free across sources). */
+    fun errorForSource(sourceId: String): Int = slotBase(sourceId) + 2
 }
 
 /**

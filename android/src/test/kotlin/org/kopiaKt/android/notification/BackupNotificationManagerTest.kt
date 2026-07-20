@@ -272,6 +272,46 @@ class BackupNotificationManagerTest {
             assertThat(BackupNotificationIds.forSource("src-0"))
                 .isNotEqualTo(BackupNotificationIds.forSource("src-132"))
         }
+
+        @Test
+        fun `completionForSource and errorForSource are stable per source`() {
+            assertThat(BackupNotificationIds.completionForSource("stable"))
+                .isEqualTo(BackupNotificationIds.completionForSource("stable"))
+            assertThat(BackupNotificationIds.errorForSource("stable"))
+                .isEqualTo(BackupNotificationIds.errorForSource("stable"))
+        }
+
+        @Test
+        fun `progress, completion, and error IDs are distinct for the same source`() {
+            val src = "distinct-triple"
+            val progress = BackupNotificationIds.forSource(src)
+            val completion = BackupNotificationIds.completionForSource(src)
+            val error = BackupNotificationIds.errorForSource(src)
+
+            assertThat(setOf(progress, completion, error)).hasSize(3)
+        }
+
+        @Test
+        fun `no notification ID collides across two different sources`() {
+            // The whole point of the follow-up: BACKUP_COMPLETE / BACKUP_ERROR used to be single fixed IDs
+            // shared by ALL sources, so two sources finishing close together overwrote each other's
+            // completion/error notification. Every id handed out for source A must differ from every id
+            // for source B (progress, completion, error alike). (task-14, review follow-up)
+            val a = "collide-a"
+            val b = "collide-b"
+            val idsA = setOf(
+                BackupNotificationIds.forSource(a),
+                BackupNotificationIds.completionForSource(a),
+                BackupNotificationIds.errorForSource(a)
+            )
+            val idsB = setOf(
+                BackupNotificationIds.forSource(b),
+                BackupNotificationIds.completionForSource(b),
+                BackupNotificationIds.errorForSource(b)
+            )
+
+            assertThat(idsA.intersect(idsB)).isEmpty()
+        }
     }
 
     @Nested
