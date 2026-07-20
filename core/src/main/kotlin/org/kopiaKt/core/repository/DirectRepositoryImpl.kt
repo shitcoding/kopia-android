@@ -477,7 +477,7 @@ class DirectRepositoryImpl private constructor(
                 compressorFactory = compressorFactory,
                 defaultCompression = defaultCompression,
                 maxPackSize = config.maxPackSize,
-                epochsEnabled = config.epochParameters.enabled
+                epochsEnabled = config.isEpochIndexEnabled()
             )
         }
     }

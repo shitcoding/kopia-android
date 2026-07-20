@@ -11,8 +11,13 @@ import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.compression.DefaultCompressorFactory
 import org.kopiaKt.core.encryption.DefaultEncryptorFactory
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
+import org.kopiaKt.core.format.EpochParameters
+import org.kopiaKt.core.format.FormatVersion
+import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.hashing.DefaultContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
+import org.kopiaKt.core.repository.DirectRepositoryImpl
+import java.security.SecureRandom
 
 /**
  * Epoch-mode index blob naming + epoch-marker handling (task-20 part 1).
@@ -103,5 +108,49 @@ class ContentManagerEpochIndexTest {
 
         assertThat(cm.isIndexLoadComplete()).isTrue()
         assertThat(cm.getContentInfo(id)).isNotNull()
+    }
+
+    @Test
+    fun `isEpochIndexEnabled follows the format version, not the epochParameters flag`() {
+        // A pre-0.9 (FormatVersion 1) format blob may OMIT the epoch key, which deserializes to the truthy
+        // EpochParameters.DEFAULT. Epoch-mode detection must key on the version (Go couples them), so such a
+        // legacy repo is NOT falsely treated as epoch mode.
+        fun cfg(v: Int, ep: EpochParameters) =
+            RepositoryConfig(hash = "BLAKE2B-256-128", encryption = "AES256-GCM-HMAC-SHA256", version = v, epochParameters = ep)
+
+        assertThat(cfg(FormatVersion.V1.value, EpochParameters.DEFAULT).isEpochIndexEnabled()).isFalse()
+        assertThat(cfg(FormatVersion.V1.value, EpochParameters.DISABLED).isEpochIndexEnabled()).isFalse()
+        assertThat(cfg(FormatVersion.V2.value, EpochParameters.DEFAULT).isEpochIndexEnabled()).isTrue()
+        assertThat(cfg(FormatVersion.V3.value, EpochParameters.DEFAULT).isEpochIndexEnabled()).isTrue()
+    }
+
+    @Test
+    fun `a FormatVersion 1 repo writes legacy n-prefixed index blobs even if epochParameters says enabled`() = runBlocking {
+        // Simulates opening a pre-0.9 legacy repo whose format blob omits the epoch key (deserialized to the
+        // truthy EpochParameters.DEFAULT): the runtime must still write Go's V0 legacy "n<hash>" index names,
+        // NOT "xn0_", or Go's V0 reader on that legacy repo cannot see Kotlin's writes. (task-20 misdetection)
+        val storage = InMemoryBlobStorage()
+        val random = SecureRandom()
+        val config = RepositoryConfig(
+            hash = "BLAKE2B-256-128",
+            encryption = "AES256-GCM-HMAC-SHA256",
+            secret = ByteArray(32).also { random.nextBytes(it) },
+            masterKey = ByteArray(32).also { random.nextBytes(it) },
+            splitter = "FIXED-1M",
+            version = FormatVersion.V1.value,
+            epochParameters = EpochParameters.DEFAULT, // truthy but must be IGNORED for a V1 repo
+            enablePasswordChange = false
+        )
+        val repo = DirectRepositoryImpl.create(storage, "pw", config)
+        repo.use {
+            val writer = repo.newDirectWriter()
+            writer.writeObject("legacy content".toByteArray())
+            writer.flush()
+            writer.close()
+        }
+
+        assertThat(blobIds(storage, "xn")).isEmpty()
+        val legacyIndex = blobIds(storage, "n").filter { Regex("^n[0-9a-f]{32}-").containsMatchIn(it) }
+        assertThat(legacyIndex).isNotEmpty()
     }
 }

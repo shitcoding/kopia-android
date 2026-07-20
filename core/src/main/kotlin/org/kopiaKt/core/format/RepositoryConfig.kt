@@ -58,6 +58,16 @@ data class RepositoryConfig(
     val requiredFeatures: List<String> = emptyList()
 ) {
     /**
+     * Whether this repository uses Go's epoch-based index management (so index blobs must be written with
+     * epoch names `xn<epoch>_…`). Gated on the FORMAT VERSION, matching Go, which couples the two in
+     * `ContentFormat.ResolveFormatVersion` (FormatVersion 2/3 ⇒ epochs; FormatVersion 1 ⇒ no epochs). This
+     * is deliberately NOT `epochParameters.enabled`: a pre-0.9 (FormatVersion 1) format blob may OMIT the
+     * epoch key, which deserializes to the truthy [EpochParameters.DEFAULT] and would falsely enable epoch
+     * naming on a legacy repo Go's V0 reader cannot then see. See task-20.
+     */
+    fun isEpochIndexEnabled(): Boolean = version >= FormatVersion.V2.value
+
+    /**
      * Returns the content format portion of this config.
      */
     fun getContentFormat(): ContentFormat = ContentFormat(
