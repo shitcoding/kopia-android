@@ -381,6 +381,7 @@ class BackupWorker(
                 .build()
 
             val request = OneTimeWorkRequestBuilder<BackupWorker>()
+                .addTag(UNIQUE_WORK_PREFIX) // so cancelAll (cancelAllWorkByTag) actually matches this work
                 .setInputData(inputData)
                 .setConstraints(workConstraints)
                 .setBackoffCriteria(
@@ -431,6 +432,7 @@ class BackupWorker(
                 intervalHours,
                 TimeUnit.HOURS
             )
+                .addTag(UNIQUE_WORK_PREFIX) // so cancelAll (cancelAllWorkByTag) actually matches this work
                 .setInputData(inputData)
                 .setConstraints(workConstraints)
                 .setBackoffCriteria(
