@@ -27,6 +27,10 @@ const FILTER_PRESETS: { label: string; patterns: string[] }[] = [
   { label: "Build outputs", patterns: ["build/**", "dist/**", "out/**"] },
   { label: "Node modules", patterns: ["node_modules/**"] },
   { label: "Temp files", patterns: ["*.tmp", "*.temp", "*.swp", "~*"] },
+  // Excludes any file OR directory whose name starts with a dot, at any depth (gitignore semantics).
+  // Kopia has no native "exclude dot files" flag — it is expressed as an ignore pattern — so this
+  // replaces the old dead exclude-dot-files/dirs switches with a real, persisted rule.
+  { label: "Dot files", patterns: [".*"] },
 ];
 
 const PolicyEditorScreen = () => {
@@ -63,8 +67,6 @@ const PolicyEditorScreen = () => {
   // Files
   const [ignoreRules, setIgnoreRules] = useState("");
   const [maxFileSize, setMaxFileSize] = useState("");
-  const [excludeDotFiles, setExcludeDotFiles] = useState(false);
-  const [excludeDotDirs, setExcludeDotDirs] = useState(false);
 
   // Raw loaded values, kept so a save doesn't mutate what the user didn't touch:
   // - loadedPolicy: sections/fields this editor doesn't surface (errorHandling, splitter, cron,
@@ -187,12 +189,14 @@ const PolicyEditorScreen = () => {
   };
 
   const handleReset = () => {
-    setKeepLatest("10"); setKeepHourly(""); setKeepDaily("7"); setKeepWeekly("4");
-    setKeepMonthly("6"); setKeepAnnual("2"); setIgnoreIdentical(false);
+    // Kopia's real default retention (RetentionDefaults / Go policy.defaultRetentionPolicy). Keep this in
+    // sync with AddSourceScreen.buildPolicy so a wizard-created policy and a Reset match (an async policy
+    // load must not visibly diverge from Reset). The policy_editor E2E only pins keepLatest=10.
+    setKeepLatest("10"); setKeepHourly("48"); setKeepDaily("7"); setKeepWeekly("4");
+    setKeepMonthly("24"); setKeepAnnual("3"); setIgnoreIdentical(false);
     setManual(false); setIntervalNum("24"); setIntervalUnit(3600); setRunMissed(true);
     setTimesOfDay([]); setCompressor("zstd"); setOnlyCompress(""); setNeverCompress("");
     setMinSize(""); setMaxSize(""); setIgnoreRules("*.tmp\n.cache/**"); setMaxFileSize("");
-    setExcludeDotFiles(false); setExcludeDotDirs(false);
     toast({ title: "Reset to defaults" });
   };
 
@@ -339,17 +343,6 @@ const PolicyEditorScreen = () => {
 
             <div className="card-elevated space-y-3">
               <NumberInput label="Max file size (MB)" value={maxFileSize} onChange={setMaxFileSize} />
-            </div>
-
-            <div className="card-elevated space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">Exclude dot files</span>
-                <Switch checked={excludeDotFiles} onCheckedChange={setExcludeDotFiles} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">Exclude dot directories</span>
-                <Switch checked={excludeDotDirs} onCheckedChange={setExcludeDotDirs} />
-              </div>
             </div>
           </TabsContent>
         </div>

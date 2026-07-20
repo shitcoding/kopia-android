@@ -67,16 +67,18 @@ const AddSourceScreen = () => {
     // Kotlin createSource applies this policy to the new source (WebCreateSourceRequest.policy),
     // storing it under the source's policy identity so it shows up in the policy editor.
     return {
-      // Give a new source sensible retention defaults (matching the policy editor's "Reset to
-      // defaults"). Kotlin's Policy.retention is a non-nullable object, so an omitted retention
-      // round-trips as an all-null object that the editor renders as blank rather than inherited —
-      // set explicit defaults so the source has meaningful retention out of the box.
+      // Give a new source Kopia's real default retention (RetentionDefaults / Go
+      // policy.defaultRetentionPolicy), matching the policy editor's "Reset to defaults" exactly.
+      // Kotlin's Policy.retention is a non-nullable object, so an omitted retention round-trips as an
+      // all-null object that the editor renders as blank rather than inherited — set explicit defaults so
+      // the source has meaningful retention out of the box. Keep in sync with PolicyEditorScreen.handleReset.
       retention: {
         keepLatest: 10,
+        keepHourly: 48,
         keepDaily: 7,
         keepWeekly: 4,
-        keepMonthly: 6,
-        keepAnnual: 2,
+        keepMonthly: 24,
+        keepAnnual: 3,
       },
       scheduling: {
         manual: !autoBackup,
