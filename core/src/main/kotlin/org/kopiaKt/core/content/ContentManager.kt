@@ -134,8 +134,17 @@ class ContentManager(
         // Step 4: Encrypt
         val encryptedData = encryptor.encrypt(compressedData, contentId)
 
-        // Step 5: Add to pack blob
-        addToPackUnlocked(contentId, encryptedData, data.size.toUInt(), actualCompressionHeaderId)
+        // Step 5: Add to pack blob. If we are resurrecting previously-deleted content (contentExists was
+        // false because the current entry is a tombstone), stamp a timestamp strictly greater than that
+        // tombstone so the new live entry wins the merge — Go carries the deleted entry's previousWriteTime
+        // into the rewrite (contentWriteTime(prev)).
+        val superseded = currentInfoUnlocked(contentId)
+        val writeTime = if (superseded != null && superseded.deleted) {
+            contentWriteTime(superseded.timestampSeconds)
+        } else {
+            System.currentTimeMillis() / 1000
+        }
+        addToPackUnlocked(contentId, encryptedData, data.size.toUInt(), actualCompressionHeaderId, writeTime)
 
         _stats.writtenContents.incrementAndGet()
         _stats.writtenBytes.addAndGet(encryptedData.size.toLong())
@@ -151,32 +160,22 @@ class ContentManager(
      * @throws ContentNotFoundException if content doesn't exist
      */
     suspend fun getContent(contentId: ContentId): ByteArray = mutex.withLock {
-        // Check pending content first
-        pendingContents[contentId]?.let { pending ->
+        // Resolve the winning entry across layers: a newer tombstone must hide an older live entry, so
+        // plain layer precedence is unsafe (must match getContentInfo — see currentInfoUnlocked).
+        val info = currentInfoUnlocked(contentId) ?: throw ContentNotFoundException(contentId)
+        if (info.deleted) throw ContentNotFoundException(contentId)
+
+        // If the winner is the pending entry, its bytes are in memory (not yet in a pack blob).
+        val pending = pendingContents[contentId]
+        if (pending != null && pending.info === info) {
             return decryptAndDecompress(pending.encryptedData, contentId, pending.compressionHeaderId)
         }
 
-        // Check written packs (flushed but not reloaded)
-        writtenContents[contentId]?.let { info ->
-            val packData = writtenPacks[info.packBlobId]
-                ?: throw ContentNotFoundException(contentId)
-            val encryptedData = PackBlobReader.extractContent(packData, info)
-            return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
-        }
-
-        // Check committed indexes
-        committedContents[contentId]?.let { info ->
-            // Fetch only the needed portion of the pack blob using offset/length
-            // This avoids loading the entire 20MB pack blob into memory
-            val encryptedData = storage.getBlob(
-                info.packBlobId,
-                info.packOffset.toLong(),
-                info.packedLength.toLong()
-            )
-            return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
-        }
-
-        throw ContentNotFoundException(contentId)
+        // Otherwise the winner lives in a pack blob: in memory (written this session) or in storage
+        // (committed, or an undelete re-pointing a live entry at the original committed pack).
+        val encryptedData = writtenPacks[info.packBlobId]?.let { PackBlobReader.extractContent(it, info) }
+            ?: storage.getBlob(info.packBlobId, info.packOffset.toLong(), info.packedLength.toLong())
+        return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
     }
 
     /**
@@ -186,9 +185,25 @@ class ContentManager(
      * @return The content info, or null if not found
      */
     suspend fun getContentInfo(contentId: ContentId): ContentInfo? = mutex.withLock {
-        pendingContents[contentId]?.info
-            ?: writtenContents[contentId]
-            ?: committedContents[contentId]
+        // A tombstone (deleted=true) means the content is not present.
+        currentInfoUnlocked(contentId)?.takeUnless { it.deleted }
+    }
+
+    /**
+     * The current (winning) index entry for [contentId] across the pending / written / committed
+     * layers, or null if unknown. The returned entry MAY be a tombstone (deleted=true) — callers that
+     * want only live content must filter it. The winner is the [contentInfoGreaterThan] max across the
+     * layers (NOT plain layer precedence): a [refresh] can load committed data newer than a stale
+     * written/pending entry, so we compare by timestamp/deleted rather than trusting layer order.
+     * Call under [mutex].
+     */
+    private fun currentInfoUnlocked(contentId: ContentId): ContentInfo? {
+        val candidates = listOfNotNull(
+            pendingContents[contentId]?.info,
+            writtenContents[contentId],
+            committedContents[contentId]
+        )
+        return candidates.reduceOrNull { a, b -> if (contentInfoGreaterThan(a, b)) a else b }
     }
 
     /**
@@ -203,38 +218,127 @@ class ContentManager(
         prefix: Char,
         callback: suspend (ContentId) -> Unit
     ) {
-        // Collect content IDs under the lock
+        // Collect the LIVE, de-duplicated content IDs with this prefix under the lock. committedContents
+        // can now hold tombstones, so a raw concatenation would leak deleted ids and duplicates across
+        // layers — callers (e.g. ManifestManager) expect current live content ids only.
         val contentIds = mutex.withLock {
-            val ids = mutableListOf<ContentId>()
-
-            // Iterate pending contents
-            for ((contentId, _) in pendingContents) {
-                if (contentId.prefix == prefix) {
-                    ids.add(contentId)
+            val merged = HashMap<ContentId, ContentInfo>()
+            fun consider(info: ContentInfo) {
+                if (info.contentId.prefix != prefix) return
+                val existing = merged[info.contentId]
+                if (existing == null || contentInfoGreaterThan(info, existing)) {
+                    merged[info.contentId] = info
                 }
             }
-
-            // Iterate written contents
-            for ((contentId, _) in writtenContents) {
-                if (contentId.prefix == prefix) {
-                    ids.add(contentId)
-                }
-            }
-
-            // Iterate committed contents
-            for ((contentId, _) in committedContents) {
-                if (contentId.prefix == prefix) {
-                    ids.add(contentId)
-                }
-            }
-
-            ids
+            committedContents.values.forEach(::consider)
+            writtenContents.values.forEach(::consider)
+            pendingContents.values.forEach { consider(it.info) }
+            merged.values.filterNot { it.deleted }.map { it.contentId }
         }
 
         // Call callback outside the lock to avoid deadlock
         for (contentId in contentIds) {
             callback(contentId)
         }
+    }
+
+    /**
+     * Iterates the merge-resolved [ContentInfo] for every content id (newest entry per id across the
+     * pending, written, and committed layers). Surfaces tombstones (deleted=true) only when
+     * [includeDeleted] is true. Used by snapshot GC Phase 2 to find unreferenced content. (task-9)
+     *
+     * @param includeDeleted whether to yield tombstone entries as well as live ones
+     * @param callback invoked once per content id with its current [ContentInfo]
+     */
+    suspend fun iterateContentInfos(
+        includeDeleted: Boolean,
+        callback: suspend (ContentInfo) -> Unit
+    ) {
+        val infos = mutex.withLock {
+            // Winner-per-id via contentInfoGreaterThan across all layers (see currentInfoUnlocked for
+            // why plain layer precedence is unsound). The winner may be a tombstone.
+            val merged = HashMap<ContentId, ContentInfo>()
+            fun consider(info: ContentInfo) {
+                val existing = merged[info.contentId]
+                if (existing == null || contentInfoGreaterThan(info, existing)) {
+                    merged[info.contentId] = info
+                }
+            }
+            committedContents.values.forEach(::consider)
+            writtenContents.values.forEach(::consider)
+            pendingContents.values.forEach { consider(it.info) }
+            merged.values.toList()
+        }
+        for (info in infos) {
+            if (!includeDeleted && info.deleted) continue
+            callback(info)
+        }
+    }
+
+    /**
+     * Soft-deletes [contentId] by writing a tombstone: a clone of the current entry with deleted=true
+     * and a strictly-increasing timestamp (Go-compatible). No-op if the content is unknown or already
+     * deleted. The bytes are NOT removed; once flushed, the tombstone supersedes the live entry via the
+     * merge. Reversible with [undeleteContent]. (task-9 GC Phase 2)
+     */
+    suspend fun deleteContent(contentId: ContentId) = mutex.withLock {
+        // If the content is still in the current unflushed pack, flush that pack first: otherwise the
+        // tombstone we put in writtenContents would be overwritten by the live entry when the pending
+        // pack flushes (flushCurrentPackUnlocked re-writes writtenContents from the pack's contents).
+        // GC never deletes pending content, so this path is only for correctness of the API.
+        if (pendingContents.containsKey(contentId)) {
+            flushCurrentPackUnlocked()
+        }
+        val current = currentInfoUnlocked(contentId) ?: return@withLock
+        if (current.deleted) return@withLock
+        // NOTE: a tombstone cloned from content-level-compressed content (compressionHeaderId != 0)
+        // cannot be indexed by the V1 index builder used in flushIndexUnlocked (V1 rejects compression).
+        // This codebase writes content-level-uncompressed content (object-level 'Z' compression keeps
+        // compressionHeaderId == 0), so it is inert today; deleting Go-written compressed content needs
+        // the V2 index write (task-13 / task-9 follow-up).
+        writtenContents[contentId] = current.copy(
+            deleted = true,
+            timestampSeconds = contentWriteTime(current.timestampSeconds)
+        )
+    }
+
+    /**
+     * Revives a soft-deleted [contentId] by writing a live entry (deleted=false) with a
+     * strictly-increasing timestamp. No-op if the content is unknown or already live. GC calls this
+     * when content that was deleted turns out to still be referenced.
+     *
+     * Note: Go re-writes the content into a fresh pack blob; we re-point to the ORIGINAL pack (the
+     * tombstone kept its pack info), valid because this GC soft-deletes index entries only and never
+     * physically removes/compacts pack blobs, so the original pack still exists. (task-9)
+     */
+    suspend fun undeleteContent(contentId: ContentId) = mutex.withLock {
+        val current = currentInfoUnlocked(contentId) ?: return@withLock
+        if (!current.deleted) return@withLock
+        writtenContents[contentId] = current.copy(
+            deleted = false,
+            timestampSeconds = contentWriteTime(current.timestampSeconds)
+        )
+    }
+
+    /**
+     * Go kopia's index merge order (contentInfoGreaterThan): `a` supersedes `b` iff `a` has a higher
+     * timestamp; on a tie, a non-deleted entry beats a deleted one; on a further tie (both deleted, same
+     * timestamp) the higher packBlobId wins — a deterministic, semantically-neutral tie-break.
+     */
+    private fun contentInfoGreaterThan(a: ContentInfo, b: ContentInfo): Boolean {
+        if (a.timestampSeconds != b.timestampSeconds) return a.timestampSeconds > b.timestampSeconds
+        if (a.deleted != b.deleted) return !a.deleted
+        return a.packBlobId.value > b.packBlobId.value
+    }
+
+    /**
+     * Timestamp for a (re)write of an EXISTING content id: strictly greater than its previous timestamp
+     * even at 1-second wall-clock resolution (Go's contentWriteTime = max(now, prev+1)). Guarantees a
+     * later delete/undelete always wins the merge over the entry it supersedes.
+     */
+    private fun contentWriteTime(previousUnixSeconds: Long): Long {
+        val now = System.currentTimeMillis() / 1000
+        return if (now > previousUnixSeconds) now else previousUnixSeconds + 1
     }
 
     /**
@@ -259,9 +363,11 @@ class ContentManager(
     // ===== Private Implementation =====
 
     private fun contentExists(contentId: ContentId): Boolean {
-        return pendingContents.containsKey(contentId)
-            || writtenContents.containsKey(contentId)
-            || committedContents.containsKey(contentId)
+        // Dedup only against a LIVE entry. If the current entry is a tombstone, the caller is
+        // re-writing previously-deleted content (e.g. GC removed it, a new snapshot references it
+        // again) — it must fall through and write a fresh live entry (resurrect), matching Go. Treating
+        // a tombstone as "exists" would leave the content deleted: data loss.
+        return currentInfoUnlocked(contentId)?.deleted == false
     }
 
     private fun maybeCompress(
@@ -309,7 +415,8 @@ class ContentManager(
         contentId: ContentId,
         encryptedData: ByteArray,
         originalLength: UInt,
-        compressionHeaderId: Int
+        compressionHeaderId: Int,
+        writeTime: Long
     ) {
         val contentHasPrefix = contentId.prefix != null
 
@@ -352,11 +459,13 @@ class ContentManager(
             compressionHeaderId = compressionHeaderId
         )
 
-        // Track as pending
+        // Track as pending. writeTime carries a resurrect's strictly-increasing timestamp (must beat the
+        // tombstone it supersedes) — the pack-level builder timestamp is discarded on flush, so
+        // flushCurrentPackUnlocked preserves this per-content value when it is higher.
         val info = ContentInfo(
             contentId = contentId,
             packBlobId = currentPackBlobId!!,
-            timestampSeconds = System.currentTimeMillis() / 1000,
+            timestampSeconds = writeTime,
             originalLength = originalLength,
             packedLength = encryptedData.size.toUInt(),
             packOffset = packOffset,
@@ -381,10 +490,18 @@ class ContentManager(
         // Write pack blob to storage
         storage.putBlob(packBlobId, packData)
 
-        // Move pending to written
-        for (info in contentInfos) {
-            pendingContents.remove(info.contentId)
-            writtenContents[info.contentId] = info
+        // Move pending to written. The builder stamps one pack-level timestamp on every entry; preserve a
+        // higher per-content pending timestamp (a resurrect writes contentWriteTime(tombstone) so its live
+        // entry beats the tombstone it supersedes — the pack-level value would lose the merge).
+        for (builderInfo in contentInfos) {
+            val pendingTs = pendingContents[builderInfo.contentId]?.info?.timestampSeconds
+            val info = if (pendingTs != null && pendingTs > builderInfo.timestampSeconds) {
+                builderInfo.copy(timestampSeconds = pendingTs)
+            } else {
+                builderInfo
+            }
+            pendingContents.remove(builderInfo.contentId)
+            writtenContents[builderInfo.contentId] = info
         }
         writtenPacks[packBlobId] = packData
 
@@ -417,9 +534,14 @@ class ContentManager(
             storage.putBlob(indexBlobId, encryptedIndexData)
         }
 
-        // Move written to committed
+        // Move written to committed using the same winner rule as loadCommittedIndexes — a plain
+        // overwrite could replace a newer committed entry with a stale written one until the next
+        // refresh (contentInfoGreaterThan keeps the correct winner).
         for ((contentId, info) in writtenContents) {
-            committedContents[contentId] = info
+            val existing = committedContents[contentId]
+            if (existing == null || contentInfoGreaterThan(info, existing)) {
+                committedContents[contentId] = info
+            }
         }
         writtenContents.clear()
         writtenPacks.clear()
@@ -444,24 +566,17 @@ class ContentManager(
                     val index = PackIndexFactory.open(indexData, encryptor.overhead.toUInt())
                     committedIndexes.add(index)
 
-                    // Build lookup map with timestamp-based supersession
-                    // This implements Kopia's "last writer wins" semantics:
-                    // - If same contentId appears in multiple indexes, keep the one with highest timestamp
-                    // - Skip deleted entries (tombstones)
+                    // Keep the WINNING entry per content id across all index blobs using Go kopia's
+                    // contentInfoGreaterThan rule (see [contentInfoGreaterThan]). The winner MAY be a
+                    // tombstone (deleted=true): getContentInfo filters those out and iterateContentInfos
+                    // surfaces them. The previous "remove on ANY deleted" was load-order-dependent and
+                    // would drop a live entry that a GC undelete wrote with a newer timestamp — a
+                    // data-loss bug once GC can delete/undelete.
                     index.iterate().forEach { info ->
-                        // Skip deleted entries - they are tombstones marking content as removed
-                        if (info.deleted) {
-                            // Remove from map if it exists (the deletion supersedes any prior entry)
-                            committedContents.remove(info.contentId)
-                            return@forEach
-                        }
-
                         val existing = committedContents[info.contentId]
-                        if (existing == null || info.timestampSeconds > existing.timestampSeconds) {
-                            // New entry or newer timestamp - use this one
+                        if (existing == null || contentInfoGreaterThan(info, existing)) {
                             committedContents[info.contentId] = info
                         }
-                        // Otherwise keep existing (it has higher or equal timestamp)
                     }
                 } catch (e: CancellationException) {
                     throw e // never swallow coroutine cancellation
