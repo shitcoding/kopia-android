@@ -27,7 +27,10 @@ subprojects {
         outputToConsole.set(true)
         outputColorName.set("RED")
         ignoreFailures.set(false)
-        enableExperimentalRules.set(true)
+        // Experimental rules are unstable by definition and here produced large, low-value churn (e.g.
+        // wrapping every method chain across multiple lines, trailing commas everywhere). Enforce only
+        // ktlint's stable ruleset so the gate stays meaningful without harmful reformatting.
+        enableExperimentalRules.set(false)
         filter {
             exclude("**/generated/**")
             include("**/kotlin/**")
