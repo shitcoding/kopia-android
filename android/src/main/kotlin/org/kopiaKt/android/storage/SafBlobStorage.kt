@@ -26,6 +26,7 @@ import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
 import java.time.Instant
 
 /**
@@ -70,38 +71,49 @@ class SafBlobStorage private constructor(
                 throw InvalidBlobRangeException("Invalid length: $length")
             }
 
+            if (length == 0L) {
+                return@withContext byteArrayOf()
+            }
+            // A single ByteArray cannot exceed Int.MAX_VALUE. A ranged read is a content within a pack
+            // (bounded, tens of MB), so a request larger than that cannot be buffered and is a bug/attack.
+            // (offset stays a Long throughout — it is only ever passed to skip(), never narrowed to Int.)
+            if (length > Int.MAX_VALUE) {
+                throw InvalidBlobRangeException("Requested length too large to buffer: $length for blob $blobId")
+            }
+
             val blobFile = findBlobFile(blobId)
                 ?: throw BlobNotFoundException(blobId)
 
             context.contentResolver.openInputStream(blobFile.uri)?.use { stream ->
-                val bytes = stream.readBytes()
-                val fileSize = bytes.size
-
-                // Validate range
-                if (offset > fileSize) {
+                // True ranged read: skip to the (Long) offset, then read ONLY the requested bytes. Never
+                // buffer the whole blob — the previous readBytes() OOM'd on large packs — and never narrow
+                // the offset to Int, which returned WRONG data for offsets >= 2 GiB. See task-14.
+                val skipped = skipFully(stream, offset)
+                if (skipped < offset) {
+                    // Reached EOF before the offset: the range starts past the end of the blob. NOTE: this
+                    // only fires for streams whose skip() clamps at EOF. The real device stream
+                    // (FileInputStream-family, from ContentResolver) lseeks and over-reports skip past EOF,
+                    // so an out-of-range offset instead surfaces as a 0-byte read caught by the short-read
+                    // check below. Both guards together cover a bad packOffset on a truncated pack.
                     throw InvalidBlobRangeException(
-                        "Offset $offset exceeds file size $fileSize for blob $blobId"
+                        "Offset $offset exceeds blob size ($skipped bytes) for blob $blobId"
                     )
                 }
-
-                when {
-                    length == 0L -> byteArrayOf()
-                    offset == 0L && length == -1L -> bytes
-                    else -> {
-                        val actualLength = if (length == -1L) {
-                            fileSize - offset.toInt()
-                        } else {
-                            minOf(length.toInt(), fileSize - offset.toInt())
-                        }
-
-                        if (actualLength < 0) {
-                            throw InvalidBlobRangeException(
-                                "Invalid range: offset=$offset, length=$length, fileSize=$fileSize"
-                            )
-                        }
-
-                        bytes.copyOfRange(offset.toInt(), offset.toInt() + actualLength)
+                if (length == -1L) {
+                    stream.readBytes() // remaining bytes after the offset
+                } else {
+                    val data = readUpTo(stream, length.toInt())
+                    // A fixed-length read must return exactly `length` bytes. Fewer means the blob is
+                    // truncated past the offset (corrupt pack, or a bad packOffset/packedLength); fail loud
+                    // rather than hand a short buffer upward, matching the SFTP/WebDAV/filesystem backends
+                    // (task-15). Downstream decrypt would otherwise fail confusingly on the wrong length.
+                    if (data.size < length.toInt()) {
+                        throw InvalidBlobRangeException(
+                            "Short read for blob $blobId: requested $length bytes at offset $offset " +
+                                "but only ${data.size} were available"
+                        )
                     }
+                    data
                 }
             } ?: throw IOException("Could not open blob: $blobId")
         }
@@ -337,6 +349,47 @@ class SafBlobStorage private constructor(
                 desc != null && uriPath.contains(desc, ignoreCase = true)
             }
         }
+    }
+
+    /**
+     * Skips [n] bytes from [stream], returning the number reported skipped. [InputStream.skip] may skip
+     * fewer than requested and may legitimately return 0 for a non-file-backed stream, so loop and fall
+     * back to a single read to guarantee forward progress. [n] is a Long and is never narrowed — this is
+     * what makes offsets >= 2 GiB correct.
+     *
+     * WARNING: for FileInputStream-family streams (what ContentResolver returns for a SAF file document)
+     * skip() lseeks and can report skipping PAST end-of-file, so the return value is NOT a reliable EOF
+     * signal. The caller must confirm the requested bytes actually exist via the subsequent read (a
+     * short/empty read then means the offset+length ran past the blob).
+     */
+    private fun skipFully(stream: InputStream, n: Long): Long {
+        var remaining = n
+        while (remaining > 0) {
+            val s = stream.skip(remaining)
+            if (s > 0) {
+                remaining -= s
+            } else if (stream.read() < 0) {
+                break // EOF
+            } else {
+                remaining -= 1
+            }
+        }
+        return n - remaining
+    }
+
+    /**
+     * Reads up to [len] bytes from [stream] into a fresh array (fewer only if EOF is hit first). Uses a
+     * read loop because a single [InputStream.read] may return fewer bytes than requested.
+     */
+    private fun readUpTo(stream: InputStream, len: Int): ByteArray {
+        val buf = ByteArray(len)
+        var read = 0
+        while (read < len) {
+            val r = stream.read(buf, read, len - read)
+            if (r < 0) break
+            read += r
+        }
+        return if (read == len) buf else buf.copyOf(read)
     }
 
     /**

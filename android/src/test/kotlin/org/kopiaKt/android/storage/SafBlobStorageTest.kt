@@ -224,6 +224,98 @@ class SafBlobStorageTest {
                 storage.getBlob(blobId, offset = 1000)
             }
         }
+
+        @Test
+        fun `fixed-length read that runs past EOF fails loudly instead of returning a short buffer`() = runTest {
+            // A truncated/corrupt pack (or a bad packOffset/packedLength) must not be handed upward as a
+            // short buffer — the other backends reject short fixed-length reads (task-15/task-14).
+            val blobId = BlobId("short")
+            val data = "0123456789".toByteArray() // 10 bytes
+
+            val mockFile = mockk<DocumentFile> {
+                every { uri } returns Uri.parse("$testUri/short.f")
+            }
+            every { mockRootDocument.findFile("short.f") } returns mockFile
+            every { mockContentResolver.openInputStream(mockFile.uri) } returns ByteArrayInputStream(data)
+
+            // offset 8, length 5 -> only 2 bytes available -> must throw, not return 2 bytes.
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 8, length = 5)
+            }
+        }
+
+        @Test
+        fun `offset past EOF on a seekable over-skipping stream still fails loudly`() = runTest {
+            // On a real device the SAF stream is FileInputStream-family: skip() lseeks and reports success
+            // PAST EOF, so the skipped<offset guard cannot catch an out-of-range offset — the short-read
+            // check must. A bad packOffset on a truncated pack must surface as a range error, not empty data.
+            val blobId = BlobId("seek")
+            val mockFile = mockk<DocumentFile> {
+                every { uri } returns Uri.parse("$testUri/seek.f")
+            }
+            every { mockRootDocument.findFile("seek.f") } returns mockFile
+            every { mockContentResolver.openInputStream(mockFile.uri) } returns PositionEncodedStream(size = 10)
+
+            assertThrows<InvalidBlobRangeException> {
+                storage.getBlob(blobId, offset = 15, length = 5)
+            }
+        }
+
+        @Test
+        fun `ranged read at an offset beyond Int MAX returns correct bytes without buffering the whole blob`() = runTest {
+            // Regression for task-14: getBlob used to readBytes() the WHOLE blob and narrow offset/length
+            // to Int. On a multi-GiB pack that OOMs, and any offset >= 2 GiB wraps to garbage via toInt().
+            // A 5 GiB virtual stream (no allocation) proves the ranged read (a) never buffers the whole blob
+            // (readBytes() here would OOM) and (b) skips to the TRUE Long offset (byte@p == p % 251).
+            val blobId = BlobId("huge")
+            val fileSize = 5L * 1024 * 1024 * 1024
+            val offset = Int.MAX_VALUE.toLong() + 100 // 2_147_483_747 — offset.toInt() would be negative
+            val length = 8L
+
+            val mockFile = mockk<DocumentFile> {
+                every { uri } returns Uri.parse("$testUri/huge.f")
+            }
+            every { mockRootDocument.findFile("huge.f") } returns mockFile
+            every { mockContentResolver.openInputStream(mockFile.uri) } returns PositionEncodedStream(fileSize)
+
+            val result = storage.getBlob(blobId, offset = offset, length = length)
+
+            val expected = ByteArray(length.toInt()) { ((offset + it) % 251).toByte() }
+            assertThat(result).isEqualTo(expected)
+        }
+    }
+
+    /**
+     * A virtual input stream of [size] bytes where the byte at position p equals (p % 251) — backed by NO
+     * allocation, so it models a multi-GiB blob without OOM and proves a ranged read never buffers it all
+     * and skips to the true Long offset.
+     *
+     * Faithfully models the FileInputStream-family stream that ContentResolver returns on a real device:
+     * skip() lseeks and OVER-reports past end-of-file (does not clamp), and read() returns short chunks
+     * (at most [maxReadChunk]) so the readUpTo / skipFully read loops are actually exercised.
+     */
+    private class PositionEncodedStream(
+        private val size: Long,
+        private val maxReadChunk: Int = 4
+    ) : java.io.InputStream() {
+        private var pos = 0L
+        override fun read(): Int {
+            if (pos >= size) return -1
+            return ((pos++) % 251).toInt()
+        }
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            if (pos >= size) return -1
+            val n = minOf(len.toLong(), size - pos, maxReadChunk.toLong()).toInt()
+            for (i in 0 until n) b[off + i] = ((pos + i) % 251).toByte()
+            pos += n
+            return n
+        }
+        // lseek SEEK_CUR semantics: reports success even past EOF (unlike ByteArrayInputStream, which clamps).
+        override fun skip(n: Long): Long {
+            if (n <= 0) return 0
+            pos += n
+            return n
+        }
     }
 
     @Nested
