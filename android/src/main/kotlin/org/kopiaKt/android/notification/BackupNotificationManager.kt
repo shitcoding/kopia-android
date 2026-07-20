@@ -14,27 +14,37 @@ import androidx.core.app.NotificationCompat
  * Notification IDs used by backup operations.
  */
 object BackupNotificationIds {
-    /** Base ID for backup progress notifications. Source-specific IDs are offset from this. */
-    const val BACKUP_PROGRESS_BASE = 1000
+    // The four fixed IDs below live BELOW [BACKUP_PROGRESS_BASE, ...), the range the per-source progress
+    // registry hands out (incrementing from BACKUP_PROGRESS_BASE), so a source id can never collide with
+    // a fixed id even after many distinct sources in one process.
 
     /** ID for backup completion notifications. */
-    const val BACKUP_COMPLETE = 2000
+    const val BACKUP_COMPLETE = 1
 
     /** ID for backup error notifications. */
-    const val BACKUP_ERROR = 2001
+    const val BACKUP_ERROR = 2
 
     /** ID for restore progress notifications. */
-    const val RESTORE_PROGRESS = 3000
+    const val RESTORE_PROGRESS = 3
 
     /** ID for restore completion notifications. */
-    const val RESTORE_COMPLETE = 3001
+    const val RESTORE_COMPLETE = 4
+
+    /** Base ID for per-source backup progress notifications; source IDs increment upward from here. */
+    const val BACKUP_PROGRESS_BASE = 1000
+
+    // Distinct, stable notification IDs per source. The old `BASE + hash % 1000` collided whenever two
+    // sources' hashes shared a residue mod 1000, so their progress notifications overwrote each other. A
+    // per-source registry gives every source a unique id; ids only need to be stable within a process (a
+    // backup runs in one WorkManager worker process, and notifications don't survive process death).
+    private val idsBySource = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val nextId = java.util.concurrent.atomic.AtomicInteger(BACKUP_PROGRESS_BASE)
 
     /**
-     * Get a unique notification ID for a backup source.
+     * Returns a distinct, stable progress-notification ID for [sourceId] (collision-free across sources).
      */
-    fun forSource(sourceId: String): Int {
-        return BACKUP_PROGRESS_BASE + (sourceId.hashCode() and 0x7FFFFFFF) % 1000
-    }
+    fun forSource(sourceId: String): Int =
+        idsBySource.computeIfAbsent(sourceId) { nextId.getAndIncrement() }
 }
 
 /**

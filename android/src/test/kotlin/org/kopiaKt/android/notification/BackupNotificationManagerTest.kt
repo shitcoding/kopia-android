@@ -263,6 +263,15 @@ class BackupNotificationManagerTest {
             assertThat(id).isAtLeast(BackupNotificationIds.BACKUP_PROGRESS_BASE)
             assertThat(id).isLessThan(BackupNotificationIds.BACKUP_PROGRESS_BASE + 1000)
         }
+
+        @Test
+        fun `forSource gives distinct IDs to sources that collide under the old hash-mod-1000`() {
+            // "src-0" and "src-132" both have (hashCode() and 0x7FFFFFFF) % 1000 == 671, so the old
+            // `BASE + hash % 1000` returned the SAME notification id for both — silently merging their
+            // progress notifications. The registry gives each a distinct id. (task-14)
+            assertThat(BackupNotificationIds.forSource("src-0"))
+                .isNotEqualTo(BackupNotificationIds.forSource("src-132"))
+        }
     }
 
     @Nested
