@@ -1,7 +1,10 @@
 package org.kopiaKt.android.storage
 
+import android.content.ContentResolver
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import org.kopiaKt.snapshot.fs.DeviceInfo
 import org.kopiaKt.snapshot.fs.Directory
@@ -39,25 +42,101 @@ interface ContentResolverProvider {
 }
 
 /**
- * Production implementation wrapping a real DocumentFile.
+ * Production [DocumentFileProvider] backed by a `DocumentsContract.queryChildDocuments` cursor.
+ *
+ * `DocumentFile.listFiles()` issues a separate `ContentResolver` query per child, and each metadata getter
+ * (`name`/`length`/`isDirectory`) issues ANOTHER query per call, so enumerating a directory of N children
+ * costs O(N * properties) IPC round-trips. `queryChildDocuments` returns every child's name/type/size/mtime
+ * in a single cursor, so listing a directory is ONE round-trip and the per-child getters are field reads.
+ * Metadata is materialized from the cursor row; only [listFiles]/[findFile] touch the provider again.
  */
-class RealDocumentFileProvider(private val docFile: DocumentFile) : DocumentFileProvider {
-    override fun getName(): String? = docFile.name
-    override fun getUri(): Uri = docFile.uri
-    override fun isDirectory(): Boolean = docFile.isDirectory
-    override fun isFile(): Boolean = docFile.isFile
-    override fun length(): Long = docFile.length()
-    override fun lastModified(): Long = docFile.lastModified()
+internal class SafCursorDocument(
+    private val resolver: ContentResolver,
+    private val treeUri: Uri,
+    private val documentId: String,
+    private val displayName: String?,
+    private val mimeType: String?,
+    private val size: Long,
+    private val modified: Long
+) : DocumentFileProvider {
 
-    override fun listFiles(): List<DocumentFileProvider>? {
-        val files = docFile.listFiles()
-        return files.map { RealDocumentFileProvider(it) }
+    override fun getName(): String? = displayName
+    override fun getUri(): Uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+    override fun isDirectory(): Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+
+    // Mirror DocumentFile.isFile: an empty/absent MIME is NOT a file (it becomes a SafUnknownEntry that is
+    // recorded but never opened), so a bogus row isn't turned into a per-file open() error.
+    override fun isFile(): Boolean =
+        !mimeType.isNullOrEmpty() && mimeType != DocumentsContract.Document.MIME_TYPE_DIR
+    override fun length(): Long = size
+    override fun lastModified(): Long = modified
+
+    override fun listFiles(): List<DocumentFileProvider> {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+        val children = mutableListOf<DocumentFileProvider>()
+        resolver.query(childrenUri, PROJECTION, null, null, null)?.use { cursor ->
+            // Only DOCUMENT_ID is required (a child is unusable without it). Providers are not obliged to
+            // honor the projection, so the other columns are read defensively (missing -> DocumentFile's
+            // same 0/null defaults) instead of throwing and failing the whole directory.
+            val idIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIdx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val mimeIdx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+            val sizeIdx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+            val modIdx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+            while (cursor.moveToNext()) {
+                children.add(
+                    SafCursorDocument(
+                        resolver = resolver,
+                        treeUri = treeUri,
+                        documentId = cursor.getString(idIdx),
+                        displayName = cursor.stringOrNull(nameIdx),
+                        mimeType = cursor.stringOrNull(mimeIdx),
+                        size = cursor.longOrZero(sizeIdx),
+                        modified = cursor.longOrZero(modIdx)
+                    )
+                )
+            }
+        }
+        return children
     }
 
-    override fun findFile(name: String): DocumentFileProvider? {
-        return docFile.findFile(name)?.let { RealDocumentFileProvider(it) }
+    override fun findFile(name: String): DocumentFileProvider? =
+        listFiles().firstOrNull { it.getName() == name }
+
+    companion object {
+        private val PROJECTION = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED
+        )
+
+        /**
+         * Root provider for the [rootDocFile] resolved from a picked tree URI. The root's own name/mtime
+         * come from [rootDocFile] (one query, for the root only); its children then stream from the cursor.
+         * The document id is taken from [DocumentFile.getUri] (always a document-under-tree URI) so it
+         * matches the exact node validated by the caller -- `getTreeDocumentId(treeUri)` can point at a
+         * DIFFERENT node when the tree URI carries a `/document/` segment.
+         */
+        fun forTree(context: Context, treeUri: Uri, rootDocFile: DocumentFile): SafCursorDocument =
+            SafCursorDocument(
+                resolver = context.contentResolver,
+                treeUri = treeUri,
+                documentId = DocumentsContract.getDocumentId(rootDocFile.uri),
+                displayName = rootDocFile.name,
+                mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+                size = 0L,
+                modified = rootDocFile.lastModified()
+            )
     }
 }
+
+private fun Cursor.stringOrNull(index: Int): String? =
+    if (index >= 0 && !isNull(index)) getString(index) else null
+
+private fun Cursor.longOrZero(index: Int): Long =
+    if (index >= 0 && !isNull(index)) getLong(index) else 0L
 
 /**
  * Production ContentResolverProvider wrapping an Android Context.
@@ -96,7 +175,7 @@ object SafFilesystem {
             "URI does not point to a directory: $treeUri"
         }
 
-        val provider = RealDocumentFileProvider(docFile)
+        val provider = SafCursorDocument.forTree(context, treeUri, docFile)
         val contentResolver = RealContentResolverProvider(context)
         return SafDirectory(provider, contentResolver)
     }
