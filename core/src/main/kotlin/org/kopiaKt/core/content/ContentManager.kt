@@ -520,6 +520,10 @@ class ContentManager(
     private suspend fun flushIndexUnlocked() {
         if (writtenContents.isEmpty()) return
 
+        // In epoch mode, all index blobs written by this flush go into the current write epoch (Go reads
+        // that epoch's uncompacted blobs). Discover it once. Legacy mode ignores this.
+        val writeEpoch = if (epochsEnabled) discoverCurrentWriteEpoch() else 0
+
         // Group entries by whether they have a prefix (needed for V1 index format
         // which requires all entries to have the same key size)
         val entriesByPrefixType = writtenContents.values.groupBy { it.contentId.prefix != null }
@@ -531,7 +535,7 @@ class ContentManager(
             val indexData = PackIndexV1.build(entries)
 
             // Generate index blob ID
-            val indexBlobId = generateIndexBlobId()
+            val indexBlobId = generateIndexBlobId(writeEpoch)
 
             // Encrypt index blob before writing
             val encryptedIndexData = indexBlobEncryption.encrypt(indexData, indexBlobId)
@@ -572,6 +576,13 @@ class ContentManager(
         // Support both old 'n' prefix and new 'x' prefix for backward compatibility
         for (prefix in INDEX_BLOB_PREFIXES) {
             storage.listBlobs(prefix).collect { metadata ->
+                // Epoch marker / deletion-watermark blobs (xe<n> / xw<n>) share the "x" uber-prefix but
+                // are plaintext control blobs, not index blobs. Skip them WITHOUT attempting to decrypt
+                // (which would fail) and WITHOUT flagging the load incomplete (they are expected, not
+                // corruption). See task-20.
+                if (isEpochControlBlob(metadata.blobId.value)) {
+                    return@collect
+                }
                 try {
                     val encryptedIndexData = storage.getBlob(metadata.blobId)
 
@@ -624,11 +635,47 @@ class ContentManager(
         return BlobId("$blobPrefix$randomPart-$sessionId")
     }
 
-    private fun generateIndexBlobId(): BlobId {
+    private fun generateIndexBlobId(epoch: Int): BlobId {
+        // 16 random bytes (32 hex) form the blob's hash segment. It also seeds the encryption IV
+        // (IndexBlobEncryption derives the IV from the hex before the first dash), so both Kotlin (write)
+        // and Go (read) derive the SAME IV from the name — no content re-hash / verification is done on
+        // either side (proven by the legacy-mode round-trip), so a random hash segment is Go-compatible.
         val randomPart = generateRandomHex(16)
-        // Use 'n' prefix for non-epoch repos (Go compatibility), 'x' for epoch-managed
-        val prefix = if (epochsEnabled) INDEX_BLOB_PREFIX else INDEX_BLOB_PREFIX_OLD
-        return BlobId("$prefix$randomPart-$sessionId")
+        return if (epochsEnabled) {
+            // Go uncompacted per-epoch index blob: xn<epoch>_<hash>-s<session>-c<shardCount>. Kotlin writes
+            // one index blob per prefix group, i.e. a complete single-shard set (-c1). Go's epoch reader
+            // reads every xn blob unconditionally (uncompacted blobs are NOT complete-set filtered), so a
+            // single -c1 blob in the current epoch is always seen and merged — and two such blobs from the
+            // same flush/session are both read.
+            //
+            // ponytail: uncompacted-only. This helper must NOT be reused to name COMPACTION blobs
+            // (xs<epoch>_ / xr<e1>_<e2>_): Go DOES complete-set-filter those by the shared "s<session>-c<N>"
+            // set, so a second same-session "-c1" blob would be dropped as an incomplete set → invisible.
+            // Kotlin does not write compaction blobs today (epoch advancement/compaction is deferred to Go
+            // maintenance); a Kotlin-only epoch repo accumulates xn<epoch>_ blobs until Go first compacts it.
+            BlobId("$EPOCH_UNCOMPACTED_INDEX_PREFIX${epoch}_$randomPart-s$sessionId-c1")
+        } else {
+            // Legacy (V0/pre-epoch) single index blob: n<hash>-<session>.
+            BlobId("$INDEX_BLOB_PREFIX_OLD$randomPart-$sessionId")
+        }
+    }
+
+    /**
+     * The epoch number a writer must write index blobs into = max(epoch markers), or 0 if none exist
+     * (Go's loadWriteEpoch; a fresh epoch repo has no markers and stays at epoch 0). Only meaningful when
+     * [epochsEnabled]. Lists the plaintext "xe<n>" marker blobs and takes the highest number.
+     */
+    private suspend fun discoverCurrentWriteEpoch(): Int {
+        var maxEpoch = 0
+        storage.listBlobs(EPOCH_MARKER_PREFIX).collect { metadata ->
+            // A real marker is exactly "xe<decimal>"; skip anything else (e.g. a legacy x<hash> blob whose
+            // hash happens to start with 'e').
+            val n = metadata.blobId.value.removePrefix(EPOCH_MARKER_PREFIX).toIntOrNull()
+            if (n != null && n > maxEpoch) {
+                maxEpoch = n
+            }
+        }
+        return maxEpoch
     }
 
     private fun generateSessionId(): String {
@@ -651,11 +698,27 @@ class ContentManager(
         const val DEFAULT_MAX_PACK_SIZE = 20 * 1024 * 1024 // 20MB
         const val PACK_BLOB_PREFIX_REGULAR = "p"
         const val PACK_BLOB_PREFIX_SPECIAL = "q"
-        const val INDEX_BLOB_PREFIX = "x"
-        const val INDEX_BLOB_PREFIX_OLD = "n"  // Old format (pre-epoch) uses 'n' prefix
 
-        // Both prefixes for reading (backward compatibility)
+        // Index blob prefixes (Go compatibility). Epoch repos use the "x" uber-prefix with a second
+        // letter: xn = uncompacted per-epoch index, xs = single-epoch compaction, xr = range checkpoint,
+        // xe = epoch marker (plaintext), xw = deletion watermark (plaintext). Legacy (V0/pre-epoch) repos
+        // use a single "n<hash>" index blob. See internal/epoch/epoch_manager.go.
+        const val INDEX_BLOB_PREFIX = "x"          // epoch uber-prefix (all epoch index blobs read under it)
+        const val INDEX_BLOB_PREFIX_OLD = "n"      // legacy (V0) single index blob prefix
+        const val EPOCH_UNCOMPACTED_INDEX_PREFIX = "xn" // Go UncompactedIndexBlobPrefix
+        const val EPOCH_MARKER_PREFIX = "xe"       // Go EpochMarkerIndexBlobPrefix (plaintext)
+
+        // Both prefixes for reading (backward compatibility): "x" covers all epoch index blobs
+        // (xn/xs/xr) AND legacy Kotlin "x<hash>" blobs; "n" covers legacy V0 blobs.
         private val INDEX_BLOB_PREFIXES = listOf(INDEX_BLOB_PREFIX, INDEX_BLOB_PREFIX_OLD)
+
+        // Epoch marker / deletion-watermark blobs are plaintext control blobs, NOT index blobs. They match
+        // "xe<decimal>" / "xw<decimal>" exactly (no dash, no hash). They must be skipped when loading index
+        // blobs — decrypting them as indexes fails, and must NOT flag the load incomplete. A legacy
+        // "x<hash>" blob is never all-digits after the second char, so this never skips a real index blob.
+        private val EPOCH_MARKER_REGEX = Regex("^x[ew]\\d+$")
+
+        fun isEpochControlBlob(blobId: String): Boolean = EPOCH_MARKER_REGEX.matches(blobId)
 
         private val SPECIAL_PREFIXES = setOf('m', 'x') // manifest, index content
 

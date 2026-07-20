@@ -42,9 +42,18 @@ data class EpochParameters(
     @SerialName("EpochAdvanceOnCountThreshold")
     val epochAdvanceOnCountThreshold: Int = 20,
 
-    /** Advance epoch if total size of files exceeds this. */
+    /** Advance epoch if total size of files exceeds this. Go default: 10 << 20 = 10 MiB. */
     @SerialName("EpochAdvanceOnTotalSizeBytesThreshold")
-    val epochAdvanceOnTotalSizeBytesThreshold: Long = 10 * 1024 * 1024 * 1024L // 10 GB
+    val epochAdvanceOnTotalSizeBytesThreshold: Long = 10L * 1024 * 1024, // 10 MiB (matches Go)
+
+    /**
+     * Number of blobs Go deletes in parallel during epoch cleanup. MUST be written into the format blob
+     * with Go's default (4): Go's `blob.DeleteMultiple` uses this as an UNBUFFERED-vs-buffered channel
+     * capacity, so a value of 0 (what Go decodes when this field is absent) deadlocks Go maintenance on
+     * the first blob deletion. See internal/epoch/epoch_manager.go / repo/blob/storage.go DeleteMultiple.
+     */
+    @SerialName("DeleteParallelism")
+    val deleteParallelism: Int = 4
 ) {
     /**
      * Validates the epoch parameters.
@@ -83,7 +92,8 @@ data class EpochParameters(
             cleanupSafetyMargin = 4.hours,
             minEpochDuration = 24.hours,
             epochAdvanceOnCountThreshold = 20,
-            epochAdvanceOnTotalSizeBytesThreshold = 10L * 1024 * 1024 * 1024 // 10 GB
+            epochAdvanceOnTotalSizeBytesThreshold = 10L * 1024 * 1024, // 10 MiB (matches Go's 10 << 20)
+            deleteParallelism = 4
         )
 
         /** Disabled epoch parameters. */
