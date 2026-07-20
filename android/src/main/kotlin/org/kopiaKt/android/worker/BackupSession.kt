@@ -311,7 +311,8 @@ class BackupSession(
         var lastCheckpointBytes = 0L
 
         while (true) {
-            delay(config.checkpointOptions.intervalMillis)
+            // Clamped interval: a zero/negative config must not turn this into a tight busy-loop (task-14).
+            delay(config.checkpointOptions.effectiveIntervalMillis)
 
             if (cancelled.get()) break
 

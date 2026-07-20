@@ -229,8 +229,16 @@ class SafPermissionManager(private val context: Context) {
             )
             val isAccessible = cursor?.use { it.count > 0 } ?: false
             !isAccessible
+        } catch (_: SecurityException) {
+            true // the persisted grant was revoked -> genuinely stale
+        } catch (_: java.io.FileNotFoundException) {
+            true // the backing document was removed -> genuinely stale
         } catch (_: Exception) {
-            true
+            // Any OTHER failure (a transient ContentResolver/provider hiccup, RemoteException, ...) must
+            // NOT be treated as stale — the caller would release the persisted permission, and the user
+            // would then have to re-pick the backup folder. Keep the permission; a truly-revoked grant
+            // fails later at actual use with a SecurityException. See task-14.
+            false
         }
     }
 

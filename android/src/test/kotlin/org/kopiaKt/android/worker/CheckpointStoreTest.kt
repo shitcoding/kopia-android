@@ -319,6 +319,18 @@ class CheckpointStoreTest {
             assertThat(options.minBytesBeforeCheckpoint).isEqualTo(10 * 1024 * 1024) // 10 MB
             assertThat(options.maxResumeAttempts).isEqualTo(3)
         }
+
+        @Test
+        fun `effectiveIntervalMillis clamps a zero or negative interval to the floor`() {
+            // The checkpoint loop delays by effectiveIntervalMillis each cycle; a zero/negative config
+            // must not collapse to delay(0) and busy-loop. (task-14)
+            assertThat(CheckpointOptions(intervalMillis = 0).effectiveIntervalMillis)
+                .isEqualTo(CheckpointOptions.MIN_CHECKPOINT_INTERVAL_MILLIS)
+            assertThat(CheckpointOptions(intervalMillis = -5).effectiveIntervalMillis)
+                .isEqualTo(CheckpointOptions.MIN_CHECKPOINT_INTERVAL_MILLIS)
+            // A valid interval is passed through unchanged.
+            assertThat(CheckpointOptions(intervalMillis = 60_000).effectiveIntervalMillis).isEqualTo(60_000)
+        }
     }
 
     private fun createTestCheckpoint(

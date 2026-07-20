@@ -278,9 +278,20 @@ data class CheckpointOptions(
     /** Maximum number of resume attempts before giving up. */
     val maxResumeAttempts: Int = DEFAULT_MAX_RESUME_ATTEMPTS
 ) {
+    /**
+     * The checkpoint interval clamped to a sane minimum. The checkpoint loop delays by this each cycle;
+     * a zero or negative [intervalMillis] (misconfiguration / test) would otherwise make `delay()` return
+     * immediately and spin a tight busy-loop, draining CPU/battery. See task-14.
+     */
+    val effectiveIntervalMillis: Long
+        get() = intervalMillis.coerceAtLeast(MIN_CHECKPOINT_INTERVAL_MILLIS)
+
     companion object {
         /** Default checkpoint interval (5 minutes). */
         const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 5L * 60 * 1000
+
+        /** Floor for the checkpoint interval so a zero/negative config can't busy-loop the delay. */
+        const val MIN_CHECKPOINT_INTERVAL_MILLIS = 1000L
 
         /** Default minimum bytes before first checkpoint (10 MB). */
         const val DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT = 10L * 1024 * 1024

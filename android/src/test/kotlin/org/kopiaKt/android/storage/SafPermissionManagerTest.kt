@@ -284,5 +284,23 @@ class SafPermissionManagerTest {
 
             assertThat(permissionManager.isPermissionStale(testUri)).isTrue()
         }
+
+        @Test
+        fun `does NOT treat a transient query failure as stale`() {
+            // A transient ContentResolver/provider failure must not cause a valid persisted permission to
+            // be released (which would force the user to re-pick the backup folder). task-14.
+            val mockPermission = mockk<UriPermission> {
+                every { uri } returns testUri
+                every { isReadPermission } returns true
+                every { isWritePermission } returns true
+            }
+
+            every { mockContentResolver.persistedUriPermissions } returns listOf(mockPermission)
+            every {
+                mockContentResolver.query(testUri, any(), any(), any(), any())
+            } throws IllegalStateException("transient provider hiccup")
+
+            assertThat(permissionManager.isPermissionStale(testUri)).isFalse()
+        }
     }
 }
