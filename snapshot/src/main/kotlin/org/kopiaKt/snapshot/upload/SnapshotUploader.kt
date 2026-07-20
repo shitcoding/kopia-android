@@ -11,10 +11,8 @@ import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SnapshotStats
 import org.kopiaKt.snapshot.model.SourceInfo
-import org.kopiaKt.snapshot.policy.CompressionPolicy
 import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
 import org.kopiaKt.snapshot.policy.Policy
-import org.kopiaKt.snapshot.policy.SplitterPolicy
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 

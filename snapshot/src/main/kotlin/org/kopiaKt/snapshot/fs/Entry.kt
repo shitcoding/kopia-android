@@ -2,7 +2,6 @@ package org.kopiaKt.snapshot.fs
 
 import java.io.Closeable
 import java.io.InputStream
-import java.nio.file.attribute.FileTime
 import java.time.Instant
 
 /**

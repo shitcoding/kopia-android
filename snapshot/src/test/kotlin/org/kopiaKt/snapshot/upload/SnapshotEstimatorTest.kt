@@ -1,6 +1,5 @@
 package org.kopiaKt.snapshot.upload
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.snapshot.fs.DeviceInfo
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.DirectoryIterator

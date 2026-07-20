@@ -3,11 +3,9 @@ package org.kopiaKt.snapshot.maintenance
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.DirectRepository
-import org.kopiaKt.core.repository.DirectRepositoryWriter
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.EntryType

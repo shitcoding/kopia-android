@@ -4,7 +4,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Semaphore
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.max
 
 /**
  * Configuration for bandwidth throttling.

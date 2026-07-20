@@ -1,6 +1,5 @@
 package org.kopiaKt.core.compression
 
-import com.github.luben.zstd.Zstd
 import com.github.luben.zstd.ZstdInputStream
 import com.github.luben.zstd.ZstdOutputStream
 import java.io.ByteArrayInputStream

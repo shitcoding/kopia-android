@@ -13,7 +13,6 @@ import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.InMemoryBlobStorage
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.format.RepositoryConfig
-import org.kopiaKt.core.manifest.ManifestManager
 import org.kopiaKt.core.manifest.ManifestNotFoundException
 import java.security.SecureRandom
 

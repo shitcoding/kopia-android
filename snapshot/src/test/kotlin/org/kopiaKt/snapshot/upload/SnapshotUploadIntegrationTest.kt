@@ -29,7 +29,6 @@ import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.fs.OwnerInfo
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.EntryType
-import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.policy.CompressionPolicy
 import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy

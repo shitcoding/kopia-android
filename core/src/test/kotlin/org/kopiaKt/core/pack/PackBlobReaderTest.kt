@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
-import org.kopiaKt.core.content.ContentInfo
 
 /**
  * Tests for PackBlobReader - reads and extracts data from pack blobs.

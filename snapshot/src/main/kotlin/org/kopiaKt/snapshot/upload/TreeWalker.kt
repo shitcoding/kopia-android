@@ -1,6 +1,5 @@
 package org.kopiaKt.snapshot.upload
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -15,7 +14,6 @@ import org.kopiaKt.snapshot.fs.Symlink
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import org.kopiaKt.snapshot.model.EntryType as ModelEntryType
 

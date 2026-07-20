@@ -1,7 +1,6 @@
 package org.kopiaKt.core.index
 
 import org.kopiaKt.core.blob.BlobId
-import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.encryption.Encryptor
 import org.kopiaKt.core.pack.PackIndex

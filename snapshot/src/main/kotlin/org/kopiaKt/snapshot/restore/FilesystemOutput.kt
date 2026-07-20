@@ -1,7 +1,6 @@
 package org.kopiaKt.snapshot.restore
 
 import org.kopiaKt.snapshot.model.DirEntry
-import org.kopiaKt.snapshot.model.EntryType
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -11,7 +10,6 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.attribute.PosixFilePermissions
 import java.time.Duration
 import kotlin.io.path.exists
 import kotlin.io.path.fileSize

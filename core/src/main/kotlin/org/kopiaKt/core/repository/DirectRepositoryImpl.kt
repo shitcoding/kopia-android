@@ -1,7 +1,6 @@
 package org.kopiaKt.core.repository
 
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.kopiaKt.core.blob.BlobReader
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobVolume
@@ -13,12 +12,10 @@ import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.ContentManager
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
-import org.kopiaKt.core.encryption.EncryptorFactory
 import org.kopiaKt.core.format.FormatBlobManager
 import org.kopiaKt.core.format.KopiaRepositoryJson
 import org.kopiaKt.core.format.OpenRepositoryResult
 import org.kopiaKt.core.format.RepositoryConfig
-import org.kopiaKt.core.hashing.ContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.crypto.HkdfSha256KeyDerivation
 import org.kopiaKt.core.manifest.EntryMetadata

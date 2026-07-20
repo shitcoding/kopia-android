@@ -5,7 +5,6 @@ import org.kopiaKt.core.content.ContentManager
 import org.kopiaKt.core.content.ContentNotFoundException
 import org.kopiaKt.core.content.ObjectId
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 
 /**
  * Exception thrown when an object cannot be found in the repository.

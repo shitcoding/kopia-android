@@ -14,11 +14,8 @@ import org.kopiaKt.core.blob.InMemoryBlobStorage
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.manifest.ManifestNotFoundException
-import org.kopiaKt.core.`object`.ObjectWriterOptions
 import java.security.SecureRandom
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneId
 import kotlin.random.Random
 
 /**

@@ -1,7 +1,6 @@
 package org.kopiaKt.snapshot.upload
 
 import org.kopiaKt.snapshot.fs.DirectorySummary as FsDirectorySummary
-import org.kopiaKt.snapshot.fs.EntryWithError as FsEntryWithError
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.DirectorySummary

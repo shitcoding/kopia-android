@@ -1,17 +1,8 @@
 package org.kopiaKt.snapshot.restore
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.withContext
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.fs.EntryType

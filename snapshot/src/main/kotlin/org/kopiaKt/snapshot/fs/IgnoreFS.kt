@@ -1,8 +1,6 @@
 package org.kopiaKt.snapshot.fs
 
 import org.kopiaKt.snapshot.policy.FilesPolicy
-import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.exists

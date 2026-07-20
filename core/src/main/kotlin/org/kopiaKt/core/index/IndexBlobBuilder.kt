@@ -5,7 +5,6 @@ import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.toHexString
 import org.kopiaKt.core.encryption.Encryptor
-import org.kopiaKt.core.pack.PackIndexFactory
 import org.kopiaKt.core.pack.PackIndexV1
 import org.kopiaKt.core.pack.PackIndexV2
 import java.io.ByteArrayOutputStream

@@ -5,7 +5,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobStorage
-import org.kopiaKt.core.compression.COMPRESSION_HEADER_SIZE
 import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.compression.CompressorFactory
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
@@ -16,7 +15,6 @@ import org.kopiaKt.core.hashing.ContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.index.IndexBlobEncryption
 import org.kopiaKt.core.pack.PackBlobBuilder
-import org.kopiaKt.core.pack.PackBlobPostamble
 import org.kopiaKt.core.pack.PackBlobReader
 import org.kopiaKt.core.pack.PackIndex
 import org.kopiaKt.core.pack.PackIndexFactory

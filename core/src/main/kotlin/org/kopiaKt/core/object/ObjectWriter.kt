@@ -5,7 +5,6 @@ import kotlinx.coroutines.sync.withLock
 import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.compression.Compressor
 import org.kopiaKt.core.compression.CompressorFactory
-import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentManager
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.splitter.Splitter

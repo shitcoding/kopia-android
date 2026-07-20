@@ -3,8 +3,6 @@ package org.kopiaKt.core.pack
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
-import org.kopiaKt.core.content.hexToByteArray
-import org.kopiaKt.core.content.toHexString
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

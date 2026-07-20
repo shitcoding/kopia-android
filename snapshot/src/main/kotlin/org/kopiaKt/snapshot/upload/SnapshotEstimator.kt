@@ -2,7 +2,6 @@ package org.kopiaKt.snapshot.upload
 
 import kotlinx.coroutines.ensureActive
 import org.kopiaKt.snapshot.fs.Directory
-import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.fs.EntryType
 import org.kopiaKt.snapshot.fs.ErrorEntry
 import org.kopiaKt.snapshot.fs.IgnoreFS
