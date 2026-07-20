@@ -376,7 +376,9 @@ class ContentManager(
         if (builder.contentCount() == 0) return
 
         val packBlobId = currentPackBlobId!!
-        val (packData, contentInfos) = builder.build()
+        // Encrypt the local (recovery) index so KopiaKt pack blobs are Go-compatible (task-13):
+        // the IV is the repo hash of the plaintext index and the stored index is ciphertext.
+        val (packData, contentInfos) = builder.buildEncrypted(hasher, encryptor)
 
         // Write pack blob to storage
         storage.putBlob(packBlobId, packData)

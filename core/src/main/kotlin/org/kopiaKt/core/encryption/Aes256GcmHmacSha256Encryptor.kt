@@ -87,6 +87,17 @@ class Aes256GcmHmacSha256Encryptor(
         return Aes256GcmCipher.decryptWithPrependedNonce(contentKey, ciphertext, encryptionIV)
     }
 
+    override suspend fun encryptWithRawId(plaintext: ByteArray, encryptionIV: ByteArray): ByteArray {
+        // Mirror of decryptWithRawId: use the raw IV bytes verbatim (no ContentId truncation) for both
+        // key derivation and AAD. Matches Go's Encrypt(plaintext, contentID) with a fresh random nonce.
+        val contentKey = deriveContentKeyFromBytes(encryptionIV)
+
+        val nonce = ByteArray(Aes256GcmCipher.NONCE_SIZE)
+        secureRandom.nextBytes(nonce)
+
+        return Aes256GcmCipher.encryptWithPrependedNonce(contentKey, nonce, plaintext, encryptionIV)
+    }
+
     /**
      * Derives the per-content AES-256 key using HMAC-SHA256 from raw bytes.
      *

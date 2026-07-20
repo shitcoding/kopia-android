@@ -93,6 +93,21 @@ interface Encryptor {
      * @throws DecryptionException if decryption fails
      */
     suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray
+
+    /**
+     * Encrypts plaintext using raw bytes directly as the key-derivation/AAD "content ID".
+     *
+     * Unlike [encrypt], the given bytes are used verbatim (not truncated via a ContentId) for both the
+     * per-message key derivation and the AEAD AAD. This matches Go kopia's `Encryptor.Encrypt(plaintext,
+     * contentID)` and is required for the pack-blob local (recovery) index, whose "content ID" is the
+     * repo's keyed hash of the plaintext index (full, untruncated output). It is the encrypt counterpart
+     * of [decryptWithRawId].
+     *
+     * @param plaintext The data to encrypt
+     * @param contentIdBytes The raw content ID bytes for key derivation and AAD
+     * @return The ciphertext (`nonce || ciphertext || tag`)
+     */
+    suspend fun encryptWithRawId(plaintext: ByteArray, contentIdBytes: ByteArray): ByteArray
 }
 
 /**

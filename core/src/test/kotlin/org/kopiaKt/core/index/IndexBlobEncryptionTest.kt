@@ -271,5 +271,14 @@ class IndexBlobEncryptionTest {
                 ciphertext
             }
         }
+
+        override suspend fun encryptWithRawId(
+            plaintext: ByteArray,
+            contentIdBytes: ByteArray
+        ): ByteArray {
+            encryptCalled = true
+            lastRawIdBytes = contentIdBytes
+            return plaintext + ByteArray(overhead) // Append mock overhead
+        }
     }
 }

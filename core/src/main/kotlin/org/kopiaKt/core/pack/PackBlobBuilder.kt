@@ -3,6 +3,8 @@ package org.kopiaKt.core.pack
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
+import org.kopiaKt.core.encryption.Encryptor
+import org.kopiaKt.core.hashing.ContentHasher
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -16,7 +18,8 @@ import java.security.SecureRandom
  * The builder:
  * 1. Generates a random preamble (or uses provided one)
  * 2. Writes content blocks sequentially (already encrypted)
- * 3. Builds a local index (not encrypted in this simplified version)
+ * 3. Builds a local index: [build] leaves it unencrypted (assembly/tests); [buildEncrypted] encrypts
+ *    it the way Go kopia does (repo-hash IV, AES-GCM), which is the production path
  * 4. Appends a postamble with recovery info
  *
  * @property packBlobId The ID for this pack blob
@@ -90,16 +93,56 @@ class PackBlobBuilder(
     fun contentCount(): Int = contentInfos.size
 
     /**
-     * Builds the final pack blob.
+     * Builds the final pack blob with an UNENCRYPTED local index.
+     *
+     * This is the low-level assembly path (used by pack-mechanics unit tests and non-crypto callers).
+     * The postamble IV is a plain hash of the index and is NOT Go-compatible. Production must use
+     * [buildEncrypted], which encrypts the local index exactly as Go kopia does.
      *
      * @return Pair of (pack blob data, list of content infos)
      */
     fun build(): Pair<ByteArray, List<ContentInfo>> {
+        val finalInfos = finalizeContents()
+        val localIndexData = buildLocalIndex(finalInfos)
+        writeLocalIndexAndPostamble(localIndexData, computeIndexIV(localIndexData))
+        return contentBuffer.toByteArray() to finalInfos
+    }
+
+    /**
+     * Builds the final pack blob with a Go-compatible ENCRYPTED local (recovery) index.
+     *
+     * Matches Go kopia's `appendPackFileIndexRecoveryData`: the "IV"/content-id is the repo's keyed
+     * hash of the plaintext serialized index (full, untruncated output), the index is encrypted with
+     * that id as the key-derivation input and AAD (random nonce prepended), and the postamble records
+     * the ciphertext's offset and length. Encryption uses a fresh random nonce, so the bytes are not
+     * reproducible — the guarantee is that Go (and [PackBlobReader.recoverIndex] with the matching
+     * decryptor) can decrypt it. See task-13.
+     *
+     * @param hasher The repo content hasher (produces the local index IV from the plaintext index)
+     * @param encryptor The repo content encryptor
+     * @return Pair of (pack blob data, list of content infos)
+     */
+    suspend fun buildEncrypted(
+        hasher: ContentHasher,
+        encryptor: Encryptor
+    ): Pair<ByteArray, List<ContentInfo>> {
+        val finalInfos = finalizeContents()
+        val localIndexData = buildLocalIndex(finalInfos)
+        val localIndexIV = hasher.hashContent(localIndexData)
+        val encryptedLocalIndex = encryptor.encryptWithRawId(localIndexData, localIndexIV)
+        writeLocalIndexAndPostamble(encryptedLocalIndex, localIndexIV)
+        return contentBuffer.toByteArray() to finalInfos
+    }
+
+    /**
+     * Marks the builder as built and produces the final content infos. Idempotency is enforced here so
+     * both [build] and [buildEncrypted] share the single-use guard.
+     */
+    private fun finalizeContents(): List<ContentInfo> {
         check(!built) { "Pack has already been built" }
         built = true
 
-        // Build content infos with final data
-        val finalInfos = contentInfos.map { pending ->
+        return contentInfos.map { pending ->
             ContentInfo(
                 contentId = pending.contentId,
                 packBlobId = packBlobId,
@@ -113,26 +156,22 @@ class PackBlobBuilder(
                 encryptionKeyId = pending.encryptionKeyId
             )
         }
+    }
 
-        // Build local index
+    /**
+     * Appends the (already plaintext-or-ciphertext) local index bytes and a postamble that records the
+     * IV plus the offset and length of exactly those bytes.
+     */
+    private fun writeLocalIndexAndPostamble(localIndexBytes: ByteArray, localIndexIV: ByteArray) {
         val localIndexOffset = contentBuffer.size()
-        val localIndexData = buildLocalIndex(finalInfos)
+        contentBuffer.write(localIndexBytes)
 
-        // Compute IV for local index (hash of the index data)
-        val localIndexIV = computeIndexIV(localIndexData)
-
-        // Write local index (in real implementation this would be encrypted)
-        contentBuffer.write(localIndexData)
-
-        // Build and write postamble
         val postamble = PackBlobPostamble(
             localIndexIV = localIndexIV,
             localIndexOffset = localIndexOffset.toUInt(),
-            localIndexLength = localIndexData.size.toUInt()
+            localIndexLength = localIndexBytes.size.toUInt()
         )
         contentBuffer.write(postamble.toBytes())
-
-        return contentBuffer.toByteArray() to finalInfos
     }
 
     /**
@@ -143,13 +182,13 @@ class PackBlobBuilder(
     }
 
     /**
-     * Computes the IV for encrypting the local index.
-     * Uses the last 16 bytes of SHA-256 hash of the index data.
+     * Placeholder IV for the UNENCRYPTED [build] path only (last 16 bytes of SHA-256 of the index).
+     * This is NOT Go-compatible — Go derives the local index IV from the repo's keyed hash of the
+     * plaintext index. The real (Go-compatible) IV is computed in [buildEncrypted] via the repo hasher.
      */
     private fun computeIndexIV(indexData: ByteArray): ByteArray {
         val digest = MessageDigest.getInstance("SHA-256")
         val hash = digest.digest(indexData)
-        // Use last 16 bytes as IV (matching Go implementation)
         return hash.copyOfRange(hash.size - 16, hash.size)
     }
 

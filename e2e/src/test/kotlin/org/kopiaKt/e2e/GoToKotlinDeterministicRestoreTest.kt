@@ -1,11 +1,16 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.encryption.Aes256GcmHmacSha256Encryptor
+import org.kopiaKt.core.format.KopiaRepositoryJson
+import org.kopiaKt.core.pack.PackBlobReader
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.restore.CountingRestoreProgress
@@ -39,6 +44,45 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
     @AfterEach
     fun tearDown() = runTest {
         cleanup()
+    }
+
+    @Test
+    @DisplayName("Kotlin recoverIndex decrypts a Go-created pack blob's encrypted local index")
+    fun goPackBlobLocalIndex_recoveredByKotlin() = runTest(timeout = 5.minutes) {
+        requireGoKopia()
+
+        // 1. Go creates a repo + snapshot, writing pack blobs whose local (recovery) index is encrypted.
+        createDeterministicSource(sourceDir)
+        createRepositoryWithGo()
+        cliRunner.repositoryConnect(repoDir, testPassword)
+        cliRunner.snapshotCreate(sourceDir)
+        cliRunner.repositoryDisconnect()
+
+        // 2. Derive the repo's content-encryption key from the format blob + password (same as opening it).
+        val storage = createBlobStorage()
+        val formatJson = KopiaRepositoryJson.parse(
+            storage.getBlob(BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID), 0, -1)
+        )
+        val config = formatJson.decryptRepositoryConfig(
+            formatJson.deriveFormatEncryptionKeyFromPassword(testPassword)
+        )
+        val encryptor = Aes256GcmHmacSha256Encryptor.create(config.masterKey)
+
+        // 3. Grab a non-empty pack blob written by Go (data 'p' or metadata 'q').
+        val packBlobs = (storage.listBlobs("p").toList() + storage.listBlobs("q").toList())
+            .filter { it.length > 0 }
+        assertThat(packBlobs).isNotEmpty()
+        val packData = storage.getBlob(packBlobs.first().blobId, 0, -1)
+
+        // 4. Kotlin must DECRYPT + parse Go's encrypted local index (task-13: disaster-recovery compat).
+        val recovered = PackBlobReader.recoverIndex(packData, encryptor.overhead.toUInt()) { ct, iv ->
+            encryptor.decryptWithRawId(ct, iv)
+        }
+        assertThat(recovered).isNotNull()
+        assertThat(recovered!!).isNotEmpty()
+
+        // Sanity: the local index really is encrypted — a plaintext parse must NOT recover it.
+        assertThat(PackBlobReader.recoverIndex(packData, encryptor.overhead.toUInt())).isNull()
     }
 
     @Test

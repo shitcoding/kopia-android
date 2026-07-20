@@ -1,5 +1,6 @@
 package org.kopiaKt.core.pack
 
+import kotlinx.coroutines.CancellationException
 import org.kopiaKt.core.content.ContentInfo
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -30,25 +31,74 @@ object PackBlobReader {
      * @return List of content infos recovered from the local index, or null if recovery fails
      */
     fun recoverIndex(packData: ByteArray, encryptionOverhead: UInt = 0u): List<ContentInfo>? {
-        // Find postamble
-        val postamble = PackBlobPostamble.findPostamble(packData) ?: return null
+        // Unencrypted local index (assembly path / legacy). Go kopia stores it encrypted — use the
+        // decryptor overload below for Go-produced (or KopiaKt buildEncrypted) pack blobs.
+        val (_, localIndexData) = extractLocalIndex(packData) ?: return null
+        return parseLocalIndex(localIndexData, encryptionOverhead)
+    }
 
-        // Extract local index
-        val indexOffset = postamble.localIndexOffset.toInt()
-        val indexLength = postamble.localIndexLength.toInt()
+    /**
+     * Recovers the content index from a pack blob whose local index is ENCRYPTED (Go-compatible).
+     *
+     * Reads the postamble, extracts the ciphertext span, decrypts it with [decryptor] keyed by the
+     * postamble's `localIndexIV`, then parses the plaintext pack index. Returns null if the pack has
+     * no postamble, the offsets are out of range, decryption fails, or the plaintext is not a readable
+     * index — this is a best-effort recovery probe. See task-13.
+     *
+     * @param packData The full pack blob data
+     * @param encryptionOverhead The content encryption overhead (for V1 original-length computation)
+     * @param decryptor Decrypts the local index ciphertext given the postamble IV (typically
+     *   `Encryptor.decryptWithRawId`)
+     */
+    suspend fun recoverIndex(
+        packData: ByteArray,
+        encryptionOverhead: UInt,
+        decryptor: LocalIndexDecryptor
+    ): List<ContentInfo>? {
+        val (postamble, encryptedIndexData) = extractLocalIndex(packData) ?: return null
 
-        if (indexOffset < 0 || indexOffset + indexLength > packData.size) {
+        val localIndexData = try {
+            decryptor.decrypt(encryptedIndexData, postamble.localIndexIV)
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
+        } catch (e: Exception) {
+            logger.log(Level.FINE, "Local index decryption failed: ${e.message}", e)
             return null
         }
 
-        val localIndexData = packData.copyOfRange(indexOffset, indexOffset + indexLength)
+        return parseLocalIndex(localIndexData, encryptionOverhead)
+    }
 
-        // In a real implementation, we would decrypt the index here using postamble.localIndexIV
-        // For now, we assume the index is stored unencrypted
+    /**
+     * Locates the postamble and returns it with the raw local-index bytes it points at (ciphertext for
+     * encrypted packs, plaintext otherwise). Returns null if there is no valid postamble or the offset/
+     * length are out of range.
+     */
+    private fun extractLocalIndex(packData: ByteArray): Pair<PackBlobPostamble, ByteArray>? {
+        val postamble = PackBlobPostamble.findPostamble(packData) ?: return null
 
+        // Long arithmetic: the postamble is untrusted recovery input, and a corrupt (CRC-valid) offset
+        // or length near UInt.MAX would overflow Int and slip past the bounds check into an
+        // out-of-range copyOfRange. UInt.toLong() is always non-negative, so only the upper bound
+        // needs checking, and the sum can't overflow Long (two UInts fit easily).
+        val indexOffset = postamble.localIndexOffset.toLong()
+        val indexLength = postamble.localIndexLength.toLong()
+
+        if (indexOffset + indexLength > packData.size.toLong()) {
+            return null
+        }
+
+        return postamble to packData.copyOfRange(indexOffset.toInt(), (indexOffset + indexLength).toInt())
+    }
+
+    /**
+     * Parses plaintext local-index bytes into content infos, or null if they are not a readable index.
+     */
+    private fun parseLocalIndex(localIndexData: ByteArray, encryptionOverhead: UInt): List<ContentInfo>? {
         return try {
-            val index = PackIndexV1.open(localIndexData, encryptionOverhead)
-            index.iterate().toList()
+            // Dispatch on the index version header (V1/V2). Go kopia writes the local index at the repo's
+            // configured index version, which defaults to V2 — hardcoding V1 fails to recover Go packs.
+            PackIndexFactory.open(localIndexData, encryptionOverhead).iterate().toList()
         } catch (e: Exception) {
             // Best-effort recovery probe: a failure here just means this blob has no readable local
             // index, which is an ordinary outcome (this is also called on arbitrary data). Log at
@@ -119,6 +169,15 @@ object PackBlobReader {
             localIndexIV = postamble.localIndexIV
         )
     }
+}
+
+/**
+ * Decrypts an encrypted pack-blob local index given the postamble's `localIndexIV`.
+ *
+ * Typically backed by `Encryptor.decryptWithRawId(ciphertext, iv)`.
+ */
+fun interface LocalIndexDecryptor {
+    suspend fun decrypt(ciphertext: ByteArray, iv: ByteArray): ByteArray
 }
 
 /**
