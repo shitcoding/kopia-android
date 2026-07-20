@@ -4,9 +4,12 @@ import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.kopiaKt.android.storage.SafFilesystem
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
@@ -196,12 +199,7 @@ class BackupSession(
                 startTime = startTimeValue.toEpochMilli(),
                 lastError = e.message
             )
-            val checkpointSaved = try {
-                checkpointStore.saveCheckpoint(checkpoint)
-                true
-            } catch (_: Exception) {
-                false
-            }
+            val checkpointSaved = persistCheckpoint(checkpoint)
             result = BackupSessionResult.Failed(e, counters, checkpointSaved)
             callback.onComplete(result)
             return@coroutineScope result
@@ -216,6 +214,11 @@ class BackupSession(
                 progress = progress
             )
             uploaderRef.set(uploader)
+            // Replay a cancel that arrived during setup (between register and here -- e.g. while
+            // repository.newWriter opened a slow SAF/network connection), when cancel() reached only a null
+            // uploaderRef. SnapshotUploader.cancel() remembers the request (sticky) and applies it once the
+            // walker exists, so this reliably stops the upload before the tree walk instead of after.
+            if (cancelled.get()) uploader.cancel()
 
             // Start checkpoint job
             checkpointJob = launch {
@@ -230,7 +233,7 @@ class BackupSession(
                 startTime = startTimeValue.toEpochMilli(),
                 resumeCount = (existingCheckpoint?.resumeCount ?: 0) + if (existingCheckpoint != null) 1 else 0
             )
-            checkpointStore.saveCheckpoint(initialCheckpoint)
+            persistCheckpoint(initialCheckpoint)
 
             // Open source directory
             val rootDir = openSourceDirectory()
@@ -245,6 +248,12 @@ class BackupSession(
                     forceHashPercentage = config.forceHashPercentage
                 )
             )
+
+            // Stop the periodic checkpoint loop before deciding success/clear. Its saves are now
+            // NonCancellable, so an in-flight one could otherwise land AFTER handleSuccess clears the
+            // checkpoint -- leaving a stale checkpoint that triggers a spurious resume next run.
+            checkpointJob?.cancelAndJoin()
+            checkpointJob = null
 
             // Check for cancellation
             result = if (cancelled.get() || uploadResult.incomplete) {
@@ -269,8 +278,8 @@ class BackupSession(
                 startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis(),
                 lastError = e.message
             )
-            checkpointStore.saveCheckpoint(checkpoint)
-            result = BackupSessionResult.Failed(e, counters, true)
+            val checkpointSaved = persistCheckpoint(checkpoint)
+            result = BackupSessionResult.Failed(e, counters, checkpointSaved)
         } finally {
             checkpointJob?.cancel()
             uploaderRef.set(null)
@@ -328,23 +337,36 @@ class BackupSession(
     }
 
     private suspend fun saveCheckpoint(repoConnectionJson: String, sourceInfo: SourceInfo): Boolean {
-        return try {
-            val counters = currentCounters.get()
-            val checkpoint = BackupCheckpoint(
-                sourceId = config.sourceId,
-                sourcePath = config.sourcePath,
-                repositoryConnectionJson = repoConnectionJson,
-                processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
-                processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
-                startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis()
-            )
-            checkpointStore.saveCheckpoint(checkpoint)
-            callback.onCheckpointSaved(checkpoint)
-            true
-        } catch (e: Exception) {
-            false
-        }
+        val counters = currentCounters.get()
+        val checkpoint = BackupCheckpoint(
+            sourceId = config.sourceId,
+            sourcePath = config.sourcePath,
+            repositoryConnectionJson = repoConnectionJson,
+            processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
+            processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
+            startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis()
+        )
+        val saved = persistCheckpoint(checkpoint)
+        if (saved) callback.onCheckpointSaved(checkpoint)
+        return saved
     }
+
+    // NonCancellable single choke point for EVERY checkpoint write. The checkpoint save on a cancellation
+    // path (run's `catch (CancellationException)` / `catch (Throwable)`, and the writer-creation failure)
+    // otherwise suspends inside an already-cancelled coroutine and throws immediately, the caller's catch
+    // swallows it, and NO resumable checkpoint is written -- so a WorkManager-initiated cancel (constraint
+    // loss, cancelAll, system, or a torn-stream IOException) would leave the backup un-checkpointed.
+    // Running the periodic-loop / initial saves non-cancellably too just means an in-flight save completes
+    // instead of being torn. (task-14)
+    private suspend fun persistCheckpoint(checkpoint: BackupCheckpoint): Boolean =
+        withContext(NonCancellable) {
+            try {
+                checkpointStore.saveCheckpoint(checkpoint)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
 
     private suspend fun handleCancelledOrIncomplete(
         uploadResult: UploadResult,
@@ -363,15 +385,15 @@ class BackupSession(
             processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
             startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis()
         )
-        checkpointStore.saveCheckpoint(checkpoint)
+        val checkpointSaved = persistCheckpoint(checkpoint)
 
         return if (cancelled.get()) {
-            BackupSessionResult.Cancelled(counters, true)
+            BackupSessionResult.Cancelled(counters, checkpointSaved)
         } else {
             BackupSessionResult.Failed(
                 error = RuntimeException(uploadResult.incompleteReason ?: "Unknown error"),
                 counters = counters,
-                checkpointSaved = true
+                checkpointSaved = checkpointSaved
             )
         }
     }

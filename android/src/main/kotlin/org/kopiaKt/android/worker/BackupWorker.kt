@@ -29,7 +29,6 @@ import org.kopiaKt.android.notification.BackupNotificationManager
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.upload.UploadCounters
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * WorkManager worker for executing backups.
@@ -58,8 +57,6 @@ class BackupWorker(
     private val checkpointStore: CheckpointStore by lazy {
         CheckpointStore(applicationContext)
     }
-
-    private val currentSession = AtomicReference<BackupSession?>(null)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         // Parse input data
@@ -217,12 +214,15 @@ class BackupWorker(
             callback = callback,
             context = applicationContext
         )
-        currentSession.set(session)
-
+        // Publish the running session so a Cancel tap (BackupCancelReceiver, same process) can route through
+        // BackupSession.cancel() cooperatively -- WorkManager makes CoroutineWorker.onStopped final, so the
+        // stop otherwise only cancels the coroutine (an abrupt teardown, no clean incomplete-manifest
+        // checkpoint). See BackupSessionRegistry.
+        BackupSessionRegistry.register(sourceId, session)
         try {
             return session.run(existingCheckpoint)
         } finally {
-            currentSession.set(null)
+            BackupSessionRegistry.unregister(sourceId, session)
         }
     }
 

@@ -13,8 +13,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -572,6 +574,93 @@ class BackupSessionLifecycleTest {
             assertThat(info!!.status).isEqualTo(TaskStatus.CANCELED)
 
             tm.shutdown()
+        }
+
+        @Test
+        @DisplayName("checkpoint is saved on the cancellation path despite coroutine cancellation")
+        fun `checkpoint saved when cancelled mid-upload`() = runBlocking {
+            // Regression lock for the NonCancellable checkpoint save. On a WorkManager-initiated cancel the
+            // coroutine is cancelled while upload() is suspended; run()'s CancellationException handler must
+            // still persist a resumable checkpoint. Without withContext(NonCancellable) the save suspends in
+            // an already-cancelled coroutine, throws, is swallowed, and NO checkpoint is written. (task-14)
+            val scope = CoroutineScope(coroutineContext + SupervisorJob())
+            val dir = createTempDir("cancel-checkpoint")
+            Files.write(dir.resolve("f.txt"), ByteArray(1024))
+
+            val (repo, writer) = mockRepository()
+            // Block inside upload so the cancel lands at a suspension point in run()'s main try.
+            coEvery { writer.findManifests(any()) } coAnswers {
+                delay(10_000)
+                emptyList()
+            }
+
+            // Checkpoint store with a REAL suspension point (yield): saveCheckpoint throws on a cancelled
+            // coroutine unless it runs under NonCancellable, so a mutant that drops NonCancellable records
+            // only the pre-upload initial checkpoint.
+            val saved = java.util.Collections.synchronizedList(mutableListOf<BackupCheckpoint>())
+            val store = mockk<CheckpointStore>(relaxed = true)
+            coEvery { store.saveCheckpoint(any()) } coAnswers {
+                yield()
+                saved.add(firstArg())
+                Unit
+            }
+
+            val session = BackupSession(
+                repository = repo,
+                config = BackupSessionConfig(
+                    sourcePath = dir.toAbsolutePath().toString(),
+                    sourceId = "cp-src"
+                ),
+                checkpointStore = store,
+                context = context
+            )
+
+            val job = scope.launch { session.run() }
+
+            // Wait for the pre-upload initial checkpoint, then cancel mid-upload.
+            var guard = 0
+            while (saved.isEmpty() && guard++ < 500) delay(10)
+            val afterInitial = saved.size
+            assertThat(afterInitial).isAtLeast(1)
+
+            job.cancelAndJoin()
+
+            // The cancellation path wrote an additional checkpoint despite the coroutine being cancelled.
+            assertThat(saved.size).isGreaterThan(afterInitial)
+        }
+
+        @Test
+        @DisplayName("cancel before upload stops the walk before any file is processed")
+        fun `early cancel short-circuits the upload`() = runBlocking {
+            // Cancel arrives before run() -- the uploader does not exist yet, so cancel() only sets the
+            // session flag. run()'s replay must forward it to the (sticky) uploader so the tree walk never
+            // processes a file. Without the sticky flag + replay, the entire source is uploaded and only
+            // then reported as cancelled (wasted bandwidth/battery). (task-14)
+            val dir = createTempDir("early-cancel")
+            Files.write(dir.resolve("a.txt"), ByteArray(4096))
+            Files.write(dir.resolve("b.txt"), ByteArray(4096))
+
+            val (repo, writer) = mockRepository()
+            stubWriterForSuccess(writer)
+            val (cpStore, _) = mockCheckpointStore()
+
+            val session = BackupSession(
+                repository = repo,
+                config = BackupSessionConfig(
+                    sourcePath = dir.toAbsolutePath().toString(),
+                    sourceId = "early-src"
+                ),
+                checkpointStore = cpStore,
+                context = context
+            )
+
+            session.cancel()
+            val result = session.run()
+
+            assertThat(result).isInstanceOf(BackupSessionResult.Cancelled::class.java)
+            val cancelled = result as BackupSessionResult.Cancelled
+            assertThat(cancelled.counters.totalHashedFiles + cancelled.counters.totalCachedFiles)
+                .isEqualTo(0)
         }
 
         @Test

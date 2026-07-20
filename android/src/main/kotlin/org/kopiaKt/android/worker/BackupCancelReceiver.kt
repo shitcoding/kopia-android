@@ -3,7 +3,6 @@ package org.kopiaKt.android.worker
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.work.WorkManager
 
 /**
  * Broadcast receiver for handling backup cancellation requests from notifications.
@@ -30,7 +29,17 @@ class BackupCancelReceiver : BroadcastReceiver() {
     }
 
     private fun cancelBackup(context: Context, sourceId: String) {
-        // Cancel the work request
+        // First tap: cooperative cancellation. Tell the running session (same process) to stop at a clean
+        // boundary and write a resumable, incomplete-manifest checkpoint; the worker then winds down and
+        // completes on its own. Do NOT also cancel the WorkManager job in that case -- an abrupt coroutine
+        // teardown would race the cooperative wind-down and discard the clean checkpoint. This leaves any
+        // periodic schedule intact (a Cancel tap stops the current run, it does not unschedule backups).
+        if (BackupSessionRegistry.cancel(sourceId)) return
+
+        // Otherwise -- no session in this process (queued/finished, or a non-default multi-process
+        // WorkManager setup), OR a repeat tap on a session that is already winding down but wedged in
+        // blocking I/O -- fall back to a hard WorkManager cancel. This also unschedules any periodic work
+        // for the source, so a second tap doubles as "stop this backup for good".
         BackupWorker.cancel(context, sourceId)
     }
 }

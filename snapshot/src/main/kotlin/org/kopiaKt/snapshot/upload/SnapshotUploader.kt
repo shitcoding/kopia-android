@@ -14,6 +14,7 @@ import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
 import org.kopiaKt.snapshot.policy.Policy
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -96,10 +97,18 @@ class SnapshotUploader(
 ) {
     private val currentWalker = AtomicReference<TreeWalker?>(null)
 
+    // Sticky so a cancel that arrives before the walker is installed (during findPreviousSnapshot / while
+    // the caller is still opening the repo writer) is not lost: upload() re-checks this right after
+    // creating the walker. Without it, cancel() only reaches the (possibly not-yet-created) walker and a
+    // pre-walk cancel would let the entire tree walk run to completion.
+    private val cancelled = AtomicBoolean(false)
+
     /**
-     * Cancels the current upload operation.
+     * Cancels the current upload operation. Cooperative: the walk stops at its next entry boundary.
+     * Safe to call before [upload] starts -- the request is remembered and applied once the walker exists.
      */
     fun cancel() {
+        cancelled.set(true)
         currentWalker.get()?.cancel()
     }
 
@@ -142,6 +151,8 @@ class SnapshotUploader(
                 parallelism = options.parallelUploads
             )
             currentWalker.set(walker)
+            // Apply a cancel that landed before the walker existed (see [cancelled]).
+            if (cancelled.get()) walker.cancel()
 
             var rootEntry: DirEntry? = null
             var incompleteReason: String? = null
