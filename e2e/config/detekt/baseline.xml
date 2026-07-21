@@ -1,0 +1,146 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$protected fun compareDirectories( dir1: Path, dir2: Path, options: ComparisonOptions = ComparisonOptions(), ): ComparisonResult</ID>
+    <ID>CyclomaticComplexMethod:TestDataGenerator.kt$TestDataGenerator$fun createEdgeCaseDirectory(root: Path): DirectoryInfo</ID>
+    <ID>ExplicitGarbageCollectionCall:BenchmarkRunner.kt$BenchmarkRunner$gc()</ID>
+    <ID>ExplicitGarbageCollectionCall:MemoryBenchmarkTest.kt$MemoryBenchmarkTest$gc()</ID>
+    <ID>ImplicitDefaultLocale:BackupBenchmarkTest.kt$BackupBenchmarkTest$String.format("%.0f", (ratio - 1) * 100)</ID>
+    <ID>ImplicitDefaultLocale:BackupBenchmarkTest.kt$BackupBenchmarkTest$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:BackupBenchmarkTest.kt$BackupBenchmarkTest$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:BackupBenchmarkTest.kt$BackupBenchmarkTest$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult$String.format("%.0f", (1 - ratio) * 100)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult$String.format("%.0f", (ratio - 1) * 100)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult$String.format("%.2f", avgThroughputMBPerSec)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult$String.format("%.2f", goAvgThroughput)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult$String.format("%.2f", ratio)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult.Companion$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult.Companion$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult.Companion$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult.Companion$String.format("%.2fm", millis / 60000.0)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkConfig.kt$BenchmarkResult.Companion$String.format("%.2fs", millis / 1000.0)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkRunner.kt$BenchmarkRunner$String.format("%.2f MB/s", mbPerSec)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkRunner.kt$BenchmarkRunner$String.format("%.2fm", millis / 60000.0)</ID>
+    <ID>ImplicitDefaultLocale:BenchmarkRunner.kt$BenchmarkRunner$String.format("%.2fs", millis / 1000.0)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest$String.format("%.2fm", millis / 60000.0)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest$String.format("%.2fs", millis / 1000.0)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.AlgorithmComparison$String.format("%.2f", ratio)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$String.format("%.0f", (1 - ratio) * 100)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$String.format("%.0f", (ratio - 1) * 100)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$String.format("%.2f", goThroughput)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$String.format("%.2f", kotlinThroughput)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$String.format("%.2f", ratio)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$String.format("%.0f", (1 - ratio) * 100)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$String.format("%.0f", (ratio - 1) * 100)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$String.format("%.2f", goThroughput)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$String.format("%.2f", kotlinThroughput)</ID>
+    <ID>ImplicitDefaultLocale:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$String.format("%.2f", ratio)</ID>
+    <ID>ImplicitDefaultLocale:MemoryBenchmarkTest.kt$MemoryBenchmarkTest$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:MemoryBenchmarkTest.kt$MemoryBenchmarkTest$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:MemoryBenchmarkTest.kt$MemoryBenchmarkTest$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest$String.format("%.2fm", millis / 60000.0)</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest$String.format("%.2fs", millis / 1000.0)</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.FileIOProfiles$String.format("%.0f", filesPerSec)</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.FullCycleProfiles$String.format("%.2f", testDataSpec.totalBytes / backupDuration.toNanos().toDouble() * 1_000_000_000 / (1024 * 1024))</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.FullCycleProfiles$String.format("%.2f", testDataSpec.totalBytes / restoreDuration.toNanos().toDouble() * 1_000_000_000 / (1024 * 1024))</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.HashingProfiles$String.format("%.2f", throughput)</ID>
+    <ID>ImplicitDefaultLocale:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.RestoreProfiles$String.format("%.2f", throughput)</ID>
+    <ID>ImplicitDefaultLocale:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$String.format("%.0f", (ratio - 1) * 100)</ID>
+    <ID>ImplicitDefaultLocale:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))</ID>
+    <ID>ImplicitDefaultLocale:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$String.format("%.2f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$String.format("%.2f MB", bytes / (1024.0 * 1024.0))</ID>
+    <ID>LongMethod:BenchmarkTestData.kt$BenchmarkTestData$fun create(targetDir: Path, config: TestDataConfig): TestDataSpec</ID>
+    <ID>LongMethod:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$protected fun compareDirectories( dir1: Path, dir2: Path, options: ComparisonOptions = ComparisonOptions(), ): ComparisonResult</ID>
+    <ID>LongMethod:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$@Test @EnabledIf("org.kopiaKt.e2e.benchmark.GoComparisonBenchmarkTest#isE2EEnabled") fun `compare restore performance - medium (100MB)`()</ID>
+    <ID>LongMethod:TestDataGenerator.kt$TestDataGenerator$fun createEdgeCaseDirectory(root: Path): DirectoryInfo</ID>
+    <ID>LoopWithTooManyJumpStatements:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$for</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$32</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkConfig$10</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult$0.9</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult$1.1</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult$100</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult$1024</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$1000</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$1000.0</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$1024</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$1024.0</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$60000</ID>
+    <ID>MagicNumber:BenchmarkConfig.kt$BenchmarkResult.Companion$60000.0</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$100</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$1000</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$1000.0</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$1024</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$60000</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner$60000.0</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner.PeakMemoryTracker$10</ID>
+    <ID>MagicNumber:BenchmarkRunner.kt$BenchmarkRunner.PeakMemoryTracker$100</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$0.5</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$10</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$100</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$256</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$4</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$5</ID>
+    <ID>MagicNumber:BenchmarkTestData.kt$BenchmarkTestData$80</ID>
+    <ID>MagicNumber:KopiaCliRunner.kt$KopiaCliRunner$5_000</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$0.5</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$10</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$1000</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$1024</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$16384</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$20</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$256</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$3</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$4096</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$5</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$512</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$64</ID>
+    <ID>MagicNumber:TestDataGenerator.kt$TestDataGenerator$8192</ID>
+    <ID>MaxLineLength:BackupBenchmarkTest.kt$BackupBenchmarkTest$println("WARNING: Kotlin is ${String.format("%.0f", (ratio - 1) * 100)}% slower than Go (exceeds 50% threshold)")</ID>
+    <ID>MaxLineLength:BackupBenchmarkTest.kt$BackupBenchmarkTest.StressTests$description = "Backup ${testDataSpec.fileCount} large files totaling ${formatBytes(testDataSpec.totalBytes)}"</ID>
+    <ID>MaxLineLength:BackupRestoreIntegrityTest.kt$BackupRestoreIntegrityTest.ContentIntegrity$"unicode-text" to "\u00E9\u00E0\u00FC \u4F60\u597D \uD83D\uDE80 \u0410\u0411\u0412".toByteArray(Charsets.UTF_8)</ID>
+    <ID>MaxLineLength:BenchmarkConfig.kt$BenchmarkResult$appendLine(" Duration: ${formatDuration(avgDuration)} (min: ${formatDuration(minDuration)}, max: ${formatDuration(maxDuration)})")</ID>
+    <ID>MaxLineLength:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$"$relativePath (delta=${delta.toMillis()}ms, tolerance=${options.mtimeTolerance.toMillis()}ms)"</ID>
+    <ID>MaxLineLength:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$private fun formatPermissions(perms: Set&lt;PosixFilePermission&gt;): String</ID>
+    <ID>MaxLineLength:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$println(" Go avg: ${formatDuration(Duration.ofNanos(goAvgNanos.toLong()))} (${String.format("%.2f", goThroughput)} MB/s)")</ID>
+    <ID>MaxLineLength:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.BackupComparison$println(" Kotlin avg: ${formatDuration(Duration.ofNanos(kotlinAvgNanos.toLong()))} (${String.format("%.2f", kotlinThroughput)} MB/s)")</ID>
+    <ID>MaxLineLength:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$println(" Go avg: ${formatDuration(Duration.ofNanos(goAvgNanos.toLong()))} (${String.format("%.2f", goThroughput)} MB/s)")</ID>
+    <ID>MaxLineLength:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$println(" Kotlin avg: ${formatDuration(Duration.ofNanos(kotlinAvgNanos.toLong()))} (${String.format("%.2f", kotlinThroughput)} MB/s)")</ID>
+    <ID>MaxLineLength:KotlinToGoCompatibilityTest.kt$KotlinToGoCompatibilityTest$assertThat(restoreDir.resolve("deep/level_1/level_2/level_3/level_4/level_5/level_6/level_7/level_8/level_9/level_10/deepest_file.txt").readBytes())</ID>
+    <ID>MaxLineLength:MemoryBenchmarkTest.kt$MemoryBenchmarkTest.MemoryEfficiency$println("$name: peak=${formatBytes(stats.peakHeapUsed)}, allocated=${formatBytes(stats.totalAllocated)}")</ID>
+    <ID>MaxLineLength:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.FullCycleProfiles$println(" Backup throughput: ${String.format("%.2f", testDataSpec.totalBytes / backupDuration.toNanos().toDouble() * 1_000_000_000 / (1024 * 1024))} MB/s")</ID>
+    <ID>MaxLineLength:ProfilerBenchmarkTest.kt$ProfilerBenchmarkTest.FullCycleProfiles$println(" Restore throughput: ${String.format("%.2f", testDataSpec.totalBytes / restoreDuration.toNanos().toDouble() * 1_000_000_000 / (1024 * 1024))} MB/s")</ID>
+    <ID>MaxLineLength:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$println("WARNING: Kotlin is ${String.format("%.0f", (ratio - 1) * 100)}% slower than Go (exceeds 50% threshold)")</ID>
+    <ID>MaxLineLength:RestoreBenchmarkTest.kt$RestoreBenchmarkTest.LargeRestores$description = "Restore ${testDataSpec.fileCount} files totaling ${formatBytes(testDataSpec.totalBytes)}"</ID>
+    <ID>MaxLineLength:RestoreBenchmarkTest.kt$RestoreBenchmarkTest.MediumRestores$description = "Restore ${testDataSpec.fileCount} files totaling ${formatBytes(testDataSpec.totalBytes)}"</ID>
+    <ID>MaxLineLength:RestoreBenchmarkTest.kt$RestoreBenchmarkTest.SmallRestores$description = "Restore ${testDataSpec.fileCount} files totaling ${formatBytes(testDataSpec.totalBytes)}"</ID>
+    <ID>MaxLineLength:TestDataGenerator.kt$TestDataGenerator$createPatternFile(binaryDir.resolve("compressible.bin"), ContentPattern.COMPRESSIBLE, 16384).let { files.add(it) }</ID>
+    <ID>SpacingBetweenPackageAndImports:MemoryBenchmarkTest.kt$ </ID>
+    <ID>SpacingBetweenPackageAndImports:RestoreBenchmarkTest.kt$ </ID>
+    <ID>SpreadOperator:KopiaCliRunner.kt$KopiaCliRunner$(*args.toTypedArray())</ID>
+    <ID>SwallowedException:BackupBenchmarkTest.kt$BackupBenchmarkTest.Companion$e: Exception</ID>
+    <ID>SwallowedException:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase$e: Exception</ID>
+    <ID>SwallowedException:CrossCompatibilityTestBase.kt$CrossCompatibilityTestBase.Companion$e: IllegalStateException</ID>
+    <ID>SwallowedException:EdgeCaseFixtureCrossCompatibilityTest.kt$EdgeCaseFixtureCrossCompatibilityTest$e: IllegalStateException</ID>
+    <ID>SwallowedException:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.Companion$e: Exception</ID>
+    <ID>SwallowedException:RestoreBenchmarkTest.kt$RestoreBenchmarkTest.Companion$e: Exception</ID>
+    <ID>SwallowedException:TestDataGenerator.kt$TestDataGenerator$e: UnsupportedOperationException</ID>
+    <ID>TooGenericExceptionThrown:RemoteBackendCrossCompatibilitySmokeTest.kt$RemoteBackendCrossCompatibilitySmokeTest$throw RuntimeException("Failed to create MinIO bucket '$bucket': HTTP $code")</ID>
+    <ID>UnnecessaryParentheses:CrossCompatibilityTestBase.kt$EntryInfo$(content?.contentEquals(other.content ?: ByteArray(0)) ?: (other.content == null))</ID>
+    <ID>UnnecessaryParentheses:PerformanceBaselineTest.kt$PerformanceBaselineTest.CompressionThroughput$(ONE_MB.toDouble())</ID>
+    <ID>UnusedParameter:MemoryBenchmarkTest.kt$MemoryBenchmarkTest$testDataSpec: TestDataSpec</ID>
+    <ID>UnusedParameter:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$testDataSpec: TestDataSpec</ID>
+    <ID>UnusedPrivateProperty:EdgeCaseFixtureCrossCompatibilityTest.kt$EdgeCaseFixtureCrossCompatibilityTest$val stats = restorer.restore(rootEntry)</ID>
+    <ID>UnusedPrivateProperty:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$val rootObjectId = manifest.rootEntry?.objectId ?: throw IllegalStateException("Snapshot has no root entry")</ID>
+    <ID>UseCheckOrError:GoComparisonBenchmarkTest.kt$GoComparisonBenchmarkTest.RestoreComparison$throw IllegalStateException("Go snapshot has no root object")</ID>
+    <ID>UseCheckOrError:KopiaCliRunner.kt$KopiaCliRunner.Companion$throw IllegalStateException( "Kopia binary not found. Set KOPIA_BINARY environment variable or ensure kopia is in PATH.", )</ID>
+    <ID>UseCheckOrError:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$throw IllegalStateException("Go snapshot has no root object ID")</ID>
+    <ID>UseCheckOrError:RestoreBenchmarkTest.kt$RestoreBenchmarkTest$throw IllegalStateException("Snapshot has no root entry")</ID>
+  </CurrentIssues>
+</SmellBaseline>

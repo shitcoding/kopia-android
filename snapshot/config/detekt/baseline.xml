@@ -1,0 +1,225 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexInterface:UploadProgress.kt$UploadProgress</ID>
+    <ID>CyclomaticComplexMethod:FilesystemOutput.kt$FilesystemOutput$private fun setAttributes(path: Path, entry: DirEntry)</ID>
+    <ID>CyclomaticComplexMethod:RetentionComputation.kt$fun computeRetention( snapshots: List&lt;SnapshotManifest&gt;, policy: RetentionPolicy, now: Instant, zone: ZoneId = ZoneId.systemDefault(), ): List&lt;RetentionResult&gt;</ID>
+    <ID>CyclomaticComplexMethod:SnapshotGC.kt$SnapshotGC$private suspend fun walkObjectTree( objectId: ObjectId, isDirectory: Boolean, inUseSet: InUseContentSet, failClosed: Boolean, )</ID>
+    <ID>CyclomaticComplexMethod:WildcardMatcher.kt$WildcardMatcher$private fun matchTokens(path: String, pathIndex: Int, tokenIndex: Int): Boolean</ID>
+    <ID>CyclomaticComplexMethod:WildcardMatcher.kt$WildcardMatcher.Companion$private fun parseCharClass(pattern: String, startIndex: Int, options: Options): Pair&lt;Token.CharClass, Int&gt;</ID>
+    <ID>CyclomaticComplexMethod:WildcardMatcher.kt$WildcardMatcher.Companion$private fun tokenize(pattern: String, options: Options): List&lt;Token&gt;</ID>
+    <ID>ImplicitDefaultLocale:BackupRobustnessTest.kt$BackupRobustnessTest.IncrementalBackups$String.format("%02d", i)</ID>
+    <ID>ImplicitDefaultLocale:BackupRobustnessTest.kt$BackupRobustnessTest.ManySmallFiles$String.format("%04d", i)</ID>
+    <ID>ImplicitDefaultLocale:BackupRobustnessTest.kt$BackupRobustnessTest.TrackingRepositoryWriter$String.format("%032x", nextId.getAndIncrement())</ID>
+    <ID>ImplicitDefaultLocale:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.MockRepositoryWriter$String.format("%032x", nextId++)</ID>
+    <ID>ImplicitDefaultLocale:FileUploaderTest.kt$FileUploaderTest.MockRepositoryWriter$String.format("%032x", nextId++)</ID>
+    <ID>ImplicitDefaultLocale:InUseContentSetTest.kt$InUseContentSetTest$String.format("%032x", i)</ID>
+    <ID>ImplicitDefaultLocale:InUseContentSetTest.kt$InUseContentSetTest$String.format("%032x", t * 1000 + i)</ID>
+    <ID>ImplicitDefaultLocale:SnapshotUploadIntegrationTest.kt$SnapshotUploadIntegrationTest.TrackingRepositoryWriter$String.format("%032x", nextId.getAndIncrement())</ID>
+    <ID>LongMethod:BackupRobustnessTest.kt$BackupRobustnessTest.IncrementalBackups$@Test @Tag("stress") @DisplayName("5 backup cycles with mutations between each") fun `backup after multiple incremental changes`()</ID>
+    <ID>LongMethod:FullMaintenanceCycleTest.kt$FullMaintenanceCycleTest.NoDuplicateBlobProcessing$@Test fun `should not duplicate work when objects are shared across snapshots`()</ID>
+    <ID>LongMethod:MultiSnapshotGCTest.kt$MultiSnapshotGCTest.MultipleSnapshots$@Test fun `should handle repository with multiple snapshots`()</ID>
+    <ID>LongMethod:PolicyMerge.kt$fun mergePolicies(policies: List&lt;Policy&gt;, si: SourceInfo): Pair&lt;Policy, PolicyDefinition&gt;</ID>
+    <ID>LongMethod:SnapshotUploader.kt$SnapshotUploader$suspend fun upload( rootDir: Directory, options: UploadOptions = UploadOptions(), ): UploadResult</ID>
+    <ID>LongMethod:WildcardMatcher.kt$WildcardMatcher$private fun matchTokens(path: String, pathIndex: Int, tokenIndex: Int): Boolean</ID>
+    <ID>LoopWithTooManyJumpStatements:MaintenanceRunner.kt$MaintenanceRunner$for</ID>
+    <ID>LoopWithTooManyJumpStatements:SnapshotGC.kt$SnapshotGC$for</ID>
+    <ID>MagicNumber:FileUploader.kt$FileUploader$100</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b000_000_100</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b000_001_000</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b000_010_000</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b000_100_000</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b001_000_000</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b010_000_000</ID>
+    <ID>MagicNumber:FilesystemOutput.kt$FilesystemOutput$0b100_000_000</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$0.0001</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$0.5</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$0x1b873593</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$0xff</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$13</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$15</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$16</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$20</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$24</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$3</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$4</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$5</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$63</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$64</ID>
+    <ID>MagicNumber:InUseContentSet.kt$BloomFilterInUseContentSet$8</ID>
+    <ID>MagicNumber:InUseContentSet.kt$InUseContentSetFactory$0.01</ID>
+    <ID>MagicNumber:InUseContentSet.kt$InUseContentSetFactory$10_000_000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b000000100</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b000001000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b000010000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b000100000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b001000000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b010000000</ID>
+    <ID>MagicNumber:LocalFilesystem.kt$LocalFilesystem$0b100000000</ID>
+    <ID>MagicNumber:MaintenanceSchedule.kt$LogRetentionOptions$100</ID>
+    <ID>MagicNumber:MaintenanceSchedule.kt$LogRetentionOptions$1024</ID>
+    <ID>MagicNumber:MaintenanceSchedule.kt$LogRetentionOptions$30</ID>
+    <ID>MagicNumber:RepositoryFS.kt$RepositoryFileInputStream$0xFF</ID>
+    <ID>MagicNumber:RetentionComputation.kt$4</ID>
+    <ID>MagicNumber:RetentionPolicy.kt$100</ID>
+    <ID>MagicNumber:RetentionPolicy.kt$3</ID>
+    <ID>MagicNumber:RetentionPolicy.kt$4</ID>
+    <ID>MagicNumber:RetentionPolicy.kt$5</ID>
+    <ID>MagicNumber:RetentionPolicy.kt$6</ID>
+    <ID>MagicNumber:SchedulingPolicy.kt$5</ID>
+    <ID>MagicNumber:SchedulingPolicy.kt$6</ID>
+    <ID>MagicNumber:SchedulingPolicy.kt$SchedulingPolicy$30</ID>
+    <ID>MagicNumber:SchedulingPolicy.kt$TimeOfDay$23</ID>
+    <ID>MagicNumber:SchedulingPolicy.kt$TimeOfDay$59</ID>
+    <ID>MagicNumber:SnapshotManifest.kt$PermissionsSerializer$8</ID>
+    <ID>MagicNumber:WildcardMatcher.kt$WildcardMatcher.Companion$3</ID>
+    <ID>MatchingDeclarationName:RetentionComputation.kt$RetentionResult</ID>
+    <ID>MaxLineLength:ActionsPolicy.kt$ActionsPolicy$fun</ID>
+    <ID>MaxLineLength:ActionsPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:CompressionPolicy.kt$CompressionPolicy$fun</ID>
+    <ID>MaxLineLength:CompressionPolicy.kt$MetadataCompressionPolicy$fun</ID>
+    <ID>MaxLineLength:CompressionPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:ErrorHandlingPolicy.kt$ErrorHandlingPolicy$fun</ID>
+    <ID>MaxLineLength:ErrorHandlingPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.DeletedMockFile$override suspend fun open(): InputStream</ID>
+    <ID>MaxLineLength:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.MockRepositoryWriter$override</ID>
+    <ID>MaxLineLength:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.MockRepositoryWriter$override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions</ID>
+    <ID>MaxLineLength:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.MockRepositoryWriter$override suspend</ID>
+    <ID>MaxLineLength:FileUploaderTest.kt$FileUploaderTest.MockRepositoryWriter$override</ID>
+    <ID>MaxLineLength:FileUploaderTest.kt$FileUploaderTest.MockRepositoryWriter$override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions</ID>
+    <ID>MaxLineLength:FileUploaderTest.kt$FileUploaderTest.MockRepositoryWriter$override suspend</ID>
+    <ID>MaxLineLength:FilesPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:FilesystemOutput.kt$FilesystemOutput$"Path traversal detected: '$relativePath' resolves to '$resolved' which is outside restore root '$normalizedTarget'"</ID>
+    <ID>MaxLineLength:FilesystemOutput.kt$FilesystemOutput$"Symlink target traversal detected: target '$target' from '$relativePath' resolves outside restore root"</ID>
+    <ID>MaxLineLength:FilesystemOutput.kt$FilesystemOutput$"Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root"</ID>
+    <ID>MaxLineLength:FilesystemOutputTest.kt$FilesystemOutputTest$// Should have OWNER_READ, OWNER_WRITE, OWNER_EXECUTE, GROUP_READ, GROUP_EXECUTE, OTHERS_READ, OTHERS_EXECUTE</ID>
+    <ID>MaxLineLength:LoggingPolicy.kt$DirLoggingPolicy$fun</ID>
+    <ID>MaxLineLength:LoggingPolicy.kt$EntryLoggingPolicy$fun</ID>
+    <ID>MaxLineLength:LoggingPolicy.kt$LoggingPolicy$fun</ID>
+    <ID>MaxLineLength:LoggingPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:MaintenanceRunner.kt$MaintenanceRunner$private suspend</ID>
+    <ID>MaxLineLength:MaintenanceRunner.kt$MaintenanceRunner$suspend</ID>
+    <ID>MaxLineLength:MultiSnapshotGCTest.kt$MultiSnapshotGCTest.CancellationSafety.&lt;no name provided&gt;$override suspend fun verifyObject(objectId: ObjectId): List&lt;ContentId&gt;</ID>
+    <ID>MaxLineLength:MultiSnapshotGCTest.kt$MultiSnapshotGCTest.Phase2ContentDeletion.&lt;no name provided&gt;$override suspend fun verifyObject(objectId: ObjectId): List&lt;ContentId&gt;</ID>
+    <ID>MaxLineLength:OSSnapshotPolicy.kt$OSSnapshotPolicy$fun</ID>
+    <ID>MaxLineLength:OSSnapshotPolicy.kt$VolumeShadowCopyPolicy$fun</ID>
+    <ID>MaxLineLength:OSSnapshotPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:PolicyManager.kt$PolicyManager$private</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalActions, finalActionsDef) = merged.actionsPolicy.merge(ActionsPolicy.Default, def.actionsPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalCompression, finalCompressionDef) = merged.compressionPolicy.merge(CompressionPolicy.Default, def.compressionPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalErrorHandling, finalErrorHandlingDef) = merged.errorHandlingPolicy.merge(ErrorHandlingPolicy.Default, def.errorHandlingPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalLogging, finalLoggingDef) = merged.loggingPolicy.merge(LoggingPolicy.Default, def.loggingPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalMetadataCompression, finalMetadataCompressionDef) = merged.metadataCompressionPolicy.merge(MetadataCompressionPolicy.Default, def.metadataCompressionPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalOSSnapshot, finalOSSnapshotDef) = merged.osSnapshotPolicy.merge(OSSnapshotPolicy.Default, def.osSnapshotPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalRetention, finalRetentionDef) = merged.retentionPolicy.merge(RetentionPolicy.Default, def.retentionPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalScheduling, finalSchedulingDef) = merged.schedulingPolicy.merge(SchedulingPolicy.Default, def.schedulingPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (finalSplitter, finalSplitterDef) = merged.splitterPolicy.merge(SplitterPolicy.Default, def.splitterPolicy, globalSource)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedCompression, mergedCompressionDef) = merged.compressionPolicy.merge(p.compressionPolicy, def.compressionPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedErrorHandling, mergedErrorHandlingDef) = merged.errorHandlingPolicy.merge(p.errorHandlingPolicy, def.errorHandlingPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedMetadataCompression, mergedMetadataCompressionDef) = merged.metadataCompressionPolicy.merge(p.metadataCompressionPolicy, def.metadataCompressionPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedOSSnapshot, mergedOSSnapshotDef) = merged.osSnapshotPolicy.merge(p.osSnapshotPolicy, def.osSnapshotPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedRetention, mergedRetentionDef) = merged.retentionPolicy.merge(p.retentionPolicy, def.retentionPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedScheduling, mergedSchedulingDef) = merged.schedulingPolicy.merge(p.schedulingPolicy, def.schedulingPolicy, target)</ID>
+    <ID>MaxLineLength:PolicyMerge.kt$val (mergedSplitter, mergedSplitterDef) = merged.splitterPolicy.merge(p.splitterPolicy, def.splitterPolicy, target)</ID>
+    <ID>MaxLineLength:RepositoryFSTest.kt$RepositoryFSTest.MockRepository$override suspend fun &lt;T&gt; getManifest(id: ManifestId, serializer: kotlinx.serialization.KSerializer&lt;T&gt;): Pair&lt;T, EntryMetadata&gt;</ID>
+    <ID>MaxLineLength:RepositoryFSTest.kt$RepositoryFSTest.MockRepository$override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter</ID>
+    <ID>MaxLineLength:RetentionComputation.kt$RetentionResult.Companion$fun</ID>
+    <ID>MaxLineLength:RetentionComputationTest.kt$RetentionComputationTest$private</ID>
+    <ID>MaxLineLength:RetentionPolicy.kt$RetentionPolicy$fun</ID>
+    <ID>MaxLineLength:RetentionPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:SchedulingPolicy.kt$SchedulingPolicy$fun</ID>
+    <ID>MaxLineLength:SchedulingPolicy.kt$SchedulingPolicy$private</ID>
+    <ID>MaxLineLength:SchedulingPolicy.kt$fun</ID>
+    <ID>MaxLineLength:SchedulingPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:SnapshotRestorerTest.kt$SnapshotRestorerTest$assertThat(tempDir.resolve("level1/level2/deep.txt").readBytes().toString(Charsets.UTF_8)).isEqualTo("deep content")</ID>
+    <ID>MaxLineLength:SplitterPolicy.kt$SplitterPolicy$fun</ID>
+    <ID>MaxLineLength:SplitterPolicy.kt$private inline</ID>
+    <ID>MaxLineLength:UploadPolicy.kt$UploadPolicy$fun</ID>
+    <ID>MaxLineLength:UploadPolicy.kt$private inline</ID>
+    <ID>NestedBlockDepth:WildcardMatcher.kt$WildcardMatcher$private fun matchTokens(path: String, pathIndex: Int, tokenIndex: Int): Boolean</ID>
+    <ID>NotImplementedDeclaration:BackupRobustnessTest.kt$BackupRobustnessTest.TrackingRepositoryWriter$TODO("Not needed for robustness tests")</ID>
+    <ID>NotImplementedDeclaration:FileChangeDuringBackupTest.kt$FileChangeDuringBackupTest.MockRepositoryWriter$TODO("Not needed for test")</ID>
+    <ID>NotImplementedDeclaration:FileUploaderTest.kt$FileUploaderTest.MockRepositoryWriter$TODO("Not needed for test")</ID>
+    <ID>NotImplementedDeclaration:SnapshotUploadIntegrationTest.kt$SnapshotUploadIntegrationTest.TrackingRepositoryWriter$TODO("Not needed for upload tests")</ID>
+    <ID>ReturnCount:CompressionPolicy.kt$CompressionPolicy$fun compressorForFile(fileName: String, fileSize: Long): String</ID>
+    <ID>ReturnCount:FilesystemOutput.kt$FilesystemOutput$override suspend fun fileExists(relativePath: String, entry: DirEntry): Boolean</ID>
+    <ID>ReturnCount:WildcardMatcher.kt$WildcardMatcher$private fun matchTokens(path: String, pathIndex: Int, tokenIndex: Int): Boolean</ID>
+    <ID>SpreadOperator:FilesystemOutput.kt$FilesystemOutput$(path, *openOptions)</ID>
+    <ID>SpreadOperator:LocalFilesystem.kt$LocalFilesystem$(path, "unix:uid,gid", *linkOptions)</ID>
+    <ID>SpreadOperator:LocalFilesystem.kt$LocalFilesystem$(path, BasicFileAttributes::class.java, *linkOptions)</ID>
+    <ID>SwallowedException:FilesystemOutput.kt$FilesystemOutput$e: UnsupportedOperationException</ID>
+    <ID>SwallowedException:IgnoreFS.kt$IgnoreContext$e: Exception</ID>
+    <ID>SwallowedException:IgnoreFS.kt$IgnoreFS.Companion$e: Exception</ID>
+    <ID>SwallowedException:LocalFilesystem.kt$LocalEntry$e: UnsupportedOperationException</ID>
+    <ID>SwallowedException:LocalFilesystem.kt$LocalFilesystem$e: Exception</ID>
+    <ID>SwallowedException:LocalFilesystem.kt$LocalFilesystem$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:LocalFilesystem.kt$LocalFilesystem$e: UnsupportedOperationException</ID>
+    <ID>SwallowedException:MaintenanceRunner.kt$MaintenanceRunner$e: Exception</ID>
+    <ID>SwallowedException:SnapshotManager.kt$SnapshotManager$e: Exception</ID>
+    <ID>SwallowedException:SnapshotUploader.kt$SnapshotUploader$e: Exception</ID>
+    <ID>SwallowedException:SnapshotUploader.kt$SnapshotUploader$e: TreeWalker.CancelledException</ID>
+    <ID>ThrowsCount:FilesystemOutput.kt$FilesystemOutput$private fun setAttributes(path: Path, entry: DirEntry)</ID>
+    <ID>ThrowsCount:SnapshotGC.kt$SnapshotGC$private suspend fun walkObjectTree( objectId: ObjectId, isDirectory: Boolean, inUseSet: InUseContentSet, failClosed: Boolean, )</ID>
+    <ID>ThrowsCount:TreeWalker.kt$TreeWalker$private suspend fun processEntry( entry: Entry, parentPath: String, previousEntry: DirEntry?, builder: DirManifestBuilder, )</ID>
+    <ID>ThrowsCount:TreeWalker.kt$TreeWalker$private suspend fun walkDirectory( dir: Directory, relativePath: String, previousManifest: DirManifest?, ): DirEntry</ID>
+    <ID>TooGenericExceptionThrown:CheckpointRegistryTest.kt$CheckpointRegistryTest$throw RuntimeException("checkpoint failed")</ID>
+    <ID>TooGenericExceptionThrown:MultiSnapshotGCTest.kt$MultiSnapshotGCTest.Phase2ContentDeletion.&lt;no name provided&gt;$throw RuntimeException("simulated corrupt object")</ID>
+    <ID>TooGenericExceptionThrown:RepositoryFSTest.kt$RepositoryFSTest.MockRepository$throw RuntimeException("Object not found: $objectId")</ID>
+    <ID>TooManyFunctions:UploadProgress.kt$UploadProgress</ID>
+    <ID>UnderscoresInNumericLiterals:PolicyDataModelTest.kt$PolicyDataModelTest.CompressionPolicyTest$1073741824L</ID>
+    <ID>UnderscoresInNumericLiterals:PolicyDataModelTest.kt$PolicyDataModelTest.FilesPolicyTest$1073741824L</ID>
+    <ID>UnderscoresInNumericLiterals:PolicyDataModelTest.kt$PolicyDataModelTest.PolicyTest$1073741824L</ID>
+    <ID>UnderscoresInNumericLiterals:PolicyDataModelTest.kt$PolicyDataModelTest.UploadPolicyTest$2147483648L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.SnapshotManifestTest$1000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.SnapshotStatsTest$1234567890L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.StorageStatsTest$1000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.StorageStatsTest$5000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.StorageStatsTest$500000L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.StorageStatsTest$800000L</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotDataModelTest.kt$SnapshotDataModelTest.TimestampSerializationTest$123456789</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotGCTest.kt$SnapshotGCTest$100000</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotGCTest.kt$SnapshotGCTest$1000000</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotGCTest.kt$SnapshotGCTest$10000000</ID>
+    <ID>UnderscoresInNumericLiterals:SnapshotGCTest.kt$SnapshotGCTest$500000</ID>
+    <ID>UnnecessaryParentheses:BackupRobustnessTest.kt$BackupRobustnessTest.DeepDirectoryTree$(depth - 2)</ID>
+    <ID>UnnecessaryParentheses:FileUploader.kt$FileUploader$(Math.random() * 100)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_000_001)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_000_010)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_000_100)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_001_000)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_010_000)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b000_100_000)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b001_000_000)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b010_000_000)</ID>
+    <ID>UnnecessaryParentheses:FilesystemOutput.kt$FilesystemOutput$(mode and 0b100_000_000)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(bits[longIdx] and mask)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(data[i + 1].toInt() and 0xff)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(data[i + 2].toInt() and 0xff)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(data[i + 3].toInt() and 0xff)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(data[i].toInt() and 0xff)</ID>
+    <ID>UnnecessaryParentheses:InUseContentSet.kt$BloomFilterInUseContentSet$(h1 + i * h2)</ID>
+    <ID>UnnecessaryParentheses:MultiSnapshotGCTest.kt$MultiSnapshotGCTest.Phase2ContentDeletion$(it / 32)</ID>
+    <ID>UnnecessaryParentheses:RestoreProgress.kt$RestoreStats$((restoredTotalFileSize + skippedTotalFileSize) * 100f)</ID>
+    <ID>UnnecessaryParentheses:SchedulingPolicy.kt$SchedulingPolicy$(epochSecond / intervalSeconds)</ID>
+    <ID>UnusedParameter:FilesystemOutput.kt$FilesystemOutput$entry: DirEntry</ID>
+    <ID>UnusedParameter:FilesystemOutput.kt$FilesystemOutput$path: Path</ID>
+    <ID>UnusedParameter:IgnoreFS.kt$IgnoreContext$dirPath: String</ID>
+    <ID>UnusedParameter:MaintenanceRunner.kt$MaintenanceRunner$options: MaintenanceOptions</ID>
+    <ID>UnusedParameter:RetentionComputation.kt$RetentionTracker$id: String</ID>
+    <ID>UnusedParameter:RetentionComputation.kt$TimeBasedTracker$id: String</ID>
+    <ID>UnusedParameter:SnapshotRestorer.kt$SnapshotRestorer$targetPath: Path</ID>
+    <ID>UnusedParameter:SnapshotUploader.kt$SnapshotUploader$options: UploadOptions</ID>
+    <ID>UnusedPrivateClass:SnapshotEstimatorTest.kt$SnapshotEstimatorTest$SlowFile : InMemoryEntryFile</ID>
+    <ID>UnusedPrivateClass:SnapshotEstimatorTest.kt$SnapshotEstimatorTest$UnreadableFile : InMemoryEntryFile</ID>
+    <ID>UnusedPrivateMember:LocalFilesystem.kt$LocalFilesystem$private fun modeFromPosixPermissions(perms: Set&lt;PosixFilePermission&gt;): Int</ID>
+    <ID>UnusedPrivateProperty:BackupRobustnessTest.kt$BackupRobustnessTest.MemoryBounded$val totalDataSize = fileCount.toLong() * fileSize // ~8MB</ID>
+    <ID>UnusedPrivateProperty:FileUploader.kt$FileUploader$private val splitterPolicy: SplitterPolicy = SplitterPolicy()</ID>
+    <ID>UnusedPrivateProperty:FilesystemOutput.kt$FilesystemOutput.Companion$private const val OUTPUT_DIR_MODE = 448 // 0o700 in octal</ID>
+    <ID>UnusedPrivateProperty:PolicyManagerTest.kt$PolicyManagerTest$private val userSource = SourceInfo(host = "myhost", userName = "myuser", path = "")</ID>
+    <ID>UnusedPrivateProperty:RepositoryFS.kt$/** * Content prefix used for directory objects. */ private const val DIRECTORY_OBJECT_PREFIX = "k"</ID>
+    <ID>UnusedPrivateProperty:SnapshotUploadIntegrationTest.kt$SnapshotUploadIntegrationTest.IncrementalUpload$val secondUploadHashedFiles = progress2.snapshot().totalHashedFiles</ID>
+    <ID>UseCheckOrError:SnapshotGC.kt$SnapshotGC$throw IllegalStateException( "GC content deletion requires a DirectRepositoryWriter.", )</ID>
+    <ID>WildcardImport:SnapshotRestorerTest.kt$import org.kopiaKt.snapshot.testutil.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

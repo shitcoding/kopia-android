@@ -1,0 +1,95 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:BackupWorker.kt$BackupWorker$override suspend fun doWork(): Result</ID>
+    <ID>CyclomaticComplexMethod:NetworkConstraintChecker.kt$NetworkConstraintChecker$fun getNetworkType(): NetworkType</ID>
+    <ID>CyclomaticComplexMethod:SafBlobStorage.kt$SafBlobStorage$override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions)</ID>
+    <ID>CyclomaticComplexMethod:SafRestoreOutput.kt$SafRestoreOutput$private fun getMimeType(fileName: String): String</ID>
+    <ID>ExpressionBodySyntax:SafRestoreOutput.kt$SafRestoreOutput$return false</ID>
+    <ID>ImplicitDefaultLocale:BackupNotificationManager.kt$BackupNotificationManager.Companion$String.format("%.1f KB", bytes / 1024.0)</ID>
+    <ID>ImplicitDefaultLocale:BackupNotificationManager.kt$BackupNotificationManager.Companion$String.format("%.1f MB", bytes / (1024.0 * 1024))</ID>
+    <ID>ImplicitDefaultLocale:BackupNotificationManager.kt$BackupNotificationManager.Companion$String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024))</ID>
+    <ID>LongMethod:BackupSession.kt$BackupSession$suspend fun run(existingCheckpoint: BackupCheckpoint? = null): BackupSessionResult</ID>
+    <ID>LongMethod:BackupWorker.kt$BackupWorker$override suspend fun doWork(): Result</ID>
+    <ID>MagicNumber:BackupNotificationManager.kt$BackupNotificationManager$100</ID>
+    <ID>MagicNumber:BackupNotificationManager.kt$BackupNotificationManager.Companion$1000</ID>
+    <ID>MagicNumber:BackupNotificationManager.kt$BackupNotificationManager.Companion$1024</ID>
+    <ID>MagicNumber:BackupNotificationManager.kt$BackupNotificationManager.Companion$1024.0</ID>
+    <ID>MagicNumber:BackupNotificationManager.kt$BackupNotificationManager.Companion$60</ID>
+    <ID>MagicNumber:BackupSession.kt$BackupSessionConfig$4</ID>
+    <ID>MagicNumber:BackupWorker.kt$BackupWorker$100</ID>
+    <ID>MagicNumber:BackupWorker.kt$BackupWorker$99</ID>
+    <ID>MagicNumber:BackupWorker.kt$BackupWorkerConfig$4</ID>
+    <ID>MagicNumber:BatteryOptimizationChecker.kt$BatteryOptimizationChecker$100</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$10</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$100</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$1024</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$1024L</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$5</ID>
+    <ID>MagicNumber:NetworkConstraintChecker.kt$NetworkConstraintChecker$50</ID>
+    <ID>MaxLineLength:BackupNotificationManager.kt$BackupNotificationIds$private fun slotBase(sourceId: String): Int</ID>
+    <ID>MaxLineLength:BackupNotificationManager.kt$BackupNotificationManager$.</ID>
+    <ID>MaxLineLength:BackupWorkerTest.kt$BackupWorkerTest.WorkerSchedulingTests$assertThat(workInfos.all { it.state.isFinished || it.state == androidx.work.WorkInfo.State.CANCELLED }).isTrue()</ID>
+    <ID>MaxLineLength:BatteryOptimizationChecker.kt$BatteryOptimizationChecker$val batteryLevel = batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100</ID>
+    <ID>MaxLineLength:CheckpointStore.kt$CheckpointStore$private fun checkpointKey(sourceId: String): Preferences.Key&lt;String&gt;</ID>
+    <ID>MaxLineLength:PermissionManager.kt$PermissionManager$fun</ID>
+    <ID>MaxLineLength:PermissionManager.kt$PermissionManager$rationale = "KopiaKt needs storage access to back up your files. On Android 11+, you can use the Storage Access Framework to grant access to specific folders instead."</ID>
+    <ID>MaxLineLength:PermissionManager.kt$PermissionManager$rationale = "Notifications let you know when backups start, their progress, and whether they completed successfully or encountered errors."</ID>
+    <ID>MaxLineLength:PermissionManager.kt$PermissionManager$rationale = "Without battery optimization exemption, Android may stop backups to save battery. This is especially important for large backups or when backing up over slower connections."</ID>
+    <ID>MaxLineLength:SafBlobStorage.kt$SafBlobStorage$override suspend</ID>
+    <ID>MaxLineLength:SafBlobStorageTest.kt$SafBlobStorageTest.GetBlobTests$fun</ID>
+    <ID>MaxLineLength:SafBlobStorageTest.kt$SafBlobStorageTest.ShardingTests$every { mockContentResolver.openInputStream(mockFile.uri) } returns ByteArrayInputStream("data".toByteArray())</ID>
+    <ID>MaxLineLength:SafCursorDocumentTest.kt$SafCursorDocumentTest$private</ID>
+    <ID>MaxLineLength:SafCursorDocumentTest.kt$SafCursorDocumentTest$private fun cursorOf(vararg rows: Array&lt;Any?&gt;): MatrixCursor</ID>
+    <ID>MaxLineLength:SafFilesystem.kt$SafFilesystem$internal</ID>
+    <ID>MaxLineLength:SafPermissionManager.kt$SafPermissionManager$suspend</ID>
+    <ID>MaxLineLength:SafPermissionManager.kt$SafPermissionManager$volumeId.matches(Regex("[0-9A-F]{4}-[0-9A-F]{4}")) -&gt; "SD Card${if (folderPath.isNotEmpty()) "/$folderPath" else ""}"</ID>
+    <ID>SwallowedException:BackupSession.kt$BackupSession$e: CancellationException</ID>
+    <ID>SwallowedException:BackupSession.kt$BackupSession$e: Exception</ID>
+    <ID>SwallowedException:BackupWorker.kt$BackupWorker$e: CancellationException</ID>
+    <ID>SwallowedException:BackupWorker.kt$BackupWorker$e: Exception</ID>
+    <ID>SwallowedException:CheckpointStore.kt$CheckpointStore$e: Exception</ID>
+    <ID>SwallowedException:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$e: Exception</ID>
+    <ID>SwallowedException:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$e: NoSuchMethodException</ID>
+    <ID>SwallowedException:SafPermissionManager.kt$SafPermissionManager$e: SecurityException</ID>
+    <ID>SwallowedException:TaskManager.kt$TaskManager$e: CancellationException</ID>
+    <ID>ThrowsCount:BackupSession.kt$BackupSession$private fun openSourceDirectory(): Directory</ID>
+    <ID>TooGenericExceptionThrown:BackupErrorHandlingTest.kt$BackupErrorHandlingTest.TaskStatusIntegration$throw RuntimeException("Storage backend unreachable")</ID>
+    <ID>TooGenericExceptionThrown:TaskManagerTest.kt$TaskManagerTest.TaskLifecycle$throw RuntimeException("disk full")</ID>
+    <ID>UnderscoresInNumericLiterals:BackupNotificationManagerTest.kt$BackupNotificationManagerTest.CompletionNotificationTests$3600000</ID>
+    <ID>UnderscoresInNumericLiterals:BackupNotificationManagerTest.kt$BackupNotificationManagerTest.FormattingTests$150000</ID>
+    <ID>UnderscoresInNumericLiterals:BackupNotificationManagerTest.kt$BackupNotificationManagerTest.FormattingTests$3700000</ID>
+    <ID>UnderscoresInNumericLiterals:BackupNotificationManagerTest.kt$BackupNotificationManagerTest.RestoreNotificationTests$900000</ID>
+    <ID>UnderscoresInNumericLiterals:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$100000</ID>
+    <ID>UnderscoresInNumericLiterals:NetworkConstraintCheckerTest.kt$NetworkStateTest$100000</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.CommonEntryTests$1700000000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.ErrorHandlingTests$1700000000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.SafDirectoryTests$1700000000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.SafFileTests$1680000000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.SafFileTests$1700000000000L</ID>
+    <ID>UnderscoresInNumericLiterals:SafFilesystemTest.kt$SafFilesystemTest.SafSymlinkTests$1700000000000L</ID>
+    <ID>UnnecessaryParentheses:BackupWorker.kt$BackupWorker$(result.counters.totalCachedBytes + result.counters.totalHashedBytes)</ID>
+    <ID>UnnecessaryParentheses:BackupWorker.kt$BackupWorker$(result.counters.totalCachedFiles + result.counters.totalHashedFiles)</ID>
+    <ID>UnnecessaryParentheses:BackupWorker.kt$BackupWorker$(totalBytes * 100)</ID>
+    <ID>UnnecessaryParentheses:CheckpointStoreTest.kt$CheckpointStoreTest.BackupCheckpointTests$(10 * 60 * 1000)</ID>
+    <ID>UnnecessaryParentheses:CheckpointStoreTest.kt$CheckpointStoreTest.BackupCheckpointTests$(25 * 60 * 60 * 1000)</ID>
+    <ID>UnnecessaryParentheses:CheckpointStoreTest.kt$CheckpointStoreTest.ClearStaleCheckpointsTests$(25 * 60 * 60 * 1000)</ID>
+    <ID>UnnecessaryParentheses:CheckpointStoreTest.kt$CheckpointStoreTest.GetCheckpointTests$(25 * 60 * 60 * 1000)</ID>
+    <ID>UnnecessaryParentheses:CheckpointStoreTest.kt$CheckpointStoreTest.ListActiveCheckpointsTests$(25 * 60 * 60 * 1000)</ID>
+    <ID>UnnecessaryParentheses:SafBlobStorageTest.kt$SafBlobStorageTest.PositionEncodedStream$(pos++)</ID>
+    <ID>UnusedParameter:BackupNotificationManager.kt$BackupNotificationManager$sourceId: String</ID>
+    <ID>UnusedParameter:BackupSession.kt$BackupSession$sourceInfo: SourceInfo</ID>
+    <ID>UnusedParameter:BackupSessionLifecycleTest.kt$BackupSessionLifecycleTest$writer: RepositoryWriter</ID>
+    <ID>UnusedParameter:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$downstreamKbps: Int = 100000</ID>
+    <ID>UnusedParameter:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$upstreamKbps: Int = 50000</ID>
+    <ID>UnusedParameter:PermissionManager.kt$PermissionManager$requestCode: Int</ID>
+    <ID>UnusedPrivateMember:NetworkConstraintCheckerTest.kt$NetworkConstraintCheckerTest$private fun setupNetwork( hasInternet: Boolean = true, isWifi: Boolean = false, isEthernet: Boolean = false, isCellular: Boolean = false, isVpn: Boolean = false, isMetered: Boolean = !isWifi, downstreamKbps: Int = 100000, upstreamKbps: Int = 50000, )</ID>
+    <ID>UseCheckOrError:BackupWorker.kt$BackupWorker$throw IllegalStateException("Repository not configured. Call BackupWorker.setRepositoryProvider first.")</ID>
+    <ID>UseCheckOrError:SafRestoreOutput.kt$SafRestoreOutput$throw IllegalStateException("Failed to create directory: $currentPath")</ID>
+    <ID>UseCheckOrError:SafRestoreOutput.kt$SafRestoreOutput$throw IllegalStateException("Failed to create file: $relativePath")</ID>
+    <ID>UseCheckOrError:SafRestoreOutput.kt$SafRestoreOutput$throw IllegalStateException("Failed to open output stream for: $relativePath")</ID>
+    <ID>UseRequire:BackupSession.kt$BackupSession$throw IllegalArgumentException("Source path does not exist: ${config.sourcePath}")</ID>
+    <ID>UseRequire:BackupSession.kt$BackupSession$throw IllegalArgumentException("Source path is not a directory: ${config.sourcePath}")</ID>
+  </CurrentIssues>
+</SmellBaseline>

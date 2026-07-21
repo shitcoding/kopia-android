@@ -1,0 +1,66 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:S3BlobStorage.kt$S3BlobStorage$message.contains("InvalidAccessKeyId", ignoreCase = true) || message.contains("SignatureDoesNotMatch", ignoreCase = true) || message.contains("AccessDenied", ignoreCase = true) || message.contains("ExpiredToken", ignoreCase = true)</ID>
+    <ID>CyclomaticComplexMethod:OkHttpWebDavClient.kt$OkHttpWebDavClient$private fun parsePropfindResponse(input: InputStream): List&lt;DavResource&gt;</ID>
+    <ID>CyclomaticComplexMethod:RetryingBlobStorage.kt$RetryingBlobStorage$private fun isRetryable(e: Throwable): Boolean</ID>
+    <ID>CyclomaticComplexMethod:S3Options.kt$S3Options$override fun equals(other: Any?): Boolean</ID>
+    <ID>CyclomaticComplexMethod:WebDavBlobStorage.kt$WebDavBlobStorage$private fun walkDirectory( dirUrl: String, currentPrefix: String, filterPrefix: String, results: MutableList&lt;BlobMetadata&gt;, depth: Int, )</ID>
+    <ID>LongMethod:OkHttpWebDavClient.kt$OkHttpWebDavClient$private fun parsePropfindResponse(input: InputStream): List&lt;DavResource&gt;</ID>
+    <ID>LoopWithTooManyJumpStatements:SftpBlobStorage.kt$SftpBlobStorage$for</ID>
+    <ID>LoopWithTooManyJumpStatements:WebDavBlobStorage.kt$WebDavBlobStorage$for</ID>
+    <ID>MagicNumber:FilesystemBlobStorage.kt$ShardsConfig$3</ID>
+    <ID>MagicNumber:OkHttpWebDavClient.kt$OkHttpWebDavClient$206</ID>
+    <ID>MagicNumber:OkHttpWebDavClient.kt$OkHttpWebDavClient$207</ID>
+    <ID>MagicNumber:OkHttpWebDavClient.kt$OkHttpWebDavClient$416</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$400</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$401</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$403</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$404</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$405</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$409</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$429</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$500</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$502</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$503</ID>
+    <ID>MagicNumber:RetryingBlobStorage.kt$RetryingBlobStorage$504</ID>
+    <ID>MagicNumber:S3BlobStorage.kt$S3BlobStorage$404</ID>
+    <ID>MagicNumber:S3BlobStorage.kt$S3BlobStorage.Companion$30</ID>
+    <ID>MagicNumber:S3BlobStorage.kt$S3BlobStorage.Companion$5</ID>
+    <ID>MagicNumber:SftpBlobStorage.kt$SftpBlobStorage.Companion$3</ID>
+    <ID>MagicNumber:SftpOptions.kt$SftpOptions$3</ID>
+    <ID>MagicNumber:WebDavBlobStorage.kt$WebDavBlobStorage.Companion$3</ID>
+    <ID>MagicNumber:WebDavOptions.kt$ShardingParameters$3</ID>
+    <ID>MagicNumber:WebDavOptions.kt$WebDavOptions$3</ID>
+    <ID>MaxLineLength:FilesystemBlobStorage.kt$FilesystemBlobStorage$override suspend</ID>
+    <ID>MaxLineLength:FilesystemBlobStorage.kt$FilesystemBlobStorage.Companion$operator</ID>
+    <ID>MaxLineLength:RetryingBlobStorage.kt$RetryingBlobStorage$override suspend</ID>
+    <ID>MaxLineLength:S3BlobStorage.kt$S3BlobStorage$override suspend</ID>
+    <ID>MaxLineLength:S3BlobStorageTest.kt$S3BlobStorageTest.ErrorHandlingTests$mockClient.getObject(any&lt;GetObjectRequest&gt;(), any&lt;ResponseTransformer&lt;GetObjectResponse, ResponseBytes&lt;GetObjectResponse&gt;&gt;&gt;())</ID>
+    <ID>MaxLineLength:S3BlobStorageTest.kt$S3BlobStorageTest.GetBlobTests$mockClient.getObject(any&lt;GetObjectRequest&gt;(), any&lt;ResponseTransformer&lt;GetObjectResponse, ResponseBytes&lt;GetObjectResponse&gt;&gt;&gt;())</ID>
+    <ID>MaxLineLength:S3BlobStorageTest.kt$S3BlobStorageTest.GetBlobTests$mockClient.getObject(capture(requestSlot), any&lt;ResponseTransformer&lt;GetObjectResponse, ResponseBytes&lt;GetObjectResponse&gt;&gt;&gt;())</ID>
+    <ID>MaxLineLength:S3BlobStorageTest.kt$S3BlobStorageTest.LoadStorageConfigTests$mockClient.getObject(any&lt;GetObjectRequest&gt;(), any&lt;ResponseTransformer&lt;GetObjectResponse, ResponseBytes&lt;GetObjectResponse&gt;&gt;&gt;())</ID>
+    <ID>MaxLineLength:WebDavBlobStorage.kt$WebDavBlobStorage$override suspend</ID>
+    <ID>NestedBlockDepth:OkHttpWebDavClient.kt$OkHttpWebDavClient$private fun parsePropfindResponse(input: InputStream): List&lt;DavResource&gt;</ID>
+    <ID>NestedBlockDepth:WebDavBlobStorage.kt$WebDavBlobStorage$private fun mkdirAll(dirUrl: String)</ID>
+    <ID>SwallowedException:FilesystemBlobStorage.kt$FilesystemBlobStorage.Companion$e: Exception</ID>
+    <ID>SwallowedException:OkHttpWebDavClient.kt$OkHttpWebDavClient$e: XMLStreamException</ID>
+    <ID>SwallowedException:S3BlobStorage.kt$S3BlobStorage$e: NoSuchKeyException</ID>
+    <ID>SwallowedException:S3BlobStorage.kt$S3BlobStorage.Companion$e: NoSuchKeyException</ID>
+    <ID>SwallowedException:S3BlobStorage.kt$S3BlobStorage.Companion$e: SerializationException</ID>
+    <ID>SwallowedException:SftpBlobStorage.kt$SftpBlobStorage$e: Exception</ID>
+    <ID>SwallowedException:SftpBlobStorage.kt$SftpBlobStorage$e: IOException</ID>
+    <ID>SwallowedException:WebDavBlobStorage.kt$WebDavBlobStorage$retryError: Exception</ID>
+    <ID>ThrowsCount:RetryingBlobStorage.kt$RetryingBlobStorage$private suspend fun &lt;T&gt; retryOperation( operationName: String, blobId: BlobId?, operation: suspend () -&gt; T, ): T</ID>
+    <ID>ThrowsCount:S3BlobStorage.kt$S3BlobStorage$private fun handleS3Exception(e: S3Exception, blobId: BlobId): Nothing</ID>
+    <ID>ThrowsCount:WebDavBlobStorage.kt$WebDavBlobStorage$private fun handleWebDavException(e: WebDavException, blobId: BlobId): Nothing</ID>
+    <ID>UnusedParameter:RetryingBlobStorage.kt$RetryingBlobStorage$blobId: BlobId?</ID>
+    <ID>UnusedParameter:RetryingBlobStorage.kt$RetryingBlobStorage$operationName: String</ID>
+    <ID>UseCheckOrError:FilesystemBlobStorage.kt$FilesystemBlobStorage$throw IllegalStateException("Storage is read-only")</ID>
+    <ID>UseCheckOrError:RetryingBlobStorage.kt$RetryingBlobStorage$throw lastException ?: IllegalStateException("Retry loop completed without result")</ID>
+    <ID>UseCheckOrError:S3BlobStorage.kt$S3BlobStorage$throw IllegalStateException("Storage is read-only")</ID>
+    <ID>UseCheckOrError:SftpBlobStorage.kt$SftpBlobStorage$throw IllegalStateException("Storage is read-only")</ID>
+    <ID>UseCheckOrError:WebDavBlobStorage.kt$WebDavBlobStorage$throw IllegalStateException("Storage is read-only")</ID>
+  </CurrentIssues>
+</SmellBaseline>

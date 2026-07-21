@@ -1,0 +1,6 @@
+# Revisions to ignore in `git blame` (bulk mechanical reformats).
+# Configure locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub honors this file automatically.)
+
+# task-21: adopt intellij_idea ktlint code style and format the tree
+3715529b80529ec722ba4f821c95f08f5b04f21c

@@ -1,0 +1,250 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:ObjectId.kt$ObjectId$this === Empty || (contentId == ContentId.Empty &amp;&amp; indirection == 0 &amp;&amp; !isCompressed)</ID>
+    <ID>CyclomaticComplexMethod:DefaultCompressorFactory.kt$DefaultCompressorFactory$override fun create(algorithm: CompressionAlgorithm): Compressor</ID>
+    <ID>CyclomaticComplexMethod:MergedIndex.kt$MergedIndex$fun iterate( startId: ContentId? = null, endId: ContentId? = null, ): Sequence&lt;ContentInfo&gt;</ID>
+    <ID>CyclomaticComplexMethod:PackIndexV2.kt$PackIndexV2$fun build(entries: List&lt;ContentInfo&gt;): ByteArray</ID>
+    <ID>CyclomaticComplexMethod:RepositoryConfig.kt$RepositoryConfig$override fun equals(other: Any?): Boolean</ID>
+    <ID>ExpressionBodySyntax:ContentManager.kt$ContentManager$return currentInfoUnlocked(contentId)?.deleted == false</ID>
+    <ID>ExpressionBodySyntax:DirectRepositoryImpl.kt$DirectRepositoryImpl$return contentManager.isIndexLoadComplete() &amp;&amp; manifestManager.isManifestLoadComplete()</ID>
+    <ID>ExpressionBodySyntax:ThrottlingBlobStorage.kt$ThrottlingBlobStorage$return delegate.listBlobs(prefix)</ID>
+    <ID>LongMethod:PackIndexV2.kt$PackIndexV2$fun build(entries: List&lt;ContentInfo&gt;): ByteArray</ID>
+    <ID>LongParameterList:DirectRepositoryImpl.kt$DirectRepositoryImpl$( private val blobStorage: BlobStorage, private val contentManager: ContentManager, private val objectManager: ObjectManager, private val manifestManager: ManifestManager, private val config: RepositoryConfig, private val uniqueId: ByteArray, private val formatEncryptionKey: ByteArray, private var clientOptions: ClientOptions, private val clock: Clock, private val compressorFactory: CompressorFactory, private val isWriter: Boolean = false, private val afterFlushCallbacks: MutableList&lt;suspend (RepositoryWriter) -&gt; Unit&gt; = mutableListOf(), )</ID>
+    <ID>LoopWithTooManyJumpStatements:PackIndexV2.kt$PackIndexV2Impl$for</ID>
+    <ID>MagicNumber:Blake2bHasher.kt$Blake2bHasher$8</ID>
+    <ID>MagicNumber:Buzhash32.kt$Buzhash32$0xFF</ID>
+    <ID>MagicNumber:Buzhash32.kt$Buzhash32$31</ID>
+    <ID>MagicNumber:Buzhash32.kt$Buzhash32$32</ID>
+    <ID>MagicNumber:Buzhash32.kt$Buzhash32.Companion$256</ID>
+    <ID>MagicNumber:ContentId.kt$16</ID>
+    <ID>MagicNumber:ContentId.kt$ContentId$16</ID>
+    <ID>MagicNumber:ContentManager.kt$ContentManager$1000</ID>
+    <ID>MagicNumber:ContentManager.kt$ContentManager$16</ID>
+    <ID>MagicNumber:ContentManager.kt$ContentManager$8</ID>
+    <ID>MagicNumber:DefaultCompressorFactory.kt$DefaultCompressorFactory$16</ID>
+    <ID>MagicNumber:DefaultCompressorFactory.kt$NoOpCompressor$16</ID>
+    <ID>MagicNumber:EpochParameters.kt$EpochParameters$1024</ID>
+    <ID>MagicNumber:EpochParameters.kt$EpochParameters$10L</ID>
+    <ID>MagicNumber:GzipCompressor.kt$DeflateCompressor$16</ID>
+    <ID>MagicNumber:GzipCompressor.kt$GzipCompressor$16</ID>
+    <ID>MagicNumber:IndexBlobBuilder.kt$IndexBlobBuilder.Companion$32</ID>
+    <ID>MagicNumber:IndexBlobEncryption.kt$16</ID>
+    <ID>MagicNumber:IndexBlobEncryption.kt$32</ID>
+    <ID>MagicNumber:IndexBlobReader.kt$IndexBlobReader.Companion$0xFF</ID>
+    <ID>MagicNumber:KeyDerivation.kt$3</ID>
+    <ID>MagicNumber:KeyDerivation.kt$Pbkdf2KeyDerivation$8</ID>
+    <ID>MagicNumber:KopiaRepositoryJson.kt$KopiaRepositoryJson.Companion$32</ID>
+    <ID>MagicNumber:Lz4Compressor.kt$Lz4Compressor$16</ID>
+    <ID>MagicNumber:MutableParameters.kt$MutableParameters$1_000_000</ID>
+    <ID>MagicNumber:PackBlobBuilder.kt$PackBlobBuilder$1000</ID>
+    <ID>MagicNumber:PackBlobBuilder.kt$PackBlobBuilder$16</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble$256</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble$4</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble.Companion$0x80</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble.Companion$0xFF</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble.Companion$4</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble.Companion$63</ID>
+    <ID>MagicNumber:PackBlobPostamble.kt$PackBlobPostamble.Companion$7</ID>
+    <ID>MagicNumber:PackIndex.kt$PackIndexFactory$0xFF</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$0x7FFFFFFF</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$0xFF</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$0xFFFF</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$12</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$16</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$4</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1$8</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1Impl$0xFF</ID>
+    <ID>MagicNumber:PackIndexV1.kt$PackIndexV1Impl$255</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2$0xFF</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2$16</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2$4</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2$8</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$0x80</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$0xFF</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$0xFFFF</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$0xFFFFFFFFL</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$12</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$13</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$16</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$24</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$3</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$4</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$5</ID>
+    <ID>MagicNumber:PackIndexV2.kt$PackIndexV2Impl$8</ID>
+    <ID>MagicNumber:RabinKarp64.kt$Pol$16</ID>
+    <ID>MagicNumber:RabinKarp64.kt$Pol$32</ID>
+    <ID>MagicNumber:RabinKarp64.kt$Pol$4</ID>
+    <ID>MagicNumber:RabinKarp64.kt$Pol$8</ID>
+    <ID>MagicNumber:RabinKarp64.kt$RabinKarp64$256</ID>
+    <ID>MagicNumber:RabinKarp64.kt$RabinKarp64$8</ID>
+    <ID>MagicNumber:ThrottlingBlobStorage.kt$TokenBucket$1000</ID>
+    <ID>MagicNumber:ThrottlingBlobStorage.kt$TokenBucket$1_000_000_000L</ID>
+    <ID>MagicNumber:ZstdCompressor.kt$ZstdCompressor$16</ID>
+    <ID>MaxLineLength:BlobStorage.kt$BlobStorage$suspend</ID>
+    <ID>MaxLineLength:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("invalid prefix '$prefix', must be between '$MIN_PREFIX' and '$MAX_PREFIX'")</ID>
+    <ID>MaxLineLength:ContentIdVectorTest.kt$ContentIdVectorTest$assertThrows</ID>
+    <ID>MaxLineLength:ContentManagerEpochIndexTest.kt$ContentManagerEpochIndexTest$fun</ID>
+    <ID>MaxLineLength:ContentManagerEpochIndexTest.kt$ContentManagerEpochIndexTest$private suspend fun blobIds(storage: InMemoryBlobStorage, prefix: String): List&lt;String&gt;</ID>
+    <ID>MaxLineLength:ContentManagerSoftDeleteTest.kt$ContentManagerSoftDeleteTest$fun</ID>
+    <ID>MaxLineLength:DirectRepositoryImpl.kt$DirectRepositoryImpl$override suspend</ID>
+    <ID>MaxLineLength:GoKopiaRepositoryIntegrationTest.kt$TestFilesystemBlobStorage$override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions): Unit</ID>
+    <ID>MaxLineLength:GzipCompressor.kt$DeflateCompressor.Companion$fun bestCompression()</ID>
+    <ID>MaxLineLength:GzipCompressor.kt$GzipCompressor.Companion$fun pgzipBestCompression()</ID>
+    <ID>MaxLineLength:IndexBlobReader.kt$fun</ID>
+    <ID>MaxLineLength:IndirectObject.kt$IndirectObject.Companion$fun</ID>
+    <ID>MaxLineLength:Lz4Compressor.kt$Lz4Compressor$"Invalid LZ4 header: expected 0x${CompressionAlgorithm.LZ4_DEFAULT.headerId.toString(16)}, got 0x${headerId.toString(16)}"</ID>
+    <ID>MaxLineLength:ManifestManager.kt$ManifestManager$internal</ID>
+    <ID>MaxLineLength:ManifestManager.kt$ManifestManager$suspend</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000001"), 10, mapOf("type" to "a"), Instant.ofEpochSecond(100))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000001"), 10, mapOf("type" to "a", "path" to "/a"), Instant.ofEpochSecond(100))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(100))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(200))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a", "path" to "/a"), Instant.ofEpochSecond(200))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a"), Instant.ofEpochSecond(100))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a"), Instant.ofEpochSecond(300))</ID>
+    <ID>MaxLineLength:ManifestManagerTest.kt$ManifestManagerTest$EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a", "path" to "/b"), Instant.ofEpochSecond(150))</ID>
+    <ID>MaxLineLength:NoOpEncryptor.kt$NoOpEncryptor$override suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray</ID>
+    <ID>MaxLineLength:NoOpEncryptor.kt$NoOpEncryptor$override suspend fun encryptWithRawId(plaintext: ByteArray, contentIdBytes: ByteArray): ByteArray</ID>
+    <ID>MaxLineLength:ObjectManager.kt$ObjectManager$suspend</ID>
+    <ID>MaxLineLength:PackIndexV1.kt$PackIndexV1Impl$"Entry count ${header.entryCount} exceeds data capacity (max $maxPossibleEntries for ${data.size} bytes)"</ID>
+    <ID>MaxLineLength:PackIndexV1Test.kt$PackIndexV1Test$private</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2$entryData[ENTRY_OFFSET_HIGH_LENGTH_BITS] = ((highOriginal shl HIGH_LENGTH_ORIGINAL_SHIFT) or highPacked).toByte()</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$originalLength = originalLength or ((highBits shr PackIndexV2.HIGH_LENGTH_ORIGINAL_SHIFT) shl PackIndexV2.HIGH_LENGTH_SHIFT).toUInt()</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$packIdIndex = packIdIndex or ((entryData[PackIndexV2.ENTRY_OFFSET_EXTENDED_PACK_ID].toInt() and 0xFF) shl PackIndexV2.EXTENDED_PACK_ID_SHIFT)</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$packedLength = packedLength or ((highBits and PackIndexV2.HIGH_LENGTH_PACKED_MASK) shl PackIndexV2.HIGH_LENGTH_SHIFT).toUInt()</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$return ContentInfo(contentId, BlobId(packBlobId), timestampSeconds, originalLength, packedLength, packOffset, format.compressionHeaderId, deleted, format.formatVersion, format.encryptionKeyId)</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$return V2HeaderInfo(version, keySize, entrySize, entryCount, packCount, numFormatInfos, baseTimestamp, entriesOffset, packsOffset, formatsOffset)</ID>
+    <ID>MaxLineLength:PackIndexV2.kt$PackIndexV2Impl$val formatIndex = if (entryData.size &gt; PackIndexV2.ENTRY_OFFSET_FORMAT_ID) entryData[PackIndexV2.ENTRY_OFFSET_FORMAT_ID].toInt() and 0xFF else 0</ID>
+    <ID>MaxLineLength:Repository.kt$Repository$suspend</ID>
+    <ID>MaxLineLength:Repository.kt$RepositoryWriter$suspend</ID>
+    <ID>MaxLineLength:ThrottlingBlobStorage.kt$ThrottlingBlobStorage.Companion$fun</ID>
+    <ID>MaxLineLength:UpgradeLockIntent.kt$InstantSerializer$override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Instant</ID>
+    <ID>NestedBlockDepth:GoKopiaRepositoryIntegrationTest.kt$TestFilesystemBlobStorage$private fun findBlobFile(id: BlobId): File?</ID>
+    <ID>NestedBlockDepth:LargeDataGenerator.kt$LargeDataGenerator$fun compareFiles(file1: Path, file2: Path): Long</ID>
+    <ID>ReturnCount:GoKopiaRepositoryIntegrationTest.kt$TestFilesystemBlobStorage$private fun findBlobFile(id: BlobId): File?</ID>
+    <ID>ReturnCount:PackBlobPostamble.kt$PackBlobPostamble.Companion$fun findPostamble(data: ByteArray): PackBlobPostamble?</ID>
+    <ID>ReturnCount:PackBlobPostamble.kt$PackBlobPostamble.Companion$private fun decodePostamble(payload: ByteArray): PackBlobPostamble?</ID>
+    <ID>ReturnCount:PackIndexV2.kt$PackIndexV2Impl$override fun getInfo(contentId: ContentId): ContentInfo?</ID>
+    <ID>SwallowedException:ContentId.kt$ContentId.Companion$e: Exception</ID>
+    <ID>SwallowedException:ContentManager.kt$ContentManager$e: Exception</ID>
+    <ID>SwallowedException:ContentManagerSoftDeleteTest.kt$ContentManagerSoftDeleteTest$e: ContentNotFoundException</ID>
+    <ID>SwallowedException:DirectRepositoryImpl.kt$e: Exception</ID>
+    <ID>SwallowedException:FormatBlobManager.kt$FormatBlobManager$e: FormatBlobNotFoundException</ID>
+    <ID>SwallowedException:KopiaRepositoryJson.kt$e: Exception</ID>
+    <ID>SwallowedException:ObjectReader.kt$DirectObjectReader$e: ContentNotFoundException</ID>
+    <ID>SwallowedException:ObjectWriter.kt$DefaultObjectWriter$e: Exception</ID>
+    <ID>SwallowedException:Repository.kt$ClientOptions.Companion$e: Exception</ID>
+    <ID>ThrowsCount:ContentId.kt$ContentId.Companion$fun fromHash(prefix: Char?, hash: ByteArray): ContentId</ID>
+    <ID>ThrowsCount:ContentId.kt$ContentId.Companion$fun parse(s: String): ContentId</ID>
+    <ID>TooGenericExceptionThrown:DirectRepositoryTest.kt$DirectRepositoryTest.WriteSessions$throw RuntimeException("Simulated failure")</ID>
+    <ID>TooGenericExceptionThrown:MergedIndexTest.kt$MergedIndexTest.CloseTrackingIndex$throw RuntimeException("Close failed")</ID>
+    <ID>TooManyFunctions:DirectRepositoryImpl.kt$DirectRepositoryImpl : DirectRepositoryWriter</ID>
+    <ID>UnderscoresInNumericLiterals:CorruptedIndexBlobTest.kt$CorruptedIndexBlobTest$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:IndexBlobBuilderTest.kt$IndexBlobBuilderTest$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:IndexBlobReaderTest.kt$IndexBlobReaderTest$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:MergedIndexTest.kt$MergedIndexTest$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:PackBlobBuilderTest.kt$PackBlobBuilderTest.TimestampTests$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:PackBlobReaderTest.kt$PackBlobReaderTest.RoundTripTests$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:PackIndexFuzzTest.kt$PackIndexFuzzTest.BoundsCheckTests$1000000</ID>
+    <ID>UnderscoresInNumericLiterals:PackIndexFuzzTest.kt$PackIndexFuzzTest.CorruptedValidPackTests$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:PackIndexV1Test.kt$PackIndexV1Test$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:PackIndexV2Test.kt$PackIndexV2Test$1700000000L</ID>
+    <ID>UnderscoresInNumericLiterals:ThrottlingBlobStorageTest.kt$TokenBucketTest$100000</ID>
+    <ID>UnnecessaryParentheses:Buzhash32.kt$Buzhash32$((sum shl 1) or (sum shr 31))</ID>
+    <ID>UnnecessaryParentheses:Buzhash32.kt$Buzhash32$(h0 shl nRotate)</ID>
+    <ID>UnnecessaryParentheses:Buzhash32.kt$Buzhash32$(sum shl 1)</ID>
+    <ID>UnnecessaryParentheses:Buzhash32Splitter.kt$Buzhash32Splitter$(avgSize - 1)</ID>
+    <ID>UnnecessaryParentheses:Buzhash32Splitter.kt$Buzhash32Splitter$(avgSize and (avgSize - 1))</ID>
+    <ID>UnnecessaryParentheses:ContentId.kt$ContentId$(prefix == null &amp;&amp; hashBytes.isEmpty())</ID>
+    <ID>UnnecessaryParentheses:CorruptedCompressionStreamTest.kt$CorruptedCompressionStreamTest$(2 * payloadSize)</ID>
+    <ID>UnnecessaryParentheses:CorruptionHelpers.kt$CorruptionHelpers$(data.size - 1)</ID>
+    <ID>UnnecessaryParentheses:ObjectId.kt$ObjectId$(contentId == ContentId.Empty &amp;&amp; indirection == 0 &amp;&amp; !isCompressed)</ID>
+    <ID>UnnecessaryParentheses:PackBlobPostamble.kt$PackBlobPostamble.Companion$(b and 0x80)</ID>
+    <ID>UnnecessaryParentheses:PackBlobPostamble.kt$PackBlobPostamble.Companion$(b.toULong() and 0x7FuL)</ID>
+    <ID>UnnecessaryParentheses:PackBlobPostamble.kt$PackBlobPostamble.Companion$(offset - startOffset)</ID>
+    <ID>UnnecessaryParentheses:PackBlobPostamble.kt$PackBlobPostamble.Companion$(v and 0x7FuL)</ID>
+    <ID>UnnecessaryParentheses:PackBlobTest.kt$PackBlobTest$(b and 0x80)</ID>
+    <ID>UnnecessaryParentheses:PackBlobTest.kt$PackBlobTest$(b.toULong() and 0x7FuL)</ID>
+    <ID>UnnecessaryParentheses:PackBlobTest.kt$PackBlobTest$(offset - startOffset)</ID>
+    <ID>UnnecessaryParentheses:PackBlobTest.kt$PackBlobTest$(v and 0x7FuL)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1.kt$PackIndexV1$(deletedAndOffset and DELETED_MARKER)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1.kt$PackIndexV1$(entry.formatVersion.toLong() and 0xFF)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1.kt$PackIndexV1$(entry.timestampSeconds and TIMESTAMP_48BIT_MASK)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1.kt$PackIndexV1$(timestampAndFlags ushr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1.kt$PackIndexV1$(timestampAndFlags ushr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(offsetWithFlag shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(offsetWithFlag shr 24)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(offsetWithFlag shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packBlobIdOffset.toInt() shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packBlobIdOffset.toInt() shr 24)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packBlobIdOffset.toInt() shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packedLength.toInt() shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packedLength.toInt() shr 24)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(packedLength.toInt() shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 24)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 32)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 40)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 48)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV1Test.kt$PackIndexV1Test$(timestampShifted shr 56)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(highOriginal shl HIGH_LENGTH_ORIGINAL_SHIFT)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(origLen shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(origLen shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(origLen ushr HIGH_LENGTH_SHIFT)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(packIdx shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(packIdx shr EXTENDED_PACK_ID_SHIFT)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(packLen shr 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(packLen shr 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2$(packLen ushr HIGH_LENGTH_SHIFT)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$((data[offset].toInt() and 0xFF) shl 16)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$((data[offset].toInt() and 0xFF) shl 24)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$((data[offset].toInt() and 0xFF) shl 8)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(data[offset + 1].toInt() and 0xFF)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(data[offset + 2].toInt() and 0xFF)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(data[offset].toInt() and 0xFF)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(entryData[PackIndexV2.ENTRY_OFFSET_EXTENDED_PACK_ID].toInt() and 0xFF)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(entryData[PackIndexV2.ENTRY_OFFSET_PACK_OFFSET_AND_FLAGS].toInt() and 0x80)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(highBits and PackIndexV2.HIGH_LENGTH_PACKED_MASK)</ID>
+    <ID>UnnecessaryParentheses:PackIndexV2.kt$PackIndexV2Impl$(highBits shr PackIndexV2.HIGH_LENGTH_ORIGINAL_SHIFT)</ID>
+    <ID>UnnecessaryParentheses:RabinKarp64.kt$RabinKarp64$(hashValue.value shr polShift)</ID>
+    <ID>UnnecessaryParentheses:RabinKarp64Splitter.kt$RabinKarp64Splitter$(avgSize - 1)</ID>
+    <ID>UnnecessaryParentheses:RabinKarp64Splitter.kt$RabinKarp64Splitter$(avgSize and (avgSize - 1))</ID>
+    <ID>UnnecessaryParentheses:SplitterTest.kt$SplitterTest$(if (i &gt; 0) boundaries[i - 1] else 0)</ID>
+    <ID>UnnecessaryParentheses:ThrottlingBlobStorage.kt$TokenBucket$(elapsedNanos * bytesPerSecond)</ID>
+    <ID>UnnecessaryParentheses:ThrottlingBlobStorage.kt$TokenBucket$(remaining * 1000)</ID>
+    <ID>UnusedParameter:PackIndexV1.kt$PackIndexV1$keyBytes: ByteArray</ID>
+    <ID>UnusedParameter:PackIndexV2.kt$PackIndexV2$perContentOverhead: UInt = 0u</ID>
+    <ID>UnusedParameter:PackIndexV2.kt$PackIndexV2Impl$keyBytes: ByteArray</ID>
+    <ID>UnusedPrivateProperty:DirectRepositoryImpl.kt$DirectRepositoryImpl$private val mutex = Mutex()</ID>
+    <ID>UnusedPrivateProperty:DirectRepositoryImpl.kt$DirectRepositoryImpl$val writerName = "writer-$writerId:${options.purpose}"</ID>
+    <ID>UnusedPrivateProperty:GoKopiaRepositoryIntegrationTest.kt$TestFilesystemBlobStorage$val shardDir = if (rest.length &gt;= 3) rest.substring(0, 3) else rest</ID>
+    <ID>UnusedPrivateProperty:ManifestManager.kt$ManifestManager$// Last revision of content manager when we loaded private var lastRevision: Long = -1</ID>
+    <ID>UnusedPrivateProperty:ObjectWriter.kt$DefaultObjectWriter$private val metadataSplitterFactory: SplitterFactory</ID>
+    <ID>UnusedPrivateProperty:PackBlobBuilder.kt$PackBlobBuilder$private val encryptionOverhead: Int = 0</ID>
+    <ID>UnusedPrivateProperty:RabinKarp64.kt$RabinKarp64$i</ID>
+    <ID>UseCheckOrError:KopiaRepositoryJson.kt$KopiaRepositoryJson$throw IllegalStateException("Unable to decrypt repository format")</ID>
+    <ID>UseCheckOrError:ObjectReader.kt$IndirectObjectReader$throw IllegalStateException("Expected indirect object ID but got: $objectId")</ID>
+    <ID>UseCheckOrError:TestVectors.kt$TestVectorLoader$throw IllegalStateException( "Could not find vectors.json in any of the expected locations: $possiblePaths", )</ID>
+    <ID>UseDataClass:RabinKarp64.kt$RabinKarp64Tables</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("hash cannot be empty")</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("hash too long: ${hash.size} bytes, max is $MAX_HASH_SIZE")</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("hash too long: ${remaining.length / 2} bytes, max is $MAX_HASH_SIZE")</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("id too short: '$s'")</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("invalid content prefix: '$firstChar'")</ID>
+    <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("invalid prefix '$prefix', must be between '$MIN_PREFIX' and '$MAX_PREFIX'")</ID>
+    <ID>UseRequire:IndexBlobReader.kt$IndexBlobReader.Companion$throw IllegalArgumentException("Index blob data is empty")</ID>
+    <ID>UseRequire:IndexBlobReader.kt$IndexBlobReader.Companion$throw IllegalArgumentException("Index data is empty")</ID>
+    <ID>UseRequire:ObjectId.kt$ObjectId.Companion$throw IllegalArgumentException( "malformed object ID - compression and indirection are mutually exclusive", )</ID>
+    <ID>UseRequire:ObjectId.kt$ObjectId.Companion$throw IllegalArgumentException("too many indirection levels: $indirection")</ID>
+    <ID>UseRequire:PackIndex.kt$PackIndexFactory$throw IllegalArgumentException("Index data is empty")</ID>
+    <ID>VariableNaming:RabinKarp64.kt$Pol$val D = d.deg()</ID>
+    <ID>VariableNaming:SplitterTest.kt$SplitterTest$// Size constants for test vectors private val SIZE_8K = 8 * 1024</ID>
+    <ID>VariableNaming:SplitterTest.kt$SplitterTest$private val SIZE_128K = 128 * 1024</ID>
+    <ID>WildcardImport:CorruptedEncryptedBlobTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:CorruptionHelpersTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:PackIndexFuzzTest.kt$import org.junit.jupiter.api.*</ID>
+    <ID>WildcardImport:PackIndexFuzzTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
