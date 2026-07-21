@@ -33,7 +33,7 @@ interface PackIndex : Closeable {
      */
     fun iterate(
         startId: ContentId? = null,
-        endId: ContentId? = null
+        endId: ContentId? = null,
     ): Sequence<ContentInfo>
 
     /**
@@ -47,7 +47,7 @@ interface PackIndex : Closeable {
  */
 data class IdRange(
     val startId: ContentId?,
-    val endId: ContentId?
+    val endId: ContentId?,
 ) {
     companion object {
         /**
@@ -99,11 +99,9 @@ object PackIndexFactory {
      * @param version The index version to build (V1 or V2)
      * @return The serialized index data
      */
-    fun build(entries: List<ContentInfo>, version: Int = IndexVersion.V2): ByteArray {
-        return when (version) {
-            IndexVersion.V1 -> PackIndexV1.build(entries)
-            IndexVersion.V2 -> PackIndexV2.build(entries)
-            else -> throw IllegalArgumentException("Unsupported index version: $version")
-        }
+    fun build(entries: List<ContentInfo>, version: Int = IndexVersion.V2): ByteArray = when (version) {
+        IndexVersion.V1 -> PackIndexV1.build(entries)
+        IndexVersion.V2 -> PackIndexV2.build(entries)
+        else -> throw IllegalArgumentException("Unsupported index version: $version")
     }
 }

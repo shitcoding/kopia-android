@@ -1,7 +1,6 @@
 package org.kopiaKt.snapshot.fs
 
 import kotlinx.coroutines.runBlocking
-import kotlin.io.path.ExperimentalPathApi
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -13,6 +12,7 @@ import org.junit.jupiter.api.Test
 import org.kopiaKt.snapshot.policy.FilesPolicy
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.writeText
@@ -113,10 +113,12 @@ class IgnoreFSTest {
             tempDir.resolve("important.log").writeText("important")
 
             val dir = LocalFilesystem.directory(tempDir)
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "*.log",
-                "!important.log"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "*.log",
+                    "!important.log",
+                ),
+            )
             val filtered = IgnoreFS.wrap(dir, matchers)
 
             val entries = filtered.readEntries()
@@ -237,7 +239,7 @@ class IgnoreFSTest {
 
             val policy = FilesPolicy(
                 ignoreRules = listOf("*.log"),
-                dotIgnoreFiles = listOf(".kopiaignore")
+                dotIgnoreFiles = listOf(".kopiaignore"),
             )
 
             val dir = LocalFilesystem.directory(tempDir)
@@ -265,7 +267,7 @@ class IgnoreFSTest {
 
             val policy = FilesPolicy(
                 dotIgnoreFiles = listOf(".kopiaignore"),
-                noParentIgnoreRules = true
+                noParentIgnoreRules = true,
             )
 
             val dir = LocalFilesystem.directory(tempDir)

@@ -2,15 +2,13 @@
 
 package org.kopiaKt.e2e.benchmark
 
-import kotlin.io.path.ExperimentalPathApi
 import java.nio.file.Path
 import java.security.SecureRandom
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createFile
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
-import kotlin.io.path.writeText
 
 /**
  * Generator for benchmark test data.
@@ -19,7 +17,7 @@ import kotlin.io.path.writeText
  * of backup/restore performance.
  */
 class BenchmarkTestData(
-    private val random: SecureRandom = SecureRandom()
+    private val random: SecureRandom = SecureRandom(),
 ) {
     /**
      * Creates test data with the specified configuration.
@@ -167,7 +165,7 @@ class BenchmarkTestData(
             minFileSize = config.avgFileSize / 2,
             maxFileSize = config.avgFileSize * 2,
             directoryCount = config.directoryCount,
-            contentPattern = "${config.pattern}-${config.contentType}"
+            contentPattern = "${config.pattern}-${config.contentType}",
         )
     }
 
@@ -176,49 +174,47 @@ class BenchmarkTestData(
         path.writeBytes(content)
     }
 
-    private fun createContent(size: Int, contentType: ContentType): ByteArray {
-        return when (contentType) {
-            ContentType.RANDOM -> ByteArray(size).also { random.nextBytes(it) }
+    private fun createContent(size: Int, contentType: ContentType): ByteArray = when (contentType) {
+        ContentType.RANDOM -> ByteArray(size).also { random.nextBytes(it) }
 
-            ContentType.TEXT -> {
-                val words = listOf(
-                    "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog",
-                    "lorem", "ipsum", "dolor", "sit", "amet", "consectetur",
-                    "backup", "restore", "snapshot", "repository", "content"
-                )
-                val sb = StringBuilder()
-                while (sb.length < size) {
-                    sb.append(words[random.nextInt(words.size)])
-                    sb.append(" ")
-                }
-                sb.toString().take(size).toByteArray()
+        ContentType.TEXT -> {
+            val words = listOf(
+                "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog",
+                "lorem", "ipsum", "dolor", "sit", "amet", "consectetur",
+                "backup", "restore", "snapshot", "repository", "content",
+            )
+            val sb = StringBuilder()
+            while (sb.length < size) {
+                sb.append(words[random.nextInt(words.size)])
+                sb.append(" ")
             }
+            sb.toString().take(size).toByteArray()
+        }
 
-            ContentType.COMPRESSIBLE -> {
-                // Highly repetitive content
-                val pattern = "ABCDEFGHIJ_PATTERN_DATA_".toByteArray()
-                val result = ByteArray(size)
-                var pos = 0
-                while (pos < size) {
-                    val toCopy = minOf(pattern.size, size - pos)
-                    System.arraycopy(pattern, 0, result, pos, toCopy)
-                    pos += toCopy
-                }
-                result
+        ContentType.COMPRESSIBLE -> {
+            // Highly repetitive content
+            val pattern = "ABCDEFGHIJ_PATTERN_DATA_".toByteArray()
+            val result = ByteArray(size)
+            var pos = 0
+            while (pos < size) {
+                val toCopy = minOf(pattern.size, size - pos)
+                System.arraycopy(pattern, 0, result, pos, toCopy)
+                pos += toCopy
             }
+            result
+        }
 
-            ContentType.BINARY -> {
-                // Mix of structured and random data (like executables)
-                val result = ByteArray(size)
-                // Header (zeros)
-                val headerSize = minOf(256, size)
-                // Data (random)
-                random.nextBytes(result)
-                for (i in 0 until headerSize) {
-                    result[i] = 0
-                }
-                result
+        ContentType.BINARY -> {
+            // Mix of structured and random data (like executables)
+            val result = ByteArray(size)
+            // Header (zeros)
+            val headerSize = minOf(256, size)
+            // Data (random)
+            random.nextBytes(result)
+            for (i in 0 until headerSize) {
+                result[i] = 0
             }
+            result
         }
     }
 }
@@ -250,7 +246,7 @@ data class TestDataConfig(
     /**
      * Content type for files.
      */
-    val contentType: ContentType = ContentType.RANDOM
+    val contentType: ContentType = ContentType.RANDOM,
 )
 
 /**
@@ -285,7 +281,7 @@ enum class TestDataPattern {
     /**
      * Files with duplicate content for dedup testing.
      */
-    DUPLICATES
+    DUPLICATES,
 }
 
 /**
@@ -310,7 +306,7 @@ enum class ContentType {
     /**
      * Binary with some structure.
      */
-    BINARY
+    BINARY,
 }
 
 /**
@@ -324,7 +320,7 @@ object BenchmarkScenarios {
         fileCount = 100,
         avgFileSize = 100 * 1024, // 100KB average
         directoryCount = 10,
-        pattern = TestDataPattern.MIXED
+        pattern = TestDataPattern.MIXED,
     )
 
     /**
@@ -334,7 +330,7 @@ object BenchmarkScenarios {
         fileCount = 500,
         avgFileSize = 200 * 1024, // 200KB average
         directoryCount = 20,
-        pattern = TestDataPattern.MIXED
+        pattern = TestDataPattern.MIXED,
     )
 
     /**
@@ -344,7 +340,7 @@ object BenchmarkScenarios {
         fileCount = 1000,
         avgFileSize = 500 * 1024, // 500KB average
         directoryCount = 50,
-        pattern = TestDataPattern.MIXED
+        pattern = TestDataPattern.MIXED,
     )
 
     /**
@@ -354,7 +350,7 @@ object BenchmarkScenarios {
         fileCount = 100,
         avgFileSize = 10 * 1024 * 1024, // 10MB average
         directoryCount = 5,
-        pattern = TestDataPattern.FEW_LARGE_FILES
+        pattern = TestDataPattern.FEW_LARGE_FILES,
     )
 
     /**
@@ -364,7 +360,7 @@ object BenchmarkScenarios {
         fileCount = 10000,
         avgFileSize = 10 * 1024, // 10KB average
         directoryCount = 100,
-        pattern = TestDataPattern.MANY_SMALL_FILES
+        pattern = TestDataPattern.MANY_SMALL_FILES,
     )
 
     /**
@@ -374,7 +370,7 @@ object BenchmarkScenarios {
         fileCount = 500,
         avgFileSize = 100 * 1024,
         directoryCount = 50,
-        pattern = TestDataPattern.DUPLICATES
+        pattern = TestDataPattern.DUPLICATES,
     )
 
     /**
@@ -385,6 +381,6 @@ object BenchmarkScenarios {
         avgFileSize = 1 * 1024 * 1024, // 1MB average
         directoryCount = 10,
         pattern = TestDataPattern.COMPRESSIBLE,
-        contentType = ContentType.COMPRESSIBLE
+        contentType = ContentType.COMPRESSIBLE,
     )
 }

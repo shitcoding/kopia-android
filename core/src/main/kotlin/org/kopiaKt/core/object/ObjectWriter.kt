@@ -41,7 +41,7 @@ data class ObjectWriterOptions(
     /**
      * Custom splitter algorithm name. If null, uses the manager's default.
      */
-    val splitter: String? = null
+    val splitter: String? = null,
 )
 
 /**
@@ -100,7 +100,7 @@ internal class DefaultObjectWriter(
     private val splitter: Splitter,
     private val compressorFactory: CompressorFactory,
     private val metadataSplitterFactory: SplitterFactory,
-    private val options: ObjectWriterOptions
+    private val options: ObjectWriterOptions,
 ) : ObjectWriter {
 
     private val mutex = Mutex()
@@ -181,7 +181,7 @@ internal class DefaultObjectWriter(
         // Write content to ContentManager
         val contentId = contentManager.writeContent(
             data = contentBytes,
-            prefix = options.prefix
+            prefix = options.prefix,
         )
 
         // Create object ID (with Z prefix if compressed at object level)
@@ -195,7 +195,7 @@ internal class DefaultObjectWriter(
         val entry = IndirectObjectEntry.create(
             start = currentPosition,
             length = data.size.toLong(),
-            objectId = objectId
+            objectId = objectId,
         )
         indirectIndex.add(entry)
 
@@ -240,7 +240,7 @@ internal class DefaultObjectWriter(
 
         val contentId = contentManager.writeContent(
             data = contentBytes,
-            prefix = prefix
+            prefix = prefix,
         )
 
         // Create the base object ID

@@ -34,7 +34,7 @@ class MaintenanceScheduleTest {
         val runInfo = RunInfo(
             start = now.minusSeconds(60),
             end = now,
-            success = true
+            success = true,
         )
 
         val updated = schedule.withRun(TaskType.SNAPSHOT_GC, runInfo)
@@ -53,7 +53,7 @@ class MaintenanceScheduleTest {
             val runInfo = RunInfo(
                 start = now.minusSeconds((i * 60 + 60).toLong()),
                 end = now.minusSeconds((i * 60).toLong()),
-                success = true
+                success = true,
             )
             schedule = schedule.withRun(TaskType.SNAPSHOT_GC, runInfo, maxHistory = 10)
         }
@@ -70,13 +70,13 @@ class MaintenanceScheduleTest {
         val successRun = RunInfo(
             start = now.minusSeconds(120),
             end = now.minusSeconds(60),
-            success = true
+            success = true,
         )
         val failRun = RunInfo(
             start = now.minusSeconds(60),
             end = now,
             success = false,
-            error = "Failed"
+            error = "Failed",
         )
 
         schedule = schedule.withRun(TaskType.SNAPSHOT_GC, successRun)
@@ -92,7 +92,7 @@ class MaintenanceScheduleTest {
         val now = Instant.now()
         val schedule = MaintenanceSchedule(
             nextFullMaintenanceTime = now.plusSeconds(3600),
-            nextQuickMaintenanceTime = now.plusSeconds(600)
+            nextQuickMaintenanceTime = now.plusSeconds(600),
         )
         val params = MaintenanceParams()
 
@@ -106,7 +106,7 @@ class MaintenanceScheduleTest {
         val now = Instant.now()
         val schedule = MaintenanceSchedule(
             nextFullMaintenanceTime = now.minusSeconds(1),
-            nextQuickMaintenanceTime = now.plusSeconds(600)
+            nextQuickMaintenanceTime = now.plusSeconds(600),
         )
         val params = MaintenanceParams()
 
@@ -120,7 +120,7 @@ class MaintenanceScheduleTest {
         val now = Instant.now()
         val schedule = MaintenanceSchedule(
             nextFullMaintenanceTime = now.plusSeconds(3600),
-            nextQuickMaintenanceTime = now.minusSeconds(1)
+            nextQuickMaintenanceTime = now.minusSeconds(1),
         )
         val params = MaintenanceParams()
 
@@ -134,7 +134,7 @@ class MaintenanceScheduleTest {
         val now = Instant.now()
         val schedule = MaintenanceSchedule(
             nextFullMaintenanceTime = now.minusSeconds(1),
-            nextQuickMaintenanceTime = now.minusSeconds(1)
+            nextQuickMaintenanceTime = now.minusSeconds(1),
         )
         val params = MaintenanceParams()
 
@@ -156,7 +156,7 @@ class MaintenanceScheduleTest {
         val now = Instant.now()
         val schedule = MaintenanceSchedule.Empty.withRun(
             TaskType.SNAPSHOT_GC,
-            RunInfo(start = now.minusSeconds(60), end = now, success = true)
+            RunInfo(start = now.minusSeconds(60), end = now, success = true),
         )
         val safety = SafetyParameters.Default
 
@@ -172,13 +172,13 @@ class MaintenanceScheduleTest {
         val firstRun = RunInfo(
             start = now.minusHours(5).minusMinutes(1),
             end = now.minusHours(5),
-            success = true
+            success = true,
         )
         // Second GC run with sufficient margin
         val secondRun = RunInfo(
             start = now.minusMinutes(1),
             end = now,
-            success = true
+            success = true,
         )
 
         var schedule = MaintenanceSchedule.Empty
@@ -201,12 +201,12 @@ class MaintenanceScheduleTest {
         val firstRun = RunInfo(
             start = now.minusHours(1).minusMinutes(1),
             end = now.minusHours(1),
-            success = true
+            success = true,
         )
         val secondRun = RunInfo(
             start = now.minusMinutes(1),
             end = now,
-            success = true
+            success = true,
         )
 
         val schedule = MaintenanceSchedule.Empty
@@ -226,13 +226,13 @@ class MaintenanceScheduleTest {
         val successRun = RunInfo(
             start = now.minusHours(6),
             end = now.minusHours(5),
-            success = true
+            success = true,
         )
         val failedRun = RunInfo(
             start = now.minusMinutes(1),
             end = now,
             success = false,
-            error = "Failed"
+            error = "Failed",
         )
 
         val schedule = MaintenanceSchedule.Empty
@@ -257,10 +257,10 @@ class MaintenanceScheduleTest {
                     RunInfo(
                         start = now.minusSeconds(60),
                         end = now,
-                        success = true
-                    )
-                )
-            )
+                        success = true,
+                    ),
+                ),
+            ),
         )
 
         val serialized = json.encodeToString(schedule)

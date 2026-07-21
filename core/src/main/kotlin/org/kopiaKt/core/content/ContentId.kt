@@ -25,7 +25,7 @@ class ContentId private constructor(
     /**
      * The raw hash bytes.
      */
-    val hashBytes: ByteArray
+    val hashBytes: ByteArray,
 ) {
     /**
      * Returns whether this content ID has a prefix.
@@ -215,8 +215,7 @@ object ContentIdPrefix {
 /**
  * Extension function to convert ByteArray to lowercase hex string.
  */
-internal fun ByteArray.toHexString(): String =
-    joinToString("") { "%02x".format(it) }
+internal fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
 
 /**
  * Extension function to convert hex string to ByteArray.

@@ -6,7 +6,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
@@ -49,7 +48,7 @@ class SftpBlobStorageIntegrationTest {
             .withExposedPorts(22)
             .withCommand("$USERNAME:$PASSWORD:::upload")
             .waitingFor(
-                Wait.forListeningPort()
+                Wait.forListeningPort(),
             )
     }
 
@@ -58,7 +57,7 @@ class SftpBlobStorageIntegrationTest {
 
     private fun sftpOptions(
         path: String = "/home/$USERNAME/upload/$testPrefix",
-        password: String = PASSWORD
+        password: String = PASSWORD,
     ) = SftpOptions(
         path = path,
         host = sftp.host,
@@ -69,7 +68,7 @@ class SftpBlobStorageIntegrationTest {
         // so opt into the insecure verifier explicitly (test-only; the default now fails closed).
         knownHostsFile = "/dev/null/nonexistent",
         insecureSkipHostKeyVerification = true,
-        directoryShards = listOf(1, 3)
+        directoryShards = listOf(1, 3),
     )
 
     @BeforeEach
@@ -261,7 +260,7 @@ class SftpBlobStorageIntegrationTest {
         val uniquePath = "/home/$USERNAME/upload/test-${UUID.randomUUID().toString().take(8)}"
         val s = SftpBlobStorage.create(
             sftpOptions(path = uniquePath),
-            isCreate = true
+            isCreate = true,
         )
         s.putBlob(BlobId("p_test"), "data".toByteArray())
         val result = s.getBlob(BlobId("p_test"))
@@ -277,7 +276,7 @@ class SftpBlobStorageIntegrationTest {
             runBlocking {
                 SftpBlobStorage.create(
                     sftpOptions(password = "wrongpassword"),
-                    isCreate = false
+                    isCreate = false,
                 )
             }
         }

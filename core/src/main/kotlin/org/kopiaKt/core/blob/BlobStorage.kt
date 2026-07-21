@@ -10,7 +10,7 @@ import java.time.Instant
 data class BlobMetadata(
     val blobId: BlobId,
     val length: Long,
-    val timestamp: Instant
+    val timestamp: Instant,
 )
 
 /**
@@ -42,7 +42,7 @@ data class PutBlobOptions(
     /**
      * Retention period for the blob (for supported backends).
      */
-    val retentionPeriod: Duration = Duration.ZERO
+    val retentionPeriod: Duration = Duration.ZERO,
 )
 
 /**
@@ -57,7 +57,7 @@ data class ExtendBlobRetentionOptions(
     /**
      * New retention period for the blob.
      */
-    val retentionPeriod: Duration = Duration.ZERO
+    val retentionPeriod: Duration = Duration.ZERO,
 )
 
 /**
@@ -67,8 +67,9 @@ enum class RetentionMode {
     NONE,
     GOVERNANCE,
     COMPLIANCE,
+
     /** Locked policy mode (Azure-specific) */
-    LOCKED
+    LOCKED,
 }
 
 /**
@@ -83,7 +84,7 @@ data class Capacity(
     /**
      * Available (writable) space in bytes.
      */
-    val freeBytes: Long
+    val freeBytes: Long,
 )
 
 /**
@@ -91,7 +92,7 @@ data class Capacity(
  */
 data class ConnectionInfo(
     val type: String,
-    val config: Map<String, String>
+    val config: Map<String, String>,
 )
 
 /**
@@ -181,9 +182,7 @@ interface BlobStorage : BlobReader {
      * @param options Options for the retention extension
      * @throws UnsupportedOperationException if this backend doesn't support object locking
      */
-    suspend fun extendBlobRetention(blobId: BlobId, options: ExtendBlobRetentionOptions) {
-        throw UnsupportedOperationException("Object locking not supported by this backend")
-    }
+    suspend fun extendBlobRetention(blobId: BlobId, options: ExtendBlobRetentionOptions): Unit = throw UnsupportedOperationException("Object locking not supported by this backend")
 
     /**
      * Flushes any local caches associated with this storage.

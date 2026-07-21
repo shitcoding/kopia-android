@@ -36,7 +36,7 @@ class FileUploaderTest {
                 permissions = 420,
                 fileSize = 100,
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
-                objectId = "previous-object-id"
+                objectId = "previous-object-id",
             )
 
             val mockFile = MockFile(
@@ -44,7 +44,7 @@ class FileUploaderTest {
                 size = 100,
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
                 mode = 420,
-                content = ByteArray(100)
+                content = ByteArray(100),
             )
 
             val result = uploader.processFile(mockFile, "test.txt", previousEntry)
@@ -66,7 +66,7 @@ class FileUploaderTest {
                 permissions = 420,
                 fileSize = 50, // Different size
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
-                objectId = "previous-object-id"
+                objectId = "previous-object-id",
             )
 
             val mockFile = MockFile(
@@ -74,7 +74,7 @@ class FileUploaderTest {
                 size = 100, // Different size
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
                 mode = 420,
-                content = ByteArray(100)
+                content = ByteArray(100),
             )
 
             val result = uploader.processFile(mockFile, "test.txt", previousEntry)
@@ -95,7 +95,7 @@ class FileUploaderTest {
                 permissions = 420,
                 fileSize = 100,
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
-                objectId = "previous-object-id"
+                objectId = "previous-object-id",
             )
 
             val mockFile = MockFile(
@@ -103,7 +103,7 @@ class FileUploaderTest {
                 size = 100,
                 modTime = Instant.parse("2025-01-02T00:00:00Z"), // Different time
                 mode = 420,
-                content = ByteArray(100)
+                content = ByteArray(100),
             )
 
             val result = uploader.processFile(mockFile, "test.txt", previousEntry)
@@ -128,7 +128,7 @@ class FileUploaderTest {
                 permissions = 420,
                 fileSize = 100,
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
-                objectId = "previous-object-id"
+                objectId = "previous-object-id",
             )
 
             val mockFile = MockFile(
@@ -136,7 +136,7 @@ class FileUploaderTest {
                 size = 100,
                 modTime = Instant.parse("2025-01-01T00:00:00Z"),
                 mode = 420,
-                content = ByteArray(100)
+                content = ByteArray(100),
             )
 
             val result = uploader.processFile(mockFile, "test.txt", previousEntry)
@@ -156,8 +156,8 @@ class FileUploaderTest {
 
             val manifest = DirManifest(
                 entries = listOf(
-                    DirEntry(name = "file.txt", type = EntryType.FILE, fileSize = 100)
-                )
+                    DirEntry(name = "file.txt", type = EntryType.FILE, fileSize = 100),
+                ),
             )
 
             val objectId = uploader.uploadDirectoryManifest(manifest)
@@ -185,15 +185,15 @@ class FileUploaderTest {
 
                 val manifest = DirManifest(
                     entries = listOf(
-                        DirEntry(name = "file.txt", type = EntryType.FILE, fileSize = 100)
-                    )
+                        DirEntry(name = "file.txt", type = EntryType.FILE, fileSize = 100),
+                    ),
                 )
 
                 val objectId = uploader.uploadDirectoryManifest(manifest)
 
                 assertTrue(
                     isDirectoryId(ObjectId.parse(objectId)),
-                    "uploadDirectoryManifest must produce a directory object id, got '$objectId'"
+                    "uploadDirectoryManifest must produce a directory object id, got '$objectId'",
                 )
             } finally {
                 repository.close()
@@ -213,7 +213,7 @@ class FileUploaderTest {
                 name = "link.txt",
                 target = "/path/to/target",
                 modTime = Instant.now(),
-                mode = 511
+                mode = 511,
             )
 
             val result = uploader.processSymlink(mockSymlink, "link.txt", null)
@@ -231,13 +231,13 @@ class FileUploaderTest {
         fun `applies compression policy to files`() = runBlocking {
             val policy = CompressionPolicy(
                 compressorName = "zstd",
-                minSize = 10
+                minSize = 10,
             )
             val mockWriter = MockRepositoryWriter()
             val uploader = FileUploader(
                 mockWriter,
                 NullUploadProgress(),
-                compressionPolicy = policy
+                compressionPolicy = policy,
             )
 
             val mockFile = MockFile(
@@ -245,7 +245,7 @@ class FileUploaderTest {
                 size = 100,
                 modTime = Instant.now(),
                 mode = 420,
-                content = ByteArray(100)
+                content = ByteArray(100),
             )
 
             val result = uploader.processFile(mockFile, "test.txt", null)
@@ -262,7 +262,7 @@ class FileUploaderTest {
         override val size: Long,
         override val modTime: Instant,
         override val mode: Int,
-        private val content: ByteArray
+        private val content: ByteArray,
     ) : org.kopiaKt.snapshot.fs.File {
         override val type = org.kopiaKt.snapshot.fs.EntryType.FILE
         override val owner = OwnerInfo(1000, 1000)
@@ -280,7 +280,7 @@ class FileUploaderTest {
         override val name: String,
         private val target: String,
         override val modTime: Instant,
-        override val mode: Int
+        override val mode: Int,
     ) : org.kopiaKt.snapshot.fs.Symlink {
         override val type = org.kopiaKt.snapshot.fs.EntryType.SYMLINK
         override val size: Long = 0
@@ -289,9 +289,7 @@ class FileUploaderTest {
         override val localFilesystemPath = ""
 
         override suspend fun readlink(): String = target
-        override suspend fun resolve(): org.kopiaKt.snapshot.fs.Entry {
-            throw UnsupportedOperationException("Mock")
-        }
+        override suspend fun resolve(): org.kopiaKt.snapshot.fs.Entry = throw UnsupportedOperationException("Mock")
         override fun close() {}
     }
 
@@ -309,11 +307,9 @@ class FileUploaderTest {
             return org.kopiaKt.core.content.ObjectId.parse(hexId)
         }
 
-        override fun newObjectWriter(options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.`object`.ObjectWriter {
-            return MockObjectWriter { data ->
-                writtenObjects.add(data)
-                nextObjectId()
-            }
+        override fun newObjectWriter(options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.`object`.ObjectWriter = MockObjectWriter { data ->
+            writtenObjects.add(data)
+            nextObjectId()
         }
 
         override suspend fun writeObject(data: ByteArray, options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.content.ObjectId {
@@ -370,9 +366,7 @@ class FileUploaderTest {
 
         override fun time(): Instant = Instant.now()
 
-        override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions {
-            return org.kopiaKt.core.repository.ClientOptions()
-        }
+        override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions = org.kopiaKt.core.repository.ClientOptions()
 
         override suspend fun newWriter(options: org.kopiaKt.core.repository.WriteSessionOptions): org.kopiaKt.core.repository.RepositoryWriter {
             TODO("Not needed for test")
@@ -389,7 +383,7 @@ class FileUploaderTest {
      * Mock object writer for testing.
      */
     private class MockObjectWriter(
-        private val onResult: (ByteArray) -> org.kopiaKt.core.content.ObjectId
+        private val onResult: (ByteArray) -> org.kopiaKt.core.content.ObjectId,
     ) : org.kopiaKt.core.`object`.ObjectWriter {
         private val buffer = java.io.ByteArrayOutputStream()
 
@@ -398,13 +392,9 @@ class FileUploaderTest {
             return data.size
         }
 
-        override suspend fun checkpoint(): org.kopiaKt.core.content.ObjectId {
-            return org.kopiaKt.core.content.ObjectId.Empty
-        }
+        override suspend fun checkpoint(): org.kopiaKt.core.content.ObjectId = org.kopiaKt.core.content.ObjectId.Empty
 
-        override suspend fun result(): org.kopiaKt.core.content.ObjectId {
-            return onResult(buffer.toByteArray())
-        }
+        override suspend fun result(): org.kopiaKt.core.content.ObjectId = onResult(buffer.toByteArray())
 
         override suspend fun close() {}
     }

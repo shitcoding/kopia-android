@@ -93,9 +93,9 @@ class UnicodeFilenameTest {
         @DisabledOnOs(OS.WINDOWS)
         fun `should handle CJK characters in filenames`() {
             val cjkNames = listOf(
-                "\u30C6\u30B9\u30C8.txt",  // テスト.txt (Japanese Katakana)
-                "\u6D4B\u8BD5.txt",          // 测试.txt (Chinese Simplified)
-                "\uD14C\uC2A4\uD2B8.txt"    // 테스트.txt (Korean Hangul)
+                "\u30C6\u30B9\u30C8.txt", // テスト.txt (Japanese Katakana)
+                "\u6D4B\u8BD5.txt", // 测试.txt (Chinese Simplified)
+                "\uD14C\uC2A4\uD2B8.txt", // 테스트.txt (Korean Hangul)
             )
 
             for (cjkName in cjkNames) {
@@ -119,8 +119,8 @@ class UnicodeFilenameTest {
         @DisabledOnOs(OS.WINDOWS)
         fun `should handle right-to-left characters in filenames`() {
             val rtlNames = listOf(
-                "\u0645\u0644\u0641.txt",    // Arabic: ملف.txt ("file" in Arabic)
-                "\u05E7\u05D5\u05D1\u05E5.txt" // Hebrew: קובץ.txt ("file" in Hebrew)
+                "\u0645\u0644\u0641.txt", // Arabic: ملف.txt ("file" in Arabic)
+                "\u05E7\u05D5\u05D1\u05E5.txt", // Hebrew: קובץ.txt ("file" in Hebrew)
             )
 
             for (rtlName in rtlNames) {
@@ -188,7 +188,7 @@ class UnicodeFilenameTest {
                 "test^caret.txt",
                 "test~tilde.txt",
                 "test,comma.txt",
-                "test;semicolon.txt"
+                "test;semicolon.txt",
             )
 
             for (specialName in specialNames) {

@@ -32,19 +32,15 @@ class RetryingBlobStorage(
     private val maxRetries: Int = 10,
     private val initialDelayMs: Long = 100,
     private val maxDelayMs: Long = 30_000,
-    private val jitterFactor: Double = 0.2
+    private val jitterFactor: Double = 0.2,
 ) : BlobStorage {
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray {
-        return retryOperation("getBlob", blobId) {
-            delegate.getBlob(blobId, offset, length)
-        }
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = retryOperation("getBlob", blobId) {
+        delegate.getBlob(blobId, offset, length)
     }
 
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? {
-        return retryOperation("getBlobMetadata", blobId) {
-            delegate.getBlobMetadata(blobId)
-        }
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = retryOperation("getBlobMetadata", blobId) {
+        delegate.getBlobMetadata(blobId)
     }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> {
@@ -100,7 +96,7 @@ class RetryingBlobStorage(
     private suspend fun <T> retryOperation(
         operationName: String,
         blobId: BlobId?,
-        operation: suspend () -> T
+        operation: suspend () -> T,
     ): T {
         var lastException: Throwable? = null
         var attempt = 0
@@ -169,13 +165,15 @@ class RetryingBlobStorage(
                 403, // Forbidden
                 404, // Not Found
                 405, // Method Not Allowed
-                409 -> false // Conflict
+                409,
+                -> false // Conflict
 
                 // Server errors that should be retried
                 500, // Internal Server Error
                 502, // Bad Gateway
                 503, // Service Unavailable
-                504 -> true // Gateway Timeout
+                504,
+                -> true // Gateway Timeout
 
                 // Retry other errors (429 Too Many Requests, etc.)
                 else -> e.statusCode() >= 500 || e.statusCode() == 429
@@ -207,9 +205,7 @@ class RetryingBlobStorage(
             storage: BlobStorage,
             maxRetries: Int = 10,
             initialDelayMs: Long = 100,
-            maxDelayMs: Long = 30_000
-        ): RetryingBlobStorage {
-            return RetryingBlobStorage(storage, maxRetries, initialDelayMs, maxDelayMs)
-        }
+            maxDelayMs: Long = 30_000,
+        ): RetryingBlobStorage = RetryingBlobStorage(storage, maxRetries, initialDelayMs, maxDelayMs)
     }
 }

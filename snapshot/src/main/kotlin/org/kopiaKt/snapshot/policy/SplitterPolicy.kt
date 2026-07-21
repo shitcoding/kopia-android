@@ -10,7 +10,7 @@ import org.kopiaKt.snapshot.model.SourceInfo
  */
 @Serializable
 data class SplitterPolicy(
-    val algorithm: String = ""
+    val algorithm: String = "",
 ) {
     /**
      * Returns the splitter algorithm to use for a file.
@@ -25,7 +25,7 @@ data class SplitterPolicy(
         return SplitterPolicy(
             algorithm = mergeString(algorithm, src.algorithm) {
                 newDef.algorithm = si
-            }
+            },
         ) to newDef
     }
 
@@ -44,14 +44,12 @@ data class SplitterPolicy(
  */
 @Serializable
 data class SplitterPolicyDefinition(
-    var algorithm: SourceInfo? = null
+    var algorithm: SourceInfo? = null,
 )
 
-private inline fun mergeString(target: String, src: String, onMerge: () -> Unit): String {
-    return if (target.isEmpty() && src.isNotEmpty()) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeString(target: String, src: String, onMerge: () -> Unit): String = if (target.isEmpty() && src.isNotEmpty()) {
+    onMerge()
+    src
+} else {
+    target
 }

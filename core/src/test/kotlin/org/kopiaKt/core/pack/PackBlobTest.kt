@@ -39,7 +39,7 @@ class PackBlobTest {
             val postamble = buildTestPostamble(
                 localIndexIV = ByteArray(16) { it.toByte() },
                 localIndexOffset = 1000u,
-                localIndexLength = 500u
+                localIndexLength = 500u,
             )
 
             // Add some random data before the postamble
@@ -71,7 +71,7 @@ class PackBlobTest {
             val postamble = buildTestPostamble(
                 localIndexIV = ByteArray(16),
                 localIndexOffset = 100u,
-                localIndexLength = 50u
+                localIndexLength = 50u,
             )
 
             // Corrupt the checksum
@@ -118,7 +118,7 @@ class PackBlobTest {
                 val postamble = buildTestPostamble(
                     localIndexIV = ByteArray(ivLength) { it.toByte() },
                     localIndexOffset = 500u,
-                    localIndexLength = 200u
+                    localIndexLength = 200u,
                 )
 
                 val found = PackBlobPostamble.findPostamble(postamble)
@@ -136,7 +136,7 @@ class PackBlobTest {
             val postamble = buildTestPostamble(
                 localIndexIV = ByteArray(16),
                 localIndexOffset = largeOffset,
-                localIndexLength = largeLength
+                localIndexLength = largeLength,
             )
 
             val found = PackBlobPostamble.findPostamble(postamble)
@@ -159,7 +159,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = iv,
                 localIndexOffset = 1234u,
-                localIndexLength = 567u
+                localIndexLength = 567u,
             )
 
             val bytes = postamble.toBytes()
@@ -177,7 +177,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = ByteArray(16),
                 localIndexOffset = 100u,
-                localIndexLength = 50u
+                localIndexLength = 50u,
             )
 
             val bytes = postamble.toBytes()
@@ -192,7 +192,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = ByteArray(16),
                 localIndexOffset = 100u,
-                localIndexLength = 50u
+                localIndexLength = 50u,
             )
 
             val bytes = postamble.toBytes()
@@ -208,7 +208,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = ByteArray(240),
                 localIndexOffset = UInt.MAX_VALUE,
-                localIndexLength = UInt.MAX_VALUE
+                localIndexLength = UInt.MAX_VALUE,
             )
 
             assertThrows<IllegalArgumentException> {
@@ -228,7 +228,7 @@ class PackBlobTest {
             val original = PackBlobPostamble(
                 localIndexIV = ByteArray(16) { it.toByte() },
                 localIndexOffset = 12345u,
-                localIndexLength = 6789u
+                localIndexLength = 6789u,
             )
 
             val bytes = original.toBytes()
@@ -245,7 +245,7 @@ class PackBlobTest {
             val original = PackBlobPostamble(
                 localIndexIV = ByteArray(16) { 0xFF.toByte() },
                 localIndexOffset = 999999u,
-                localIndexLength = 888888u
+                localIndexLength = 888888u,
             )
 
             // Embed in larger data
@@ -284,7 +284,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = ByteArray(16) { it.toByte() },
                 localIndexOffset = localIndexOffset.toUInt(),
-                localIndexLength = localIndex.size.toUInt()
+                localIndexLength = localIndex.size.toUInt(),
             )
 
             val packBlob = preamble + contentData + localIndex + postamble.toBytes()
@@ -296,7 +296,7 @@ class PackBlobTest {
             // Extract local index
             val extractedIndex = packBlob.copyOfRange(
                 parsedPostamble!!.localIndexOffset.toInt(),
-                parsedPostamble.localIndexOffset.toInt() + parsedPostamble.localIndexLength.toInt()
+                parsedPostamble.localIndexOffset.toInt() + parsedPostamble.localIndexLength.toInt(),
             )
 
             assertEquals(localIndex.toList(), extractedIndex.toList())
@@ -323,7 +323,7 @@ class PackBlobTest {
             val postamble = PackBlobPostamble(
                 localIndexIV = ByteArray(16),
                 localIndexOffset = 1000u,
-                localIndexLength = 500u
+                localIndexLength = 500u,
             )
 
             val bytes = postamble.toBytes()
@@ -358,12 +358,12 @@ class PackBlobTest {
         fun `should handle Go-style varint encoding`() {
             // Test various values that exercise varint encoding
             val testCases = listOf(
-                0u to 1,        // 0 -> 1 byte
-                127u to 1,      // 127 -> 1 byte
-                128u to 2,      // 128 -> 2 bytes
-                16383u to 2,    // Max 2-byte value
-                16384u to 3,    // Min 3-byte value
-                2097151u to 3,  // Max 3-byte value
+                0u to 1, // 0 -> 1 byte
+                127u to 1, // 127 -> 1 byte
+                128u to 2, // 128 -> 2 bytes
+                16383u to 2, // Max 2-byte value
+                16384u to 3, // Min 3-byte value
+                2097151u to 3, // Max 3-byte value
             )
 
             for ((value, expectedBytes) in testCases) {
@@ -371,7 +371,7 @@ class PackBlobTest {
                 assertEquals(
                     expectedBytes,
                     encoded.size,
-                    "Value $value should encode to $expectedBytes bytes"
+                    "Value $value should encode to $expectedBytes bytes",
                 )
 
                 // Verify decode
@@ -387,7 +387,7 @@ class PackBlobTest {
     private fun buildTestPostamble(
         localIndexIV: ByteArray,
         localIndexOffset: UInt,
-        localIndexLength: UInt
+        localIndexLength: UInt,
     ): ByteArray {
         val buffer = mutableListOf<Byte>()
 
@@ -415,9 +415,7 @@ class PackBlobTest {
         return result.toByteArray()
     }
 
-    private fun encodeVarint(value: UInt): List<Byte> {
-        return encodeVarint(value.toULong())
-    }
+    private fun encodeVarint(value: UInt): List<Byte> = encodeVarint(value.toULong())
 
     private fun encodeVarint(value: ULong): List<Byte> {
         val result = mutableListOf<Byte>()

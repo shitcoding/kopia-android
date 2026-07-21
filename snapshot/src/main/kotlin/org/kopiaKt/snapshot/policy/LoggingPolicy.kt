@@ -32,7 +32,7 @@ fun LogDetail?.orDefault(default: LogDetail): LogDetail = this ?: default
 @Serializable
 data class DirLoggingPolicy(
     val snapshotted: LogDetail? = null,
-    val ignored: LogDetail? = null
+    val ignored: LogDetail? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -45,7 +45,7 @@ data class DirLoggingPolicy(
             },
             ignored = mergeLogDetail(ignored, src.ignored) {
                 newDef.ignored = si
-            }
+            },
         ) to newDef
     }
 }
@@ -58,7 +58,7 @@ data class DirLoggingPolicy(
 @Serializable
 data class DirLoggingPolicyDefinition(
     var snapshotted: SourceInfo? = null,
-    var ignored: SourceInfo? = null
+    var ignored: SourceInfo? = null,
 )
 
 /**
@@ -71,7 +71,7 @@ data class EntryLoggingPolicy(
     val snapshotted: LogDetail? = null,
     val ignored: LogDetail? = null,
     val cacheHit: LogDetail? = null,
-    val cacheMiss: LogDetail? = null
+    val cacheMiss: LogDetail? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -90,7 +90,7 @@ data class EntryLoggingPolicy(
             },
             cacheMiss = mergeLogDetail(cacheMiss, src.cacheMiss) {
                 newDef.cacheMiss = si
-            }
+            },
         ) to newDef
     }
 }
@@ -105,7 +105,7 @@ data class EntryLoggingPolicyDefinition(
     var snapshotted: SourceInfo? = null,
     var ignored: SourceInfo? = null,
     var cacheHit: SourceInfo? = null,
-    var cacheMiss: SourceInfo? = null
+    var cacheMiss: SourceInfo? = null,
 )
 
 /**
@@ -116,7 +116,7 @@ data class EntryLoggingPolicyDefinition(
 @Serializable
 data class LoggingPolicy(
     val directories: DirLoggingPolicy = DirLoggingPolicy(),
-    val entries: EntryLoggingPolicy = EntryLoggingPolicy()
+    val entries: EntryLoggingPolicy = EntryLoggingPolicy(),
 ) {
     /**
      * Merges this policy with source policy.
@@ -129,7 +129,7 @@ data class LoggingPolicy(
         newDef.entries = mergedEntriesDef
         return LoggingPolicy(
             directories = mergedDirs,
-            entries = mergedEntries
+            entries = mergedEntries,
         ) to newDef
     }
 
@@ -140,14 +140,14 @@ data class LoggingPolicy(
         val Default = LoggingPolicy(
             directories = DirLoggingPolicy(
                 snapshotted = LogDetailLevels.NORMAL,
-                ignored = LogDetailLevels.NORMAL
+                ignored = LogDetailLevels.NORMAL,
             ),
             entries = EntryLoggingPolicy(
                 snapshotted = LogDetailLevels.NONE,
                 ignored = LogDetailLevels.NORMAL,
                 cacheHit = LogDetailLevels.NONE,
-                cacheMiss = LogDetailLevels.NONE
-            )
+                cacheMiss = LogDetailLevels.NONE,
+            ),
         )
     }
 }
@@ -160,15 +160,13 @@ data class LoggingPolicy(
 @Serializable
 data class LoggingPolicyDefinition(
     var directories: DirLoggingPolicyDefinition = DirLoggingPolicyDefinition(),
-    var entries: EntryLoggingPolicyDefinition = EntryLoggingPolicyDefinition()
+    var entries: EntryLoggingPolicyDefinition = EntryLoggingPolicyDefinition(),
 )
 
 // Helper merge function
-private inline fun mergeLogDetail(target: LogDetail?, src: LogDetail?, onMerge: () -> Unit): LogDetail? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeLogDetail(target: LogDetail?, src: LogDetail?, onMerge: () -> Unit): LogDetail? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

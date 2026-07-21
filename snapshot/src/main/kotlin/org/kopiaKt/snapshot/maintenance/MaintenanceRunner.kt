@@ -49,7 +49,7 @@ data class MaintenanceResult(
     /**
      * End time of the maintenance run.
      */
-    val endTime: Instant
+    val endTime: Instant,
 ) {
     /**
      * Duration of the maintenance run.
@@ -93,7 +93,7 @@ data class MaintenanceOptions(
     /**
      * Progress callback.
      */
-    val onProgress: ((String) -> Unit)? = null
+    val onProgress: ((String) -> Unit)? = null,
 )
 
 /**
@@ -107,7 +107,7 @@ data class MaintenanceOptions(
  * Go implementation: repo/maintenance/maintenance_run.go
  */
 class MaintenanceRunner(
-    private val repository: DirectRepository
+    private val repository: DirectRepository,
 ) {
     private val cancelled = AtomicBoolean(false)
 
@@ -117,10 +117,8 @@ class MaintenanceRunner(
      * @param options Maintenance options
      * @return Result of the maintenance run
      */
-    suspend fun run(options: MaintenanceOptions = MaintenanceOptions()): MaintenanceResult {
-        return withContext(Dispatchers.Default) {
-            runMaintenance(options)
-        }
+    suspend fun run(options: MaintenanceOptions = MaintenanceOptions()): MaintenanceResult = withContext(Dispatchers.Default) {
+        runMaintenance(options)
     }
 
     /**
@@ -146,7 +144,7 @@ class MaintenanceRunner(
             if (options.gcDelete) {
                 throw UnsupportedOperationException(
                     "Maintenance-driven GC content deletion is gated pending on-device wiring; " +
-                        "run with gcDelete=false."
+                        "run with gcDelete=false.",
                 )
             }
 
@@ -162,7 +160,7 @@ class MaintenanceRunner(
                     mode = MaintenanceMode.NONE,
                     success = true,
                     startTime = startTime,
-                    endTime = Instant.now()
+                    endTime = Instant.now(),
                 )
             }
 
@@ -182,7 +180,7 @@ class MaintenanceRunner(
                 gcStats = result.gcStats,
                 retentionDeletedCount = result.retentionDeletedCount,
                 startTime = startTime,
-                endTime = Instant.now()
+                endTime = Instant.now(),
             )
         } catch (e: Exception) {
             return MaintenanceResult(
@@ -190,7 +188,7 @@ class MaintenanceRunner(
                 success = false,
                 error = e.message ?: "Unknown error",
                 startTime = startTime,
-                endTime = Instant.now()
+                endTime = Instant.now(),
             )
         }
     }
@@ -270,7 +268,7 @@ class MaintenanceRunner(
 
     private suspend fun getUniqueSources(): Set<SourceInfo> {
         val manifests = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
 
         val sources = mutableSetOf<SourceInfo>()
@@ -339,8 +337,8 @@ class MaintenanceRunner(
                 safety = options.safety,
                 onProgress = { progress ->
                     options.onProgress?.invoke("GC: ${progress.phase}")
-                }
-            )
+                },
+            ),
         )
     }
 

@@ -61,7 +61,7 @@ class S3BlobStorage private constructor(
     private val client: S3Client,
     private val options: S3Options,
     private val storageConfig: S3StorageConfig,
-    private val readOnly: Boolean
+    private val readOnly: Boolean,
 ) : BlobStorage {
 
     companion object {
@@ -91,7 +91,7 @@ class S3BlobStorage private constructor(
             client: S3Client,
             options: S3Options,
             storageConfig: S3StorageConfig = S3StorageConfig(),
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
         ): S3BlobStorage {
             requireSupportedOptions(options)
             return S3BlobStorage(client, options, storageConfig, readOnly)
@@ -147,7 +147,7 @@ class S3BlobStorage private constructor(
                 builder.serviceConfiguration(
                     S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
-                        .build()
+                        .build(),
                 )
             }
 
@@ -161,36 +161,34 @@ class S3BlobStorage private constructor(
             return builder.build()
         }
 
-        private fun createCredentialsProvider(options: S3Options): AwsCredentialsProvider {
-            return when {
-                options.accessKeyId.isNotEmpty() && options.secretAccessKey.isNotEmpty() -> {
-                    if (options.sessionToken.isNotEmpty()) {
-                        StaticCredentialsProvider.create(
-                            AwsSessionCredentials.create(
-                                options.accessKeyId,
-                                options.secretAccessKey,
-                                options.sessionToken
-                            )
-                        )
-                    } else {
-                        StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(
-                                options.accessKeyId,
-                                options.secretAccessKey
-                            )
-                        )
-                    }
+        private fun createCredentialsProvider(options: S3Options): AwsCredentialsProvider = when {
+            options.accessKeyId.isNotEmpty() && options.secretAccessKey.isNotEmpty() -> {
+                if (options.sessionToken.isNotEmpty()) {
+                    StaticCredentialsProvider.create(
+                        AwsSessionCredentials.create(
+                            options.accessKeyId,
+                            options.secretAccessKey,
+                            options.sessionToken,
+                        ),
+                    )
+                } else {
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(
+                            options.accessKeyId,
+                            options.secretAccessKey,
+                        ),
+                    )
                 }
-                else -> {
-                    // Use default credential chain (env vars, instance profile, etc.)
-                    DefaultCredentialsProvider.create()
-                }
+            }
+            else -> {
+                // Use default credential chain (env vars, instance profile, etc.)
+                DefaultCredentialsProvider.create()
             }
         }
 
         internal suspend fun loadStorageConfig(
             client: S3Client,
-            options: S3Options
+            options: S3Options,
         ): S3StorageConfig = withContext(Dispatchers.IO) {
             try {
                 val request = GetObjectRequest.builder()
@@ -215,69 +213,65 @@ class S3BlobStorage private constructor(
             // falsely "succeed" with unusable credentials. Let it propagate so the connect fails loudly.
         }
 
-        private fun getObjectKey(prefix: String, blobId: String): String {
-            return prefix + blobId
+        private fun getObjectKey(prefix: String, blobId: String): String = prefix + blobId
+    }
+
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = GetObjectRequest.builder()
+                .bucket(options.bucketName)
+                .key(getObjectKey(blobId))
+
+            // Set range header for partial reads
+            if (offset > 0 || length >= 0) {
+                val rangeHeader = when {
+                    length == 0L -> {
+                        // Zero-length read - return empty array immediately
+                        return@withContext ByteArray(0)
+                    }
+                    length > 0 -> "bytes=$offset-${offset + length - 1}"
+                    else -> "bytes=$offset-"
+                }
+                requestBuilder.range(rangeHeader)
+            }
+
+            val response = client.getObject(
+                requestBuilder.build(),
+                ResponseTransformer.toBytes(),
+            )
+
+            response.asByteArray()
+        } catch (e: NoSuchKeyException) {
+            throw BlobNotFoundException(blobId)
+        } catch (e: S3Exception) {
+            handleS3Exception(e, blobId)
         }
     }
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
-        withContext(Dispatchers.IO) {
-            try {
-                val requestBuilder = GetObjectRequest.builder()
-                    .bucket(options.bucketName)
-                    .key(getObjectKey(blobId))
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withContext(Dispatchers.IO) {
+        try {
+            val request = HeadObjectRequest.builder()
+                .bucket(options.bucketName)
+                .key(getObjectKey(blobId))
+                .build()
 
-                // Set range header for partial reads
-                if (offset > 0 || length >= 0) {
-                    val rangeHeader = when {
-                        length == 0L -> {
-                            // Zero-length read - return empty array immediately
-                            return@withContext ByteArray(0)
-                        }
-                        length > 0 -> "bytes=$offset-${offset + length - 1}"
-                        else -> "bytes=$offset-"
-                    }
-                    requestBuilder.range(rangeHeader)
-                }
+            val response = client.headObject(request)
 
-                val response = client.getObject(
-                    requestBuilder.build(),
-                    ResponseTransformer.toBytes()
-                )
-
-                response.asByteArray()
-            } catch (e: NoSuchKeyException) {
-                throw BlobNotFoundException(blobId)
-            } catch (e: S3Exception) {
+            BlobMetadata(
+                blobId = blobId,
+                length = response.contentLength(),
+                timestamp = response.lastModified(),
+            )
+        } catch (e: NoSuchKeyException) {
+            null
+        } catch (e: S3Exception) {
+            if (e.statusCode() == 404) {
+                null
+            } else {
                 handleS3Exception(e, blobId)
             }
         }
-
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
-        withContext(Dispatchers.IO) {
-            try {
-                val request = HeadObjectRequest.builder()
-                    .bucket(options.bucketName)
-                    .key(getObjectKey(blobId))
-                    .build()
-
-                val response = client.headObject(request)
-
-                BlobMetadata(
-                    blobId = blobId,
-                    length = response.contentLength(),
-                    timestamp = response.lastModified()
-                )
-            } catch (e: NoSuchKeyException) {
-                null
-            } catch (e: S3Exception) {
-                if (e.statusCode() == 404) {
-                    null
-                } else {
-                    handleS3Exception(e, blobId)
-                }
-            }
-        }
+    }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         var continuationToken: String? = null
@@ -306,8 +300,8 @@ class S3BlobStorage private constructor(
                     BlobMetadata(
                         blobId = BlobId(blobIdStr),
                         length = obj.size(),
-                        timestamp = obj.lastModified()
-                    )
+                        timestamp = obj.lastModified(),
+                    ),
                 )
             }
 
@@ -319,61 +313,60 @@ class S3BlobStorage private constructor(
         } while (continuationToken != null)
     }.flowOn(Dispatchers.IO)
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
-        withContext(Dispatchers.IO) {
-            if (readOnly) {
-                throw IllegalStateException("Storage is read-only")
-            }
-            // S3 doesn't support setModTime
-            if (options.setModTime != null) {
-                throw UnsupportedPutOptionException("setModTime")
-            }
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
+        // S3 doesn't support setModTime
+        if (options.setModTime != null) {
+            throw UnsupportedPutOptionException("setModTime")
+        }
 
-            // Check if blob exists when dontOverwrite is set
-            if (options.dontOverwrite) {
-                val exists = getBlobMetadata(blobId) != null
-                if (exists) {
-                    return@withContext
-                }
-            }
-
-            val storageClass = getStorageClassForBlobId(blobId)
-
-            val requestBuilder = PutObjectRequest.builder()
-                .bucket(this@S3BlobStorage.options.bucketName)
-                .key(getObjectKey(blobId))
-                .contentType(CONTENT_TYPE)
-                .contentLength(data.size.toLong())
-
-            if (storageClass.isNotEmpty()) {
-                requestBuilder.storageClass(storageClass)
-            }
-
-            // Configure retention if specified
-            if (options.retentionPeriod != Duration.ZERO) {
-                val retentionMode = when (options.retentionMode) {
-                    RetentionMode.GOVERNANCE -> ObjectLockMode.GOVERNANCE
-                    RetentionMode.COMPLIANCE -> ObjectLockMode.COMPLIANCE
-                    else -> null
-                }
-
-                if (retentionMode != null) {
-                    requestBuilder.objectLockMode(retentionMode)
-                    requestBuilder.objectLockRetainUntilDate(
-                        Instant.now().plus(options.retentionPeriod)
-                    )
-                }
-            }
-
-            try {
-                client.putObject(
-                    requestBuilder.build(),
-                    RequestBody.fromBytes(data)
-                )
-            } catch (e: S3Exception) {
-                handleS3Exception(e, blobId)
+        // Check if blob exists when dontOverwrite is set
+        if (options.dontOverwrite) {
+            val exists = getBlobMetadata(blobId) != null
+            if (exists) {
+                return@withContext
             }
         }
+
+        val storageClass = getStorageClassForBlobId(blobId)
+
+        val requestBuilder = PutObjectRequest.builder()
+            .bucket(this@S3BlobStorage.options.bucketName)
+            .key(getObjectKey(blobId))
+            .contentType(CONTENT_TYPE)
+            .contentLength(data.size.toLong())
+
+        if (storageClass.isNotEmpty()) {
+            requestBuilder.storageClass(storageClass)
+        }
+
+        // Configure retention if specified
+        if (options.retentionPeriod != Duration.ZERO) {
+            val retentionMode = when (options.retentionMode) {
+                RetentionMode.GOVERNANCE -> ObjectLockMode.GOVERNANCE
+                RetentionMode.COMPLIANCE -> ObjectLockMode.COMPLIANCE
+                else -> null
+            }
+
+            if (retentionMode != null) {
+                requestBuilder.objectLockMode(retentionMode)
+                requestBuilder.objectLockRetainUntilDate(
+                    Instant.now().plus(options.retentionPeriod),
+                )
+            }
+        }
+
+        try {
+            client.putObject(
+                requestBuilder.build(),
+                RequestBody.fromBytes(data),
+            )
+        } catch (e: S3Exception) {
+            handleS3Exception(e, blobId)
+        }
+    }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
         if (readOnly) {
@@ -416,7 +409,7 @@ class S3BlobStorage private constructor(
                     ObjectLockRetention.builder()
                         .mode(retentionMode)
                         .retainUntilDate(retainUntilDate)
-                        .build()
+                        .build(),
                 )
                 .build()
 
@@ -435,7 +428,7 @@ class S3BlobStorage private constructor(
             if (options.prefix.isNotEmpty()) put("prefix", options.prefix)
             if (options.endpoint.isNotEmpty()) put("endpoint", options.endpoint)
             if (options.region.isNotEmpty()) put("region", options.region)
-        }
+        },
     )
 
     override fun displayName(): String {
@@ -453,9 +446,7 @@ class S3BlobStorage private constructor(
         // S3 operations are already persisted immediately
     }
 
-    private fun getObjectKey(blobId: BlobId): String {
-        return options.prefix + blobId.value
-    }
+    private fun getObjectKey(blobId: BlobId): String = options.prefix + blobId.value
 
     private fun getStorageClassForBlobId(blobId: BlobId): String {
         val id = blobId.value

@@ -40,7 +40,7 @@ data class SnapshotManifest(
     // RetentionReasons is not persisted in Go (json:"-")
     val tags: Map<String, String> = emptyMap(),
     val storageStats: StorageStats? = null,
-    val pins: List<String> = emptyList()
+    val pins: List<String> = emptyList(),
 )
 
 /**
@@ -52,7 +52,7 @@ data class SnapshotManifest(
 data class SourceInfo(
     val host: String,
     val userName: String,
-    val path: String
+    val path: String,
 ) {
     override fun toString(): String {
         if (host.isEmpty() && path.isEmpty() && userName.isEmpty()) {
@@ -86,7 +86,7 @@ data class SourceInfo(
                 return SourceInfo(
                     userName = source.substring(0, atIndex),
                     host = source.substring(atIndex + 1, colonIndex),
-                    path = source.substring(colonIndex + 1)
+                    path = source.substring(colonIndex + 1),
                 )
             }
 
@@ -95,7 +95,7 @@ data class SourceInfo(
                 return SourceInfo(
                     userName = source.substring(0, atIndex),
                     host = source.substring(atIndex + 1),
-                    path = ""
+                    path = "",
                 )
             }
 
@@ -114,11 +114,11 @@ enum class EntryType(val code: String) {
     UNKNOWN(""),
     FILE("f"),
     DIRECTORY("d"),
-    SYMLINK("s");
+    SYMLINK("s"),
+    ;
 
     companion object {
-        fun fromCode(code: String): EntryType =
-            entries.find { it.code == code } ?: UNKNOWN
+        fun fromCode(code: String): EntryType = entries.find { it.code == code } ?: UNKNOWN
     }
 }
 
@@ -133,9 +133,7 @@ internal object EntryTypeSerializer : KSerializer<EntryType> {
         encoder.encodeString(value.code)
     }
 
-    override fun deserialize(decoder: Decoder): EntryType {
-        return EntryType.fromCode(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): EntryType = EntryType.fromCode(decoder.decodeString())
 }
 
 /**
@@ -162,7 +160,7 @@ data class DirEntry(
     @SerialName("obj")
     val objectId: String? = null,
     @SerialName("summ")
-    val dirSummary: DirectorySummary? = null
+    val dirSummary: DirectorySummary? = null,
 )
 
 /**
@@ -222,7 +220,7 @@ data class DirectorySummary(
     @SerialName("numIgnoredErrors")
     val ignoredErrorCount: Int = 0,
     @SerialName("errors")
-    val failedEntries: List<EntryWithError>? = null
+    val failedEntries: List<EntryWithError>? = null,
 )
 
 /**
@@ -234,7 +232,7 @@ data class DirectorySummary(
 data class EntryWithError(
     @SerialName("path")
     val entryPath: String,
-    val error: String
+    val error: String,
 )
 
 /**
@@ -257,7 +255,7 @@ data class SnapshotStats(
     val excludedFileCount: Int = 0,
     val excludedDirCount: Int = 0,
     val ignoredErrorCount: Int = 0,
-    val errorCount: Int = 0
+    val errorCount: Int = 0,
 )
 
 /**
@@ -268,7 +266,7 @@ data class SnapshotStats(
 @Serializable
 data class StorageStats(
     val newData: StorageUsageDetails = StorageUsageDetails(),
-    val runningTotal: StorageUsageDetails = StorageUsageDetails()
+    val runningTotal: StorageUsageDetails = StorageUsageDetails(),
 )
 
 /**
@@ -286,7 +284,7 @@ data class StorageUsageDetails(
     @SerialName("dirObjects")
     val dirObjectCount: Int = 0,
     @SerialName("contents")
-    val contentCount: Int = 0
+    val contentCount: Int = 0,
 )
 
 /**
@@ -301,7 +299,7 @@ data class DirManifest(
     @SerialName("stream")
     val streamType: String = DIRECTORY_STREAM_TYPE,
     val entries: List<DirEntry> = emptyList(),
-    val summary: DirectorySummary? = null
+    val summary: DirectorySummary? = null,
 ) {
     companion object {
         const val DIRECTORY_STREAM_TYPE = "kopia:directory"
@@ -319,9 +317,7 @@ data class DirManifest(
         /**
          * Parse a DirManifest from JSON string, handling null entries gracefully.
          */
-        fun fromJson(jsonStr: String): DirManifest {
-            return json.decodeFromString(serializer(), jsonStr)
-        }
+        fun fromJson(jsonStr: String): DirManifest = json.decodeFromString(serializer(), jsonStr)
     }
 
     /**
@@ -347,7 +343,7 @@ object ManifestLabels {
         TYPE to TYPE_SNAPSHOT,
         HOST to source.host,
         USERNAME to source.userName,
-        PATH to source.path
+        PATH to source.path,
     )
 }
 

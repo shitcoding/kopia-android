@@ -7,9 +7,9 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.kopiaKt.core.content.ObjectId
+import org.kopiaKt.core.`object`.ObjectWriterOptions
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.DirectRepositoryWriter
-import org.kopiaKt.core.`object`.ObjectWriterOptions
 import org.kopiaKt.core.testutil.TestRepositoryFactory
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
@@ -43,12 +43,10 @@ class FullMaintenanceCycleTest {
 
     // -- Helpers (same pattern as MultiSnapshotGCTest) --
 
-    private suspend fun DirectRepositoryWriter.writeFileObject(data: ByteArray): ObjectId {
-        return writeObject(data)
-    }
+    private suspend fun DirectRepositoryWriter.writeFileObject(data: ByteArray): ObjectId = writeObject(data)
 
     private suspend fun DirectRepositoryWriter.writeDirManifestObject(
-        dirManifest: DirManifest
+        dirManifest: DirManifest,
     ): ObjectId {
         val json = DirManifest.json.encodeToString(DirManifest.serializer(), dirManifest)
         return writeObject(json.toByteArray(Charsets.UTF_8), ObjectWriterOptions(prefix = 'k'))
@@ -57,7 +55,7 @@ class FullMaintenanceCycleTest {
     private suspend fun DirectRepositoryWriter.createSnapshot(
         id: String,
         source: SourceInfo,
-        rootDirObjectId: ObjectId
+        rootDirObjectId: ObjectId,
     ) {
         val snapshot = SnapshotManifest(
             id = id,
@@ -70,13 +68,13 @@ class FullMaintenanceCycleTest {
                 permissions = 493, // 0o755
                 fileSize = 0,
                 modTime = Instant.now(),
-                objectId = rootDirObjectId.toString()
-            )
+                objectId = rootDirObjectId.toString(),
+            ),
         )
         putManifest(
             ManifestLabels.forSnapshot(source),
             snapshot,
-            SnapshotManifest.serializer()
+            SnapshotManifest.serializer(),
         )
     }
 
@@ -89,7 +87,7 @@ class FullMaintenanceCycleTest {
         repository: DirectRepositoryImpl,
         source: SourceInfo,
         snapshotId: String,
-        fileContents: Map<String, ByteArray>
+        fileContents: Map<String, ByteArray>,
     ): Map<String, ObjectId> {
         val writer = repository.newDirectWriter()
 
@@ -106,8 +104,8 @@ class FullMaintenanceCycleTest {
                     permissions = 420, // 0o644
                     fileSize = data.size.toLong(),
                     modTime = Instant.now(),
-                    objectId = oid.toString()
-                )
+                    objectId = oid.toString(),
+                ),
             )
         }
 
@@ -140,14 +138,16 @@ class FullMaintenanceCycleTest {
             repo = repository
 
             populateRepository(
-                repository, SourceInfo("host", "user", "/data"), "snap-nodelete",
-                mapOf("f.txt" to "data".toByteArray())
+                repository,
+                SourceInfo("host", "user", "/data"),
+                "snap-nodelete",
+                mapOf("f.txt" to "data".toByteArray()),
             )
 
             // Requesting content-deleting GC must fail loud (Phase 2 is unimplemented). The guard is the
             // first statement in runMaintenance, so it fails before retention could delete any manifest.
             val result = MaintenanceRunner(repository).run(
-                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true, gcDelete = true)
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true, gcDelete = true),
             )
 
             assertThat(result.success).isFalse()
@@ -167,7 +167,7 @@ class FullMaintenanceCycleTest {
             val files = mapOf(
                 "readme.txt" to "This is the readme".toByteArray(),
                 "data.bin" to ByteArray(1024) { it.toByte() },
-                "config.json" to """{"key":"value"}""".toByteArray()
+                "config.json" to """{"key":"value"}""".toByteArray(),
             )
 
             val objectIds = populateRepository(repository, source, "snap-full-1", files)
@@ -178,8 +178,8 @@ class FullMaintenanceCycleTest {
                 MaintenanceOptions(
                     mode = MaintenanceMode.FULL,
                     force = true,
-                    safety = SafetyParameters.Default
-                )
+                    safety = SafetyParameters.Default,
+                ),
             )
 
             assertThat(result.mode).isEqualTo(MaintenanceMode.FULL)
@@ -213,7 +213,7 @@ class FullMaintenanceCycleTest {
 
             val source = SourceInfo("host", "user", "/quick")
             val files = mapOf(
-                "file1.txt" to "quick-test-content".toByteArray()
+                "file1.txt" to "quick-test-content".toByteArray(),
             )
 
             val objectIds = populateRepository(repository, source, "snap-quick-1", files)
@@ -222,8 +222,8 @@ class FullMaintenanceCycleTest {
             val result = runner.run(
                 MaintenanceOptions(
                     mode = MaintenanceMode.QUICK,
-                    force = true
-                )
+                    force = true,
+                ),
             )
 
             assertThat(result.mode).isEqualTo(MaintenanceMode.QUICK)
@@ -246,11 +246,11 @@ class FullMaintenanceCycleTest {
 
             val files1 = mapOf(
                 "alpha.txt" to "alpha-content".toByteArray(),
-                "beta.txt" to "beta-content".toByteArray()
+                "beta.txt" to "beta-content".toByteArray(),
             )
             val files2 = mapOf(
                 "gamma.txt" to "gamma-content".toByteArray(),
-                "delta.txt" to "delta-content".toByteArray()
+                "delta.txt" to "delta-content".toByteArray(),
             )
 
             val oids1 = populateRepository(repository, source1, "snap-multi-1", files1)
@@ -258,7 +258,7 @@ class FullMaintenanceCycleTest {
 
             val runner = MaintenanceRunner(repository)
             val result = runner.run(
-                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true)
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true),
             )
 
             assertThat(result.success).isTrue()
@@ -287,7 +287,7 @@ class FullMaintenanceCycleTest {
             val source = SourceInfo("host", "user", "/idem")
             val files = mapOf(
                 "stable.txt" to "this content must survive two runs".toByteArray(),
-                "binary.dat" to ByteArray(512) { (it * 7).toByte() }
+                "binary.dat" to ByteArray(512) { (it * 7).toByte() },
             )
 
             val objectIds = populateRepository(repository, source, "snap-idem-1", files)
@@ -330,7 +330,7 @@ class FullMaintenanceCycleTest {
 
             val source = SourceInfo("host", "user", "/gc-stats")
             val files = mapOf(
-                "data.txt" to "gc-stats-test-content".toByteArray()
+                "data.txt" to "gc-stats-test-content".toByteArray(),
             )
 
             populateRepository(repository, source, "snap-gc-stats", files)
@@ -369,7 +369,7 @@ class FullMaintenanceCycleTest {
             val files = mapOf(
                 "file1.txt" to "dedup-content-one".toByteArray(),
                 "file2.txt" to "dedup-content-two".toByteArray(),
-                "file3.txt" to "dedup-content-three".toByteArray()
+                "file3.txt" to "dedup-content-three".toByteArray(),
             )
 
             populateRepository(repository, source, "snap-dedup-1", files)
@@ -382,7 +382,7 @@ class FullMaintenanceCycleTest {
             val options1 = MaintenanceOptions(
                 mode = MaintenanceMode.FULL,
                 force = true,
-                onProgress = { progressMessages1.add(it) }
+                onProgress = { progressMessages1.add(it) },
             )
 
             val result1 = MaintenanceRunner(repository).run(options1)
@@ -396,7 +396,7 @@ class FullMaintenanceCycleTest {
             val options2 = MaintenanceOptions(
                 mode = MaintenanceMode.FULL,
                 force = true,
-                onProgress = { progressMessages2.add(it) }
+                onProgress = { progressMessages2.add(it) },
             )
 
             val result2 = MaintenanceRunner(repository).run(options2)
@@ -446,7 +446,7 @@ class FullMaintenanceCycleTest {
                         permissions = 420,
                         fileSize = sharedData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = sharedOid.toString()
+                        objectId = sharedOid.toString(),
                     ),
                     DirEntry(
                         name = "unique1.txt",
@@ -454,9 +454,9 @@ class FullMaintenanceCycleTest {
                         permissions = 420,
                         fileSize = uniqueData1.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = uniqueOid1.toString()
-                    )
-                )
+                        objectId = uniqueOid1.toString(),
+                    ),
+                ),
             )
             val dirOid1 = writer.writeDirManifestObject(dir1)
 
@@ -472,7 +472,7 @@ class FullMaintenanceCycleTest {
                         permissions = 420,
                         fileSize = sharedData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = sharedOid.toString()
+                        objectId = sharedOid.toString(),
                     ),
                     DirEntry(
                         name = "unique2.txt",
@@ -480,9 +480,9 @@ class FullMaintenanceCycleTest {
                         permissions = 420,
                         fileSize = uniqueData2.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = uniqueOid2.toString()
-                    )
-                )
+                        objectId = uniqueOid2.toString(),
+                    ),
+                ),
             )
             val dirOid2 = writer.writeDirManifestObject(dir2)
 
@@ -499,7 +499,7 @@ class FullMaintenanceCycleTest {
 
             // Run maintenance
             val result = MaintenanceRunner(repository).run(
-                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true)
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true),
             )
             assertThat(result.success).isTrue()
             repository.refresh()
@@ -511,7 +511,7 @@ class FullMaintenanceCycleTest {
 
             // Run maintenance again -- should still preserve everything
             val result2 = MaintenanceRunner(repository).run(
-                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true)
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true),
             )
             assertThat(result2.success).isTrue()
             repository.refresh()

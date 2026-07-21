@@ -46,7 +46,7 @@ class DirectRepositoryImplTest {
         val clientOptions = ClientOptions(
             hostname = "test-host",
             username = "test-user",
-            description = "Test repository"
+            description = "Test repository",
         )
 
         val repo = DirectRepositoryImpl.create(storage, password, config, clientOptions)
@@ -164,7 +164,7 @@ class DirectRepositoryImplTest {
     @Serializable
     data class TestPayload(
         val name: String,
-        val value: Int
+        val value: Int,
     )
 
     @Test
@@ -439,6 +439,6 @@ class DirectRepositoryImplTest {
         maxPackSize = 20 * 1024 * 1024,
         indexVersion = 2,
         enablePasswordChange = true,
-        splitter = "DYNAMIC-4M-BUZHASH"
+        splitter = "DYNAMIC-4M-BUZHASH",
     )
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -13,13 +12,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.time.Instant
 
 /**
  * DataStore for backup checkpoint persistence.
  */
 private val Context.checkpointDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "backup_checkpoints"
+    name = "backup_checkpoints",
 )
 
 /**
@@ -61,7 +59,7 @@ data class BackupCheckpoint(
     val resumeCount: Int = 0,
 
     /** Last error message, if backup failed and is being retried. */
-    val lastError: String? = null
+    val lastError: String? = null,
 ) {
     /**
      * Age of this checkpoint in milliseconds.
@@ -71,9 +69,7 @@ data class BackupCheckpoint(
     /**
      * Returns true if this checkpoint is stale (older than the specified duration).
      */
-    fun isStale(maxAgeMillis: Long = DEFAULT_MAX_CHECKPOINT_AGE_MILLIS): Boolean {
-        return ageMillis() > maxAgeMillis
-    }
+    fun isStale(maxAgeMillis: Long = DEFAULT_MAX_CHECKPOINT_AGE_MILLIS): Boolean = ageMillis() > maxAgeMillis
 
     companion object {
         /** Default maximum age for a checkpoint before it's considered stale (24 hours). */
@@ -106,7 +102,7 @@ sealed class CheckpointResult {
  */
 class CheckpointStore(
     private val context: Context,
-    private val maxCheckpointAgeMillis: Long = BackupCheckpoint.DEFAULT_MAX_CHECKPOINT_AGE_MILLIS
+    private val maxCheckpointAgeMillis: Long = BackupCheckpoint.DEFAULT_MAX_CHECKPOINT_AGE_MILLIS,
 ) {
     private val dataStore: DataStore<Preferences> = context.checkpointDataStore
     private val json = Json { ignoreUnknownKeys = true }
@@ -256,9 +252,7 @@ class CheckpointStore(
         }
     }
 
-    private fun checkpointKey(sourceId: String): Preferences.Key<String> {
-        return stringPreferencesKey("$CHECKPOINT_PREFIX$sourceId")
-    }
+    private fun checkpointKey(sourceId: String): Preferences.Key<String> = stringPreferencesKey("$CHECKPOINT_PREFIX$sourceId")
 
     companion object {
         private const val CHECKPOINT_PREFIX = "checkpoint_"
@@ -276,7 +270,7 @@ data class CheckpointOptions(
     val minBytesBeforeCheckpoint: Long = DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT,
 
     /** Maximum number of resume attempts before giving up. */
-    val maxResumeAttempts: Int = DEFAULT_MAX_RESUME_ATTEMPTS
+    val maxResumeAttempts: Int = DEFAULT_MAX_RESUME_ATTEMPTS,
 ) {
     /**
      * The checkpoint interval clamped to a sane minimum. The checkpoint loop delays by this each cycle;

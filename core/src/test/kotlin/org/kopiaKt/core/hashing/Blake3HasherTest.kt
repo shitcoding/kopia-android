@@ -185,7 +185,7 @@ class Blake3HasherTest {
         assertEquals(
             testCase.outputHex,
             result.toHexString(),
-            "Hash mismatch for test case '${testCase.name}'"
+            "Hash mismatch for test case '${testCase.name}'",
         )
     }
 }

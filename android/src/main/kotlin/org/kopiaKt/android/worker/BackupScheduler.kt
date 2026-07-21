@@ -17,7 +17,7 @@ interface WorkSchedulingPort {
     fun scheduleOneTime(
         sourceId: String,
         sourcePath: String,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     )
 
     /**
@@ -27,7 +27,7 @@ interface WorkSchedulingPort {
         sourceId: String,
         sourcePath: String,
         intervalHours: Long,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     )
 
     /**
@@ -48,7 +48,7 @@ interface WorkSchedulingPort {
  */
 class BackupScheduler(
     private val schedulingPort: WorkSchedulingPort,
-    private val sourceManager: BackupSourceManager
+    private val sourceManager: BackupSourceManager,
 ) {
 
     private val activeSchedules: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -64,7 +64,7 @@ class BackupScheduler(
     fun schedulePeriodicBackup(
         sourceId: String,
         intervalHours: Long,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     ) {
         val source = sourceManager.getSource(sourceId)
             ?: throw IllegalArgumentException("Source not found: $sourceId")
@@ -75,7 +75,7 @@ class BackupScheduler(
             sourceId = sourceId,
             sourcePath = source.path,
             intervalHours = effectiveInterval,
-            constraints = constraints
+            constraints = constraints,
         )
         activeSchedules.add(sourceId)
     }
@@ -89,7 +89,7 @@ class BackupScheduler(
      */
     fun scheduleOneTimeBackup(
         sourceId: String,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     ) {
         val source = sourceManager.getSource(sourceId)
             ?: throw IllegalArgumentException("Source not found: $sourceId")
@@ -97,7 +97,7 @@ class BackupScheduler(
         schedulingPort.scheduleOneTime(
             sourceId = sourceId,
             sourcePath = source.path,
-            constraints = constraints
+            constraints = constraints,
         )
         activeSchedules.add(sourceId)
     }
@@ -132,7 +132,7 @@ class BackupScheduler(
     fun resumeSource(
         sourceId: String,
         intervalHours: Long,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     ) {
         val source = sourceManager.getSource(sourceId)
             ?: throw IllegalArgumentException("Source not found: $sourceId")
@@ -144,7 +144,7 @@ class BackupScheduler(
             sourceId = sourceId,
             sourcePath = source.path,
             intervalHours = effectiveInterval,
-            constraints = constraints
+            constraints = constraints,
         )
         activeSchedules.add(sourceId)
     }
@@ -160,7 +160,7 @@ class BackupScheduler(
     fun updateSchedule(
         sourceId: String,
         intervalHours: Long,
-        constraints: BackupConstraints = BackupConstraints()
+        constraints: BackupConstraints = BackupConstraints(),
     ) {
         val source = sourceManager.getSource(sourceId)
             ?: throw IllegalArgumentException("Source not found: $sourceId")
@@ -172,7 +172,7 @@ class BackupScheduler(
             sourceId = sourceId,
             sourcePath = source.path,
             intervalHours = effectiveInterval,
-            constraints = constraints
+            constraints = constraints,
         )
         activeSchedules.add(sourceId)
     }
@@ -180,9 +180,7 @@ class BackupScheduler(
     /**
      * Checks whether the given source has an active schedule tracked by this scheduler.
      */
-    fun hasActiveSchedule(sourceId: String): Boolean {
-        return sourceId in activeSchedules
-    }
+    fun hasActiveSchedule(sourceId: String): Boolean = sourceId in activeSchedules
 }
 
 /**
@@ -192,19 +190,19 @@ class BackupScheduler(
  * @param context Application context for WorkManager access
  */
 class WorkManagerSchedulingAdapter(
-    private val context: Context
+    private val context: Context,
 ) : WorkSchedulingPort {
 
     override fun scheduleOneTime(
         sourceId: String,
         sourcePath: String,
-        constraints: BackupConstraints
+        constraints: BackupConstraints,
     ) {
         BackupWorker.scheduleOneTime(
             context = context,
             sourceId = sourceId,
             sourcePath = sourcePath,
-            constraints = constraints
+            constraints = constraints,
         )
     }
 
@@ -212,14 +210,14 @@ class WorkManagerSchedulingAdapter(
         sourceId: String,
         sourcePath: String,
         intervalHours: Long,
-        constraints: BackupConstraints
+        constraints: BackupConstraints,
     ) {
         BackupWorker.schedulePeriodic(
             context = context,
             sourceId = sourceId,
             sourcePath = sourcePath,
             intervalHours = intervalHours,
-            constraints = constraints
+            constraints = constraints,
         )
     }
 

@@ -126,18 +126,16 @@ data class SftpOptions(
      * timeout, not a total-transfer cap — an active download keeps resetting it and sshj's transport
      * reader loops on it — so it can be generous. 0 = library default (no explicit timeout).
      */
-    val socketTimeoutMillis: Int = 120_000
+    val socketTimeoutMillis: Int = 120_000,
 ) {
     /**
      * Gets the effective known_hosts file path.
      * Falls back to ~/.ssh/known_hosts if not specified.
      */
-    fun effectiveKnownHostsFile(): String {
-        return if (knownHostsFile.isEmpty()) {
-            val home = System.getProperty("user.home")
-            "$home/.ssh/known_hosts"
-        } else {
-            knownHostsFile
-        }
+    fun effectiveKnownHostsFile(): String = if (knownHostsFile.isEmpty()) {
+        val home = System.getProperty("user.home")
+        "$home/.ssh/known_hosts"
+    } else {
+        knownHostsFile
     }
 }

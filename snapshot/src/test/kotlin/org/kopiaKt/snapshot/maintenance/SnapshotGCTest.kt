@@ -19,13 +19,13 @@ class SnapshotGCTest {
     fun `GCOptions can be customized`() {
         var progressCalled = false
         val customSafety = SafetyParameters(
-            minContentAgeSubjectToGC = Duration.ofHours(12)
+            minContentAgeSubjectToGC = Duration.ofHours(12),
         )
 
         val options = GCOptions(
             delete = true,
             safety = customSafety,
-            onProgress = { progressCalled = true }
+            onProgress = { progressCalled = true },
         )
 
         assertThat(options.delete).isTrue()
@@ -42,7 +42,7 @@ class SnapshotGCTest {
             processedSnapshots = 5,
             totalSnapshots = 10,
             processedContents = 1000,
-            inUseContents = 500
+            inUseContents = 500,
         )
 
         assertThat(progress.phase).isEqualTo("Walking snapshot trees")
@@ -84,7 +84,7 @@ class SnapshotGCTest {
             inUseSystemContentCount = 10,
             inUseSystemContentSize = 100000,
             recoveredContentCount = 5,
-            recoveredContentSize = 50000
+            recoveredContentSize = 50000,
         )
 
         assertThat(stats.unreferencedContentCount).isEqualTo(100)

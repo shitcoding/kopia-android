@@ -14,7 +14,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 class HmacSha256Hasher(
     override val algorithm: HashAlgorithm,
-    private val key: ByteArray
+    private val key: ByteArray,
 ) : ContentHasher {
 
     init {

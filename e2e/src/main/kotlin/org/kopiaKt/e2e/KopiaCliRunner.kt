@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
 class KopiaCliRunner(
     private val kopiaBinary: Path = defaultKopiaBinary(),
     private val configDir: Path? = null,
-    private val environment: Map<String, String> = emptyMap()
+    private val environment: Map<String, String> = emptyMap(),
 ) {
 
     companion object {
@@ -44,7 +44,7 @@ class KopiaCliRunner(
             }
 
             throw IllegalStateException(
-                "Kopia binary not found. Set KOPIA_BINARY environment variable or ensure kopia is in PATH."
+                "Kopia binary not found. Set KOPIA_BINARY environment variable or ensure kopia is in PATH.",
             )
         }
     }
@@ -55,7 +55,7 @@ class KopiaCliRunner(
     data class CommandResult(
         val exitCode: Int,
         val stdout: String,
-        val stderr: String
+        val stderr: String,
     ) {
         val success: Boolean get() = exitCode == 0
 
@@ -72,7 +72,7 @@ class KopiaCliRunner(
      */
     class KopiaCommandException(
         val exitCode: Int,
-        message: String
+        message: String,
     ) : RuntimeException("Kopia command failed with exit code $exitCode: $message")
 
     /**
@@ -81,7 +81,7 @@ class KopiaCliRunner(
     suspend fun run(
         vararg args: String,
         timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
-        workingDir: Path? = null
+        workingDir: Path? = null,
     ): CommandResult = withContext(Dispatchers.IO) {
         val command = mutableListOf(kopiaBinary.toString())
         command.addAll(args)
@@ -134,16 +134,14 @@ class KopiaCliRunner(
         CommandResult(
             exitCode = process.exitValue(),
             stdout = stdoutResult,
-            stderr = stderrResult
+            stderr = stderrResult,
         )
     }
 
     /**
      * Gets Kopia version information.
      */
-    suspend fun version(): String {
-        return run("--version").requireSuccess().stdout.trim()
-    }
+    suspend fun version(): String = run("--version").requireSuccess().stdout.trim()
 
     /**
      * Creates a new repository.
@@ -152,51 +150,47 @@ class KopiaCliRunner(
         repoPath: Path,
         password: String,
         blockHashAlgorithm: String = "BLAKE2B-256-128",
-        encryptionAlgorithm: String = "AES256-GCM-HMAC-SHA256"
-    ): CommandResult {
-        return run(
-            "repository", "create", "filesystem",
-            "--path=${repoPath}",
-            "--password=${password}",
-            "--block-hash=${blockHashAlgorithm}",
-            "--encryption=${encryptionAlgorithm}"
-        ).requireSuccess()
-    }
+        encryptionAlgorithm: String = "AES256-GCM-HMAC-SHA256",
+    ): CommandResult = run(
+        "repository",
+        "create",
+        "filesystem",
+        "--path=$repoPath",
+        "--password=$password",
+        "--block-hash=$blockHashAlgorithm",
+        "--encryption=$encryptionAlgorithm",
+    ).requireSuccess()
 
     /**
      * Connects to an existing repository.
      */
     suspend fun repositoryConnect(
         repoPath: Path,
-        password: String
-    ): CommandResult {
-        return run(
-            "repository", "connect", "filesystem",
-            "--path=${repoPath}",
-            "--password=${password}"
-        ).requireSuccess()
-    }
+        password: String,
+    ): CommandResult = run(
+        "repository",
+        "connect",
+        "filesystem",
+        "--path=$repoPath",
+        "--password=$password",
+    ).requireSuccess()
 
     /**
      * Disconnects from the repository.
      */
-    suspend fun repositoryDisconnect(): CommandResult {
-        return run("repository", "disconnect")
-    }
+    suspend fun repositoryDisconnect(): CommandResult = run("repository", "disconnect")
 
     /**
      * Gets repository status.
      */
-    suspend fun repositoryStatus(): CommandResult {
-        return run("repository", "status", "--json")
-    }
+    suspend fun repositoryStatus(): CommandResult = run("repository", "status", "--json")
 
     /**
      * Creates a snapshot of a source directory.
      */
     suspend fun snapshotCreate(
         sourcePath: Path,
-        tags: Map<String, String> = emptyMap()
+        tags: Map<String, String> = emptyMap(),
     ): SnapshotInfo {
         val args = mutableListOf("snapshot", "create", sourcePath.toString(), "--json")
         tags.forEach { (key, value) ->
@@ -215,7 +209,7 @@ class KopiaCliRunner(
      */
     suspend fun snapshotList(
         sourcePath: Path? = null,
-        all: Boolean = false
+        all: Boolean = false,
     ): List<SnapshotListEntry> {
         val args = mutableListOf("snapshot", "list", "--json")
         if (sourcePath != null) {
@@ -236,21 +230,20 @@ class KopiaCliRunner(
      */
     suspend fun snapshotRestore(
         snapshotId: String,
-        targetPath: Path
-    ): CommandResult {
-        return run(
-            "snapshot", "restore",
-            snapshotId,
-            targetPath.toString()
-        ).requireSuccess()
-    }
+        targetPath: Path,
+    ): CommandResult = run(
+        "snapshot",
+        "restore",
+        snapshotId,
+        targetPath.toString(),
+    ).requireSuccess()
 
     /**
      * Deletes a snapshot.
      */
     suspend fun snapshotDelete(
         snapshotId: String,
-        confirm: Boolean = true
+        confirm: Boolean = true,
     ): CommandResult {
         val args = mutableListOf("snapshot", "delete", snapshotId)
         if (confirm) {
@@ -262,9 +255,7 @@ class KopiaCliRunner(
     /**
      * Lists all content in the repository.
      */
-    suspend fun contentList(): CommandResult {
-        return run("content", "list")
-    }
+    suspend fun contentList(): CommandResult = run("content", "list")
 
     /**
      * Verifies repository integrity.
@@ -280,9 +271,7 @@ class KopiaCliRunner(
     /**
      * Gets blob stats.
      */
-    suspend fun blobStats(): CommandResult {
-        return run("blob", "stats")
-    }
+    suspend fun blobStats(): CommandResult = run("blob", "stats")
 }
 
 /**
@@ -292,27 +281,27 @@ class KopiaCliRunner(
 data class SnapshotInfo(
     val id: String? = null,
     val source: SourceInfo? = null,
-    val rootEntry: RootEntryInfo? = null
+    val rootEntry: RootEntryInfo? = null,
 )
 
 @Serializable
 data class SourceInfo(
     val host: String? = null,
     val userName: String? = null,
-    val path: String? = null
+    val path: String? = null,
 )
 
 @Serializable
 data class RootEntryInfo(
     val obj: String? = null,
-    val summ: SummaryInfo? = null
+    val summ: SummaryInfo? = null,
 )
 
 @Serializable
 data class SummaryInfo(
     val size: Long = 0,
     val files: Long = 0,
-    val dirs: Long = 0
+    val dirs: Long = 0,
 )
 
 /**
@@ -324,5 +313,5 @@ data class SnapshotListEntry(
     val source: SourceInfo? = null,
     val startTime: String? = null,
     val endTime: String? = null,
-    val rootEntry: RootEntryInfo? = null
+    val rootEntry: RootEntryInfo? = null,
 )

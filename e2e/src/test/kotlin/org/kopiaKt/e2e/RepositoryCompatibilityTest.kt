@@ -2,7 +2,6 @@ package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -247,7 +246,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
                 // Write a test manifest
                 val labels = mapOf(
                     "type" to "test",
-                    "name" to "e2e-test-manifest"
+                    "name" to "e2e-test-manifest",
                 )
                 val content = "test-payload"
 
@@ -284,7 +283,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
                 repeat(3) { i ->
                     val labels = mapOf(
                         "type" to "test",
-                        "index" to i.toString()
+                        "index" to i.toString(),
                     )
                     repo.putManifest(labels, "content $i", String.serializer())
                 }

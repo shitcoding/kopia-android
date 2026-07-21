@@ -200,13 +200,15 @@ class InUseContentSetTest {
 
         // Spawn multiple threads that add and check elements
         for (t in 0 until 10) {
-            threads.add(Thread {
-                for (i in 0 until 100) {
-                    val id = ContentId.parse(String.format("%032x", t * 1000 + i))
-                    set.add(id)
-                    assertThat(set.contains(id)).isTrue()
-                }
-            })
+            threads.add(
+                Thread {
+                    for (i in 0 until 100) {
+                        val id = ContentId.parse(String.format("%032x", t * 1000 + i))
+                        set.add(id)
+                        assertThat(set.contains(id)).isTrue()
+                    }
+                },
+            )
         }
 
         threads.forEach { it.start() }

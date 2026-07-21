@@ -31,7 +31,7 @@ object CorruptionHelpers {
             "4 bytes" to 4,
             "8 bytes" to 8,
             "midpoint" to data.size / 2,
-            "missing last byte" to (data.size - 1)
+            "missing last byte" to (data.size - 1),
         )
         for ((desc, length) in offsets) {
             if (length in 0..data.size) {

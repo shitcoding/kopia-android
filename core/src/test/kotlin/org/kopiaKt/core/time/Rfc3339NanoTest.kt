@@ -10,8 +10,7 @@ import java.time.Instant
  */
 class Rfc3339NanoTest {
 
-    private fun at(nanos: Long) =
-        formatRfc3339Nano(Instant.parse("2024-01-15T10:30:00Z").plusNanos(nanos))
+    private fun at(nanos: Long) = formatRfc3339Nano(Instant.parse("2024-01-15T10:30:00Z").plusNanos(nanos))
 
     @Test
     fun `trims trailing zeros and omits the fraction when nanos is zero`() {
@@ -32,7 +31,7 @@ class Rfc3339NanoTest {
         // Instant.nano is always in [0, 999999999], even for negative epoch seconds.
         assertEquals(
             "1969-12-31T23:59:59.5Z",
-            formatRfc3339Nano(Instant.ofEpochSecond(-1, 500_000_000))
+            formatRfc3339Nano(Instant.ofEpochSecond(-1, 500_000_000)),
         )
     }
 }

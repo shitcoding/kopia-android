@@ -32,7 +32,7 @@ class ObjectId private constructor(
     /**
      * Whether the content is compressed.
      */
-    val isCompressed: Boolean
+    val isCompressed: Boolean,
 ) {
     init {
         require(indirection >= 0) { "indirection must be non-negative" }
@@ -167,7 +167,7 @@ class ObjectId private constructor(
             // Validate mutual exclusivity
             if (indirection > 0 && isCompressed) {
                 throw IllegalArgumentException(
-                    "malformed object ID - compression and indirection are mutually exclusive"
+                    "malformed object ID - compression and indirection are mutually exclusive",
                 )
             }
 
@@ -183,9 +183,7 @@ class ObjectId private constructor(
          * @param contentId The content ID
          * @return A direct ObjectId (no indirection, no compression)
          */
-        fun direct(contentId: ContentId): ObjectId {
-            return ObjectId(contentId, 0, false)
-        }
+        fun direct(contentId: ContentId): ObjectId = ObjectId(contentId, 0, false)
 
         /**
          * Creates a compressed object ID from a content ID.
@@ -193,9 +191,7 @@ class ObjectId private constructor(
          * @param contentId The content ID
          * @return A compressed ObjectId (no indirection)
          */
-        fun compressed(contentId: ContentId): ObjectId {
-            return ObjectId(contentId, 0, true)
-        }
+        fun compressed(contentId: ContentId): ObjectId = ObjectId(contentId, 0, true)
 
         /**
          * Creates an indirect object ID from a content ID.

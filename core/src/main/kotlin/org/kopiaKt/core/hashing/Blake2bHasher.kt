@@ -15,7 +15,7 @@ import org.bouncycastle.crypto.digests.Blake2bDigest
  */
 class Blake2bHasher(
     override val algorithm: HashAlgorithm,
-    private val key: ByteArray
+    private val key: ByteArray,
 ) : ContentHasher {
 
     init {

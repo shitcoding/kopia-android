@@ -43,7 +43,7 @@ data class KopiaRepositoryJson(
     /** Encrypted repository configuration. */
     @SerialName("encryptedBlockFormat")
     @Serializable(with = ByteArrayBase64Serializer::class)
-    val encryptedBlockFormat: ByteArray = ByteArray(0)
+    val encryptedBlockFormat: ByteArray = ByteArray(0),
 ) {
     /**
      * Derives the format encryption key from a password.
@@ -51,14 +51,12 @@ data class KopiaRepositoryJson(
      * @param password The repository password
      * @return 32-byte encryption key
      */
-    fun deriveFormatEncryptionKeyFromPassword(password: String): ByteArray {
-        return deriveKeyFromPassword(
-            password = password,
-            salt = uniqueID,
-            keyLength = FORMAT_BLOB_ENCRYPTION_KEY_SIZE,
-            algorithm = keyDerivationAlgorithm
-        )
-    }
+    fun deriveFormatEncryptionKeyFromPassword(password: String): ByteArray = deriveKeyFromPassword(
+        password = password,
+        salt = uniqueID,
+        keyLength = FORMAT_BLOB_ENCRYPTION_KEY_SIZE,
+        algorithm = keyDerivationAlgorithm,
+    )
 
     /**
      * Decrypts the repository configuration using the master key.
@@ -75,7 +73,7 @@ data class KopiaRepositoryJson(
         val plainText = decryptRepositoryBlobBytesAes256Gcm(
             encryptedBlockFormat,
             masterKey,
-            uniqueID
+            uniqueID,
         ) ?: throw IllegalStateException("Unable to decrypt repository format")
 
         val erc = json.decodeFromString<EncryptedRepositoryConfig>(plainText.decodeToString())
@@ -98,7 +96,7 @@ data class KopiaRepositoryJson(
         val encrypted = encryptRepositoryBlobBytesAes256Gcm(
             data.toByteArray(Charsets.UTF_8),
             masterKey,
-            uniqueID
+            uniqueID,
         )
 
         return copy(encryptedBlockFormat = encrypted)
@@ -156,9 +154,7 @@ data class KopiaRepositoryJson(
          * @param data The raw blob data
          * @return Parsed KopiaRepositoryJson
          */
-        fun parse(data: ByteArray): KopiaRepositoryJson {
-            return json.decodeFromString(data.decodeToString())
-        }
+        fun parse(data: ByteArray): KopiaRepositoryJson = json.decodeFromString(data.decodeToString())
 
         /**
          * Creates a new KopiaRepositoryJson for a new repository.
@@ -169,7 +165,7 @@ data class KopiaRepositoryJson(
          */
         fun create(
             buildVersion: String = "",
-            keyDerivationAlgorithm: String = DEFAULT_KEY_DERIVATION_ALGORITHM
+            keyDerivationAlgorithm: String = DEFAULT_KEY_DERIVATION_ALGORITHM,
         ): KopiaRepositoryJson {
             val uniqueID = ByteArray(32)
             SecureRandom().nextBytes(uniqueID)
@@ -177,16 +173,14 @@ data class KopiaRepositoryJson(
             return KopiaRepositoryJson(
                 buildVersion = buildVersion,
                 uniqueID = uniqueID,
-                keyDerivationAlgorithm = keyDerivationAlgorithm
+                keyDerivationAlgorithm = keyDerivationAlgorithm,
             )
         }
 
         /**
          * Serializes this to JSON bytes.
          */
-        fun KopiaRepositoryJson.toJson(): ByteArray {
-            return jsonWriter.encodeToString(this).toByteArray(Charsets.UTF_8)
-        }
+        fun KopiaRepositoryJson.toJson(): ByteArray = jsonWriter.encodeToString(this).toByteArray(Charsets.UTF_8)
     }
 }
 
@@ -221,14 +215,14 @@ private fun deriveAesKeyAndAuthData(masterKey: ByteArray, salt: ByteArray): Pair
         masterKey = masterKey,
         salt = salt,
         info = PURPOSE_AES_KEY.toByteArray(Charsets.UTF_8),
-        length = HKDF_KEY_LENGTH
+        length = HKDF_KEY_LENGTH,
     )
 
     val authData = hkdf.derive(
         masterKey = masterKey,
         salt = salt,
         info = PURPOSE_AUTH_DATA.toByteArray(Charsets.UTF_8),
-        length = HKDF_KEY_LENGTH
+        length = HKDF_KEY_LENGTH,
     )
 
     return aesKey to authData
@@ -248,7 +242,7 @@ private fun deriveAesKeyAndAuthData(masterKey: ByteArray, salt: ByteArray): Pair
 private fun decryptRepositoryBlobBytesAes256Gcm(
     ciphertext: ByteArray,
     masterKey: ByteArray,
-    salt: ByteArray
+    salt: ByteArray,
 ): ByteArray? {
     if (ciphertext.size < GCM_NONCE_SIZE) {
         return null
@@ -287,7 +281,7 @@ private fun decryptRepositoryBlobBytesAes256Gcm(
 private fun encryptRepositoryBlobBytesAes256Gcm(
     plaintext: ByteArray,
     masterKey: ByteArray,
-    salt: ByteArray
+    salt: ByteArray,
 ): ByteArray {
     // Derive AES key and auth data using HKDF (matching Go Kopia)
     val (aesKey, authData) = deriveAesKeyAndAuthData(masterKey, salt)

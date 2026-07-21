@@ -51,7 +51,7 @@ data class IndirectObjectEntry(
     val length: Long,
 
     @SerialName("o")
-    val objectId: ObjectIdJson
+    val objectId: ObjectIdJson,
 ) {
     /**
      * Returns the end offset (exclusive) of this entry.
@@ -62,13 +62,11 @@ data class IndirectObjectEntry(
         /**
          * Creates an entry from the given parameters.
          */
-        fun create(start: Long, length: Long, objectId: ObjectId): IndirectObjectEntry {
-            return IndirectObjectEntry(
-                start = start,
-                length = length,
-                objectId = ObjectIdJson(objectId.toString())
-            )
-        }
+        fun create(start: Long, length: Long, objectId: ObjectId): IndirectObjectEntry = IndirectObjectEntry(
+            start = start,
+            length = length,
+            objectId = ObjectIdJson(objectId.toString()),
+        )
     }
 }
 
@@ -109,7 +107,7 @@ data class IndirectObject(
     val streamId: String = INDIRECT_STREAM_ID,
 
     @SerialName("entries")
-    val entries: List<IndirectObjectEntry>
+    val entries: List<IndirectObjectEntry>,
 ) {
     init {
         require(streamId == INDIRECT_STREAM_ID) {
@@ -120,9 +118,7 @@ data class IndirectObject(
     /**
      * Calculates the total length of all entries.
      */
-    fun totalLength(): Long {
-        return if (entries.isEmpty()) 0L else entries.last().endOffset()
-    }
+    fun totalLength(): Long = if (entries.isEmpty()) 0L else entries.last().endOffset()
 
     companion object {
         private val json = Json {
@@ -135,9 +131,7 @@ data class IndirectObject(
         /**
          * Creates an IndirectObject from the given entries.
          */
-        fun create(entries: List<IndirectObjectEntry>): IndirectObject {
-            return IndirectObject(entries = entries)
-        }
+        fun create(entries: List<IndirectObjectEntry>): IndirectObject = IndirectObject(entries = entries)
 
         /**
          * Serializes the indirect object to JSON bytes.
@@ -145,9 +139,7 @@ data class IndirectObject(
          * @param obj The indirect object to serialize
          * @return JSON bytes matching Go's format
          */
-        fun encode(obj: IndirectObject): ByteArray {
-            return json.encodeToString(IndirectObject.serializer(), obj).toByteArray()
-        }
+        fun encode(obj: IndirectObject): ByteArray = json.encodeToString(IndirectObject.serializer(), obj).toByteArray()
 
         /**
          * Deserializes an indirect object from JSON bytes.
@@ -156,8 +148,6 @@ data class IndirectObject(
          * @return The parsed indirect object
          * @throws kotlinx.serialization.SerializationException if parsing fails
          */
-        fun decode(data: ByteArray): IndirectObject {
-            return json.decodeFromString(IndirectObject.serializer(), data.decodeToString())
-        }
+        fun decode(data: ByteArray): IndirectObject = json.decodeFromString(IndirectObject.serializer(), data.decodeToString())
     }
 }

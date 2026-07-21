@@ -1,8 +1,6 @@
 package org.kopiaKt.android.system
 
 import android.content.Context
-import android.content.Intent
-import android.os.BatteryManager
 import android.os.PowerManager
 import android.provider.Settings
 import com.google.common.truth.Truth.assertThat
@@ -12,7 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowPowerManager
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
@@ -108,7 +105,7 @@ class BatteryOptimizationCheckerTest {
     fun `checkBackupConstraints satisfied when no constraints`() {
         val result = checker.checkBackupConstraints(
             requireCharging = false,
-            requireBatteryNotLow = false
+            requireBatteryNotLow = false,
         )
 
         // With power save mode off, should be satisfied
@@ -117,7 +114,7 @@ class BatteryOptimizationCheckerTest {
 
         val result2 = checker.checkBackupConstraints(
             requireCharging = false,
-            requireBatteryNotLow = false
+            requireBatteryNotLow = false,
         )
 
         assertThat(result2.satisfied).isTrue()
@@ -131,7 +128,7 @@ class BatteryOptimizationCheckerTest {
 
         val result = checker.checkBackupConstraints(
             requireCharging = false,
-            requireBatteryNotLow = false
+            requireBatteryNotLow = false,
         )
 
         assertThat(result.satisfied).isFalse()
@@ -169,7 +166,7 @@ class BatteryStateTest {
             isLow = false,
             isPowerSaveMode = false,
             isDeviceIdle = false,
-            isExemptFromOptimization = true
+            isExemptFromOptimization = true,
         )
 
         assertThat(state.level).isEqualTo(50)
@@ -188,7 +185,7 @@ class BatteryStateTest {
             isLow = true,
             isPowerSaveMode = true,
             isDeviceIdle = false,
-            isExemptFromOptimization = false
+            isExemptFromOptimization = false,
         )
 
         assertThat(state.level).isEqualTo(10)
@@ -206,7 +203,7 @@ class ConstraintCheckResultTest {
     fun `satisfied result has no violations`() {
         val result = ConstraintCheckResult(
             satisfied = true,
-            violations = emptyList()
+            violations = emptyList(),
         )
 
         assertThat(result.satisfied).isTrue()
@@ -217,7 +214,7 @@ class ConstraintCheckResultTest {
     fun `unsatisfied result has violations`() {
         val result = ConstraintCheckResult(
             satisfied = false,
-            violations = listOf("Battery too low", "Not charging")
+            violations = listOf("Battery too low", "Not charging"),
         )
 
         assertThat(result.satisfied).isFalse()

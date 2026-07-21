@@ -16,8 +16,8 @@ import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
 import java.time.Duration
 import java.time.Instant
-import kotlin.io.path.getPosixFilePermissions
 import kotlin.io.path.getLastModifiedTime
+import kotlin.io.path.getPosixFilePermissions
 
 @DisplayName("Metadata Fidelity Tests")
 @DisabledOnOs(OS.WINDOWS)
@@ -44,25 +44,25 @@ class MetadataFidelityTest {
         name: String,
         size: Long,
         permissions: Int = 420, // 0o644
-        modTime: Instant = Instant.now()
+        modTime: Instant = Instant.now(),
     ) = DirEntry(
         name = name.substringAfterLast('/'),
         type = EntryType.FILE,
         permissions = permissions,
         fileSize = size,
-        modTime = modTime
+        modTime = modTime,
     )
 
     private fun makeDirEntry(
         name: String,
         permissions: Int = 493, // 0o755
-        modTime: Instant = Instant.now()
+        modTime: Instant = Instant.now(),
     ) = DirEntry(
         name = name.substringAfterLast('/'),
         type = EntryType.DIRECTORY,
         permissions = permissions,
         fileSize = 0,
-        modTime = modTime
+        modTime = modTime,
     )
 
     @Nested
@@ -84,7 +84,7 @@ class MetadataFidelityTest {
                 PosixFilePermission.OWNER_READ,
                 PosixFilePermission.OWNER_WRITE,
                 PosixFilePermission.GROUP_READ,
-                PosixFilePermission.OTHERS_READ
+                PosixFilePermission.OTHERS_READ,
             )
 
             assertThat(actualPermissions).isEqualTo(expectedPermissions)
@@ -108,7 +108,7 @@ class MetadataFidelityTest {
                 PosixFilePermission.GROUP_READ,
                 PosixFilePermission.GROUP_EXECUTE,
                 PosixFilePermission.OTHERS_READ,
-                PosixFilePermission.OTHERS_EXECUTE
+                PosixFilePermission.OTHERS_EXECUTE,
             )
 
             assertThat(actualPermissions).isEqualTo(expectedPermissions)
@@ -127,7 +127,7 @@ class MetadataFidelityTest {
 
             val expectedPermissions = setOf(
                 PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE
+                PosixFilePermission.OWNER_WRITE,
             )
 
             assertThat(actualPermissions).isEqualTo(expectedPermissions)
@@ -146,7 +146,7 @@ class MetadataFidelityTest {
             val entry = makeFileEntry(
                 "timestamped.txt",
                 content.size.toLong(),
-                modTime = expectedModTime
+                modTime = expectedModTime,
             )
 
             output.writeFile("timestamped.txt", entry, content.inputStream())
@@ -188,7 +188,7 @@ class MetadataFidelityTest {
                 PosixFilePermission.GROUP_READ,
                 PosixFilePermission.GROUP_EXECUTE,
                 PosixFilePermission.OTHERS_READ,
-                PosixFilePermission.OTHERS_EXECUTE
+                PosixFilePermission.OTHERS_EXECUTE,
             )
 
             assertThat(actualPermissions).isEqualTo(expectedPermissions)

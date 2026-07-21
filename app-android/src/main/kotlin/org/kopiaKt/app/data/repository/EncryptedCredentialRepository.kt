@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Singleton
 class EncryptedCredentialRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
 ) : CredentialRepository {
 
     private val masterKey by lazy {
@@ -25,7 +25,7 @@ class EncryptedCredentialRepository @Inject constructor(
             "kopia_credentials",
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
     }
 
@@ -35,9 +35,7 @@ class EncryptedCredentialRepository @Inject constructor(
             .apply()
     }
 
-    override suspend fun getPassword(connectionId: String): String? {
-        return sharedPreferences.getString(keyForConnection(connectionId), null)
-    }
+    override suspend fun getPassword(connectionId: String): String? = sharedPreferences.getString(keyForConnection(connectionId), null)
 
     override suspend fun deletePassword(connectionId: String) {
         sharedPreferences.edit()
@@ -45,9 +43,7 @@ class EncryptedCredentialRepository @Inject constructor(
             .apply()
     }
 
-    override suspend fun hasPassword(connectionId: String): Boolean {
-        return sharedPreferences.contains(keyForConnection(connectionId))
-    }
+    override suspend fun hasPassword(connectionId: String): Boolean = sharedPreferences.contains(keyForConnection(connectionId))
 
     private fun keyForConnection(connectionId: String): String = "password_$connectionId"
 }

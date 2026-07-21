@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class BackupWorker(
     context: Context,
-    params: WorkerParameters
+    params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
 
     private val notificationManager: BackupNotificationManager by lazy {
@@ -74,12 +74,12 @@ class BackupWorker(
         // Parse input data
         val sourceId = inputData.getString(KEY_SOURCE_ID)
             ?: return@withContext Result.failure(
-                workDataOf(KEY_ERROR to "Missing source ID")
+                workDataOf(KEY_ERROR to "Missing source ID"),
             )
 
         val sourcePath = inputData.getString(KEY_SOURCE_PATH)
             ?: return@withContext Result.failure(
-                workDataOf(KEY_ERROR to "Missing source path")
+                workDataOf(KEY_ERROR to "Missing source path"),
             )
 
         val configJson = inputData.getString(KEY_CONFIG)
@@ -127,7 +127,7 @@ class BackupWorker(
                     sourceId = sourceId,
                     sourcePath = sourcePath,
                     config = config,
-                    existingCheckpoint = existingCheckpoint
+                    existingCheckpoint = existingCheckpoint,
                 )
             } finally {
                 progressJob.cancel()
@@ -140,22 +140,22 @@ class BackupWorker(
                         sourceId = sourceId,
                         sourcePath = sourcePath,
                         counters = result.counters,
-                        durationMillis = result.durationMillis
+                        durationMillis = result.durationMillis,
                     )
                     Result.success(
                         workDataOf(
                             KEY_MANIFEST_ID to result.manifestId.value,
                             KEY_FILES_COUNT to (result.counters.totalCachedFiles + result.counters.totalHashedFiles),
                             KEY_BYTES_TOTAL to (result.counters.totalCachedBytes + result.counters.totalHashedBytes),
-                            KEY_DURATION_MILLIS to result.durationMillis
-                        )
+                            KEY_DURATION_MILLIS to result.durationMillis,
+                        ),
                     )
                 }
 
                 is BackupSessionResult.Cancelled -> {
                     // Don't show error for cancellation
                     Result.failure(
-                        workDataOf(KEY_ERROR to "Backup cancelled")
+                        workDataOf(KEY_ERROR to "Backup cancelled"),
                     )
                 }
 
@@ -166,7 +166,7 @@ class BackupWorker(
                     } else {
                         showErrorNotification(sourceId, sourcePath, result.error.message ?: "Unknown error")
                         Result.failure(
-                            workDataOf(KEY_ERROR to result.error.message)
+                            workDataOf(KEY_ERROR to result.error.message),
                         )
                     }
                 }
@@ -188,7 +188,7 @@ class BackupWorker(
         sourceId: String,
         sourcePath: String,
         config: BackupWorkerConfig,
-        existingCheckpoint: BackupCheckpoint?
+        existingCheckpoint: BackupCheckpoint?,
     ): BackupSessionResult {
         // Get repository from the repository provider
         // Note: In a real implementation, this would come from a RepositoryProvider
@@ -205,8 +205,8 @@ class BackupWorker(
             forceHashPercentage = config.forceHashPercentage,
             checkpointOptions = CheckpointOptions(
                 intervalMillis = config.checkpointIntervalMillis,
-                minBytesBeforeCheckpoint = config.minBytesBeforeCheckpoint
-            )
+                minBytesBeforeCheckpoint = config.minBytesBeforeCheckpoint,
+            ),
         )
 
         val callback = object : BackupSessionCallback {
@@ -230,7 +230,7 @@ class BackupWorker(
             config = sessionConfig,
             checkpointStore = checkpointStore,
             callback = callback,
-            context = applicationContext
+            context = applicationContext,
         )
         // Publish the running session so a Cancel tap (BackupCancelReceiver, same process) can route through
         // BackupSession.cancel() cooperatively -- WorkManager makes CoroutineWorker.onStopped final, so the
@@ -244,9 +244,7 @@ class BackupWorker(
         }
     }
 
-    private fun getRepository(): DirectRepository? {
-        return repositoryProvider?.invoke(applicationContext)
-    }
+    private fun getRepository(): DirectRepository? = repositoryProvider?.invoke(applicationContext)
 
     /**
      * Periodically refreshes the foreground notification with the latest progress. Time-throttled to one
@@ -272,7 +270,7 @@ class BackupWorker(
     private fun buildProgressForegroundInfo(
         notificationId: Int,
         sourcePath: String,
-        counters: UploadCounters?
+        counters: UploadCounters?,
     ): ForegroundInfo {
         val notification = if (counters == null) {
             notificationManager.buildProgressNotification(
@@ -280,7 +278,7 @@ class BackupWorker(
                 sourcePath = sourcePath,
                 currentFile = null,
                 progress = null,
-                cancelIntent = cancelPendingIntent
+                cancelIntent = cancelPendingIntent,
             )
         } else {
             notificationManager.buildProgressNotification(
@@ -291,7 +289,7 @@ class BackupWorker(
                 processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
                 totalBytes = counters.estimatedBytes,
                 processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
-                cancelIntent = cancelPendingIntent
+                cancelIntent = cancelPendingIntent,
             )
         }
 
@@ -299,7 +297,7 @@ class BackupWorker(
             ForegroundInfo(
                 notificationId,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         } else {
             ForegroundInfo(notificationId, notification)
@@ -324,13 +322,13 @@ class BackupWorker(
         sourceId: String,
         sourcePath: String,
         counters: UploadCounters,
-        durationMillis: Long
+        durationMillis: Long,
     ) {
         val notification = notificationManager.buildCompletionNotification(
             sourcePath = sourcePath,
             filesCount = counters.totalCachedFiles + counters.totalHashedFiles,
             totalBytes = counters.totalCachedBytes + counters.totalHashedBytes,
-            duration = durationMillis
+            duration = durationMillis,
         )
         notificationManager.notify(BackupNotificationIds.completionForSource(sourceId), notification)
     }
@@ -338,7 +336,7 @@ class BackupWorker(
     private fun showErrorNotification(sourceId: String, sourcePath: String, errorMessage: String) {
         val notification = notificationManager.buildErrorNotification(
             sourcePath = sourcePath,
-            errorMessage = errorMessage
+            errorMessage = errorMessage,
         )
         notificationManager.notify(BackupNotificationIds.errorForSource(sourceId), notification)
     }
@@ -352,7 +350,7 @@ class BackupWorker(
             applicationContext,
             sourceId.hashCode(),
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
@@ -401,7 +399,7 @@ class BackupWorker(
             sourcePath: String,
             config: BackupWorkerConfig = BackupWorkerConfig(),
             constraints: BackupConstraints = BackupConstraints(),
-            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync
+            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync,
         ) {
             val workConstraints = constraints.toWorkConstraints()
 
@@ -419,7 +417,7 @@ class BackupWorker(
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     BACKOFF_DELAY_MINUTES,
-                    TimeUnit.MINUTES
+                    TimeUnit.MINUTES,
                 )
                 .build()
 
@@ -427,7 +425,7 @@ class BackupWorker(
                 .enqueueUniqueWork(
                     "$UNIQUE_WORK_PREFIX$sourceId",
                     ExistingWorkPolicy.REPLACE,
-                    request
+                    request,
                 )
         }
 
@@ -449,7 +447,7 @@ class BackupWorker(
             intervalHours: Long,
             config: BackupWorkerConfig = BackupWorkerConfig(),
             constraints: BackupConstraints = BackupConstraints(),
-            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync
+            @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync,
         ) {
             val workConstraints = constraints.toWorkConstraints()
 
@@ -462,7 +460,7 @@ class BackupWorker(
 
             val request = PeriodicWorkRequestBuilder<BackupWorker>(
                 intervalHours,
-                TimeUnit.HOURS
+                TimeUnit.HOURS,
             )
                 .addTag(UNIQUE_WORK_PREFIX) // so cancelAll (cancelAllWorkByTag) actually matches this work
                 .setInputData(inputData)
@@ -470,7 +468,7 @@ class BackupWorker(
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     BACKOFF_DELAY_MINUTES,
-                    TimeUnit.MINUTES
+                    TimeUnit.MINUTES,
                 )
                 .build()
 
@@ -478,7 +476,7 @@ class BackupWorker(
                 .enqueueUniquePeriodicWork(
                     "${UNIQUE_WORK_PREFIX}periodic_$sourceId",
                     ExistingPeriodicWorkPolicy.UPDATE,
-                    request
+                    request,
                 )
         }
 
@@ -502,9 +500,8 @@ class BackupWorker(
         /**
          * Gets the work info for a backup source.
          */
-        fun getWorkInfo(context: Context, sourceId: String) =
-            WorkManager.getInstance(context)
-                .getWorkInfosForUniqueWorkLiveData("$UNIQUE_WORK_PREFIX$sourceId")
+        fun getWorkInfo(context: Context, sourceId: String) = WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkLiveData("$UNIQUE_WORK_PREFIX$sourceId")
     }
 }
 
@@ -529,7 +526,7 @@ data class BackupWorkerConfig(
     val checkpointIntervalMillis: Long = CheckpointOptions.DEFAULT_CHECKPOINT_INTERVAL_MILLIS,
 
     /** Minimum bytes before creating first checkpoint. */
-    val minBytesBeforeCheckpoint: Long = CheckpointOptions.DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT
+    val minBytesBeforeCheckpoint: Long = CheckpointOptions.DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT,
 )
 
 /**
@@ -559,19 +556,18 @@ data class BackupConstraints(
     /**
      * Require sufficient storage space.
      */
-    val requiresStorageNotLow: Boolean = true
+    val requiresStorageNotLow: Boolean = true,
 )
 
 /**
  * Converts BackupConstraints to WorkManager Constraints.
  */
-internal fun BackupConstraints.toWorkConstraints(): Constraints =
-    Constraints.Builder()
-        .setRequiredNetworkType(
-            if (requiresWifi) NetworkType.UNMETERED else NetworkType.CONNECTED
-        )
-        .setRequiresCharging(requiresCharging)
-        .setRequiresBatteryNotLow(requiresBatteryNotLow)
-        .setRequiresDeviceIdle(requiresDeviceIdle)
-        .setRequiresStorageNotLow(requiresStorageNotLow)
-        .build()
+internal fun BackupConstraints.toWorkConstraints(): Constraints = Constraints.Builder()
+    .setRequiredNetworkType(
+        if (requiresWifi) NetworkType.UNMETERED else NetworkType.CONNECTED,
+    )
+    .setRequiresCharging(requiresCharging)
+    .setRequiresBatteryNotLow(requiresBatteryNotLow)
+    .setRequiresDeviceIdle(requiresDeviceIdle)
+    .setRequiresStorageNotLow(requiresStorageNotLow)
+    .build()

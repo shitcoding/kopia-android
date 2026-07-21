@@ -27,7 +27,7 @@ import java.io.ByteArrayOutputStream
  * @property version The pack index version to use (V1 or V2)
  */
 class IndexBlobBuilder(
-    private val version: Int = IndexVersion.V2
+    private val version: Int = IndexVersion.V2,
 ) {
     private val entries = mutableListOf<ContentInfo>()
 
@@ -115,7 +115,7 @@ class IndexBlobBuilder(
      */
     suspend fun buildWithGeneratedId(
         encryptor: Encryptor?,
-        hasher: (ByteArray) -> ByteArray
+        hasher: (ByteArray) -> ByteArray,
     ): Pair<BlobId, ByteArray> {
         // First build unencrypted to generate a hash-based ID
         val unencrypted = buildUnencrypted()

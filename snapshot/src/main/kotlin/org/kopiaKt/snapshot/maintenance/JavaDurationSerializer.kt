@@ -21,7 +21,5 @@ object JavaDurationSerializer : KSerializer<Duration> {
         encoder.encodeLong(value.toNanos())
     }
 
-    override fun deserialize(decoder: Decoder): Duration {
-        return Duration.ofNanos(decoder.decodeLong())
-    }
+    override fun deserialize(decoder: Decoder): Duration = Duration.ofNanos(decoder.decodeLong())
 }

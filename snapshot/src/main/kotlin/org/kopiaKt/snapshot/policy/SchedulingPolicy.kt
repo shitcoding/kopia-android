@@ -17,7 +17,7 @@ import java.time.ZoneId
 data class TimeOfDay(
     val hour: Int,
     @SerialName("min")
-    val minute: Int = 0
+    val minute: Int = 0,
 ) : Comparable<TimeOfDay> {
     init {
         require(hour in 0..23) { "Hour must be between 0 and 23, got $hour" }
@@ -48,9 +48,7 @@ data class TimeOfDay(
 /**
  * Sorts and deduplicates a list of times of day.
  */
-fun sortAndDedupeTimesOfDay(times: List<TimeOfDay>): List<TimeOfDay> {
-    return times.sortedWith(compareBy({ it.hour }, { it.minute })).distinct()
-}
+fun sortAndDedupeTimesOfDay(times: List<TimeOfDay>): List<TimeOfDay> = times.sortedWith(compareBy({ it.hour }, { it.minute })).distinct()
 
 /**
  * Scheduling policy describing when to schedule snapshots.
@@ -71,7 +69,7 @@ data class SchedulingPolicy(
 
     val cron: List<String> = emptyList(),
 
-    val runMissed: Boolean? = null
+    val runMissed: Boolean? = null,
 ) {
     /**
      * Returns the snapshot interval as a Duration.
@@ -144,7 +142,7 @@ data class SchedulingPolicy(
         for (tod in timesOfDay) {
             var localSnapshotTime = LocalDateTime.of(
                 nowLocal.toLocalDate(),
-                LocalTime.of(tod.hour, tod.minute)
+                LocalTime.of(tod.hour, tod.minute),
             )
 
             if (nowLocal.isAfter(localSnapshotTime)) {
@@ -214,7 +212,7 @@ data class SchedulingPolicy(
             cron = mergedCron,
             runMissed = mergeOptionalBool(runMissed, src.runMissed) {
                 newDef.runMissed = si
-            }
+            },
         ) to newDef
     }
 
@@ -223,7 +221,7 @@ data class SchedulingPolicy(
          * Default scheduling policy.
          */
         val Default = SchedulingPolicy(
-            runMissed = true
+            runMissed = true,
         )
     }
 }
@@ -239,7 +237,7 @@ data class SchedulingPolicyDefinition(
     var timesOfDay: SourceInfo? = null,
     var cron: SourceInfo? = null,
     var manual: SourceInfo? = null,
-    var runMissed: SourceInfo? = null
+    var runMissed: SourceInfo? = null,
 )
 
 /**
@@ -276,34 +274,26 @@ fun validateSchedulingPolicy(p: SchedulingPolicy): String? {
 /**
  * Strips comments from a cron expression.
  */
-fun stripCronComment(s: String): String {
-    return s.split("#", limit = 2)[0].trim()
-}
+fun stripCronComment(s: String): String = s.split("#", limit = 2)[0].trim()
 
 // Helper merge functions
-private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long {
-    return if (target == 0L && src != 0L) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long = if (target == 0L && src != 0L) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeBool(target: Boolean, src: Boolean, onMerge: () -> Unit): Boolean {
-    return if (!target && src) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeBool(target: Boolean, src: Boolean, onMerge: () -> Unit): Boolean = if (!target && src) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeOptionalBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeOptionalBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

@@ -19,15 +19,14 @@ enum class SizeBucket(val label: String, val minBytes: Long, val maxBytes: Long)
     FROM_1MB_TO_10MB("1 MB - 10 MB", 1_048_576, 10_485_760 - 1),
     FROM_10MB_TO_100MB("10 MB - 100 MB", 10_485_760, 104_857_600 - 1),
     FROM_100MB_TO_1GB("100 MB - 1 GB", 104_857_600, 1_073_741_824 - 1),
-    OVER_1GB("> 1 GB", 1_073_741_824, Long.MAX_VALUE);
+    OVER_1GB("> 1 GB", 1_073_741_824, Long.MAX_VALUE),
+    ;
 
     companion object {
         /**
          * Returns the bucket that a given file size falls into.
          */
-        fun forSize(bytes: Long): SizeBucket {
-            return entries.first { bytes in it.minBytes..it.maxBytes }
-        }
+        fun forSize(bytes: Long): SizeBucket = entries.first { bytes in it.minBytes..it.maxBytes }
     }
 }
 
@@ -51,7 +50,7 @@ data class EstimateResult(
     /** Number of entries that produced errors during estimation. */
     val errorCount: Int = 0,
     /** File count per size bucket. */
-    val sizeDistribution: Map<SizeBucket, Int> = emptyMap()
+    val sizeDistribution: Map<SizeBucket, Int> = emptyMap(),
 )
 
 /**
@@ -65,7 +64,7 @@ data class EstimateProgress(
     /** Directories visited so far. */
     val totalDirectories: Int,
     /** Current directory being scanned. */
-    val currentDirectory: String
+    val currentDirectory: String,
 )
 
 /**
@@ -93,7 +92,7 @@ object SnapshotEstimator {
     suspend fun estimate(
         root: Directory,
         policy: FilesPolicy? = null,
-        onProgress: ((EstimateProgress) -> Unit)? = null
+        onProgress: ((EstimateProgress) -> Unit)? = null,
     ): EstimateResult {
         val state = EstimationState()
         val effectiveRoot = if (policy != null) {
@@ -123,7 +122,7 @@ object SnapshotEstimator {
         policy: FilesPolicy?,
         relativePath: String,
         state: EstimationState,
-        onProgress: ((EstimateProgress) -> Unit)?
+        onProgress: ((EstimateProgress) -> Unit)?,
     ) {
         coroutineContext.ensureActive()
 
@@ -175,7 +174,7 @@ object SnapshotEstimator {
     private suspend fun countExcluded(
         rawDir: Directory,
         filteredDir: Directory,
-        state: EstimationState
+        state: EstimationState,
     ) {
         val rawEntries = rawDir.readEntries()
         val filteredNames = filteredDir.readEntries().map { it.name }.toSet()
@@ -212,9 +211,7 @@ object SnapshotEstimator {
         return count
     }
 
-    private fun joinPath(parent: String, child: String): String {
-        return if (parent.isEmpty()) child else "$parent/$child"
-    }
+    private fun joinPath(parent: String, child: String): String = if (parent.isEmpty()) child else "$parent/$child"
 }
 
 /**
@@ -243,13 +240,13 @@ private class EstimationState {
         excludedFiles = excludedFiles,
         excludedBytes = excludedBytes,
         errorCount = errorCount,
-        sizeDistribution = sizeDistribution.toMap()
+        sizeDistribution = sizeDistribution.toMap(),
     )
 
     fun toProgress(currentDirectory: String): EstimateProgress = EstimateProgress(
         totalFiles = totalFiles,
         totalBytes = totalBytes,
         totalDirectories = totalDirectories,
-        currentDirectory = currentDirectory
+        currentDirectory = currentDirectory,
     )
 }

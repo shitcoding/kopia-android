@@ -1,13 +1,10 @@
 package org.kopiaKt.e2e
 
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermissions
 import java.security.SecureRandom
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 import kotlin.io.path.createSymbolicLinkPointingTo
-import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
 
@@ -22,7 +19,7 @@ import kotlin.io.path.writeText
  * - Files with special characters in names
  */
 class TestDataGenerator(
-    private val random: SecureRandom = SecureRandom()
+    private val random: SecureRandom = SecureRandom(),
 ) {
 
     /**
@@ -73,7 +70,7 @@ class TestDataGenerator(
         for (i in 1..5) {
             createTextFile(
                 docsDir.resolve("document$i.txt"),
-                "Document $i content\n" + "Line ".repeat(i * 10)
+                "Document $i content\n" + "Line ".repeat(i * 10),
             ).let { files.add(it) }
         }
 
@@ -254,7 +251,7 @@ class TestDataGenerator(
     fun createLargeDirectory(
         root: Path,
         fileCount: Int = 100,
-        avgFileSize: Int = 10 * 1024
+        avgFileSize: Int = 10 * 1024,
     ): DirectoryInfo {
         root.createDirectories()
 
@@ -332,7 +329,7 @@ class TestDataGenerator(
         ONES,
         SEQUENTIAL,
         RANDOM,
-        COMPRESSIBLE
+        COMPRESSIBLE,
     }
 }
 
@@ -342,7 +339,7 @@ class TestDataGenerator(
 data class FileInfo(
     val path: Path,
     val size: Long,
-    val content: ByteArray
+    val content: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -364,7 +361,7 @@ data class FileInfo(
  */
 data class SymlinkInfo(
     val path: Path,
-    val target: String
+    val target: String,
 )
 
 /**
@@ -374,7 +371,7 @@ data class DirectoryInfo(
     val root: Path,
     val files: List<FileInfo>,
     val dirs: List<Path>,
-    val symlinks: List<SymlinkInfo>
+    val symlinks: List<SymlinkInfo>,
 ) {
     val totalSize: Long get() = files.sumOf { it.size }
     val fileCount: Int get() = files.size

@@ -1,7 +1,7 @@
 package org.kopiaKt.core.splitter
 
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class RabinKarp64Test {
 
@@ -115,7 +115,7 @@ class RabinKarp64Test {
     fun `Pol mod works correctly`() {
         // Some simple tests
         val p = Pol(0b110uL) // x^2 + x
-        val d = Pol(0b11uL)  // x + 1
+        val d = Pol(0b11uL) // x + 1
 
         // (x^2 + x) mod (x + 1) = 0
         // Because x^2 + x = x(x + 1), so mod (x+1) = 0
@@ -130,7 +130,7 @@ class RabinKarp64Test {
     @Test
     fun `Debug RabinKarp64Splitter finding first split point`() {
         // Use a small test with known data to see where splits happen
-        val avgSize = 8192  // 8K for faster testing
+        val avgSize = 8192 // 8K for faster testing
         val minSize = avgSize / 2
         val maxSize = avgSize * 2
         val mask = (avgSize - 1).toULong()

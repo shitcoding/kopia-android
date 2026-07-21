@@ -37,8 +37,8 @@ class InterruptedRestoreTest {
             FilesystemOutputOptions(
                 overwriteDirectories = true,
                 overwriteFiles = true,
-                overwriteSymlinks = true
-            )
+                overwriteSymlinks = true,
+            ),
         )
         progress = CountingRestoreProgress()
     }
@@ -60,7 +60,7 @@ class InterruptedRestoreTest {
         val restorer1 = SnapshotRestorer(
             output,
             options = RestoreOptions(parallel = 1),
-            progress = progress
+            progress = progress,
         )
         val job = async {
             restorer1.restore(rootDir)
@@ -76,14 +76,14 @@ class InterruptedRestoreTest {
             FilesystemOutputOptions(
                 overwriteDirectories = true,
                 overwriteFiles = true,
-                overwriteSymlinks = true
-            )
+                overwriteSymlinks = true,
+            ),
         )
         val progress2 = CountingRestoreProgress()
         val restorer2 = SnapshotRestorer(
             output2,
             options = RestoreOptions(parallel = 1),
-            progress = progress2
+            progress = progress2,
         )
         restorer2.restore(rootDir)
         output2.close()
@@ -109,7 +109,7 @@ class InterruptedRestoreTest {
         val restorer1 = SnapshotRestorer(
             output,
             options = RestoreOptions(parallel = 1),
-            progress = progress
+            progress = progress,
         )
         val job = async {
             restorer1.restore(rootDir)
@@ -125,14 +125,14 @@ class InterruptedRestoreTest {
             FilesystemOutputOptions(
                 overwriteDirectories = true,
                 overwriteFiles = true,
-                overwriteSymlinks = true
-            )
+                overwriteSymlinks = true,
+            ),
         )
         val progress2 = CountingRestoreProgress()
         val restorer2 = SnapshotRestorer(
             output2,
             options = RestoreOptions(parallel = 1),
-            progress = progress2
+            progress = progress2,
         )
         restorer2.restore(rootDir)
         output2.close()
@@ -162,8 +162,8 @@ class InterruptedRestoreTest {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
-                MockFile("important.txt", correctContent)
-            )
+                MockFile("important.txt", correctContent),
+            ),
         )
 
         // Restore with overwrite=true should replace the truncated file
@@ -195,7 +195,7 @@ class InterruptedRestoreTest {
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(incremental = true),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 

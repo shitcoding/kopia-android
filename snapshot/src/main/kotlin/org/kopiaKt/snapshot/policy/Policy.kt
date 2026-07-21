@@ -55,7 +55,7 @@ data class Policy(
     val uploadPolicy: UploadPolicy = UploadPolicy(),
 
     @SerialName("noParent")
-    val noParent: Boolean = false
+    val noParent: Boolean = false,
 ) {
     /**
      * Returns the globally unique identifier of the policy.
@@ -68,7 +68,7 @@ data class Policy(
     fun target(): SourceInfo = SourceInfo(
         host = labels["hostname"] ?: "",
         userName = labels["username"] ?: "",
-        path = labels["path"] ?: ""
+        path = labels["path"] ?: "",
     )
 
     companion object {
@@ -87,7 +87,7 @@ data class Policy(
          */
         fun labelsForSource(source: SourceInfo): Map<String, String> {
             val labels = mutableMapOf(
-                "type" to POLICY_TYPE
+                "type" to POLICY_TYPE,
             )
 
             if (source.host.isEmpty() && source.userName.isEmpty() && source.path.isEmpty()) {
@@ -149,7 +149,7 @@ data class PolicyDefinition(
     var loggingPolicy: LoggingPolicyDefinition = LoggingPolicyDefinition(),
 
     @SerialName("upload")
-    var uploadPolicy: UploadPolicyDefinition = UploadPolicyDefinition()
+    var uploadPolicy: UploadPolicyDefinition = UploadPolicyDefinition(),
 )
 
 /**
@@ -161,5 +161,5 @@ data class PolicyDefinition(
 data class TargetWithPolicy(
     val id: String,
     val target: SourceInfo,
-    val policy: Policy
+    val policy: Policy,
 )

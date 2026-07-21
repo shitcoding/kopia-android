@@ -13,7 +13,7 @@ import org.kopiaKt.core.format.KopiaRepositoryJson.Companion.toJson
  * - Encrypted repository configuration (hash, encryption, keys, etc.)
  */
 class FormatBlobManager(
-    private val storage: BlobStorage
+    private val storage: BlobStorage,
 ) {
     /**
      * Reads and parses the repository format blob.
@@ -75,7 +75,7 @@ class FormatBlobManager(
         return OpenRepositoryResult(
             formatJson = formatJson,
             config = config,
-            formatEncryptionKey = formatEncryptionKey
+            formatEncryptionKey = formatEncryptionKey,
         )
     }
 
@@ -93,7 +93,7 @@ class FormatBlobManager(
         password: String,
         config: RepositoryConfig,
         buildVersion: String = "",
-        keyDerivationAlgorithm: String = KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM
+        keyDerivationAlgorithm: String = KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM,
     ): CreateRepositoryResult {
         // Check if repository already exists
         try {
@@ -106,7 +106,7 @@ class FormatBlobManager(
         // Create format JSON
         var formatJson = KopiaRepositoryJson.create(
             buildVersion = buildVersion,
-            keyDerivationAlgorithm = keyDerivationAlgorithm
+            keyDerivationAlgorithm = keyDerivationAlgorithm,
         )
 
         // Derive encryption key
@@ -121,7 +121,7 @@ class FormatBlobManager(
         return CreateRepositoryResult(
             formatJson = formatJson,
             config = config,
-            formatEncryptionKey = formatEncryptionKey
+            formatEncryptionKey = formatEncryptionKey,
         )
     }
 
@@ -137,7 +137,7 @@ class FormatBlobManager(
     suspend fun changePassword(
         currentPassword: String,
         newPassword: String,
-        newKeyDerivationAlgorithm: String? = null
+        newKeyDerivationAlgorithm: String? = null,
     ) {
         // Open with current password
         val result = openRepository(currentPassword)
@@ -145,7 +145,7 @@ class FormatBlobManager(
         // Check if password change is supported
         if (!result.config.enablePasswordChange) {
             throw UnsupportedOperationException(
-                "Password change not supported for format version ${result.config.version}"
+                "Password change not supported for format version ${result.config.version}",
             )
         }
 
@@ -153,7 +153,7 @@ class FormatBlobManager(
         val newAlgorithm = newKeyDerivationAlgorithm ?: result.formatJson.keyDerivationAlgorithm
 
         var newFormatJson = result.formatJson.copy(
-            keyDerivationAlgorithm = newAlgorithm
+            keyDerivationAlgorithm = newAlgorithm,
         )
 
         // Re-encrypt with new password (keep same uniqueID for new key derivation)
@@ -183,7 +183,7 @@ class FormatBlobManager(
 data class OpenRepositoryResult(
     val formatJson: KopiaRepositoryJson,
     val config: RepositoryConfig,
-    val formatEncryptionKey: ByteArray
+    val formatEncryptionKey: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -208,7 +208,7 @@ data class OpenRepositoryResult(
 data class CreateRepositoryResult(
     val formatJson: KopiaRepositoryJson,
     val config: RepositoryConfig,
-    val formatEncryptionKey: ByteArray
+    val formatEncryptionKey: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

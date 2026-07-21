@@ -142,15 +142,14 @@ class KopiaWebViewClient(
         return true
     }
 
-    private fun blockedResponse(): WebResourceResponse =
-        WebResourceResponse(
-            "text/plain",
-            "utf-8",
-            HTTP_FORBIDDEN,
-            "Forbidden",
-            emptyMap(),
-            ByteArrayInputStream(ByteArray(0)),
-        )
+    private fun blockedResponse(): WebResourceResponse = WebResourceResponse(
+        "text/plain",
+        "utf-8",
+        HTTP_FORBIDDEN,
+        "Forbidden",
+        emptyMap(),
+        ByteArrayInputStream(ByteArray(0)),
+    )
 
     private companion object {
         const val TAG = "KopiaWebView"

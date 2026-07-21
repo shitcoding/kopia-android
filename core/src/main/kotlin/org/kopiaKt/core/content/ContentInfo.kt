@@ -30,7 +30,7 @@ data class ContentInfo(
     val compressionHeaderId: Int = 0,
     val deleted: Boolean = false,
     val formatVersion: Byte = 0,
-    val encryptionKeyId: Byte = 0
+    val encryptionKeyId: Byte = 0,
 ) {
     /**
      * Returns true if the content is compressed (non-zero compression header ID).

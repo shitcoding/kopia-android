@@ -22,7 +22,6 @@ import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.hashing.HashAlgorithm
-import java.security.SecureRandom
 import org.kopiaKt.core.repository.ClientOptions
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
@@ -33,6 +32,7 @@ import org.kopiaKt.storage.sftp.SftpBlobStorage
 import org.kopiaKt.storage.sftp.SftpOptions
 import org.kopiaKt.storage.webdav.WebDavBlobStorage
 import org.kopiaKt.storage.webdav.WebDavOptions
+import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -41,7 +41,7 @@ import kotlin.io.path.Path
 
 @Singleton
 class KopiaRepositoryManagerImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
 ) : KopiaRepositoryManager {
 
     private companion object {
@@ -57,7 +57,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
     override suspend fun connect(
         config: ConnectionConfig,
-        repositoryPassword: String
+        repositoryPassword: String,
     ): Result<RepositoryConnection> = withContext(Dispatchers.IO) {
         _connectionState.value = ConnectionState.Connecting
 
@@ -68,8 +68,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 blobStorage = storage,
                 password = repositoryPassword,
                 clientOptions = ClientOptions.withDefaults(
-                    description = "KopiaKt Android"
-                )
+                    description = "KopiaKt Android",
+                ),
             )
 
             currentRepository = repository
@@ -80,12 +80,11 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 storageType = getStorageType(config),
                 connectionConfig = config,
                 lastConnected = Instant.now(),
-                isConnected = true
+                isConnected = true,
             )
 
             _connectionState.value = ConnectionState.Connected(connection)
             Result.success(connection)
-
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -97,7 +96,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     override suspend fun create(
         config: ConnectionConfig,
         repositoryPassword: String,
-        options: RepositoryCreateOptions
+        options: RepositoryCreateOptions,
     ): Result<RepositoryConnection> = withContext(Dispatchers.IO) {
         _connectionState.value = ConnectionState.Connecting
 
@@ -107,7 +106,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             val repoConfig = buildRepositoryConfig(options)
 
             val clientOpts = ClientOptions.withDefaults(
-                description = options.description.ifEmpty { "KopiaKt Android" }
+                description = options.description.ifEmpty { "KopiaKt Android" },
             )
 
             val keyDerivationAlgorithm = options.keyDerivationAlgorithm
@@ -118,7 +117,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 config = repoConfig,
                 clientOptions = clientOpts,
                 keyDerivationAlgorithm = keyDerivationAlgorithm
-                    ?: org.kopiaKt.core.format.KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM
+                    ?: org.kopiaKt.core.format.KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM,
             )
 
             currentRepository = repository
@@ -129,12 +128,11 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 storageType = getStorageType(config),
                 connectionConfig = config,
                 lastConnected = Instant.now(),
-                isConnected = true
+                isConnected = true,
             )
 
             _connectionState.value = ConnectionState.Connected(connection)
             Result.success(connection)
-
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -165,7 +163,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
     private suspend fun createBlobStorage(
         config: ConnectionConfig,
-        isCreate: Boolean = false
+        isCreate: Boolean = false,
     ): BlobStorage = when (config) {
         is ConnectionConfig.LocalFilesystem -> {
             FilesystemBlobStorage.create(Path(config.path), create = isCreate)
@@ -178,8 +176,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                     endpoint = config.endpoint,
                     region = config.region,
                     accessKeyId = config.accessKeyId,
-                    secretAccessKey = config.secretAccessKey
-                )
+                    secretAccessKey = config.secretAccessKey,
+                ),
             )
         }
 
@@ -188,8 +186,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 WebDavOptions(
                     url = config.url,
                     username = config.username,
-                    password = config.password
-                )
+                    password = config.password,
+                ),
             )
         }
 
@@ -209,8 +207,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                     path = config.path,
                     knownHostsData = config.knownHostsData,
                     hostKeyFingerprint = config.hostKeyFingerprint,
-                    insecureSkipHostKeyVerification = config.insecureSkipHostKeyVerification
-                )
+                    insecureSkipHostKeyVerification = config.insecureSkipHostKeyVerification,
+                ),
             )
         }
 
@@ -220,8 +218,8 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 treeUri = Uri.parse(config.treeUri),
                 options = SafOptions(
                     treeUri = Uri.parse(config.treeUri),
-                    readOnly = false
-                )
+                    readOnly = false,
+                ),
             )
         }
     }
@@ -252,7 +250,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             encryption = options.encryptionAlgorithm ?: EncryptionAlgorithm.DEFAULT.id,
             secret = secret,
             masterKey = masterKey,
-            splitter = options.splitterAlgorithm ?: "DYNAMIC-4M-BUZHASH"
+            splitter = options.splitterAlgorithm ?: "DYNAMIC-4M-BUZHASH",
         )
     }
 }
@@ -268,7 +266,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
  */
 internal fun requireInsecureHostKeyAllowed(
     insecureSkipHostKeyVerification: Boolean,
-    isDebugBuild: Boolean
+    isDebugBuild: Boolean,
 ) {
     require(isDebugBuild || !insecureSkipHostKeyVerification) {
         "insecureSkipHostKeyVerification is not permitted in release builds"

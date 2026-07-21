@@ -24,7 +24,8 @@ enum class HashAlgorithm(val id: String, val outputSize: Int) {
     /**
      * HMAC-SHA256 truncated to 128 bits (16 bytes).
      */
-    HMAC_SHA256_128("HMAC-SHA256-128", 16);
+    HMAC_SHA256_128("HMAC-SHA256-128", 16),
+    ;
 
     companion object {
         /**
@@ -35,8 +36,7 @@ enum class HashAlgorithm(val id: String, val outputSize: Int) {
         /**
          * Finds algorithm by ID string.
          */
-        fun fromId(id: String): HashAlgorithm? =
-            entries.find { it.id == id }
+        fun fromId(id: String): HashAlgorithm? = entries.find { it.id == id }
 
         /**
          * Finds algorithm by ID string (alias for fromId).

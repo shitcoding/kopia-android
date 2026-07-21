@@ -7,10 +7,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
+import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.PutBlobOptions
 import java.io.File
@@ -42,7 +42,7 @@ class TestFilesystemBlobStorage(private val rootDir: File) : BlobStorage {
         return BlobMetadata(
             blobId = blobId,
             length = file.length(),
-            timestamp = Instant.ofEpochMilli(file.lastModified())
+            timestamp = Instant.ofEpochMilli(file.lastModified()),
         )
     }
 
@@ -58,11 +58,13 @@ class TestFilesystemBlobStorage(private val rootDir: File) : BlobStorage {
             } else if (file.isFile) {
                 val blobId = fileToBlobId(file)
                 if (blobId != null && blobId.value.startsWith(prefix)) {
-                    results.add(BlobMetadata(
-                        blobId = blobId,
-                        length = file.length(),
-                        timestamp = Instant.ofEpochMilli(file.lastModified())
-                    ))
+                    results.add(
+                        BlobMetadata(
+                            blobId = blobId,
+                            length = file.length(),
+                            timestamp = Instant.ofEpochMilli(file.lastModified()),
+                        ),
+                    )
                 }
             }
         }
@@ -135,17 +137,11 @@ class TestFilesystemBlobStorage(private val rootDir: File) : BlobStorage {
         return null
     }
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) {
-        throw UnsupportedOperationException("Read-only storage")
-    }
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions): Unit = throw UnsupportedOperationException("Read-only storage")
 
-    override suspend fun deleteBlob(blobId: BlobId) {
-        throw UnsupportedOperationException("Read-only storage")
-    }
+    override suspend fun deleteBlob(blobId: BlobId): Unit = throw UnsupportedOperationException("Read-only storage")
 
-    override fun connectionInfo(): ConnectionInfo {
-        return ConnectionInfo("filesystem", mapOf("path" to rootDir.absolutePath))
-    }
+    override fun connectionInfo(): ConnectionInfo = ConnectionInfo("filesystem", mapOf("path" to rootDir.absolutePath))
 
     override fun displayName(): String = "Filesystem: ${rootDir.absolutePath}"
 }

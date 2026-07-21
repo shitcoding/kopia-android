@@ -47,7 +47,7 @@ data class RestoreOptions(
     /**
      * If true, ignore errors and continue restoring other files.
      */
-    val ignoreErrors: Boolean = false
+    val ignoreErrors: Boolean = false,
 )
 
 /**
@@ -66,7 +66,7 @@ data class RestoreOptions(
 class SnapshotRestorer(
     private val output: RestoreOutput,
     private val options: RestoreOptions = RestoreOptions(),
-    private val progress: RestoreProgress = NullRestoreProgress
+    private val progress: RestoreProgress = NullRestoreProgress,
 ) {
     private val cancelled = AtomicBoolean(false)
 
@@ -86,8 +86,11 @@ class SnapshotRestorer(
     suspend fun restore(rootEntry: Entry): RestoreStats = coroutineScope {
         cancelled.set(false)
 
-        val numWorkers = if (options.parallel > 0) options.parallel
-        else Runtime.getRuntime().availableProcessors()
+        val numWorkers = if (options.parallel > 0) {
+            options.parallel
+        } else {
+            Runtime.getRuntime().availableProcessors()
+        }
 
         val effectiveWorkers = if (!output.parallelizable()) 1 else numWorkers
 
@@ -98,7 +101,7 @@ class SnapshotRestorer(
             deleteExtra = options.deleteExtra,
             ignoreErrors = options.ignoreErrors,
             cancelled = cancelled,
-            semaphore = Semaphore(effectiveWorkers)
+            semaphore = Semaphore(effectiveWorkers),
         )
 
         try {
@@ -139,7 +142,7 @@ class SnapshotRestorer(
                 reader = inputStream,
                 progressCallback = { bytesWritten ->
                     progress.fileProgress(bytesWritten)
-                }
+                },
             )
             progress.fileRestored()
         } finally {
@@ -159,7 +162,7 @@ class SnapshotRestorer(
         private val deleteExtra: Boolean,
         private val ignoreErrors: Boolean,
         private val cancelled: AtomicBoolean,
-        private val semaphore: Semaphore
+        private val semaphore: Semaphore,
     ) {
         /**
          * Copy an entry to the output.
@@ -290,7 +293,7 @@ class SnapshotRestorer(
                     reader = inputStream,
                     progressCallback = { bytesWritten ->
                         progress.fileProgress(bytesWritten)
-                    }
+                    },
                 )
                 progress.fileRestored()
             } finally {
@@ -309,7 +312,7 @@ class SnapshotRestorer(
         private suspend fun deleteExtraFilesInDir(
             fsOutput: FilesystemOutput,
             snapshotDir: Directory,
-            targetPath: String
+            targetPath: String,
         ) {
             val targetDir = fsOutput.targetPath.resolve(targetPath)
             if (!targetDir.exists() || !targetDir.isDirectory()) {
@@ -364,36 +367,32 @@ class SnapshotRestorer(
             Files.delete(path)
         }
 
-        private fun joinPath(base: String, name: String): String {
-            return if (base.isEmpty()) name else "$base/$name"
-        }
+        private fun joinPath(base: String, name: String): String = if (base.isEmpty()) name else "$base/$name"
     }
 }
 
 /**
  * Helper function to get DirEntry from various entry types.
  */
-private fun getDirEntry(entry: Entry): DirEntry {
-    return when (entry) {
-        is RepositoryFile -> entry.dirEntry()
-        is RepositoryDirectory -> entry.dirEntry()
-        is RepositorySymlink -> entry.dirEntry()
-        else -> {
-            // Create a synthetic DirEntry for non-repository entries
-            DirEntry(
-                name = entry.name,
-                type = when (entry.type) {
-                    EntryType.FILE -> SnapshotEntryType.FILE
-                    EntryType.DIRECTORY -> SnapshotEntryType.DIRECTORY
-                    EntryType.SYMLINK -> SnapshotEntryType.SYMLINK
-                    else -> SnapshotEntryType.UNKNOWN
-                },
-                permissions = entry.mode,
-                fileSize = entry.size,
-                modTime = entry.modTime,
-                userId = entry.owner.userId,
-                groupId = entry.owner.groupId
-            )
-        }
+private fun getDirEntry(entry: Entry): DirEntry = when (entry) {
+    is RepositoryFile -> entry.dirEntry()
+    is RepositoryDirectory -> entry.dirEntry()
+    is RepositorySymlink -> entry.dirEntry()
+    else -> {
+        // Create a synthetic DirEntry for non-repository entries
+        DirEntry(
+            name = entry.name,
+            type = when (entry.type) {
+                EntryType.FILE -> SnapshotEntryType.FILE
+                EntryType.DIRECTORY -> SnapshotEntryType.DIRECTORY
+                EntryType.SYMLINK -> SnapshotEntryType.SYMLINK
+                else -> SnapshotEntryType.UNKNOWN
+            },
+            permissions = entry.mode,
+            fileSize = entry.size,
+            modTime = entry.modTime,
+            userId = entry.owner.userId,
+            groupId = entry.owner.groupId,
+        )
     }
 }

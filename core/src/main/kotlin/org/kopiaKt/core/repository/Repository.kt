@@ -229,7 +229,7 @@ interface DirectRepository : Repository {
      */
     suspend fun iterateContentInfos(
         includeDeleted: Boolean,
-        callback: suspend (ContentInfo) -> Unit
+        callback: suspend (ContentInfo) -> Unit,
     )
 
     /**
@@ -259,7 +259,9 @@ interface DirectRepository : Repository {
 /**
  * DirectRepositoryWriter provides low-level write access to the repository.
  */
-interface DirectRepositoryWriter : RepositoryWriter, DirectRepository {
+interface DirectRepositoryWriter :
+    RepositoryWriter,
+    DirectRepository {
     /**
      * Returns the blob storage for direct access.
      */
@@ -294,7 +296,7 @@ data class WriteSessionOptions(
     val flushOnFailure: Boolean = false,
 
     /** Callback invoked after each upload completes. */
-    val onUpload: ((Long) -> Unit)? = null
+    val onUpload: ((Long) -> Unit)? = null,
 )
 
 /**
@@ -302,7 +304,7 @@ data class WriteSessionOptions(
  */
 data class ConcatenateOptions(
     /** Compression algorithm for the concatenated index. */
-    val compressor: String? = null
+    val compressor: String? = null,
 )
 
 /**
@@ -319,14 +321,12 @@ data class ClientOptions(
     val readOnly: Boolean = false,
 
     /** Human-readable description of this repository connection. */
-    var description: String = ""
+    var description: String = "",
 ) {
     /**
      * Returns the combined username@hostname string.
      */
-    fun usernameAtHost(): String {
-        return if (hostname.isNotEmpty()) "$username@$hostname" else username
-    }
+    fun usernameAtHost(): String = if (hostname.isNotEmpty()) "$username@$hostname" else username
 
     companion object {
         /**
@@ -335,26 +335,20 @@ data class ClientOptions(
         fun withDefaults(
             hostname: String = getDefaultHostname(),
             username: String = getDefaultUsername(),
-            description: String = ""
-        ): ClientOptions {
-            return ClientOptions(
-                hostname = hostname,
-                username = username,
-                description = description
-            )
+            description: String = "",
+        ): ClientOptions = ClientOptions(
+            hostname = hostname,
+            username = username,
+            description = description,
+        )
+
+        private fun getDefaultHostname(): String = try {
+            java.net.InetAddress.getLocalHost().hostName
+        } catch (e: Exception) {
+            "unknown"
         }
 
-        private fun getDefaultHostname(): String {
-            return try {
-                java.net.InetAddress.getLocalHost().hostName
-            } catch (e: Exception) {
-                "unknown"
-            }
-        }
-
-        private fun getDefaultUsername(): String {
-            return System.getProperty("user.name") ?: "unknown"
-        }
+        private fun getDefaultUsername(): String = System.getProperty("user.name") ?: "unknown"
     }
 }
 
@@ -363,5 +357,5 @@ data class ClientOptions(
  */
 data class ObjectFormatInfo(
     /** The splitter algorithm name. */
-    val splitter: String
+    val splitter: String,
 )

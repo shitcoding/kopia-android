@@ -21,7 +21,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -52,11 +52,11 @@ android {
                 "META-INF/INDEX.LIST",
                 "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
                 "META-INF/versions/**",
-                "META-INF/io.netty.versions.properties"
+                "META-INF/io.netty.versions.properties",
             )
             pickFirsts += listOf(
                 "META-INF/services/javax.xml.stream.*",
-                "META-INF/services/com.fasterxml.woodstox.*"
+                "META-INF/services/com.fasterxml.woodstox.*",
             )
         }
     }

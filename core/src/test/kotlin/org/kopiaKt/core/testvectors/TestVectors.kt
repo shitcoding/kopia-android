@@ -19,7 +19,7 @@ data class TestVectors(
     val encryption: EncryptionVectors,
     val compression: CompressionVectors,
     val splitter: SplitterVectors,
-    val contentId: ContentIdVectors
+    val contentId: ContentIdVectors,
 )
 
 @Serializable
@@ -33,7 +33,7 @@ data class HashVectors(
     @SerialName("blake3_256_128")
     val blake3256128: List<HashTestCase>,
     @SerialName("hmac_sha256")
-    val hmacSha256: List<HmacTestCase>
+    val hmacSha256: List<HmacTestCase>,
 )
 
 @Serializable
@@ -41,7 +41,7 @@ data class HashTestCase(
     val name: String,
     val inputHex: String,
     val secret: String? = null,
-    val outputHex: String
+    val outputHex: String,
 ) {
     val input: ByteArray get() = inputHex.hexToByteArray()
     val secretBytes: ByteArray? get() = secret?.hexToByteArray()
@@ -53,7 +53,7 @@ data class HmacTestCase(
     val name: String,
     val inputHex: String,
     val keyHex: String,
-    val outputHex: String
+    val outputHex: String,
 ) {
     val input: ByteArray get() = inputHex.hexToByteArray()
     val key: ByteArray get() = keyHex.hexToByteArray()
@@ -64,7 +64,7 @@ data class HmacTestCase(
 data class KeyDerivationVectors(
     val pbkdf2: List<Pbkdf2TestCase>,
     val scrypt: List<ScryptTestCase>,
-    val hkdf: List<HkdfTestCase>
+    val hkdf: List<HkdfTestCase>,
 )
 
 @Serializable
@@ -74,7 +74,7 @@ data class Pbkdf2TestCase(
     val saltHex: String,
     val iterations: Int,
     val keyLen: Int,
-    val outputHex: String
+    val outputHex: String,
 ) {
     val salt: ByteArray get() = saltHex.hexToByteArray()
     val output: ByteArray get() = outputHex.hexToByteArray()
@@ -89,7 +89,7 @@ data class ScryptTestCase(
     val r: Int,
     val p: Int,
     val keyLen: Int,
-    val outputHex: String
+    val outputHex: String,
 ) {
     val salt: ByteArray get() = saltHex.hexToByteArray()
     val output: ByteArray get() = outputHex.hexToByteArray()
@@ -102,7 +102,7 @@ data class HkdfTestCase(
     val saltHex: String,
     val info: String,
     val length: Int,
-    val outputHex: String
+    val outputHex: String,
 ) {
     val master: ByteArray get() = masterHex.hexToByteArray()
     val salt: ByteArray get() = saltHex.hexToByteArray()
@@ -112,7 +112,7 @@ data class HkdfTestCase(
 
 @Serializable
 data class EncryptionVectors(
-    val aes256Gcm: List<Aes256GcmTestCase>
+    val aes256Gcm: List<Aes256GcmTestCase>,
 )
 
 @Serializable
@@ -122,7 +122,7 @@ data class Aes256GcmTestCase(
     val nonceHex: String,
     val plaintextHex: String,
     val aadHex: String? = null,
-    val ciphertextHex: String
+    val ciphertextHex: String,
 ) {
     val key: ByteArray get() = keyHex.hexToByteArray()
     val nonce: ByteArray get() = nonceHex.hexToByteArray()
@@ -133,14 +133,14 @@ data class Aes256GcmTestCase(
 
 @Serializable
 data class CompressionVectors(
-    val headers: List<CompressionHeaderCase>
+    val headers: List<CompressionHeaderCase>,
 )
 
 @Serializable
 data class CompressionHeaderCase(
     val algorithm: String,
     val headerHex: String,
-    val headerId: Int
+    val headerId: Int,
 ) {
     val header: ByteArray get() = headerHex.hexToByteArray()
 }
@@ -148,7 +148,7 @@ data class CompressionHeaderCase(
 @Serializable
 data class SplitterVectors(
     val buzhash32: List<SplitterTestCase>,
-    val rabinkarp64: List<SplitterTestCase>
+    val rabinkarp64: List<SplitterTestCase>,
 )
 
 @Serializable
@@ -159,14 +159,14 @@ data class SplitterTestCase(
     val minSize: Int,
     val maxSize: Int,
     val inputHex: String,
-    val boundaries: List<Int>
+    val boundaries: List<Int>,
 ) {
     val input: ByteArray get() = inputHex.hexToByteArray()
 }
 
 @Serializable
 data class ContentIdVectors(
-    val formation: List<ContentIdTestCase>
+    val formation: List<ContentIdTestCase>,
 )
 
 @Serializable
@@ -174,7 +174,7 @@ data class ContentIdTestCase(
     val name: String,
     val prefix: String,
     val hashHex: String,
-    val contentId: String
+    val contentId: String,
 ) {
     val hash: ByteArray get() = hashHex.hexToByteArray()
 }
@@ -208,7 +208,7 @@ object TestVectorLoader {
             "testvectors/vectors.json",
             "../testvectors/vectors.json",
             "../../testvectors/vectors.json",
-            "../../../testvectors/vectors.json"
+            "../../../testvectors/vectors.json",
         )
 
         for (path in possiblePaths) {
@@ -226,14 +226,12 @@ object TestVectorLoader {
         }
 
         throw IllegalStateException(
-            "Could not find vectors.json in any of the expected locations: $possiblePaths"
+            "Could not find vectors.json in any of the expected locations: $possiblePaths",
         )
     }
 
     /**
      * Load test vectors from a specific file path.
      */
-    fun loadFrom(path: String): TestVectors {
-        return json.decodeFromString<TestVectors>(File(path).readText())
-    }
+    fun loadFrom(path: String): TestVectors = json.decodeFromString<TestVectors>(File(path).readText())
 }

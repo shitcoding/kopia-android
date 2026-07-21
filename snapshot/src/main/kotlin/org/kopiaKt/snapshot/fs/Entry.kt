@@ -11,7 +11,7 @@ import java.time.Instant
  */
 data class OwnerInfo(
     val userId: Int = 0,
-    val groupId: Int = 0
+    val groupId: Int = 0,
 ) {
     companion object {
         val EMPTY = OwnerInfo(0, 0)
@@ -26,7 +26,7 @@ data class OwnerInfo(
  */
 data class DeviceInfo(
     val dev: Long = 0,
-    val rdev: Long = 0
+    val rdev: Long = 0,
 ) {
     companion object {
         val EMPTY = DeviceInfo(0, 0)
@@ -41,7 +41,7 @@ enum class EntryType {
     DIRECTORY,
     SYMLINK,
     UNKNOWN,
-    ERROR
+    ERROR,
 }
 
 /**
@@ -220,7 +220,7 @@ data class DirectorySummary(
     val maxModTime: Instant = Instant.EPOCH,
     val fatalErrorCount: Int = 0,
     val ignoredErrorCount: Int = 0,
-    val failedEntries: List<EntryWithError> = emptyList()
+    val failedEntries: List<EntryWithError> = emptyList(),
 ) {
     /**
      * Combines this summary with another.
@@ -233,7 +233,7 @@ data class DirectorySummary(
         maxModTime = maxOf(maxModTime, other.maxModTime),
         fatalErrorCount = fatalErrorCount + other.fatalErrorCount,
         ignoredErrorCount = ignoredErrorCount + other.ignoredErrorCount,
-        failedEntries = (failedEntries + other.failedEntries).take(MAX_FAILED_ENTRIES)
+        failedEntries = (failedEntries + other.failedEntries).take(MAX_FAILED_ENTRIES),
     )
 
     companion object {
@@ -247,5 +247,5 @@ data class DirectorySummary(
  */
 data class EntryWithError(
     val entryPath: String,
-    val error: Throwable
+    val error: Throwable,
 )

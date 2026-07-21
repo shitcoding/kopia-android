@@ -17,7 +17,7 @@ import kotlin.io.path.exists
  * Runs benchmarks with warmup, measurement iterations, and optional Go comparison.
  */
 class BenchmarkRunner(
-    private val config: BenchmarkConfig = BenchmarkConfig()
+    private val config: BenchmarkConfig = BenchmarkConfig(),
 ) {
     private val memoryBean = ManagementFactory.getMemoryMXBean()
 
@@ -39,7 +39,7 @@ class BenchmarkRunner(
         setup: () -> T,
         benchmark: suspend (T) -> BenchmarkMeasurement,
         teardown: (T) -> Unit = {},
-        goBenchmark: (suspend () -> BenchmarkMeasurement)? = null
+        goBenchmark: (suspend () -> BenchmarkMeasurement)? = null,
     ): BenchmarkResult {
         println("Running benchmark: $name")
         println("  Description: $description")
@@ -104,7 +104,7 @@ class BenchmarkRunner(
             description = description,
             measurements = kotlinMeasurements,
             goMeasurements = goMeasurements.takeIf { it.isNotEmpty() },
-            testDataSpec = testDataSpec
+            testDataSpec = testDataSpec,
         )
     }
 
@@ -121,7 +121,7 @@ class BenchmarkRunner(
         filesProcessed: Long,
         collectMemory: Boolean = config.collectMemoryStats,
         metadata: Map<String, String> = emptyMap(),
-        operation: suspend () -> R
+        operation: suspend () -> R,
     ): Pair<R, BenchmarkMeasurement> {
         maybeGc()
 
@@ -143,8 +143,10 @@ class BenchmarkRunner(
             peakMemoryBytes = peakMemoryTracker?.peakMemory,
             allocatedMemoryBytes = if (startMemory != null && endMemory != null) {
                 (endMemory - startMemory).coerceAtLeast(0)
-            } else null,
-            metadata = metadata
+            } else {
+                null
+            },
+            metadata = metadata,
         )
 
         return result to measurement
@@ -176,9 +178,7 @@ class BenchmarkRunner(
         }
     }
 
-    private fun getUsedMemory(): Long {
-        return memoryBean.heapMemoryUsage.used
-    }
+    private fun getUsedMemory(): Long = memoryBean.heapMemoryUsage.used
 
     private fun formatDuration(d: Duration): String {
         val millis = d.toMillis()

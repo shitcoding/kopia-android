@@ -53,7 +53,7 @@ object PackBlobReader {
     suspend fun recoverIndex(
         packData: ByteArray,
         encryptionOverhead: UInt,
-        decryptor: LocalIndexDecryptor
+        decryptor: LocalIndexDecryptor,
     ): List<ContentInfo>? {
         val (postamble, encryptedIndexData) = extractLocalIndex(packData) ?: return null
 
@@ -94,19 +94,17 @@ object PackBlobReader {
     /**
      * Parses plaintext local-index bytes into content infos, or null if they are not a readable index.
      */
-    private fun parseLocalIndex(localIndexData: ByteArray, encryptionOverhead: UInt): List<ContentInfo>? {
-        return try {
-            // Dispatch on the index version header (V1/V2). Go kopia writes the local index at the repo's
-            // configured index version, which defaults to V2 — hardcoding V1 fails to recover Go packs.
-            PackIndexFactory.open(localIndexData, encryptionOverhead).iterate().toList()
-        } catch (e: Exception) {
-            // Best-effort recovery probe: a failure here just means this blob has no readable local
-            // index, which is an ordinary outcome (this is also called on arbitrary data). Log at
-            // FINE so it's available when debugging recovery without spamming normal operation —
-            // unlike the index/manifest load paths, a null here is not evidence of corruption.
-            logger.log(Level.FINE, "No recoverable local index in pack blob: ${e.message}", e)
-            null
-        }
+    private fun parseLocalIndex(localIndexData: ByteArray, encryptionOverhead: UInt): List<ContentInfo>? = try {
+        // Dispatch on the index version header (V1/V2). Go kopia writes the local index at the repo's
+        // configured index version, which defaults to V2 — hardcoding V1 fails to recover Go packs.
+        PackIndexFactory.open(localIndexData, encryptionOverhead).iterate().toList()
+    } catch (e: Exception) {
+        // Best-effort recovery probe: a failure here just means this blob has no readable local
+        // index, which is an ordinary outcome (this is also called on arbitrary data). Log at
+        // FINE so it's available when debugging recovery without spamming normal operation —
+        // unlike the index/manifest load paths, a null here is not evidence of corruption.
+        logger.log(Level.FINE, "No recoverable local index in pack blob: ${e.message}", e)
+        null
     }
 
     /**
@@ -135,13 +133,11 @@ object PackBlobReader {
      * @param contentInfo The content info with offset and length
      * @return The extracted content data
      */
-    fun extractContent(packData: ByteArray, contentInfo: ContentInfo): ByteArray {
-        return extractContent(
-            packData,
-            contentInfo.packOffset.toInt(),
-            contentInfo.packedLength.toInt()
-        )
-    }
+    fun extractContent(packData: ByteArray, contentInfo: ContentInfo): ByteArray = extractContent(
+        packData,
+        contentInfo.packOffset.toInt(),
+        contentInfo.packedLength.toInt(),
+    )
 
     /**
      * Parses the postamble from a pack blob.
@@ -149,9 +145,7 @@ object PackBlobReader {
      * @param packData The full pack blob data
      * @return The postamble, or null if not found
      */
-    fun parsePostamble(packData: ByteArray): PackBlobPostamble? {
-        return PackBlobPostamble.findPostamble(packData)
-    }
+    fun parsePostamble(packData: ByteArray): PackBlobPostamble? = PackBlobPostamble.findPostamble(packData)
 
     /**
      * Gets information about a pack blob.
@@ -166,7 +160,7 @@ object PackBlobReader {
             totalSize = packData.size,
             localIndexOffset = postamble.localIndexOffset.toInt(),
             localIndexLength = postamble.localIndexLength.toInt(),
-            localIndexIV = postamble.localIndexIV
+            localIndexIV = postamble.localIndexIV,
         )
     }
 }
@@ -187,7 +181,7 @@ data class PackBlobInfo(
     val totalSize: Int,
     val localIndexOffset: Int,
     val localIndexLength: Int,
-    val localIndexIV: ByteArray
+    val localIndexIV: ByteArray,
 ) {
     /**
      * Size of the content data area (between preamble and local index).

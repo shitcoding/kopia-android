@@ -12,17 +12,16 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
-import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.BlobVolume
 import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
+import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
-import java.time.Instant
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
@@ -51,86 +50,86 @@ class FilesystemBlobStorage private constructor(
     private val basePath: Path,
     private val readOnly: Boolean,
     private val shards: List<Int>,
-    private val maxNonShardedLength: Int
-) : BlobStorage, BlobVolume {
+    private val maxNonShardedLength: Int,
+) : BlobStorage,
+    BlobVolume {
 
     init {
         require(basePath.isDirectory()) { "Base path must be a directory: $basePath" }
     }
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
-        withContext(Dispatchers.IO) {
-            val blobPath = getBlobPath(blobId)
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withContext(Dispatchers.IO) {
+        val blobPath = getBlobPath(blobId)
 
-            if (!blobPath.exists()) {
-                throw BlobNotFoundException(blobId)
-            }
-
-            // If reading the full blob, use readBytes()
-            if (offset == 0L && length == -1L) {
-                return@withContext blobPath.readBytes()
-            }
-
-            // Validate parameters first
-            if (offset < 0) {
-                throw InvalidBlobRangeException("Offset must be non-negative: $offset")
-            }
-            if (length < -1) {
-                throw InvalidBlobRangeException("Length must be >= -1: $length")
-            }
-
-            // For partial reads, use FileInputStream to avoid loading entire file into memory
-            val fileSize = Files.size(blobPath)
-
-            // Check offset bounds before computing actualLength
-            if (offset > fileSize) {
-                throw InvalidBlobRangeException(
-                    "Offset beyond end of file: offset=$offset, fileSize=$fileSize"
-                )
-            }
-
-            val actualLength = if (length == -1L) {
-                (fileSize - offset).toInt()
-            } else {
-                length.toInt()
-            }
-
-            // Validate final bounds
-            if (offset + actualLength > fileSize) {
-                throw InvalidBlobRangeException(
-                    "Read beyond end of file: offset=$offset, length=$actualLength, fileSize=$fileSize"
-                )
-            }
-
-            // Read only the requested portion using FileInputStream
-            Files.newInputStream(blobPath).use { input ->
-                // Skip to offset - must skip exact amount
-                var skipped = 0L
-                while (skipped < offset) {
-                    val skip = input.skip(offset - skipped)
-                    if (skip == 0L) {
-                        throw InvalidBlobRangeException(
-                            "Failed to skip to offset $offset (skipped only $skipped bytes)"
-                        )
-                    }
-                    skipped += skip
-                }
-
-                // Read exact amount - must read full buffer
-                val buffer = ByteArray(actualLength)
-                var totalRead = 0
-                while (totalRead < actualLength) {
-                    val read = input.read(buffer, totalRead, actualLength - totalRead)
-                    if (read == -1) {
-                        throw InvalidBlobRangeException(
-                            "Unexpected EOF: requested $actualLength bytes, read only $totalRead bytes"
-                        )
-                    }
-                    totalRead += read
-                }
-                buffer
-            }
+        if (!blobPath.exists()) {
+            throw BlobNotFoundException(blobId)
         }
+
+        // If reading the full blob, use readBytes()
+        if (offset == 0L && length == -1L) {
+            return@withContext blobPath.readBytes()
+        }
+
+        // Validate parameters first
+        if (offset < 0) {
+            throw InvalidBlobRangeException("Offset must be non-negative: $offset")
+        }
+        if (length < -1) {
+            throw InvalidBlobRangeException("Length must be >= -1: $length")
+        }
+
+        // For partial reads, use FileInputStream to avoid loading entire file into memory
+        val fileSize = Files.size(blobPath)
+
+        // Check offset bounds before computing actualLength
+        if (offset > fileSize) {
+            throw InvalidBlobRangeException(
+                "Offset beyond end of file: offset=$offset, fileSize=$fileSize",
+            )
+        }
+
+        val actualLength = if (length == -1L) {
+            (fileSize - offset).toInt()
+        } else {
+            length.toInt()
+        }
+
+        // Validate final bounds
+        if (offset + actualLength > fileSize) {
+            throw InvalidBlobRangeException(
+                "Read beyond end of file: offset=$offset, length=$actualLength, fileSize=$fileSize",
+            )
+        }
+
+        // Read only the requested portion using FileInputStream
+        Files.newInputStream(blobPath).use { input ->
+            // Skip to offset - must skip exact amount
+            var skipped = 0L
+            while (skipped < offset) {
+                val skip = input.skip(offset - skipped)
+                if (skip == 0L) {
+                    throw InvalidBlobRangeException(
+                        "Failed to skip to offset $offset (skipped only $skipped bytes)",
+                    )
+                }
+                skipped += skip
+            }
+
+            // Read exact amount - must read full buffer
+            val buffer = ByteArray(actualLength)
+            var totalRead = 0
+            while (totalRead < actualLength) {
+                val read = input.read(buffer, totalRead, actualLength - totalRead)
+                if (read == -1) {
+                    throw InvalidBlobRangeException(
+                        "Unexpected EOF: requested $actualLength bytes, read only $totalRead bytes",
+                    )
+                }
+                totalRead += read
+            }
+            buffer
+        }
+    }
 
     /**
      * Checks if a blob exists.
@@ -139,20 +138,19 @@ class FilesystemBlobStorage private constructor(
         getBlobPath(blobId).exists()
     }
 
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
-        withContext(Dispatchers.IO) {
-            val blobPath = getBlobPath(blobId)
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withContext(Dispatchers.IO) {
+        val blobPath = getBlobPath(blobId)
 
-            if (!blobPath.exists()) {
-                return@withContext null
-            }
-
-            BlobMetadata(
-                blobId = blobId,
-                length = Files.size(blobPath),
-                timestamp = blobPath.getLastModifiedTime().toInstant()
-            )
+        if (!blobPath.exists()) {
+            return@withContext null
         }
+
+        BlobMetadata(
+            blobId = blobId,
+            length = Files.size(blobPath),
+            timestamp = blobPath.getLastModifiedTime().toInstant(),
+        )
+    }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         listBlobsRecursively(basePath, prefix, "")
@@ -161,7 +159,7 @@ class FilesystemBlobStorage private constructor(
     private suspend fun kotlinx.coroutines.flow.FlowCollector<BlobMetadata>.listBlobsRecursively(
         dir: Path,
         filterPrefix: String,
-        currentPrefix: String
+        currentPrefix: String,
     ) {
         if (!dir.exists()) return
 
@@ -186,45 +184,44 @@ class FilesystemBlobStorage private constructor(
                         BlobMetadata(
                             blobId = BlobId(fullBlobId),
                             length = Files.size(entry),
-                            timestamp = entry.getLastModifiedTime().toInstant()
-                        )
+                            timestamp = entry.getLastModifiedTime().toInstant(),
+                        ),
                     )
                 }
             }
         }
     }
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
-        withContext(Dispatchers.IO) {
-            if (readOnly) {
-                throw IllegalStateException("Storage is read-only")
-            }
-            val blobPath = getBlobPath(blobId)
-
-            if (options.dontOverwrite && blobPath.exists()) {
-                return@withContext
-            }
-
-            // Ensure shard directory exists
-            blobPath.parent.createDirectories()
-
-            // Write atomically using temp file + rename
-            val tempPath = blobPath.resolveSibling("${blobPath.name}.tmp.${System.nanoTime()}")
-
-            try {
-                Files.write(
-                    tempPath,
-                    data,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.TRUNCATE_EXISTING
-                )
-                Files.move(tempPath, blobPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-            } catch (e: IOException) {
-                tempPath.deleteIfExists()
-                throw e
-            }
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
         }
+        val blobPath = getBlobPath(blobId)
+
+        if (options.dontOverwrite && blobPath.exists()) {
+            return@withContext
+        }
+
+        // Ensure shard directory exists
+        blobPath.parent.createDirectories()
+
+        // Write atomically using temp file + rename
+        val tempPath = blobPath.resolveSibling("${blobPath.name}.tmp.${System.nanoTime()}")
+
+        try {
+            Files.write(
+                tempPath,
+                data,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+            )
+            Files.move(tempPath, blobPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (e: IOException) {
+            tempPath.deleteIfExists()
+            throw e
+        }
+    }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
         if (readOnly) {
@@ -237,7 +234,7 @@ class FilesystemBlobStorage private constructor(
 
     override fun connectionInfo(): ConnectionInfo = ConnectionInfo(
         type = "filesystem",
-        config = mapOf("path" to basePath.toString())
+        config = mapOf("path" to basePath.toString()),
     )
 
     override fun displayName(): String = basePath.toString()
@@ -248,7 +245,7 @@ class FilesystemBlobStorage private constructor(
         val fileStore = Files.getFileStore(basePath)
         Capacity(
             sizeBytes = fileStore.totalSpace,
-            freeBytes = fileStore.usableSpace
+            freeBytes = fileStore.usableSpace,
         )
     }
 
@@ -343,7 +340,7 @@ class FilesystemBlobStorage private constructor(
                 basePath = path,
                 readOnly = readOnly,
                 shards = shardsConfig.default,
-                maxNonShardedLength = shardsConfig.maxNonShardedLength
+                maxNonShardedLength = shardsConfig.maxNonShardedLength,
             )
         }
 
@@ -351,9 +348,7 @@ class FilesystemBlobStorage private constructor(
          * Constructor for backwards compatibility with tests.
          * Creates a storage with default sharding.
          */
-        operator fun invoke(path: Path, readOnly: Boolean = false): FilesystemBlobStorage {
-            return create(path, create = false, readOnly = readOnly)
-        }
+        operator fun invoke(path: Path, readOnly: Boolean = false): FilesystemBlobStorage = create(path, create = false, readOnly = readOnly)
     }
 }
 
@@ -364,5 +359,5 @@ class FilesystemBlobStorage private constructor(
 @Serializable
 internal data class ShardsConfig(
     val default: List<Int> = listOf(1, 3),
-    val maxNonShardedLength: Int = 20
+    val maxNonShardedLength: Int = 20,
 )

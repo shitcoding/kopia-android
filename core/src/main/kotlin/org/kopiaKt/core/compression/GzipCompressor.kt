@@ -16,7 +16,7 @@ import java.util.zip.InflaterInputStream
  */
 class GzipCompressor(
     override val algorithm: CompressionAlgorithm,
-    private val level: Int = Deflater.DEFAULT_COMPRESSION
+    private val level: Int = Deflater.DEFAULT_COMPRESSION,
 ) : Compressor {
 
     init {
@@ -80,7 +80,7 @@ class GzipCompressor(
             CompressionAlgorithm.GZIP_BEST_COMPRESSION,
             CompressionAlgorithm.PGZIP_DEFAULT,
             CompressionAlgorithm.PGZIP_BEST_SPEED,
-            CompressionAlgorithm.PGZIP_BEST_COMPRESSION
+            CompressionAlgorithm.PGZIP_BEST_COMPRESSION,
         )
 
         fun default() = GzipCompressor(CompressionAlgorithm.GZIP_DEFAULT, Deflater.DEFAULT_COMPRESSION)
@@ -100,7 +100,7 @@ class GzipCompressor(
  */
 class DeflateCompressor(
     override val algorithm: CompressionAlgorithm,
-    private val level: Int = Deflater.DEFAULT_COMPRESSION
+    private val level: Int = Deflater.DEFAULT_COMPRESSION,
 ) : Compressor {
 
     init {
@@ -162,7 +162,7 @@ class DeflateCompressor(
         private val DEFLATE_ALGORITHMS = setOf(
             CompressionAlgorithm.DEFLATE_DEFAULT,
             CompressionAlgorithm.DEFLATE_BEST_SPEED,
-            CompressionAlgorithm.DEFLATE_BEST_COMPRESSION
+            CompressionAlgorithm.DEFLATE_BEST_COMPRESSION,
         )
 
         fun default() = DeflateCompressor(CompressionAlgorithm.DEFLATE_DEFAULT, Deflater.DEFAULT_COMPRESSION)

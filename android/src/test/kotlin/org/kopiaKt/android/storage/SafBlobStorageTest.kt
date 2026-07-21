@@ -59,11 +59,11 @@ class SafBlobStorageTest {
         options = SafOptions(
             treeUri = testUri,
             directoryShards = listOf(1),
-            maxNonShardedLength = 20
+            maxNonShardedLength = 20,
         )
         shardingParams = SafShardingParameters(
             default = listOf(1),
-            maxNonShardedLength = 20
+            maxNonShardedLength = 20,
         )
 
         mockContext = mockk(relaxed = true)
@@ -83,7 +83,7 @@ class SafBlobStorageTest {
             treeUri = testUri,
             options = options,
             shardingParams = shardingParams,
-            skipPermissionCheck = true
+            skipPermissionCheck = true,
         )
     }
 
@@ -296,7 +296,7 @@ class SafBlobStorageTest {
      */
     private class PositionEncodedStream(
         private val size: Long,
-        private val maxReadChunk: Int = 4
+        private val maxReadChunk: Int = 4,
     ) : java.io.InputStream() {
         private var pos = 0L
         override fun read(): Int {
@@ -310,6 +310,7 @@ class SafBlobStorageTest {
             pos += n
             return n
         }
+
         // lseek SEEK_CUR semantics: reports success even past EOF (unlike ByteArrayInputStream, which clamps).
         override fun skip(n: Long): Long {
             if (n <= 0) return 0
@@ -405,14 +406,14 @@ class SafBlobStorageTest {
             // Setup sharding with [1, 3]
             val shardingWithMultiple = SafShardingParameters(
                 default = listOf(1, 3),
-                maxNonShardedLength = 10
+                maxNonShardedLength = 10,
             )
             val storageWithSharding = SafBlobStorage.createForTesting(
                 context = mockContext,
                 treeUri = testUri,
                 options = options,
                 shardingParams = shardingWithMultiple,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             // No existing file
@@ -453,10 +454,12 @@ class SafBlobStorageTest {
 
             assertThrows<UnsupportedPutOptionException> {
                 storage.putBlob(
-                    blobId, data, PutBlobOptions(
+                    blobId,
+                    data,
+                    PutBlobOptions(
                         retentionMode = RetentionMode.GOVERNANCE,
-                        retentionPeriod = Duration.ofDays(1)
-                    )
+                        retentionPeriod = Duration.ofDays(1),
+                    ),
                 )
             }
         }
@@ -468,7 +471,7 @@ class SafBlobStorageTest {
                 treeUri = testUri,
                 options = options.copy(readOnly = true),
                 shardingParams = shardingParams,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             assertThrows<IOException> {
@@ -513,7 +516,7 @@ class SafBlobStorageTest {
                 treeUri = testUri,
                 options = options.copy(readOnly = true),
                 shardingParams = shardingParams,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             assertThrows<IOException> {
@@ -546,7 +549,7 @@ class SafBlobStorageTest {
                         every { isDirectory } returns false
                         every { length() } returns 200L
                         every { lastModified() } returns modTime
-                    }
+                    },
                 )
             }
 
@@ -585,7 +588,7 @@ class SafBlobStorageTest {
                 mockk {
                     every { name } returns "incomplete"
                     every { isDirectory } returns false
-                }
+                },
             )
 
             val results = storage.listBlobs("").toList()
@@ -632,7 +635,7 @@ class SafBlobStorageTest {
                 treeUri = testUri,
                 options = options.copy(readOnly = true),
                 shardingParams = shardingParams,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             assertThat(readOnlyStorage.isReadOnly()).isTrue()
@@ -688,8 +691,8 @@ class SafBlobStorageTest {
                 default = listOf(1),
                 maxNonShardedLength = 5,
                 overrides = listOf(
-                    SafPrefixShards(prefix = "index", shards = listOf(2, 2))
-                )
+                    SafPrefixShards(prefix = "index", shards = listOf(2, 2)),
+                ),
             )
 
             val customStorage = SafBlobStorage.createForTesting(
@@ -697,7 +700,7 @@ class SafBlobStorageTest {
                 treeUri = testUri,
                 options = options,
                 shardingParams = customParams,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             val blobId = BlobId("index-12345")

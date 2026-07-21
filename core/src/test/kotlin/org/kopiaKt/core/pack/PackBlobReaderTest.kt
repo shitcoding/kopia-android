@@ -26,13 +26,13 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 28
+                encryptionOverhead = 28,
             )
 
             val testContents = listOf(
                 ContentId.parse("1111000022223333") to ByteArray(50),
                 ContentId.parse("4444555566667777") to ByteArray(75),
-                ContentId.parse("8888999900001111") to ByteArray(100)
+                ContentId.parse("8888999900001111") to ByteArray(100),
             )
 
             for ((contentId, data) in testContents) {
@@ -58,7 +58,7 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             val contentId = ContentId.parse("abcd1234efab5678")
@@ -99,13 +99,13 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             builder.addContent(
                 ContentId.parse("1234567890abcdef"),
                 ByteArray(50),
-                originalLength = 50u
+                originalLength = 50u,
             )
 
             val (packData, _) = builder.build()
@@ -128,7 +128,7 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             val contentData = ByteArray(100) { (it * 3).toByte() }
@@ -142,7 +142,7 @@ class PackBlobReaderTest {
             val extracted = PackBlobReader.extractContent(
                 packData,
                 info.packOffset.toInt(),
-                info.packedLength.toInt()
+                info.packedLength.toInt(),
             )
 
             assertEquals(contentData.toList(), extracted.toList())
@@ -153,7 +153,7 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             val contentData = ByteArray(100) { (it * 5).toByte() }
@@ -174,13 +174,13 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             val contents = listOf(
                 ContentId.parse("aaaa000011112222") to ByteArray(50) { 0xAA.toByte() },
                 ContentId.parse("bbbb333344445555") to ByteArray(75) { 0xBB.toByte() },
-                ContentId.parse("cccc666677778888") to ByteArray(100) { 0xCC.toByte() }
+                ContentId.parse("cccc666677778888") to ByteArray(100) { 0xCC.toByte() },
             )
 
             for ((contentId, data) in contents) {
@@ -233,13 +233,13 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             builder.addContent(
                 ContentId.parse("1234567890abcdef"),
                 ByteArray(100),
-                originalLength = 100u
+                originalLength = 100u,
             )
 
             val (packData, _) = builder.build()
@@ -270,13 +270,13 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             builder.addContent(
                 ContentId.parse("1234567890abcdef"),
                 ByteArray(100),
-                originalLength = 100u
+                originalLength = 100u,
             )
 
             val (packData, _) = builder.build()
@@ -304,14 +304,14 @@ class PackBlobReaderTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("test123456789012"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
 
             val contentData = ByteArray(100)
             builder.addContent(
                 ContentId.parse("1234567890abcdef"),
                 contentData,
-                originalLength = 100u
+                originalLength = 100u,
             )
 
             val (packData, _) = builder.build()
@@ -336,14 +336,14 @@ class PackBlobReaderTest {
                 packBlobId = packBlobId,
                 preambleLength = 32,
                 encryptionOverhead = 28,
-                timestampSeconds = 1700000000L
+                timestampSeconds = 1700000000L,
             )
 
             // Add various contents
             val contents = mapOf(
                 ContentId.parse("1111222233334444") to Pair(ByteArray(100) { 0x11.toByte() }, 72u),
                 ContentId.parse("5555666677778888") to Pair(ByteArray(200) { 0x22.toByte() }, 172u),
-                ContentId.parse("9999aaaabbbbcccc") to Pair(ByteArray(50) { 0x33.toByte() }, 22u)
+                ContentId.parse("9999aaaabbbbcccc") to Pair(ByteArray(50) { 0x33.toByte() }, 22u),
             )
 
             for ((contentId, pair) in contents) {

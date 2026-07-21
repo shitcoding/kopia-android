@@ -131,14 +131,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = "/nonexistent/path/does/not/exist",
-                sourceId = "test-source-1"
+                sourceId = "test-source-1",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -164,14 +164,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-source-empty"
+                sourceId = "test-source-empty",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -193,14 +193,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = filePath.toAbsolutePath().toString(),
-                sourceId = "test-source-file"
+                sourceId = "test-source-file",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -229,14 +229,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = "/tmp/test-dir",
-                sourceId = "test-source-ex"
+                sourceId = "test-source-ex",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -257,14 +257,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-source-cp"
+                sourceId = "test-source-cp",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -290,14 +290,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-cp-flag"
+                sourceId = "test-cp-flag",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             val result = session.run()
@@ -333,14 +333,14 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-cancel"
+                sourceId = "test-cancel",
             )
 
             val session = BackupSession(
                 repository = repo,
                 config = config,
                 checkpointStore = checkpointStore,
-                context = context
+                context = context,
             )
 
             launch {
@@ -455,7 +455,7 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-callback"
+                sourceId = "test-callback",
             )
 
             val session = BackupSession(
@@ -463,7 +463,7 @@ class BackupErrorHandlingTest {
                 config = config,
                 checkpointStore = checkpointStore,
                 callback = callback,
-                context = context
+                context = context,
             )
 
             session.run()
@@ -495,7 +495,7 @@ class BackupErrorHandlingTest {
 
             val config = BackupSessionConfig(
                 sourcePath = tempDir.toAbsolutePath().toString(),
-                sourceId = "test-callback-success"
+                sourceId = "test-callback-success",
             )
 
             val session = BackupSession(
@@ -503,7 +503,7 @@ class BackupErrorHandlingTest {
                 config = config,
                 checkpointStore = checkpointStore,
                 callback = callback,
-                context = context
+                context = context,
             )
 
             session.run()
@@ -542,8 +542,8 @@ class BackupErrorHandlingTest {
                 .setInputData(
                     workDataOf(
                         BackupWorker.KEY_SOURCE_ID to "retry-source",
-                        BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                    )
+                        BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                    ),
                 )
                 .build()
 
@@ -563,8 +563,8 @@ class BackupErrorHandlingTest {
                 .setInputData(
                     workDataOf(
                         BackupWorker.KEY_SOURCE_ID to "max-retry-source",
-                        BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                    )
+                        BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                    ),
                 )
                 .setRunAttemptCount(3) // At MAX_RETRY_COUNT
                 .build()
@@ -585,8 +585,8 @@ class BackupErrorHandlingTest {
                 .setInputData(
                     workDataOf(
                         BackupWorker.KEY_SOURCE_ID to "error-msg-source",
-                        BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                    )
+                        BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                    ),
                 )
                 .setRunAttemptCount(3)
                 .build()
@@ -595,8 +595,8 @@ class BackupErrorHandlingTest {
 
             assertThat(result).isEqualTo(
                 ListenableWorker.Result.failure(
-                    workDataOf(BackupWorker.KEY_ERROR to "Disk quota exceeded")
-                )
+                    workDataOf(BackupWorker.KEY_ERROR to "Disk quota exceeded"),
+                ),
             )
         }
     }

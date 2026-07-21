@@ -116,7 +116,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
                 "--access-key-id=minioadmin",
                 "--secret-access-key=minioadmin",
                 "--disable-tls",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             cliRunner.snapshotCreate(sourceDir)
@@ -131,13 +131,13 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
             // Find and restore the snapshot
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             assertThat(manifest.rootEntry).isNotNull()
 
@@ -145,7 +145,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             val output = createRestoreOutput(restoreDir)
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             val stats = restorer.restore(rootEntry)
             assertThat(stats.ignoredErrorCount).isEqualTo(0)
@@ -191,7 +191,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
                 "--access-key-id=minioadmin",
                 "--secret-access-key=minioadmin",
                 "--disable-tls",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             val snapshots = cliRunner.snapshotList(all = true)
@@ -239,9 +239,11 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
             // Go CLI: create repo on WebDAV
             cliRunner.run(
-                "repository", "create", "webdav",
+                "repository",
+                "create",
+                "webdav",
                 "--url=$webdavUrl",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             cliRunner.snapshotCreate(sourceDir)
@@ -255,13 +257,13 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             autoCloseables.add(repo)
 
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             assertThat(manifest.rootEntry).isNotNull()
 
@@ -269,7 +271,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             val output = createRestoreOutput(restoreDir)
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             val stats = restorer.restore(rootEntry)
             assertThat(stats.ignoredErrorCount).isEqualTo(0)
@@ -307,9 +309,11 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
             // Go CLI: connect and restore
             cliRunner.run(
-                "repository", "connect", "webdav",
+                "repository",
+                "connect",
+                "webdav",
                 "--url=$webdavUrl",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             val snapshots = cliRunner.snapshotList(all = true)
@@ -368,7 +372,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
                 "--username=testuser",
                 "--sftp-password=testpass",
                 "--known-hosts=${knownHostsFile.absolutePathString()}",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             cliRunner.snapshotCreate(sourceDir)
@@ -382,13 +386,13 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             autoCloseables.add(repo)
 
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             assertThat(manifest.rootEntry).isNotNull()
 
@@ -396,7 +400,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             val output = createRestoreOutput(restoreDir)
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             val stats = restorer.restore(rootEntry)
             assertThat(stats.ignoredErrorCount).isEqualTo(0)
@@ -444,7 +448,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
                 "--username=testuser",
                 "--sftp-password=testpass",
                 "--known-hosts=${knownHostsFile.absolutePathString()}",
-                "--password=$testPassword"
+                "--password=$testPassword",
             ).requireSuccess()
 
             val snapshots = cliRunner.snapshotList(all = true)
@@ -558,14 +562,14 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             accessKeyId = "minioadmin",
             secretAccessKey = "minioadmin",
             region = "us-east-1",
-            doNotUseTls = true
+            doNotUseTls = true,
         )
         return S3BlobStorage.create(options)
     }
 
     private suspend fun createWebDavStorage(
         url: String,
-        isCreate: Boolean = false
+        isCreate: Boolean = false,
     ): BlobStorage {
         val options = WebDavOptions(url = url)
         return WebDavBlobStorage.create(options, isCreate = isCreate)
@@ -575,7 +579,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
         host: String,
         port: Int,
         path: String,
-        isCreate: Boolean = false
+        isCreate: Boolean = false,
     ): BlobStorage {
         val options = SftpOptions(
             path = path,
@@ -611,7 +615,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             splitter = "FIXED-1M",
             version = 1,
             indexVersion = MutableParameters.LEGACY_INDEX_VERSION,
-            epochParameters = EpochParameters.DISABLED
+            epochParameters = EpochParameters.DISABLED,
         )
 
         return DirectRepositoryImpl.create(storage, testPassword, config)
@@ -625,7 +629,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
             val source = SourceInfo(
                 host = "test-host",
                 userName = "test-user",
-                path = sourceDir.toString()
+                path = sourceDir.toString(),
             )
 
             val progress = CountingUploadProgress()
@@ -633,7 +637,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val rootDir = LocalFilesystem.directory(sourceDir)
@@ -645,16 +649,14 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
     /**
      * Creates a FilesystemOutput for restore operations.
      */
-    private fun createRestoreOutput(targetPath: Path): FilesystemOutput {
-        return FilesystemOutput(
-            targetPath = targetPath,
-            options = FilesystemOutputOptions(
-                overwriteDirectories = true,
-                overwriteFiles = true,
-                overwriteSymlinks = true
-            )
-        )
-    }
+    private fun createRestoreOutput(targetPath: Path): FilesystemOutput = FilesystemOutput(
+        targetPath = targetPath,
+        options = FilesystemOutputOptions(
+            overwriteDirectories = true,
+            overwriteFiles = true,
+            overwriteSymlinks = true,
+        ),
+    )
 
     // -----------------------------------------------------------------------
     // Utility helpers
@@ -671,7 +673,11 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
         // ssh-keyscan to get the real host key from the container
         try {
             val process = ProcessBuilder(
-                "ssh-keyscan", "-p", port.toString(), "-H", "localhost"
+                "ssh-keyscan",
+                "-p",
+                port.toString(),
+                "-H",
+                "localhost",
             ).start()
             val completed = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
             if (completed && process.exitValue() == 0) {

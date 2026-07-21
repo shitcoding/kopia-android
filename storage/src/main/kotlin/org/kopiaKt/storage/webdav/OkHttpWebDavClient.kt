@@ -6,8 +6,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import java.io.InputStream
 import java.io.BufferedInputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
 import javax.xml.stream.XMLInputFactory
@@ -57,7 +57,8 @@ class OkHttpWebDavClient(
             |    <D:resourcetype/>
             |    <D:displayname/>
             |  </D:prop>
-            |</D:propfind>""".trimMargin()
+            |</D:propfind>
+        """.trimMargin()
 
         val request = newRequestBuilder(url)
             .method("PROPFIND", propfindBody.toRequestBody(XML_MEDIA_TYPE))
@@ -203,12 +204,10 @@ class OkHttpWebDavClient(
         return builder
     }
 
-    private fun throwForStatus(response: Response): Nothing {
-        throw WebDavException(
-            message = httpStatusMessage(response.code),
-            statusCode = response.code
-        )
-    }
+    private fun throwForStatus(response: Response): Nothing = throw WebDavException(
+        message = httpStatusMessage(response.code),
+        statusCode = response.code,
+    )
 
     private fun httpStatusMessage(code: Int): String = when (code) {
         HttpURLConnection.HTTP_NOT_FOUND -> "Not Found"
@@ -285,8 +284,8 @@ class OkHttpWebDavClient(
                                             contentLength = contentLength,
                                             isDirectory = isDirectory,
                                             lastModified = lastModified,
-                                            name = extractName(href)
-                                        )
+                                            name = extractName(href),
+                                        ),
                                     )
                                 }
                                 insideResponse = false
@@ -327,7 +326,7 @@ class OkHttpWebDavClient(
  */
 private class ResponseBodyInputStream(
     private val body: okhttp3.ResponseBody,
-    private val response: Response
+    private val response: Response,
 ) : InputStream() {
 
     private val delegate: InputStream = body.byteStream()
@@ -372,5 +371,5 @@ data class DavResource(
  */
 class WebDavException(
     message: String,
-    val statusCode: Int
+    val statusCode: Int,
 ) : RuntimeException("$message (HTTP $statusCode)")

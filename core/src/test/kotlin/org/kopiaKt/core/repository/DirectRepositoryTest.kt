@@ -39,7 +39,7 @@ class DirectRepositoryTest {
             encryption = "AES256-GCM-HMAC-SHA256",
             secret = secret,
             masterKey = masterKey,
-            splitter = "FIXED-1M"
+            splitter = "FIXED-1M",
         )
     }
 
@@ -93,7 +93,7 @@ class DirectRepositoryTest {
             // The exception could be InvalidPasswordException directly or wrapped
             assertThat(
                 exception is org.kopiaKt.core.format.InvalidPasswordException ||
-                    exception.cause is org.kopiaKt.core.format.InvalidPasswordException
+                    exception.cause is org.kopiaKt.core.format.InvalidPasswordException,
             ).isTrue()
         }
 
@@ -191,7 +191,7 @@ class DirectRepositoryTest {
     @Serializable
     data class TestManifest(
         val name: String,
-        val value: Int
+        val value: Int,
     )
 
     @Nested
@@ -515,5 +515,4 @@ class DirectRepositoryTest {
             assertThat(readData).isEqualTo("test".toByteArray())
         }
     }
-
 }

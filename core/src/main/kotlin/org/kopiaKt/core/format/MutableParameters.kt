@@ -17,7 +17,7 @@ data class MutableParameters(
     val indexVersion: Int = DEFAULT_INDEX_VERSION,
 
     /** Epoch manager parameters. */
-    val epochParameters: EpochParameters = EpochParameters.DEFAULT
+    val epochParameters: EpochParameters = EpochParameters.DEFAULT,
 ) {
     /**
      * Validates the mutable parameters.

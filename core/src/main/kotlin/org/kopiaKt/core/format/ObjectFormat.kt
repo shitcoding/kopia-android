@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ObjectFormat(
     /** Splitter algorithm used to break objects into chunks (e.g., "BUZHASH"). */
-    val splitter: String = DEFAULT_SPLITTER
+    val splitter: String = DEFAULT_SPLITTER,
 ) {
     companion object {
         /** Default splitter algorithm. */

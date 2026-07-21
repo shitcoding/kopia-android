@@ -106,7 +106,7 @@ class KopiaRepositoryJsonTest {
             masterKey = ByteArray(32) { (it + 100).toByte() },
             version = 3,
             maxPackSize = 20 * 1024 * 1024,
-            splitter = "DYNAMIC-4M-BUZHASH"
+            splitter = "DYNAMIC-4M-BUZHASH",
         )
 
         // Encrypt

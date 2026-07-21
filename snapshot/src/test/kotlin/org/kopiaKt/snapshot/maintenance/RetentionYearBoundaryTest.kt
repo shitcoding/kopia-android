@@ -27,14 +27,12 @@ class RetentionYearBoundaryTest {
     private val source = SourceInfo(host = "localhost", userName = "user", path = "/data")
     private val zone = ZoneId.of("UTC")
 
-    private fun createSnapshot(id: String, startTime: Instant): SnapshotManifest {
-        return SnapshotManifest(
-            id = id,
-            source = source,
-            startTime = startTime,
-            endTime = startTime.plusSeconds(60)
-        )
-    }
+    private fun createSnapshot(id: String, startTime: Instant): SnapshotManifest = SnapshotManifest(
+        id = id,
+        source = source,
+        startTime = startTime,
+        endTime = startTime.plusSeconds(60),
+    )
 
     @Nested
     @DisplayName("Weekly Retention Across Year Boundary")

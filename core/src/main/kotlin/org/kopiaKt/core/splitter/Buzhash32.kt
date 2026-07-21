@@ -12,7 +12,7 @@ package org.kopiaKt.core.splitter
  * @see <a href="https://en.wikipedia.org/wiki/Rolling_hash#Cyclic_polynomial">Cyclic polynomial</a>
  */
 class Buzhash32 private constructor(
-    private val byteHash: UIntArray
+    private val byteHash: UIntArray,
 ) {
     private var sum: UInt = 0u
     private var nRotate: Int = 0
@@ -139,7 +139,7 @@ class Buzhash32 private constructor(
             0x19ea0f2fu, 0xa9770722u, 0x84a6bfdcu, 0x88f03f07u, 0xa44a03a4u, 0x27a6b885u, 0xb580c8bau, 0x018153dau,
             0xb648e604u, 0x51180278u, 0x893a310fu, 0x728f5f4cu, 0x37f5198bu, 0x3cc0ea9bu, 0xe39d02dbu, 0x13883142u,
             0xca599392u, 0xc12d154eu, 0xc176163du, 0x5c92e2b8u, 0xf9f95edeu, 0xb802bdfcu, 0x8a928585u, 0xdca6e10bu,
-            0x887953e8u, 0x48b9e962u, 0xe533e9a3u, 0x5e0ce6e5u, 0x1dba77aeu, 0xc8214b8au, 0x53b428d7u, 0x4cf20a65u
+            0x887953e8u, 0x48b9e962u, 0xe533e9a3u, 0x5e0ce6e5u, 0x1dba77aeu, 0xc8214b8au, 0x53b428d7u, 0x4cf20a65u,
         )
 
         /**

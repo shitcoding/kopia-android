@@ -29,7 +29,7 @@ enum class TaskStatus { RUNNING, CANCELING, CANCELED, SUCCESS, FAILED }
 data class TaskCounterValue(
     val value: Long,
     val units: String,
-    val level: String = ""
+    val level: String = "",
 )
 
 /**
@@ -46,7 +46,7 @@ data class TaskInfo(
     val counters: Map<String, TaskCounterValue> = emptyMap(),
     val errorMessage: String? = null,
     val startTime: Instant,
-    val endTime: Instant? = null
+    val endTime: Instant? = null,
 )
 
 /**
@@ -85,7 +85,7 @@ interface TaskController {
  *              one failing task does not cancel siblings.
  */
 class TaskManager(
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
     private val nextId = AtomicLong(1)
     private val tasks = ConcurrentHashMap<String, TaskEntry>()
@@ -105,14 +105,14 @@ class TaskManager(
     fun startTask(
         kind: TaskKind,
         description: String,
-        block: suspend (TaskController) -> Unit
+        block: suspend (TaskController) -> Unit,
     ): String {
         val taskId = "task-${nextId.getAndIncrement()}"
         val entry = TaskEntry(
             id = taskId,
             kind = kind,
             description = description,
-            startTime = Instant.now()
+            startTime = Instant.now(),
         )
         tasks[taskId] = entry
 
@@ -134,16 +134,12 @@ class TaskManager(
     /**
      * Retrieve the current state of a task, or null if the ID is unknown.
      */
-    fun getTask(taskId: String): TaskInfo? {
-        return tasks[taskId]?.toInfo()
-    }
+    fun getTask(taskId: String): TaskInfo? = tasks[taskId]?.toInfo()
 
     /**
      * List all tasks (both active and completed).
      */
-    fun listTasks(): List<TaskInfo> {
-        return tasks.values.map { it.toInfo() }
-    }
+    fun listTasks(): List<TaskInfo> = tasks.values.map { it.toInfo() }
 
     /**
      * Request cooperative cancellation of a task.
@@ -187,7 +183,7 @@ class TaskManager(
         val id: String,
         val kind: TaskKind,
         val description: String,
-        val startTime: Instant
+        val startTime: Instant,
     ) {
         @Volatile var job: Job? = null
 
@@ -208,7 +204,7 @@ class TaskManager(
             counters = counters,
             errorMessage = errorMessage,
             startTime = startTime,
-            endTime = endTime
+            endTime = endTime,
         )
 
         @Synchronized
@@ -254,8 +250,7 @@ class TaskManager(
         }
 
         @Synchronized
-        fun isCancelled(): Boolean =
-            status == TaskStatus.CANCELING || status == TaskStatus.CANCELED
+        fun isCancelled(): Boolean = status == TaskStatus.CANCELING || status == TaskStatus.CANCELED
     }
 
     // ------------------------------------------------------------------

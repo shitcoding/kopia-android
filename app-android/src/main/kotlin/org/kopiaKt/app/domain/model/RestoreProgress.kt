@@ -7,7 +7,7 @@ data class RestoreProgress(
     val totalBytes: Long,
     val restoredBytes: Long,
     val currentFile: String?,
-    val errorMessage: String?
+    val errorMessage: String?,
 ) {
     val progressPercent: Int
         get() = if (totalBytes > 0) {
@@ -23,5 +23,5 @@ enum class RestoreState {
     IN_PROGRESS,
     COMPLETED,
     FAILED,
-    CANCELLED
+    CANCELLED,
 }

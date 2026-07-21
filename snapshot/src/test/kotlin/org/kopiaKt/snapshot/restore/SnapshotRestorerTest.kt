@@ -35,8 +35,8 @@ class SnapshotRestorerTest {
             FilesystemOutputOptions(
                 overwriteDirectories = true,
                 overwriteFiles = true,
-                overwriteSymlinks = true
-            )
+                overwriteSymlinks = true,
+            ),
         )
         progress = CountingRestoreProgress()
     }
@@ -50,7 +50,7 @@ class SnapshotRestorerTest {
     fun `restore empty directory`() = runBlocking {
         val rootDir = MockDirectory(
             name = "",
-            entries = emptyList()
+            entries = emptyList(),
         )
 
         val restorer = SnapshotRestorer(output, progress = progress)
@@ -67,8 +67,8 @@ class SnapshotRestorerTest {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
-                MockFile("test.txt", fileContent.toByteArray())
-            )
+                MockFile("test.txt", fileContent.toByteArray()),
+            ),
         )
 
         val restorer = SnapshotRestorer(output, progress = progress)
@@ -92,12 +92,12 @@ class SnapshotRestorerTest {
                         MockDirectory(
                             name = "level2",
                             entries = listOf(
-                                MockFile("deep.txt", "deep content".toByteArray())
-                            )
-                        )
-                    )
-                )
-            )
+                                MockFile("deep.txt", "deep content".toByteArray()),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         )
 
         val restorer = SnapshotRestorer(output, progress = progress)
@@ -117,8 +117,8 @@ class SnapshotRestorerTest {
             name = "",
             entries = listOf(
                 MockFile("target.txt", "target content".toByteArray()),
-                MockSymlink("link.txt", "target.txt")
-            )
+                MockSymlink("link.txt", "target.txt"),
+            ),
         )
 
         val restorer = SnapshotRestorer(output, progress = progress)
@@ -141,7 +141,7 @@ class SnapshotRestorerTest {
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(parallel = 4),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 
@@ -167,16 +167,16 @@ class SnapshotRestorerTest {
                 MockFile(
                     name = "existing.txt",
                     content = "existing content".toByteArray(),
-                    modTime = Instant.ofEpochMilli(fileTime)
+                    modTime = Instant.ofEpochMilli(fileTime),
                 ),
-                MockFile("new.txt", "new content".toByteArray())
-            )
+                MockFile("new.txt", "new content".toByteArray()),
+            ),
         )
 
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(incremental = true),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 
@@ -193,14 +193,14 @@ class SnapshotRestorerTest {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
-                MockFile("keep.txt", "keep this".toByteArray())
-            )
+                MockFile("keep.txt", "keep this".toByteArray()),
+            ),
         )
 
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(deleteExtra = true),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 
@@ -218,16 +218,19 @@ class SnapshotRestorerTest {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
-                MockDirectory("keepdir", listOf(
-                    MockFile("file.txt", "in keep dir".toByteArray())
-                ))
-            )
+                MockDirectory(
+                    "keepdir",
+                    listOf(
+                        MockFile("file.txt", "in keep dir".toByteArray()),
+                    ),
+                ),
+            ),
         )
 
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(deleteExtra = true),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 
@@ -247,7 +250,7 @@ class SnapshotRestorerTest {
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(parallel = 1),
-            progress = progress
+            progress = progress,
         )
 
         // Launch restore in background and cancel after a short delay
@@ -271,14 +274,14 @@ class SnapshotRestorerTest {
             name = "",
             entries = listOf(
                 FailingFile("bad.txt", RuntimeException("Simulated failure")),
-                MockFile("good.txt", "good content".toByteArray())
-            )
+                MockFile("good.txt", "good content".toByteArray()),
+            ),
         )
 
         val restorer = SnapshotRestorer(
             output,
             options = RestoreOptions(ignoreErrors = true),
-            progress = progress
+            progress = progress,
         )
         val stats = restorer.restore(rootDir)
 
@@ -295,8 +298,8 @@ class SnapshotRestorerTest {
             name = "",
             entries = listOf(
                 MockFile("file1.bin", file1Content),
-                MockFile("file2.bin", file2Content)
-            )
+                MockFile("file2.bin", file2Content),
+            ),
         )
 
         val restorer = SnapshotRestorer(output, progress = progress)
@@ -305,5 +308,4 @@ class SnapshotRestorerTest {
         assertThat(stats.enqueuedTotalFileSize).isEqualTo(3000)
         assertThat(stats.restoredTotalFileSize).isEqualTo(3000)
     }
-
 }

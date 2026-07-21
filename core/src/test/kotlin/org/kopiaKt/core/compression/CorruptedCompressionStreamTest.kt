@@ -30,11 +30,10 @@ class CorruptedCompressionStreamTest {
     }
 
     /** Create a valid 4-byte big-endian header for the given algorithm header ID. */
-    private fun makeHeader(headerId: Int): ByteArray =
-        ByteBuffer.allocate(COMPRESSION_HEADER_SIZE)
-            .order(ByteOrder.BIG_ENDIAN)
-            .putInt(headerId)
-            .array()
+    private fun makeHeader(headerId: Int): ByteArray = ByteBuffer.allocate(COMPRESSION_HEADER_SIZE)
+        .order(ByteOrder.BIG_ENDIAN)
+        .putInt(headerId)
+        .array()
 
     /**
      * Assert that decompression either throws an exception or produces data
@@ -46,13 +45,13 @@ class CorruptedCompressionStreamTest {
         compressor: Compressor,
         corrupted: ByteArray,
         original: ByteArray,
-        description: String
+        description: String,
     ) {
         try {
             val result = compressor.decompress(corrupted)
             assertFalse(
                 result.contentEquals(original),
-                "$description: decompression succeeded but returned the original data unchanged"
+                "$description: decompression succeeded but returned the original data unchanged",
             )
         } catch (_: DecompressionException) {
             // Expected path - corruption was detected

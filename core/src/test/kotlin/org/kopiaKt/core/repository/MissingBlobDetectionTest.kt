@@ -1,5 +1,6 @@
 package org.kopiaKt.core.repository
 
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -11,7 +12,6 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.InMemoryBlobStorage
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.testutil.TestRepositoryFactory
-import com.google.common.truth.Truth.assertThat
 
 /**
  * Tests that readObject() properly fails when pack blobs referenced by the index
@@ -53,7 +53,7 @@ class MissingBlobDetectionTest {
         fun `should throw when reading object whose pack blob was deleted`() = runTest {
             val data = "test data for missing blob detection".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to data)
+                mapOf("obj" to data),
             )
             repo = result.first
             storage = result.second
@@ -82,7 +82,7 @@ class MissingBlobDetectionTest {
         fun `should throw when reading object whose pack blob was truncated`() = runTest {
             val data = "test data for truncation detection".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to data)
+                mapOf("obj" to data),
             )
             repo = result.first
             storage = result.second
@@ -122,7 +122,7 @@ class MissingBlobDetectionTest {
         fun `should still succeed verifyObject when pack blob is deleted but index exists`() = runTest {
             val data = "data for verify-vs-read test".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to data)
+                mapOf("obj" to data),
             )
             repo = result.first
             storage = result.second
@@ -159,7 +159,7 @@ class MissingBlobDetectionTest {
             val objects = mapOf(
                 "first" to "first object data content".toByteArray(),
                 "second" to "second object data content".toByteArray(),
-                "third" to "third object data content".toByteArray()
+                "third" to "third object data content".toByteArray(),
             )
             val result = TestRepositoryFactory.createWithObjects(objects)
             repo = result.first
@@ -192,7 +192,7 @@ class MissingBlobDetectionTest {
         fun `should handle gracefully when all pack blobs are missing`() = runTest {
             val objects = mapOf(
                 "alpha" to "alpha content bytes".toByteArray(),
-                "beta" to "beta content bytes here".toByteArray()
+                "beta" to "beta content bytes here".toByteArray(),
             )
             val result = TestRepositoryFactory.createWithObjects(objects)
             repo = result.first
@@ -214,7 +214,7 @@ class MissingBlobDetectionTest {
             for ((key, _) in objects) {
                 val objectId = objectIds.getValue(key)
                 val exception = assertThrows<Exception>(
-                    "Reading object '$key' should fail when all packs are missing"
+                    "Reading object '$key' should fail when all packs are missing",
                 ) {
                     repo.readObject(objectId)
                 }

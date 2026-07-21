@@ -36,7 +36,7 @@ class WebDavBlobStorageTest {
     private val options = WebDavOptions(url = baseUrl)
     private val shardingParams = ShardingParameters(
         default = listOf(1, 3),
-        maxNonShardedLength = 20
+        maxNonShardedLength = 20,
     )
 
     @BeforeEach
@@ -46,7 +46,7 @@ class WebDavBlobStorageTest {
             client = mockClient,
             options = options,
             shardingParams = shardingParams,
-            readOnly = false
+            readOnly = false,
         )
     }
 
@@ -173,7 +173,7 @@ class WebDavBlobStorageTest {
                 mockClient.get("${baseUrl}short.f", mapOf("Range" to "bytes=1000-"))
             } throws WebDavException(
                 "Range Not Satisfiable",
-                HTTP_RANGE_NOT_SATISFIABLE
+                HTTP_RANGE_NOT_SATISFIABLE,
             )
 
             assertThrows<InvalidBlobRangeException> {
@@ -216,7 +216,7 @@ class WebDavBlobStorageTest {
                 contentLength = 1234L,
                 isDirectory = false,
                 lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
-                name = "short.f"
+                name = "short.f",
             )
 
             every { mockClient.list("${baseUrl}short.f", 0) } returns listOf(mockResource)
@@ -284,7 +284,7 @@ class WebDavBlobStorageTest {
                 client = mockClient,
                 options = atomicOptions,
                 shardingParams = shardingParams,
-                readOnly = false
+                readOnly = false,
             )
 
             val blobId = BlobId("atomic")
@@ -339,7 +339,7 @@ class WebDavBlobStorageTest {
             val mockResource = DavResource(
                 href = "${baseUrl}existing.f",
                 contentLength = 100L,
-                name = "existing.f"
+                name = "existing.f",
             )
             every { mockClient.list("${baseUrl}existing.f", 0) } returns listOf(mockResource)
 
@@ -354,10 +354,14 @@ class WebDavBlobStorageTest {
             val data = "data".toByteArray()
 
             assertThrows<UnsupportedPutOptionException> {
-                storage.putBlob(blobId, data, PutBlobOptions(
-                    retentionMode = RetentionMode.GOVERNANCE,
-                    retentionPeriod = Duration.ofDays(1)
-                ))
+                storage.putBlob(
+                    blobId,
+                    data,
+                    PutBlobOptions(
+                        retentionMode = RetentionMode.GOVERNANCE,
+                        retentionPeriod = Duration.ofDays(1),
+                    ),
+                )
             }
         }
 
@@ -420,12 +424,12 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = baseUrl,
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val subDir = DavResource(
                 href = "${baseUrl}p/",
                 isDirectory = true,
-                name = "p"
+                name = "p",
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, subDir)
@@ -434,12 +438,12 @@ class WebDavBlobStorageTest {
             val pDir = DavResource(
                 href = "${baseUrl}p/",
                 isDirectory = true,
-                name = "p"
+                name = "p",
             )
             val ackDir = DavResource(
                 href = "${baseUrl}p/ack/",
                 isDirectory = true,
-                name = "ack"
+                name = "ack",
             )
 
             every { mockClient.list("${baseUrl}p/", 1) } returns listOf(pDir, ackDir)
@@ -448,21 +452,21 @@ class WebDavBlobStorageTest {
             val ackDirSelf = DavResource(
                 href = "${baseUrl}p/ack/",
                 isDirectory = true,
-                name = "ack"
+                name = "ack",
             )
             val blob1 = DavResource(
                 href = "${baseUrl}p/ack/-blob1.f",
                 name = "-blob1.f",
                 isDirectory = false,
                 contentLength = 100L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
             val blob2 = DavResource(
                 href = "${baseUrl}p/ack/-blob2.f",
                 name = "-blob2.f",
                 isDirectory = false,
                 contentLength = 200L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
 
             every { mockClient.list("${baseUrl}p/ack/", 1) } returns listOf(ackDirSelf, blob1, blob2)
@@ -488,20 +492,20 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = baseUrl,
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val validFile = DavResource(
                 href = "${baseUrl}valid.f",
                 name = "valid.f",
                 isDirectory = false,
                 contentLength = 100L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
             val invalidFile = DavResource(
-                href = "${baseUrl}.shards",
+                href = "$baseUrl.shards",
                 name = ".shards",
                 isDirectory = false,
-                contentLength = 50L
+                contentLength = 50L,
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, validFile, invalidFile)
@@ -523,14 +527,14 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = "/",
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val file = DavResource(
                 href = "/blob.f",
                 name = "blob.f",
                 isDirectory = false,
                 contentLength = 42L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
@@ -547,12 +551,12 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = "/dav/",
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val subDir = DavResource(
                 href = "/dav/p/",
                 isDirectory = true,
-                name = "p"
+                name = "p",
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, subDir)
@@ -561,14 +565,14 @@ class WebDavBlobStorageTest {
             val subDirSelf = DavResource(
                 href = "/dav/p/",
                 isDirectory = true,
-                name = "p"
+                name = "p",
             )
             val blob = DavResource(
                 href = "/dav/p/test.f",
                 name = "test.f",
                 isDirectory = false,
                 contentLength = 100L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
 
             every { mockClient.list("${baseUrl}p/", 1) } returns listOf(subDirSelf, blob)
@@ -585,14 +589,14 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = "/dav/./",
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val file = DavResource(
                 href = "/dav/short.f",
                 name = "short.f",
                 isDirectory = false,
                 contentLength = 10L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
@@ -609,14 +613,14 @@ class WebDavBlobStorageTest {
             val rootDir = DavResource(
                 href = "//dav//",
                 isDirectory = true,
-                name = ""
+                name = "",
             )
             val file = DavResource(
                 href = "/dav/data.f",
                 name = "data.f",
                 isDirectory = false,
                 contentLength = 5L,
-                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT"
+                lastModified = "Mon, 15 Jan 2024 10:30:00 GMT",
             )
 
             every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, file)
@@ -650,7 +654,7 @@ class WebDavBlobStorageTest {
                 client = mockClient,
                 options = authOptions,
                 shardingParams = shardingParams,
-                readOnly = false
+                readOnly = false,
             )
 
             val info = authStorage.connectionInfo()
@@ -679,7 +683,7 @@ class WebDavBlobStorageTest {
                 client = mockClient,
                 options = options,
                 shardingParams = shardingParams,
-                readOnly = true
+                readOnly = true,
             )
 
             assertThat(readOnlyStorage.isReadOnly()).isTrue()
@@ -691,7 +695,7 @@ class WebDavBlobStorageTest {
                 client = mockClient,
                 options = options,
                 shardingParams = shardingParams,
-                readOnly = true
+                readOnly = true,
             )
             assertThrows<IllegalStateException> {
                 readOnlyStorage.putBlob(BlobId("ro"), "data".toByteArray())
@@ -704,7 +708,7 @@ class WebDavBlobStorageTest {
                 client = mockClient,
                 options = options,
                 shardingParams = shardingParams,
-                readOnly = true
+                readOnly = true,
             )
             assertThrows<IllegalStateException> {
                 readOnlyStorage.deleteBlob(BlobId("ro"))
@@ -759,15 +763,15 @@ class WebDavBlobStorageTest {
                 default = listOf(1, 3),
                 maxNonShardedLength = 5,
                 overrides = listOf(
-                    PrefixShards(prefix = "index", shards = listOf(2, 2))
-                )
+                    PrefixShards(prefix = "index", shards = listOf(2, 2)),
+                ),
             )
 
             val customStorage = WebDavBlobStorage.createWithClient(
                 client = mockClient,
                 options = options,
                 shardingParams = customParams,
-                readOnly = false
+                readOnly = false,
             )
 
             val blobId = BlobId("index-12345")
@@ -812,7 +816,7 @@ class WebDavBlobStorageTest {
             assertThrows<IllegalArgumentException> {
                 WebDavBlobStorage.createWithClient(
                     mockClient,
-                    WebDavOptions(url = baseUrl, trustedServerCertificateFingerprint = "SHA256:abc")
+                    WebDavOptions(url = baseUrl, trustedServerCertificateFingerprint = "SHA256:abc"),
                 )
             }
         }

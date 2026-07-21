@@ -16,7 +16,7 @@ import java.security.SecureRandom
 data class IndexBlobInfo(
     val blobId: BlobId,
     val length: Long,
-    val timestamp: Long
+    val timestamp: Long,
 )
 
 /**
@@ -64,8 +64,7 @@ internal fun generateRandomBytes(size: Int): ByteArray {
 /**
  * Generates a random suffix for index blob uniqueness.
  */
-fun generateIndexBlobSuffix(): ByteArray =
-    generateRandomBytes(IndexBlobConstants.RANDOM_SUFFIX_SIZE)
+fun generateIndexBlobSuffix(): ByteArray = generateRandomBytes(IndexBlobConstants.RANDOM_SUFFIX_SIZE)
 
 /**
  * Index version constants.
@@ -80,7 +79,7 @@ object IndexVersion {
  */
 data class IdRange(
     val startId: org.kopiaKt.core.content.ContentId?,
-    val endId: org.kopiaKt.core.content.ContentId?
+    val endId: org.kopiaKt.core.content.ContentId?,
 ) {
     companion object {
         /**

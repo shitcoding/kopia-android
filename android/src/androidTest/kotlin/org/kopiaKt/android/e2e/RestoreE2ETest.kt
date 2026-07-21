@@ -199,8 +199,8 @@ class RestoreE2ETest : AndroidE2ETestBase() {
                 targetPath = restoreDir.toPath(),
                 options = FilesystemOutputOptions(
                     overwriteFiles = true,
-                    overwriteDirectories = true
-                )
+                    overwriteDirectories = true,
+                ),
             )
             performRestoreWithOutput(repository, snapshot!!, output)
 
@@ -249,7 +249,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
                 repository = repository,
                 snapshot = snapshot,
                 progress = progress,
-                options = RestoreOptions(incremental = true)
+                options = RestoreOptions(incremental = true),
             )
 
             val stats = progress.snapshot()
@@ -292,7 +292,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
             performRestore(
                 repository = repository,
                 snapshot = snapshot!!,
-                options = RestoreOptions(parallel = 4)
+                options = RestoreOptions(parallel = 4),
             )
 
             val duration = System.currentTimeMillis() - startTime
@@ -327,7 +327,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
 
             // Verify both snapshots exist
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests.size).isEqualTo(2)
 
@@ -451,28 +451,28 @@ class RestoreE2ETest : AndroidE2ETestBase() {
     private suspend fun performBackup(
         repository: DirectRepository,
         description: String,
-        progress: CountingUploadProgress = CountingUploadProgress()
+        progress: CountingUploadProgress = CountingUploadProgress(),
     ): ManifestId {
         val writer = repository.newWriter(WriteSessionOptions())
         try {
             val source = SourceInfo(
                 host = android.os.Build.DEVICE,
                 userName = "android",
-                path = sourceDir.absolutePath
+                path = sourceDir.absolutePath,
             )
 
             val uploader = SnapshotUploader(
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val rootDir = LocalFilesystem.directory(sourceDir.toPath())
 
             val result = uploader.upload(
                 rootDir = rootDir,
-                options = UploadOptions(description = description)
+                options = UploadOptions(description = description),
             )
 
             writer.flush()
@@ -489,7 +489,7 @@ class RestoreE2ETest : AndroidE2ETestBase() {
 
     private suspend fun getLatestSnapshot(repository: DirectRepository): SnapshotManifest? {
         val manifests = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
         if (manifests.isEmpty()) return null
 
@@ -503,14 +503,14 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         repository: DirectRepository,
         snapshot: SnapshotManifest,
         progress: CountingRestoreProgress = CountingRestoreProgress(),
-        options: RestoreOptions = RestoreOptions()
+        options: RestoreOptions = RestoreOptions(),
     ) {
         val output = FilesystemOutput(
             targetPath = restoreDir.toPath(),
             options = FilesystemOutputOptions(
                 overwriteFiles = true,
-                overwriteDirectories = true
-            )
+                overwriteDirectories = true,
+            ),
         )
         performRestoreWithOutput(repository, snapshot, output, progress, options)
     }
@@ -520,14 +520,14 @@ class RestoreE2ETest : AndroidE2ETestBase() {
         snapshot: SnapshotManifest,
         output: FilesystemOutput,
         progress: CountingRestoreProgress = CountingRestoreProgress(),
-        options: RestoreOptions = RestoreOptions()
+        options: RestoreOptions = RestoreOptions(),
     ) {
         val repoRoot = snapshotRoot(repository, snapshot)
 
         val restorer = SnapshotRestorer(
             output = output,
             options = options,
-            progress = progress
+            progress = progress,
         )
 
         restorer.restore(repoRoot)

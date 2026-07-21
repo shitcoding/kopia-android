@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.SourceInfo
@@ -75,7 +75,7 @@ class BridgeBackupMethodsTest {
         bridge = KopiaWebBridge(
             taskManager = taskManager,
             sourceManager = sourceManager,
-            repositoryManager = repositoryManager
+            repositoryManager = repositoryManager,
         )
     }
 
@@ -122,7 +122,7 @@ class BridgeBackupMethodsTest {
                 path = "/storage/documents",
                 displayName = "My Documents",
                 status = SourceStatus.IDLE,
-                createdAt = Instant.parse("2026-01-01T00:00:00Z")
+                createdAt = Instant.parse("2026-01-01T00:00:00Z"),
             )
             every { sourceManager.createSource("/storage/documents", "My Documents") } returns fakeSource
 
@@ -142,7 +142,7 @@ class BridgeBackupMethodsTest {
                 id = "src-1",
                 path = "/data",
                 displayName = "Data",
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
             every { sourceManager.createSource("/data", "Data") } returns fakeSource
 
@@ -207,7 +207,7 @@ class BridgeBackupMethodsTest {
                 id = "src-1",
                 path = "/data",
                 displayName = "Data",
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
 
             val result = bridge.deleteSource("src-1")
@@ -237,7 +237,7 @@ class BridgeBackupMethodsTest {
                 path = "/photos",
                 displayName = "Photos",
                 status = SourceStatus.UPLOADING,
-                createdAt = Instant.parse("2026-01-15T10:00:00Z")
+                createdAt = Instant.parse("2026-01-15T10:00:00Z"),
             )
             every { sourceManager.getSource("src-42") } returns fakeSource
 
@@ -270,7 +270,7 @@ class BridgeBackupMethodsTest {
                 path = "/data",
                 displayName = "Data",
                 status = SourceStatus.IDLE,
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
 
             val result = bridge.pauseSource("src-1")
@@ -300,7 +300,7 @@ class BridgeBackupMethodsTest {
                 path = "/data",
                 displayName = "Data",
                 status = SourceStatus.PAUSED,
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
 
             val result = bridge.resumeSource("src-1")
@@ -334,7 +334,7 @@ class BridgeBackupMethodsTest {
                 id = "src-1",
                 path = "/data",
                 displayName = "Data",
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
             every {
@@ -352,7 +352,7 @@ class BridgeBackupMethodsTest {
             val obj = assertError(result)
             assertTrue(
                 obj["error"]!!.jsonPrimitive.content.contains("not yet implemented"),
-                "Expected a not-implemented error, got: $result"
+                "Expected a not-implemented error, got: $result",
             )
         }
 
@@ -363,7 +363,7 @@ class BridgeBackupMethodsTest {
                 id = "src-1",
                 path = "/data",
                 displayName = "Data",
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
             every {
@@ -389,7 +389,7 @@ class BridgeBackupMethodsTest {
                 kind = TaskKind.BACKUP,
                 description = "Backup /data",
                 status = TaskStatus.RUNNING,
-                startTime = Instant.now()
+                startTime = Instant.now(),
             )
 
             val result = bridge.cancelBackup("task-1")
@@ -436,7 +436,7 @@ class BridgeBackupMethodsTest {
                     description = "Backup /data",
                     status = TaskStatus.RUNNING,
                     progressInfo = "50%",
-                    startTime = now
+                    startTime = now,
                 ),
                 TaskInfo(
                     id = "task-2",
@@ -444,8 +444,8 @@ class BridgeBackupMethodsTest {
                     description = "Restore /photos",
                     status = TaskStatus.SUCCESS,
                     startTime = now,
-                    endTime = now.plusSeconds(60)
-                )
+                    endTime = now.plusSeconds(60),
+                ),
             )
 
             val result = bridge.listTasks()
@@ -479,7 +479,7 @@ class BridgeBackupMethodsTest {
                 description = "GC run",
                 status = TaskStatus.SUCCESS,
                 startTime = now,
-                endTime = now.plusSeconds(30)
+                endTime = now.plusSeconds(30),
             )
 
             val result = bridge.getTask("task-5")
@@ -499,7 +499,7 @@ class BridgeBackupMethodsTest {
             val dataElement = obj["data"]
             assertTrue(
                 dataElement == null || dataElement.toString() == "null",
-                "Expected null data for missing task"
+                "Expected null data for missing task",
             )
         }
     }
@@ -515,7 +515,7 @@ class BridgeBackupMethodsTest {
                 kind = TaskKind.BACKUP,
                 description = "Backup",
                 status = TaskStatus.RUNNING,
-                startTime = Instant.now()
+                startTime = Instant.now(),
             )
 
             val result = bridge.cancelTask("task-1")
@@ -545,7 +545,7 @@ class BridgeBackupMethodsTest {
         @Test
         fun `returns policy when found`() {
             val policy = Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 10)
+                retentionPolicy = RetentionPolicy(keepLatest = 10),
             )
             coEvery {
                 PolicyManager.getPolicy(repository, any())
@@ -569,7 +569,7 @@ class BridgeBackupMethodsTest {
             val dataElement = obj["data"]
             assertTrue(
                 dataElement == null || dataElement.toString() == "null",
-                "Expected null data when no policy exists"
+                "Expected null data when no policy exists",
             )
         }
 

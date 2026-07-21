@@ -40,7 +40,7 @@ class SnapshotDataModelTest {
             val sourceInfo = SourceInfo(
                 host = "myhost",
                 userName = "myuser",
-                path = "/home/myuser/documents"
+                path = "/home/myuser/documents",
             )
 
             val serialized = json.encodeToString(sourceInfo)
@@ -55,7 +55,7 @@ class SnapshotDataModelTest {
             val sourceInfo = SourceInfo(
                 host = "myhost",
                 userName = "myuser",
-                path = "/home/myuser/documents"
+                path = "/home/myuser/documents",
             )
 
             assertEquals("myuser@myhost:/home/myuser/documents", sourceInfo.toString())
@@ -116,7 +116,8 @@ class SnapshotDataModelTest {
                 "excludedDirCount": 2,
                 "ignoredErrorCount": 1,
                 "errorCount": 0
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val stats = json.decodeFromString<SnapshotStats>(goJson)
 
@@ -137,7 +138,7 @@ class SnapshotDataModelTest {
             val stats = SnapshotStats(
                 totalFileSize = 1234567890L,
                 totalFileCount = 1000,
-                totalDirectoryCount = 100
+                totalDirectoryCount = 100,
             )
 
             val serialized = json.encodeToString(stats)
@@ -175,7 +176,8 @@ class SnapshotDataModelTest {
                 "dirs": 3,
                 "maxTime": "2019-05-09T22:33:06-07:00",
                 "numFailed": 0
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val summary = json.decodeFromString<DirectorySummary>(goJson)
 
@@ -192,7 +194,7 @@ class SnapshotDataModelTest {
             val summary = DirectorySummary(
                 totalFileSize = 11264L,
                 totalFileCount = 2L,
-                totalDirCount = 3L
+                totalDirCount = 3L,
             )
 
             val serialized = json.encodeToString(summary)
@@ -209,7 +211,8 @@ class SnapshotDataModelTest {
                 "files": 0,
                 "dirs": 0,
                 "incomplete": "cancelled"
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val summary = json.decodeFromString<DirectorySummary>(goJson)
 
@@ -228,7 +231,8 @@ class SnapshotDataModelTest {
                     {"path": "/some/file.txt", "error": "permission denied"},
                     {"path": "/another/file.txt", "error": "file not found"}
                 ]
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val summary = json.decodeFromString<DirectorySummary>(goJson)
 
@@ -267,7 +271,8 @@ class SnapshotDataModelTest {
                 "uid": 1000,
                 "gid": 1000,
                 "obj": "abc123def456"
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val entry = json.decodeFromString<DirEntry>(goJson)
 
@@ -296,7 +301,8 @@ class SnapshotDataModelTest {
                     "files": 10,
                     "dirs": 2
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val entry = json.decodeFromString<DirEntry>(goJson)
 
@@ -317,7 +323,8 @@ class SnapshotDataModelTest {
                 "mode": "0777",
                 "mtime": "2024-01-15T10:30:00Z",
                 "obj": "target_content_id"
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val entry = json.decodeFromString<DirEntry>(goJson)
 
@@ -332,7 +339,8 @@ class SnapshotDataModelTest {
                 "name": "unknown",
                 "type": "",
                 "obj": "content_id"
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val entry = json.decodeFromString<DirEntry>(goJson)
 
@@ -346,7 +354,7 @@ class SnapshotDataModelTest {
                 type = EntryType.FILE,
                 permissions = 420, // 0644 octal
                 fileSize = 12345L,
-                objectId = "abc123def456"
+                objectId = "abc123def456",
             )
 
             val serialized = json.encodeToString(entry)
@@ -368,8 +376,8 @@ class SnapshotDataModelTest {
                 dirSummary = DirectorySummary(
                     totalFileSize = 5000L,
                     totalFileCount = 10L,
-                    totalDirCount = 2L
-                )
+                    totalDirCount = 2L,
+                ),
             )
 
             val serialized = json.encodeToString(entry)
@@ -384,7 +392,7 @@ class SnapshotDataModelTest {
             val entry = DirEntry(
                 name = "simple",
                 type = EntryType.FILE,
-                objectId = "content_id"
+                objectId = "content_id",
             )
 
             val serialized = json.encodeToString(entry)
@@ -431,7 +439,8 @@ class SnapshotDataModelTest {
                     "files": 1,
                     "dirs": 1
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val dirManifest = json.decodeFromString<DirManifest>(goJson)
 
@@ -450,9 +459,9 @@ class SnapshotDataModelTest {
             val dirManifest = DirManifest(
                 entries = listOf(
                     DirEntry(name = "file1.txt", type = EntryType.FILE, objectId = "c1"),
-                    DirEntry(name = "subdir", type = EntryType.DIRECTORY, objectId = "d1")
+                    DirEntry(name = "subdir", type = EntryType.DIRECTORY, objectId = "d1"),
                 ),
-                summary = DirectorySummary(totalFileSize = 100L, totalFileCount = 1L, totalDirCount = 1L)
+                summary = DirectorySummary(totalFileSize = 100L, totalFileCount = 1L, totalDirCount = 1L),
             )
 
             val serialized = json.encodeToString(dirManifest)
@@ -465,7 +474,7 @@ class SnapshotDataModelTest {
         fun `should reject invalid stream type`() {
             val dirManifest = DirManifest(
                 streamType = "invalid:type",
-                entries = listOf()
+                entries = listOf(),
             )
 
             assertTrue(!dirManifest.isValidDirectoryStream())
@@ -501,7 +510,8 @@ class SnapshotDataModelTest {
                     "environment": "production"
                 },
                 "pins": ["keep-forever"]
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val manifest = json.decodeFromString<SnapshotManifest>(goJson)
 
@@ -529,7 +539,8 @@ class SnapshotDataModelTest {
                 "startTime": "2024-01-15T10:30:00Z",
                 "stats": {},
                 "incomplete": "cancelled by user"
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val manifest = json.decodeFromString<SnapshotManifest>(goJson)
 
@@ -543,7 +554,7 @@ class SnapshotDataModelTest {
                 id = "abc123def456",
                 source = SourceInfo(host = "myhost", userName = "myuser", path = "/home/myuser"),
                 startTime = java.time.Instant.parse("2024-01-15T10:30:00Z"),
-                stats = SnapshotStats(totalFileSize = 1000L, totalFileCount = 10)
+                stats = SnapshotStats(totalFileSize = 1000L, totalFileCount = 10),
             )
 
             val serialized = json.encodeToString(manifest)
@@ -558,7 +569,7 @@ class SnapshotDataModelTest {
             val manifest = SnapshotManifest(
                 id = "test",
                 source = SourceInfo(host = "h", userName = "u", path = "/p"),
-                startTime = java.time.Instant.now()
+                startTime = java.time.Instant.now(),
             )
 
             val serialized = json.encodeToString(manifest)
@@ -592,7 +603,8 @@ class SnapshotDataModelTest {
                     "dirObjects": 50,
                     "contents": 550
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val stats = json.decodeFromString<StorageStats>(goJson)
 

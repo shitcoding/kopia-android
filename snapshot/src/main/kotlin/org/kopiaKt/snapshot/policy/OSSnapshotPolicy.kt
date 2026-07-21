@@ -29,7 +29,9 @@ enum class OSSnapshotMode {
     /**
      * Fall back to regular file access on error.
      */
-    WHEN_AVAILABLE;
+    WHEN_AVAILABLE,
+
+    ;
 
     override fun toString(): String = when (this) {
         NEVER -> "never"
@@ -58,9 +60,7 @@ object OSSnapshotModeSerializer : KSerializer<OSSnapshotMode> {
         encoder.encodeString(value.toString())
     }
 
-    override fun deserialize(decoder: Decoder): OSSnapshotMode {
-        return OSSnapshotMode.fromString(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): OSSnapshotMode = OSSnapshotMode.fromString(decoder.decodeString())
 }
 
 /**
@@ -75,7 +75,7 @@ fun OSSnapshotMode?.orDefault(default: OSSnapshotMode): OSSnapshotMode = this ?:
  */
 @Serializable
 data class VolumeShadowCopyPolicy(
-    val enable: OSSnapshotMode? = null
+    val enable: OSSnapshotMode? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -85,7 +85,7 @@ data class VolumeShadowCopyPolicy(
         return VolumeShadowCopyPolicy(
             enable = mergeOSSnapshotMode(enable, src.enable) {
                 newDef.enable = si
-            }
+            },
         ) to newDef
     }
 }
@@ -97,7 +97,7 @@ data class VolumeShadowCopyPolicy(
  */
 @Serializable
 data class VolumeShadowCopyPolicyDefinition(
-    var enable: SourceInfo? = null
+    var enable: SourceInfo? = null,
 )
 
 /**
@@ -107,7 +107,7 @@ data class VolumeShadowCopyPolicyDefinition(
  */
 @Serializable
 data class OSSnapshotPolicy(
-    val volumeShadowCopy: VolumeShadowCopyPolicy = VolumeShadowCopyPolicy()
+    val volumeShadowCopy: VolumeShadowCopyPolicy = VolumeShadowCopyPolicy(),
 ) {
     /**
      * Merges this policy with source policy.
@@ -117,7 +117,7 @@ data class OSSnapshotPolicy(
         val (mergedVSC, mergedVSCDef) = volumeShadowCopy.merge(src.volumeShadowCopy, newDef.volumeShadowCopy, si)
         newDef.volumeShadowCopy = mergedVSCDef
         return OSSnapshotPolicy(
-            volumeShadowCopy = mergedVSC
+            volumeShadowCopy = mergedVSC,
         ) to newDef
     }
 
@@ -127,8 +127,8 @@ data class OSSnapshotPolicy(
          */
         val Default = OSSnapshotPolicy(
             volumeShadowCopy = VolumeShadowCopyPolicy(
-                enable = OSSnapshotMode.NEVER
-            )
+                enable = OSSnapshotMode.NEVER,
+            ),
         )
     }
 }
@@ -140,15 +140,13 @@ data class OSSnapshotPolicy(
  */
 @Serializable
 data class OSSnapshotPolicyDefinition(
-    var volumeShadowCopy: VolumeShadowCopyPolicyDefinition = VolumeShadowCopyPolicyDefinition()
+    var volumeShadowCopy: VolumeShadowCopyPolicyDefinition = VolumeShadowCopyPolicyDefinition(),
 )
 
 // Helper merge function
-private inline fun mergeOSSnapshotMode(target: OSSnapshotMode?, src: OSSnapshotMode?, onMerge: () -> Unit): OSSnapshotMode? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeOSSnapshotMode(target: OSSnapshotMode?, src: OSSnapshotMode?, onMerge: () -> Unit): OSSnapshotMode? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

@@ -41,7 +41,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("10mb" to original)
+                objects = mapOf("10mb" to original),
             )
             repo = repository
 
@@ -65,7 +65,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("1mb-exact" to original)
+                objects = mapOf("1mb-exact" to original),
             )
             repo = repository
 
@@ -84,7 +84,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("1mb-plus-1" to original)
+                objects = mapOf("1mb-plus-1" to original),
             )
             repo = repository
 
@@ -109,7 +109,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("50mb-compressible" to original)
+                objects = mapOf("50mb-compressible" to original),
             )
             repo = repository
 
@@ -129,7 +129,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("50mb-random" to original)
+                objects = mapOf("50mb-random" to original),
             )
             repo = repository
 
@@ -154,7 +154,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("50mb" to original)
+                objects = mapOf("50mb" to original),
             )
             repo = repository
 
@@ -174,7 +174,7 @@ class LargeFileRoundTripTest {
             val originalHash = LargeDataGenerator.sha256(original)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("100mb" to original)
+                objects = mapOf("100mb" to original),
             )
             repo = repository
 

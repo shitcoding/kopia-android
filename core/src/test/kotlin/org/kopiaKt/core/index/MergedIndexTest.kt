@@ -117,11 +117,13 @@ class MergedIndexTest {
         val index = createTestIndex(listOf("aaaa", "bbbb", "cccc", "dddd"))
         val merged = MergedIndex.of(index)
 
-        val results = merged.getInfoBatch(listOf(
-            ContentId.parse("aaaa"),
-            ContentId.parse("cccc"),
-            ContentId.parse("ffff") // Missing
-        ))
+        val results = merged.getInfoBatch(
+            listOf(
+                ContentId.parse("aaaa"),
+                ContentId.parse("cccc"),
+                ContentId.parse("ffff"), // Missing
+            ),
+        )
 
         assertEquals(2, results.size)
         assertNotNull(results[ContentId.parse("aaaa")])
@@ -142,8 +144,10 @@ class MergedIndexTest {
 
         // Should be deduplicated
         assertEquals(5, all.size)
-        assertEquals(listOf("aaaa", "bbbb", "cccc", "dddd", "eeee"),
-            all.map { it.contentId.toString() })
+        assertEquals(
+            listOf("aaaa", "bbbb", "cccc", "dddd", "eeee"),
+            all.map { it.contentId.toString() },
+        )
     }
 
     @Test
@@ -169,7 +173,7 @@ class MergedIndexTest {
 
         val range = merged.iterate(
             startId = ContentId.parse("2222"),
-            endId = ContentId.parse("5555")
+            endId = ContentId.parse("5555"),
         ).toList()
 
         assertEquals(3, range.size)
@@ -241,7 +245,7 @@ class MergedIndexTest {
         val indexes = listOf(
             createTestIndex(listOf("aaaa")),
             createTestIndex(listOf("bbbb")),
-            createTestIndex(listOf("cccc"))
+            createTestIndex(listOf("cccc")),
         )
 
         val builder = MergedIndexBuilder().addAll(indexes)
@@ -268,34 +272,30 @@ class MergedIndexTest {
         return IndexBlobReader.openUnencrypted(data, BlobId("ntest"))
     }
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 
     private fun createTestContentInfoWithTimestamp(
         contentIdHex: String,
         packOffset: Int,
-        timestamp: Long
-    ): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = timestamp,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+        timestamp: Long,
+    ): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = timestamp,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 
     private class CloseTrackingIndex(
-        private val throwOnClose: Boolean = false
+        private val throwOnClose: Boolean = false,
     ) : PackIndex {
         var closed = false
 

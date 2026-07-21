@@ -2,14 +2,12 @@
 
 package org.kopiaKt.e2e.benchmark
 
-import kotlin.io.path.ExperimentalPathApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.writeSession
 import org.kopiaKt.e2e.KopiaCliRunner
@@ -20,10 +18,9 @@ import org.kopiaKt.snapshot.upload.CountingUploadProgress
 import org.kopiaKt.snapshot.upload.SnapshotUploader
 import org.kopiaKt.snapshot.upload.UploadOptions
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
-import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Duration
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -48,8 +45,8 @@ class BackupBenchmarkTest {
         BenchmarkConfig(
             warmupIterations = 1,
             measurementIterations = 3,
-            compareWithGo = isGoKopiaAvailable()
-        )
+            compareWithGo = isGoKopiaAvailable(),
+        ),
     )
 
     @BeforeEach
@@ -72,20 +69,16 @@ class BackupBenchmarkTest {
 
     companion object {
         @JvmStatic
-        fun isE2EEnabled(): Boolean {
-            return System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
-                    System.getenv("CI")?.toBoolean() == true ||
-                    System.getProperty("e2e")?.toBoolean() == true
-        }
+        fun isE2EEnabled(): Boolean = System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
+            System.getenv("CI")?.toBoolean() == true ||
+            System.getProperty("e2e")?.toBoolean() == true
 
         @JvmStatic
-        fun isGoKopiaAvailable(): Boolean {
-            return try {
-                KopiaCliRunner.defaultKopiaBinary()
-                true
-            } catch (e: Exception) {
-                false
-            }
+        fun isGoKopiaAvailable(): Boolean = try {
+            KopiaCliRunner.defaultKopiaBinary()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -111,7 +104,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -141,7 +136,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -171,7 +168,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -201,7 +200,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -226,7 +227,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -255,7 +258,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -284,7 +289,9 @@ class BackupBenchmarkTest {
                 },
                 goBenchmark = if (isGoKopiaAvailable()) {
                     { benchmarkGoBackup(testDataSpec) }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -300,17 +307,17 @@ class BackupBenchmarkTest {
 
     private suspend fun benchmarkKotlinBackup(
         repo: DirectRepositoryImpl,
-        testDataSpec: TestDataSpec
+        testDataSpec: TestDataSpec,
     ): BenchmarkMeasurement {
         val (_, measurement) = benchmarkRunner.measure(
             bytesProcessed = testDataSpec.totalBytes,
-            filesProcessed = testDataSpec.fileCount.toLong()
+            filesProcessed = testDataSpec.fileCount.toLong(),
         ) {
             writeSession(repo) { writer ->
                 val source = SourceInfo(
                     host = "benchmark-host",
                     userName = "benchmark-user",
-                    path = sourceDir.toString()
+                    path = sourceDir.toString(),
                 )
 
                 val progress = CountingUploadProgress()
@@ -318,7 +325,7 @@ class BackupBenchmarkTest {
                     writer = writer,
                     source = source,
                     policy = Policy(),
-                    progress = progress
+                    progress = progress,
                 )
 
                 val rootDir = LocalFilesystem.directory(sourceDir)
@@ -341,7 +348,7 @@ class BackupBenchmarkTest {
 
             val (_, measurement) = benchmarkRunner.measure(
                 bytesProcessed = testDataSpec.totalBytes,
-                filesProcessed = testDataSpec.fileCount.toLong()
+                filesProcessed = testDataSpec.fileCount.toLong(),
             ) {
                 // Create repository
                 kopiaCli.repositoryCreate(goRepoDir, password)
@@ -372,12 +379,10 @@ class BackupBenchmarkTest {
         }
     }
 
-    private fun formatBytes(bytes: Long): String {
-        return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-        }
+    private fun formatBytes(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+        bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }

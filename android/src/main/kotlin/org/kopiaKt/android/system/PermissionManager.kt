@@ -45,7 +45,7 @@ class PermissionManager(private val context: Context) {
         /** Whether all required permissions are granted */
         val hasAllRequiredPermissions: Boolean,
         /** List of missing permissions that should be requested */
-        val missingPermissions: List<Permission>
+        val missingPermissions: List<Permission>,
     )
 
     /**
@@ -54,10 +54,12 @@ class PermissionManager(private val context: Context) {
     enum class Permission {
         /** Legacy external storage read/write (API < 30) */
         STORAGE,
+
         /** Post notifications (API 33+) */
         NOTIFICATIONS,
+
         /** Battery optimization exemption */
-        BATTERY_OPTIMIZATION
+        BATTERY_OPTIMIZATION,
     }
 
     /**
@@ -68,27 +70,28 @@ class PermissionManager(private val context: Context) {
      *
      * Note: For SAF access, use SafPermissionManager instead.
      */
-    fun hasStoragePermission(): Boolean {
-        return when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Android 11+ uses scoped storage, no permission needed for app dirs
-                true
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                // Android 10: Read permission only (requestLegacyExternalStorage in manifest)
+    fun hasStoragePermission(): Boolean = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+            // Android 11+ uses scoped storage, no permission needed for app dirs
+            true
+        }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+            // Android 10: Read permission only (requestLegacyExternalStorage in manifest)
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+        else -> {
+            // Android 9 and below: Need both read and write
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+            ) == PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.READ_EXTERNAL_STORAGE
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 ) == PackageManager.PERMISSION_GRANTED
-            }
-            else -> {
-                // Android 9 and below: Need both read and write
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            }
         }
     }
 
@@ -98,15 +101,14 @@ class PermissionManager(private val context: Context) {
      * On Android 13+ (API 33+): Requires POST_NOTIFICATIONS permission
      * On earlier versions: Always granted (via manifest)
      */
-    fun hasNotificationPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context, Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            // Pre-Android 13: Check if notifications are enabled in system settings
-            context.getSystemService<NotificationManager>()?.areNotificationsEnabled() == true
-        }
+    fun hasNotificationPermission(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+    } else {
+        // Pre-Android 13: Check if notifications are enabled in system settings
+        context.getSystemService<NotificationManager>()?.areNotificationsEnabled() == true
     }
 
     /**
@@ -115,16 +117,12 @@ class PermissionManager(private val context: Context) {
      * Different from hasNotificationPermission() - this checks if notifications
      * are actually enabled, including user preferences in settings.
      */
-    fun canPostNotifications(): Boolean {
-        return context.getSystemService<NotificationManager>()?.areNotificationsEnabled() == true
-    }
+    fun canPostNotifications(): Boolean = context.getSystemService<NotificationManager>()?.areNotificationsEnabled() == true
 
     /**
      * Checks if exempt from battery optimization (Doze mode).
      */
-    fun isExemptFromBatteryOptimization(): Boolean {
-        return batteryChecker.isExemptFromBatteryOptimization()
-    }
+    fun isExemptFromBatteryOptimization(): Boolean = batteryChecker.isExemptFromBatteryOptimization()
 
     /**
      * Gets the complete permission state for backup functionality.
@@ -152,7 +150,7 @@ class PermissionManager(private val context: Context) {
             hasNotificationPermission = hasNotifications,
             isExemptFromBatteryOptimization = isBatteryExempt,
             hasAllRequiredPermissions = hasStorage && hasNotifications,
-            missingPermissions = missingPermissions
+            missingPermissions = missingPermissions,
         )
     }
 
@@ -218,23 +216,19 @@ class PermissionManager(private val context: Context) {
     /**
      * Creates an intent to open the app's notification settings.
      */
-    fun createNotificationSettingsIntent(): Intent {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            }
-        } else {
-            createAppSettingsIntent()
+    fun createNotificationSettingsIntent(): Intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
         }
+    } else {
+        createAppSettingsIntent()
     }
 
     /**
      * Creates an intent to open the app's settings page.
      */
-    fun createAppSettingsIntent(): Intent {
-        return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-        }
+    fun createAppSettingsIntent(): Intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
     }
 
     /**
@@ -242,18 +236,14 @@ class PermissionManager(private val context: Context) {
      *
      * This shows a system dialog asking the user to exempt the app.
      */
-    fun createBatteryOptimizationExemptionIntent(): Intent? {
-        return batteryChecker.createRequestExemptionIntent()
-    }
+    fun createBatteryOptimizationExemptionIntent(): Intent? = batteryChecker.createRequestExemptionIntent()
 
     /**
      * Creates an intent to open battery optimization settings.
      *
      * This opens the settings page where user can manually toggle exemption.
      */
-    fun createBatteryOptimizationSettingsIntent(): Intent {
-        return batteryChecker.createBatteryOptimizationSettingsIntent()
-    }
+    fun createBatteryOptimizationSettingsIntent(): Intent = batteryChecker.createBatteryOptimizationSettingsIntent()
 
     /**
      * Handles permission request results.
@@ -266,34 +256,30 @@ class PermissionManager(private val context: Context) {
     fun handlePermissionResult(
         requestCode: Int,
         permissions: Array<out String>,
-        grantResults: IntArray
-    ): Map<String, Boolean> {
-        return permissions.zip(grantResults.toList()).associate { (permission, result) ->
-            permission to (result == PackageManager.PERMISSION_GRANTED)
-        }
+        grantResults: IntArray,
+    ): Map<String, Boolean> = permissions.zip(grantResults.toList()).associate { (permission, result) ->
+        permission to (result == PackageManager.PERMISSION_GRANTED)
     }
 
     /**
      * Gets a user-friendly description for a permission.
      */
-    fun getPermissionDescription(permission: Permission): PermissionDescription {
-        return when (permission) {
-            Permission.STORAGE -> PermissionDescription(
-                title = "Storage Access",
-                description = "Required to access files for backup on older Android versions.",
-                rationale = "KopiaKt needs storage access to back up your files. On Android 11+, you can use the Storage Access Framework to grant access to specific folders instead."
-            )
-            Permission.NOTIFICATIONS -> PermissionDescription(
-                title = "Notifications",
-                description = "Shows backup progress and completion status.",
-                rationale = "Notifications let you know when backups start, their progress, and whether they completed successfully or encountered errors."
-            )
-            Permission.BATTERY_OPTIMIZATION -> PermissionDescription(
-                title = "Battery Optimization",
-                description = "Allows backups to run reliably in the background.",
-                rationale = "Without battery optimization exemption, Android may stop backups to save battery. This is especially important for large backups or when backing up over slower connections."
-            )
-        }
+    fun getPermissionDescription(permission: Permission): PermissionDescription = when (permission) {
+        Permission.STORAGE -> PermissionDescription(
+            title = "Storage Access",
+            description = "Required to access files for backup on older Android versions.",
+            rationale = "KopiaKt needs storage access to back up your files. On Android 11+, you can use the Storage Access Framework to grant access to specific folders instead.",
+        )
+        Permission.NOTIFICATIONS -> PermissionDescription(
+            title = "Notifications",
+            description = "Shows backup progress and completion status.",
+            rationale = "Notifications let you know when backups start, their progress, and whether they completed successfully or encountered errors.",
+        )
+        Permission.BATTERY_OPTIMIZATION -> PermissionDescription(
+            title = "Battery Optimization",
+            description = "Allows backups to run reliably in the background.",
+            rationale = "Without battery optimization exemption, Android may stop backups to save battery. This is especially important for large backups or when backing up over slower connections.",
+        )
     }
 
     companion object {
@@ -311,5 +297,5 @@ data class PermissionDescription(
     /** Brief description of why it's needed */
     val description: String,
     /** Detailed rationale for showing when user denies */
-    val rationale: String
+    val rationale: String,
 )

@@ -57,7 +57,7 @@ object Aes256GcmCipher {
         key: ByteArray,
         nonce: ByteArray,
         plaintext: ByteArray,
-        aad: ByteArray
+        aad: ByteArray,
     ): ByteArray {
         require(key.size == KEY_SIZE) { "Key must be $KEY_SIZE bytes, got ${key.size}" }
         require(nonce.size == NONCE_SIZE) { "Nonce must be $NONCE_SIZE bytes, got ${nonce.size}" }
@@ -92,7 +92,7 @@ object Aes256GcmCipher {
         key: ByteArray,
         nonce: ByteArray,
         ciphertext: ByteArray,
-        aad: ByteArray
+        aad: ByteArray,
     ): ByteArray {
         require(key.size == KEY_SIZE) { "Key must be $KEY_SIZE bytes, got ${key.size}" }
         require(nonce.size == NONCE_SIZE) { "Nonce must be $NONCE_SIZE bytes, got ${nonce.size}" }
@@ -129,7 +129,7 @@ object Aes256GcmCipher {
         key: ByteArray,
         nonce: ByteArray,
         plaintext: ByteArray,
-        aad: ByteArray
+        aad: ByteArray,
     ): ByteArray {
         val ciphertext = encryptRaw(key, nonce, plaintext, aad)
         val result = ByteArray(NONCE_SIZE + ciphertext.size)
@@ -152,11 +152,11 @@ object Aes256GcmCipher {
     fun decryptWithPrependedNonce(
         key: ByteArray,
         data: ByteArray,
-        aad: ByteArray
+        aad: ByteArray,
     ): ByteArray {
         if (data.size < NONCE_SIZE + TAG_SIZE) {
             throw DecryptionException(
-                "Ciphertext too short: ${data.size} bytes, minimum ${NONCE_SIZE + TAG_SIZE}"
+                "Ciphertext too short: ${data.size} bytes, minimum ${NONCE_SIZE + TAG_SIZE}",
             )
         }
 

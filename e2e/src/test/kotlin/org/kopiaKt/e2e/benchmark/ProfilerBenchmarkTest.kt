@@ -2,14 +2,12 @@
 
 package org.kopiaKt.e2e.benchmark
 
-import kotlin.io.path.ExperimentalPathApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.writeSession
 import org.kopiaKt.snapshot.fs.LocalFilesystem
@@ -28,6 +26,7 @@ import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -115,11 +114,9 @@ class ProfilerBenchmarkTest {
 
     companion object {
         @JvmStatic
-        fun isE2EEnabled(): Boolean {
-            return System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
-                    System.getenv("CI")?.toBoolean() == true ||
-                    System.getProperty("e2e")?.toBoolean() == true
-        }
+        fun isE2EEnabled(): Boolean = System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
+            System.getenv("CI")?.toBoolean() == true ||
+            System.getProperty("e2e")?.toBoolean() == true
     }
 
     @Nested
@@ -134,7 +131,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 100 * 1024 * 1024, // 100 MB files
                 directoryCount = 1,
                 pattern = TestDataPattern.FEW_LARGE_FILES,
-                contentType = ContentType.RANDOM
+                contentType = ContentType.RANDOM,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -176,7 +173,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 10 * 1024 * 1024, // 10 MB files
                 directoryCount = 1,
                 pattern = TestDataPattern.FEW_LARGE_FILES,
-                contentType = ContentType.RANDOM
+                contentType = ContentType.RANDOM,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -210,7 +207,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 1 * 1024 * 1024, // 1 MB files
                 directoryCount = 5,
                 pattern = TestDataPattern.COMPRESSIBLE,
-                contentType = ContentType.COMPRESSIBLE
+                contentType = ContentType.COMPRESSIBLE,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -240,7 +237,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 1 * 1024 * 1024, // 1 MB files
                 directoryCount = 5,
                 pattern = TestDataPattern.FEW_LARGE_FILES,
-                contentType = ContentType.RANDOM
+                contentType = ContentType.RANDOM,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -270,7 +267,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 10 * 1024 * 1024, // 10 MB files
                 directoryCount = 1,
                 pattern = TestDataPattern.FEW_LARGE_FILES,
-                contentType = ContentType.RANDOM
+                contentType = ContentType.RANDOM,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -304,7 +301,7 @@ class ProfilerBenchmarkTest {
                 avgFileSize = 10 * 1024, // 10 KB files
                 directoryCount = 50,
                 pattern = TestDataPattern.MANY_SMALL_FILES,
-                contentType = ContentType.RANDOM
+                contentType = ContentType.RANDOM,
             )
 
             val testDataSpec = testDataGenerator.create(sourceDir, config)
@@ -414,7 +411,7 @@ class ProfilerBenchmarkTest {
                     writer = writer,
                     source = source,
                     policy = Policy(),
-                    progress = CountingUploadProgress()
+                    progress = CountingUploadProgress(),
                 )
 
                 uploader.upload(LocalFilesystem.directory(sourceDir), UploadOptions()).manifest
@@ -435,7 +432,7 @@ class ProfilerBenchmarkTest {
             val restorer = SnapshotRestorer(
                 output = output,
                 options = RestoreOptions(),
-                progress = CountingRestoreProgress()
+                progress = CountingRestoreProgress(),
             )
 
             restorer.restore(rootEntry)
@@ -453,12 +450,10 @@ class ProfilerBenchmarkTest {
         }
     }
 
-    private fun formatBytes(bytes: Long): String {
-        return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-        }
+    private fun formatBytes(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+        bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }

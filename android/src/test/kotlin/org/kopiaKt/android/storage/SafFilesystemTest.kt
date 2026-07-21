@@ -1,7 +1,5 @@
 package org.kopiaKt.android.storage
 
-import android.content.ContentResolver
-import android.content.Context
 import android.net.Uri
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -13,7 +11,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.kopiaKt.snapshot.fs.DeviceInfo
 import org.kopiaKt.snapshot.fs.Directory
-import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.fs.EntryType
 import org.kopiaKt.snapshot.fs.File
 import org.kopiaKt.snapshot.fs.OwnerInfo
@@ -53,7 +50,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 1024L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
             val childDir = FakeDocumentFileProvider(
                 name = "subdir",
@@ -61,7 +58,7 @@ class SafFilesystemTest {
                 isDirectory = true,
                 isFile = false,
                 length = 0L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -70,7 +67,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = listOf(childFile, childDir)
+                children = listOf(childFile, childDir),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -90,7 +87,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = emptyList()
+                children = emptyList(),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -107,7 +104,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 512L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -116,7 +113,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = listOf(childFile)
+                children = listOf(childFile),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -135,7 +132,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = emptyList()
+                children = emptyList(),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -152,7 +149,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 2048L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -161,7 +158,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = listOf(childFile)
+                children = listOf(childFile),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -183,7 +180,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = emptyList()
+                children = emptyList(),
             )
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -192,7 +189,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = listOf(childDir)
+                children = listOf(childDir),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -214,7 +211,7 @@ class SafFilesystemTest {
                 isDirectory = true,
                 isFile = false,
                 length = 0L,
-                lastModified = timestamp
+                lastModified = timestamp,
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -230,7 +227,7 @@ class SafFilesystemTest {
                 isDirectory = true,
                 isFile = false,
                 length = 0L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -256,7 +253,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = fileContent.size.toLong(),
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -273,7 +270,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 4096L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -290,7 +287,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = timestamp
+                lastModified = timestamp,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -306,7 +303,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -323,7 +320,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -344,7 +341,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -360,7 +357,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
             val childDir = FakeDocumentFileProvider(
                 name = "dir",
@@ -369,7 +366,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = emptyList()
+                children = emptyList(),
             )
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -378,7 +375,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = listOf(childFile, childDir)
+                children = listOf(childFile, childDir),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -408,7 +405,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -428,7 +425,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                children = null // null signals deleted/unavailable
+                children = null, // null signals deleted/unavailable
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -446,7 +443,7 @@ class SafFilesystemTest {
                 isFile = false,
                 length = 0L,
                 lastModified = 1700000000000L,
-                listFilesError = SecurityException("Access denied by provider")
+                listFilesError = SecurityException("Access denied by provider"),
             )
 
             val dir = SafDirectory(root, fakeContentResolver)
@@ -469,7 +466,7 @@ class SafFilesystemTest {
                 isDirectory = true,
                 isFile = false,
                 length = 0L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val dir = SafDirectory(provider, fakeContentResolver)
@@ -486,7 +483,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -502,7 +499,7 @@ class SafFilesystemTest {
                 isDirectory = false,
                 isFile = true,
                 length = 100L,
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val file = SafFile(provider, fakeContentResolver)
@@ -518,7 +515,7 @@ class SafFilesystemTest {
                 isDirectory = true,
                 isFile = false,
                 length = 4096L, // provider reports some size
-                lastModified = 1700000000000L
+                lastModified = 1700000000000L,
             )
 
             val dir = SafDirectory(provider, fakeContentResolver)
@@ -542,7 +539,7 @@ class FakeDocumentFileProvider(
     private val length: Long,
     private val lastModified: Long,
     private val children: List<FakeDocumentFileProvider>? = null,
-    private val listFilesError: Throwable? = null
+    private val listFilesError: Throwable? = null,
 ) : DocumentFileProvider {
 
     override fun getName(): String = name
@@ -562,9 +559,7 @@ class FakeDocumentFileProvider(
         return children
     }
 
-    override fun findFile(name: String): DocumentFileProvider? {
-        return children?.find { it.getName() == name }
-    }
+    override fun findFile(name: String): DocumentFileProvider? = children?.find { it.getName() == name }
 }
 
 /**

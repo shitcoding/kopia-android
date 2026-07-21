@@ -22,7 +22,5 @@ object DurationSerializer : KSerializer<Duration> {
         encoder.encodeLong(value.inWholeNanoseconds)
     }
 
-    override fun deserialize(decoder: Decoder): Duration {
-        return decoder.decodeLong().nanoseconds
-    }
+    override fun deserialize(decoder: Decoder): Duration = decoder.decodeLong().nanoseconds
 }

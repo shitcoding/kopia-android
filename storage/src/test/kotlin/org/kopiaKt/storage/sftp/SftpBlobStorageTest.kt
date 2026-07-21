@@ -47,7 +47,7 @@ class SftpBlobStorageTest {
         host = "example.com",
         port = 22,
         username = "user",
-        password = "password"
+        password = "password",
     )
 
     @BeforeEach
@@ -60,7 +60,7 @@ class SftpBlobStorageTest {
             sshClient = mockSshClient,
             sftpClient = mockSftpClient,
             readOnly = false,
-            directoryShards = listOf(1, 3)
+            directoryShards = listOf(1, 3),
         )
     }
 
@@ -413,10 +413,12 @@ class SftpBlobStorageTest {
 
             assertThrows<UnsupportedPutOptionException> {
                 storage.putBlob(
-                    blobId, data, PutBlobOptions(
+                    blobId,
+                    data,
+                    PutBlobOptions(
                         retentionMode = RetentionMode.GOVERNANCE,
-                        retentionPeriod = Duration.ofDays(1)
-                    )
+                        retentionPeriod = Duration.ofDays(1),
+                    ),
                 )
             }
         }
@@ -593,7 +595,7 @@ class SftpBlobStorageTest {
                 sshClient = mockSshClient,
                 sftpClient = mockSftpClient,
                 readOnly = true,
-                directoryShards = listOf(1, 3)
+                directoryShards = listOf(1, 3),
             )
 
             assertThat(readOnlyStorage.isReadOnly()).isTrue()
@@ -606,7 +608,7 @@ class SftpBlobStorageTest {
                 sshClient = mockSshClient,
                 sftpClient = mockSftpClient,
                 readOnly = true,
-                directoryShards = listOf(1, 3)
+                directoryShards = listOf(1, 3),
             )
             assertThrows<IllegalStateException> {
                 readOnlyStorage.putBlob(BlobId("ro"), "data".toByteArray())
@@ -620,7 +622,7 @@ class SftpBlobStorageTest {
                 sshClient = mockSshClient,
                 sftpClient = mockSftpClient,
                 readOnly = true,
-                directoryShards = listOf(1, 3)
+                directoryShards = listOf(1, 3),
             )
             assertThrows<IllegalStateException> {
                 readOnlyStorage.deleteBlob(BlobId("ro"))
@@ -723,7 +725,7 @@ class SftpBlobStorageTest {
         name: String,
         isDirectory: Boolean,
         size: Long = 0L,
-        mtime: Long = Instant.now().epochSecond
+        mtime: Long = Instant.now().epochSecond,
     ): RemoteResourceInfo {
         val mockAttrs = mockk<FileAttributes> {
             every { this@mockk.size } returns size
@@ -747,7 +749,7 @@ class SftpBlobStorageTest {
             val ssh = SSHClient()
             SftpBlobStorage.applyConnectionTimeouts(
                 ssh,
-                options.copy(connectTimeoutMillis = 15_000, socketTimeoutMillis = 45_000)
+                options.copy(connectTimeoutMillis = 15_000, socketTimeoutMillis = 45_000),
             )
             assertThat(ssh.connectTimeout).isEqualTo(15_000)
             assertThat(ssh.timeout).isEqualTo(45_000)
@@ -760,7 +762,7 @@ class SftpBlobStorageTest {
             val defaultSocket = ssh.timeout
             SftpBlobStorage.applyConnectionTimeouts(
                 ssh,
-                options.copy(connectTimeoutMillis = 0, socketTimeoutMillis = 0)
+                options.copy(connectTimeoutMillis = 0, socketTimeoutMillis = 0),
             )
             assertThat(ssh.connectTimeout).isEqualTo(defaultConnect)
             assertThat(ssh.timeout).isEqualTo(defaultSocket)

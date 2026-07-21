@@ -33,7 +33,7 @@ class PackBlobBuilder(
     private val preambleLength: Int = DEFAULT_PREAMBLE_LENGTH,
     private val encryptionOverhead: Int = 0,
     private val timestampSeconds: Long = System.currentTimeMillis() / 1000,
-    preamble: ByteArray? = null
+    preamble: ByteArray? = null,
 ) {
     private val preambleData: ByteArray = preamble ?: generateRandomBytes(preambleLength)
     private val contentBuffer = ByteArrayOutputStream()
@@ -61,7 +61,7 @@ class PackBlobBuilder(
         originalLength: UInt,
         compressionHeaderId: Int = 0,
         formatVersion: Byte = 0,
-        encryptionKeyId: Byte = 0
+        encryptionKeyId: Byte = 0,
     ) {
         check(!built) { "Cannot add content after pack has been built" }
 
@@ -75,8 +75,8 @@ class PackBlobBuilder(
                 originalLength = originalLength,
                 compressionHeaderId = compressionHeaderId,
                 formatVersion = formatVersion,
-                encryptionKeyId = encryptionKeyId
-            )
+                encryptionKeyId = encryptionKeyId,
+            ),
         )
 
         contentBuffer.write(encryptedData)
@@ -124,7 +124,7 @@ class PackBlobBuilder(
      */
     suspend fun buildEncrypted(
         hasher: ContentHasher,
-        encryptor: Encryptor
+        encryptor: Encryptor,
     ): Pair<ByteArray, List<ContentInfo>> {
         val finalInfos = finalizeContents()
         val localIndexData = buildLocalIndex(finalInfos)
@@ -153,7 +153,7 @@ class PackBlobBuilder(
                 compressionHeaderId = pending.compressionHeaderId,
                 deleted = false,
                 formatVersion = pending.formatVersion,
-                encryptionKeyId = pending.encryptionKeyId
+                encryptionKeyId = pending.encryptionKeyId,
             )
         }
     }
@@ -169,7 +169,7 @@ class PackBlobBuilder(
         val postamble = PackBlobPostamble(
             localIndexIV = localIndexIV,
             localIndexOffset = localIndexOffset.toUInt(),
-            localIndexLength = localIndexBytes.size.toUInt()
+            localIndexLength = localIndexBytes.size.toUInt(),
         )
         contentBuffer.write(postamble.toBytes())
     }
@@ -177,9 +177,7 @@ class PackBlobBuilder(
     /**
      * Builds the local index for recovery purposes.
      */
-    private fun buildLocalIndex(infos: List<ContentInfo>): ByteArray {
-        return PackIndexV1.build(infos)
-    }
+    private fun buildLocalIndex(infos: List<ContentInfo>): ByteArray = PackIndexV1.build(infos)
 
     /**
      * Placeholder IV for the UNENCRYPTED [build] path only (last 16 bytes of SHA-256 of the index).
@@ -199,7 +197,7 @@ class PackBlobBuilder(
         val originalLength: UInt,
         val compressionHeaderId: Int,
         val formatVersion: Byte,
-        val encryptionKeyId: Byte
+        val encryptionKeyId: Byte,
     )
 
     companion object {

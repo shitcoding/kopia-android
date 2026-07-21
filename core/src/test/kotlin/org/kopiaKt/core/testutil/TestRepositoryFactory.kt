@@ -22,7 +22,7 @@ object TestRepositoryFactory {
         password: String = "test-password",
         hash: String = "BLAKE2B-256-128",
         encryption: String = "AES256-GCM-HMAC-SHA256",
-        splitter: String = "FIXED-1M"
+        splitter: String = "FIXED-1M",
     ): Pair<DirectRepositoryImpl, InMemoryBlobStorage> {
         val storage = InMemoryBlobStorage()
         val config = createConfig(hash, encryption, splitter)
@@ -41,7 +41,7 @@ object TestRepositoryFactory {
      */
     suspend fun createWithObjects(
         objects: Map<String, ByteArray>,
-        password: String = "test-password"
+        password: String = "test-password",
     ): Triple<DirectRepositoryImpl, InMemoryBlobStorage, Map<String, ObjectId>> {
         val (repo, storage) = createInMemory(password = password)
         val objectIds = mutableMapOf<String, ObjectId>()
@@ -64,7 +64,7 @@ object TestRepositoryFactory {
     fun createConfig(
         hash: String = "BLAKE2B-256-128",
         encryption: String = "AES256-GCM-HMAC-SHA256",
-        splitter: String = "FIXED-1M"
+        splitter: String = "FIXED-1M",
     ): RepositoryConfig {
         val secret = ByteArray(32).also { SecureRandom().nextBytes(it) }
         val masterKey = ByteArray(32).also { SecureRandom().nextBytes(it) }
@@ -73,7 +73,7 @@ object TestRepositoryFactory {
             encryption = encryption,
             secret = secret,
             masterKey = masterKey,
-            splitter = splitter
+            splitter = splitter,
         )
     }
 }

@@ -33,10 +33,10 @@ import org.kopiaKt.core.splitter.SplitterFactory
 class ObjectManager(
     private val contentManager: ContentManager,
     private val splitterFactory: SplitterFactory = DefaultSplitterFactory.getFactory(
-        SplitterAlgorithms.DEFAULT_ALGORITHM
+        SplitterAlgorithms.DEFAULT_ALGORITHM,
     )!!,
     private val compressorFactory: CompressorFactory = DefaultCompressorFactory(),
-    private val defaultCompression: CompressionAlgorithm? = null
+    private val defaultCompression: CompressionAlgorithm? = null,
 ) {
     /**
      * Creates a new ObjectWriter for writing objects.
@@ -59,8 +59,8 @@ class ObjectManager(
             compressorFactory = compressorFactory,
             metadataSplitterFactory = splitterFactory,
             options = options.copy(
-                compression = options.compression ?: defaultCompression
-            )
+                compression = options.compression ?: defaultCompression,
+            ),
         )
     }
 
@@ -110,7 +110,7 @@ class ObjectManager(
      */
     suspend fun writeObject(
         data: ByteArray,
-        options: ObjectWriterOptions = ObjectWriterOptions()
+        options: ObjectWriterOptions = ObjectWriterOptions(),
     ): ObjectId {
         if (data.isEmpty()) {
             return ObjectId.Empty
@@ -132,9 +132,7 @@ class ObjectManager(
      * @return List of index entries
      * @throws IllegalArgumentException if objectId is not indirect
      */
-    suspend fun loadIndexObject(objectId: ObjectId): List<IndirectObjectEntry> {
-        return loadIndexObject(contentManager, compressorFactory, objectId)
-    }
+    suspend fun loadIndexObject(objectId: ObjectId): List<IndirectObjectEntry> = loadIndexObject(contentManager, compressorFactory, objectId)
 
     /**
      * Concatenates multiple objects into a single object.
@@ -151,7 +149,7 @@ class ObjectManager(
      */
     suspend fun concatenate(
         objectIds: List<ObjectId>,
-        metadataCompression: CompressionAlgorithm? = null
+        metadataCompression: CompressionAlgorithm? = null,
     ): ObjectId {
         require(objectIds.isNotEmpty()) { "Cannot concatenate empty list of objects" }
 
@@ -172,12 +170,14 @@ class ObjectManager(
         }
 
         // Write concatenated index as a new indirect object
-        val writer = newWriter(ObjectWriterOptions(
-            prefix = INDIRECT_CONTENT_PREFIX,
-            description = "CONCATENATED INDEX",
-            compression = metadataCompression,
-            metadataCompression = metadataCompression
-        ))
+        val writer = newWriter(
+            ObjectWriterOptions(
+                prefix = INDIRECT_CONTENT_PREFIX,
+                description = "CONCATENATED INDEX",
+                compression = metadataCompression,
+                metadataCompression = metadataCompression,
+            ),
+        )
 
         try {
             val indirectObj = IndirectObject.create(concatenatedEntries)
@@ -205,7 +205,7 @@ class ObjectManager(
      */
     private suspend fun appendIndexEntriesForObject(
         objectId: ObjectId,
-        startingOffset: Long
+        startingOffset: Long,
     ): List<IndirectObjectEntry> {
         // Check if this is an indirect object
         val (indexObjectId, isIndirect) = objectId.indexObjectId()
@@ -217,7 +217,7 @@ class ObjectManager(
                 IndirectObjectEntry(
                     start = entry.start + startingOffset,
                     length = entry.length,
-                    objectId = entry.objectId
+                    objectId = entry.objectId,
                 )
             }
         }
@@ -230,8 +230,8 @@ class ObjectManager(
                 IndirectObjectEntry.create(
                     start = startingOffset,
                     length = length,
-                    objectId = objectId
-                )
+                    objectId = objectId,
+                ),
             )
         } finally {
             reader.close()
@@ -274,7 +274,7 @@ class ObjectManager(
      */
     private suspend fun iterateBackingContents(
         objectId: ObjectId,
-        callback: suspend (org.kopiaKt.core.content.ContentId) -> Unit
+        callback: suspend (org.kopiaKt.core.content.ContentId) -> Unit,
     ) {
         val (indexObjectId, isIndirect) = objectId.indexObjectId()
 

@@ -23,15 +23,15 @@ data class RestoreStats(
     val deletedFilesCount: Int = 0,
     val deletedSymlinkCount: Int = 0,
     val deletedDirCount: Int = 0,
-    val ignoredErrorCount: Int = 0
+    val ignoredErrorCount: Int = 0,
 ) {
     /**
      * Returns true if the restore is complete (all enqueued items processed).
      */
     val isComplete: Boolean
         get() = enqueuedFileCount == restoredFileCount + skippedCount &&
-                enqueuedDirCount == restoredDirCount &&
-                enqueuedSymlinkCount == restoredSymlinkCount
+            enqueuedDirCount == restoredDirCount &&
+            enqueuedSymlinkCount == restoredSymlinkCount
 
     /**
      * Returns the progress percentage (0-100).
@@ -129,7 +129,7 @@ interface RestoreProgress {
  * Uses atomic operations for all counters to support parallel restoration.
  */
 class CountingRestoreProgress(
-    private val callback: RestoreProgressCallback? = null
+    private val callback: RestoreProgressCallback? = null,
 ) : RestoreProgress {
 
     private val restoredTotalFileSize = AtomicLong(0)
@@ -224,7 +224,7 @@ class CountingRestoreProgress(
         deletedFilesCount = deletedFilesCount.get(),
         deletedSymlinkCount = deletedSymlinkCount.get(),
         deletedDirCount = deletedDirCount.get(),
-        ignoredErrorCount = ignoredErrorCount.get()
+        ignoredErrorCount = ignoredErrorCount.get(),
     )
 
     private fun notifyProgress() {

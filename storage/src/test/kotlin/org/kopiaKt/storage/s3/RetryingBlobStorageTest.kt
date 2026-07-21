@@ -19,7 +19,6 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidCredentialsException
-import org.kopiaKt.core.blob.PutBlobOptions
 import software.amazon.awssdk.services.s3.model.S3Exception
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -41,7 +40,7 @@ class RetryingBlobStorageTest {
             delegate = mockDelegate,
             maxRetries = 3,
             initialDelayMs = 10, // Short delays for tests
-            maxDelayMs = 100
+            maxDelayMs = 100,
         )
     }
 
@@ -421,7 +420,7 @@ class RetryingBlobStorageTest {
                 mockDelegate,
                 maxRetries = 5,
                 initialDelayMs = 50,
-                maxDelayMs = 5000
+                maxDelayMs = 5000,
             )
 
             assertEquals(mockDelegate.connectionInfo(), wrapped.connectionInfo())

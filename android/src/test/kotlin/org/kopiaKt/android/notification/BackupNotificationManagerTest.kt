@@ -2,10 +2,7 @@ package org.kopiaKt.android.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.os.Build
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
@@ -60,7 +57,7 @@ class BackupNotificationManagerTest {
             assertThat(channelIds).containsExactly(
                 BackupNotificationChannels.PROGRESS,
                 BackupNotificationChannels.COMPLETION,
-                BackupNotificationChannels.ERROR
+                BackupNotificationChannels.ERROR,
             )
         }
 
@@ -99,7 +96,7 @@ class BackupNotificationManagerTest {
         fun `builds notification with source path in title`() {
             val notification = manager.buildProgressNotification(
                 sourceId = "test-source",
-                sourcePath = "/storage/emulated/0/Documents"
+                sourcePath = "/storage/emulated/0/Documents",
             )
 
             // Notification is built - verify it's not null
@@ -111,7 +108,7 @@ class BackupNotificationManagerTest {
             val notification = manager.buildProgressNotification(
                 sourceId = "test-source",
                 sourcePath = "/test/path",
-                progress = 50
+                progress = 50,
             )
 
             assertThat(notification).isNotNull()
@@ -122,7 +119,7 @@ class BackupNotificationManagerTest {
             val notification = manager.buildProgressNotification(
                 sourceId = "test-source",
                 sourcePath = "/test/path",
-                progress = null
+                progress = null,
             )
 
             assertThat(notification).isNotNull()
@@ -135,7 +132,7 @@ class BackupNotificationManagerTest {
                 sourcePath = "/test/path",
                 currentFile = "current_file.txt",
                 processedFiles = 42,
-                processedBytes = 1024 * 1024 * 100
+                processedBytes = 1024 * 1024 * 100,
             )
 
             assertThat(notification).isNotNull()
@@ -146,7 +143,7 @@ class BackupNotificationManagerTest {
             val notification = manager.buildProgressNotification(
                 sourceId = "test-source",
                 sourcePath = "/test/path",
-                progress = 150 // Over 100
+                progress = 150, // Over 100
             )
 
             assertThat(notification).isNotNull()
@@ -163,7 +160,7 @@ class BackupNotificationManagerTest {
                 sourcePath = "/test/path",
                 filesCount = 1000,
                 totalBytes = 1024L * 1024 * 1024 * 5, // 5 GB
-                duration = 3600000 // 1 hour
+                duration = 3600000, // 1 hour
             )
 
             assertThat(notification).isNotNull()
@@ -175,7 +172,7 @@ class BackupNotificationManagerTest {
                 sourcePath = "/test/path",
                 filesCount = 100,
                 totalBytes = 1024 * 1024,
-                duration = 60000
+                duration = 60000,
             )
 
             assertThat(notification.flags and android.app.Notification.FLAG_AUTO_CANCEL).isNotEqualTo(0)
@@ -190,7 +187,7 @@ class BackupNotificationManagerTest {
         fun `builds error notification with message`() {
             val notification = manager.buildErrorNotification(
                 sourcePath = "/test/path",
-                errorMessage = "Storage access denied"
+                errorMessage = "Storage access denied",
             )
 
             assertThat(notification).isNotNull()
@@ -200,7 +197,7 @@ class BackupNotificationManagerTest {
         fun `error notification is auto-cancel`() {
             val notification = manager.buildErrorNotification(
                 sourcePath = "/test/path",
-                errorMessage = "Test error"
+                errorMessage = "Test error",
             )
 
             assertThat(notification.flags and android.app.Notification.FLAG_AUTO_CANCEL).isNotEqualTo(0)
@@ -217,7 +214,7 @@ class BackupNotificationManagerTest {
                 destinationPath = "/storage/emulated/0/Restored",
                 currentFile = "data.json",
                 progress = 75,
-                processedFiles = 500
+                processedFiles = 500,
             )
 
             assertThat(notification).isNotNull()
@@ -229,7 +226,7 @@ class BackupNotificationManagerTest {
                 destinationPath = "/storage/emulated/0/Restored",
                 filesCount = 2500,
                 totalBytes = 1024L * 1024 * 512,
-                duration = 900000
+                duration = 900000,
             )
 
             assertThat(notification).isNotNull()
@@ -302,12 +299,12 @@ class BackupNotificationManagerTest {
             val idsA = setOf(
                 BackupNotificationIds.forSource(a),
                 BackupNotificationIds.completionForSource(a),
-                BackupNotificationIds.errorForSource(a)
+                BackupNotificationIds.errorForSource(a),
             )
             val idsB = setOf(
                 BackupNotificationIds.forSource(b),
                 BackupNotificationIds.completionForSource(b),
-                BackupNotificationIds.errorForSource(b)
+                BackupNotificationIds.errorForSource(b),
             )
 
             assertThat(idsA.intersect(idsB)).isEmpty()
@@ -365,7 +362,7 @@ class BackupNotificationManagerTest {
         fun `notify posts notification`() {
             val notification = manager.buildProgressNotification(
                 sourceId = "test",
-                sourcePath = "/test"
+                sourcePath = "/test",
             )
 
             manager.notify(123, notification)

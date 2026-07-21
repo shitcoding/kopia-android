@@ -8,7 +8,6 @@ import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
-import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
@@ -69,7 +68,7 @@ abstract class CrossCompatibilityTestBase {
         // Initialize helpers
         cliRunner = KopiaCliRunner(
             kopiaBinary = kopiaBinaryPath,
-            configDir = configDir
+            configDir = configDir,
         )
 
         testDataGenerator = TestDataGenerator()
@@ -80,13 +79,13 @@ abstract class CrossCompatibilityTestBase {
      */
     protected suspend fun createRepositoryWithGo(
         hashAlgorithm: String = "BLAKE2B-256-128",
-        encryption: String = "AES256-GCM-HMAC-SHA256"
+        encryption: String = "AES256-GCM-HMAC-SHA256",
     ) {
         cliRunner.repositoryCreate(
             repoPath = repoDir,
             password = testPassword,
             blockHashAlgorithm = hashAlgorithm,
-            encryptionAlgorithm = encryption
+            encryptionAlgorithm = encryption,
         )
     }
 
@@ -96,7 +95,7 @@ abstract class CrossCompatibilityTestBase {
     protected suspend fun createRepositoryWithKotlin(
         hash: String = "BLAKE2B-256-128",
         encryption: String = "AES256-GCM-HMAC-SHA256",
-        splitter: String = "FIXED-1M"
+        splitter: String = "FIXED-1M",
     ): DirectRepositoryImpl {
         val storage = createBlobStorage()
         val config = createRepositoryConfig(hash, encryption, splitter)
@@ -121,9 +120,7 @@ abstract class CrossCompatibilityTestBase {
     /**
      * Create blob storage for the test repository.
      */
-    protected fun createBlobStorage(): BlobStorage {
-        return FilesystemBlobStorage(repoDir)
-    }
+    protected fun createBlobStorage(): BlobStorage = FilesystemBlobStorage(repoDir)
 
     /**
      * Create repository configuration for Kotlin.
@@ -131,7 +128,7 @@ abstract class CrossCompatibilityTestBase {
     protected fun createRepositoryConfig(
         hash: String,
         encryption: String,
-        splitter: String
+        splitter: String,
     ): RepositoryConfig {
         val random = SecureRandom()
         val secret = ByteArray(32).also { random.nextBytes(it) }
@@ -142,7 +139,7 @@ abstract class CrossCompatibilityTestBase {
             encryption = encryption,
             secret = secret,
             masterKey = masterKey,
-            splitter = splitter
+            splitter = splitter,
         )
     }
 
@@ -157,7 +154,7 @@ abstract class CrossCompatibilityTestBase {
     protected fun compareDirectories(
         dir1: Path,
         dir2: Path,
-        options: ComparisonOptions = ComparisonOptions()
+        options: ComparisonOptions = ComparisonOptions(),
     ): ComparisonResult {
         val missingInDir2 = mutableListOf<String>()
         val missingInDir1 = mutableListOf<String>()
@@ -202,13 +199,13 @@ abstract class CrossCompatibilityTestBase {
             }
 
             // Symlink target check
-            if (options.checkSymlinkTargets
-                && entry1.type == EntryInfo.Type.SYMLINK
-                && entry2.type == EntryInfo.Type.SYMLINK
+            if (options.checkSymlinkTargets &&
+                entry1.type == EntryInfo.Type.SYMLINK &&
+                entry2.type == EntryInfo.Type.SYMLINK
             ) {
                 if (entry1.symlinkTarget != entry2.symlinkTarget) {
                     symlinkTargetMismatches.add(
-                        "$relativePath ('${entry1.symlinkTarget}' vs '${entry2.symlinkTarget}')"
+                        "$relativePath ('${entry1.symlinkTarget}' vs '${entry2.symlinkTarget}')",
                     )
                 }
             }
@@ -219,7 +216,7 @@ abstract class CrossCompatibilityTestBase {
                 val perms2 = entry2.permissions
                 if (perms1 != null && perms2 != null && perms1 != perms2) {
                     permissionMismatches.add(
-                        "$relativePath (${formatPermissions(perms1)} vs ${formatPermissions(perms2)})"
+                        "$relativePath (${formatPermissions(perms1)} vs ${formatPermissions(perms2)})",
                     )
                 }
             }
@@ -232,7 +229,7 @@ abstract class CrossCompatibilityTestBase {
                     val delta = Duration.between(mtime1, mtime2).abs()
                     if (delta > options.mtimeTolerance) {
                         mtimeMismatches.add(
-                            "$relativePath (delta=${delta.toMillis()}ms, tolerance=${options.mtimeTolerance.toMillis()}ms)"
+                            "$relativePath (delta=${delta.toMillis()}ms, tolerance=${options.mtimeTolerance.toMillis()}ms)",
                         )
                     }
                 }
@@ -265,14 +262,14 @@ abstract class CrossCompatibilityTestBase {
             }
         }
 
-        val identical = missingInDir1.isEmpty()
-            && missingInDir2.isEmpty()
-            && contentMismatches.isEmpty()
-            && typeMismatches.isEmpty()
-            && emptyDirectoryMismatches.isEmpty()
-            && symlinkTargetMismatches.isEmpty()
-            && permissionMismatches.isEmpty()
-            && mtimeMismatches.isEmpty()
+        val identical = missingInDir1.isEmpty() &&
+            missingInDir2.isEmpty() &&
+            contentMismatches.isEmpty() &&
+            typeMismatches.isEmpty() &&
+            emptyDirectoryMismatches.isEmpty() &&
+            symlinkTargetMismatches.isEmpty() &&
+            permissionMismatches.isEmpty() &&
+            mtimeMismatches.isEmpty()
 
         return ComparisonResult(
             identical = identical,
@@ -283,7 +280,7 @@ abstract class CrossCompatibilityTestBase {
             emptyDirectoryMismatches = emptyDirectoryMismatches,
             symlinkTargetMismatches = symlinkTargetMismatches,
             permissionMismatches = permissionMismatches,
-            mtimeMismatches = mtimeMismatches
+            mtimeMismatches = mtimeMismatches,
         )
     }
 
@@ -313,7 +310,7 @@ abstract class CrossCompatibilityTestBase {
                             type = EntryInfo.Type.SYMLINK,
                             symlinkTarget = target,
                             mtime = mtime,
-                            permissions = readPosixPermissions(path)
+                            permissions = readPosixPermissions(path),
                         )
                     }
                     path.isDirectory() -> {
@@ -327,7 +324,7 @@ abstract class CrossCompatibilityTestBase {
                             type = EntryInfo.Type.DIRECTORY,
                             isEmptyDirectory = isEmpty,
                             mtime = mtime,
-                            permissions = readPosixPermissions(path)
+                            permissions = readPosixPermissions(path),
                         )
                     }
                     path.isRegularFile() -> {
@@ -340,7 +337,7 @@ abstract class CrossCompatibilityTestBase {
                             type = EntryInfo.Type.FILE,
                             content = path.readBytes(),
                             mtime = mtime,
-                            permissions = readPosixPermissions(path)
+                            permissions = readPosixPermissions(path),
                         )
                     }
                     else -> return@forEach
@@ -363,9 +360,7 @@ abstract class CrossCompatibilityTestBase {
         }
     }
 
-    private fun formatPermissions(perms: Set<PosixFilePermission>): String {
-        return perms.sorted().joinToString(",") { it.name }
-    }
+    private fun formatPermissions(perms: Set<PosixFilePermission>): String = perms.sorted().joinToString(",") { it.name }
 
     /**
      * Verify a file matches expected content.
@@ -412,7 +407,7 @@ abstract class CrossCompatibilityTestBase {
         fun requireGoKopia() {
             Assumptions.assumeTrue(
                 goKopiaAvailable,
-                "Go Kopia binary not available, skipping test"
+                "Go Kopia binary not available, skipping test",
             )
         }
     }
@@ -436,7 +431,7 @@ data class ComparisonOptions(
     /** Compare modification times within [mtimeTolerance]. */
     val checkMtimes: Boolean = false,
     /** Maximum allowed difference in modification times. Default 2 seconds. */
-    val mtimeTolerance: Duration = Duration.ofSeconds(2)
+    val mtimeTolerance: Duration = Duration.ofSeconds(2),
 ) {
     companion object {
         /** All metadata checks enabled with default tolerance values. */
@@ -445,7 +440,7 @@ data class ComparisonOptions(
             checkSymlinkTargets = true,
             checkEmptyDirectories = true,
             checkPermissions = true,
-            checkMtimes = true
+            checkMtimes = true,
         )
     }
 }
@@ -459,7 +454,7 @@ data class EntryInfo(
     val symlinkTarget: String? = null,
     val isEmptyDirectory: Boolean = false,
     val mtime: Instant? = null,
-    val permissions: Set<PosixFilePermission>? = null
+    val permissions: Set<PosixFilePermission>? = null,
 ) {
     enum class Type { FILE, DIRECTORY, SYMLINK }
 
@@ -467,12 +462,12 @@ data class EntryInfo(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         other as EntryInfo
-        return type == other.type
-            && (content?.contentEquals(other.content ?: ByteArray(0)) ?: (other.content == null))
-            && symlinkTarget == other.symlinkTarget
-            && isEmptyDirectory == other.isEmptyDirectory
-            && mtime == other.mtime
-            && permissions == other.permissions
+        return type == other.type &&
+            (content?.contentEquals(other.content ?: ByteArray(0)) ?: (other.content == null)) &&
+            symlinkTarget == other.symlinkTarget &&
+            isEmptyDirectory == other.isEmptyDirectory &&
+            mtime == other.mtime &&
+            permissions == other.permissions
     }
 
     override fun hashCode(): Int {
@@ -498,7 +493,7 @@ data class ComparisonResult(
     val emptyDirectoryMismatches: List<String> = emptyList(),
     val symlinkTargetMismatches: List<String> = emptyList(),
     val permissionMismatches: List<String> = emptyList(),
-    val mtimeMismatches: List<String> = emptyList()
+    val mtimeMismatches: List<String> = emptyList(),
 ) {
     override fun toString(): String {
         if (identical) return "Directories are identical"

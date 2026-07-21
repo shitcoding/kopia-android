@@ -50,7 +50,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
     data class AlgorithmConfig(
         val hashAlgorithm: String,
         val encryptionAlgorithm: String = "AES256-GCM-HMAC-SHA256",
-        val indexVersion: Int
+        val indexVersion: Int,
     ) {
         override fun toString() = "$hashAlgorithm-idx$indexVersion"
 
@@ -109,7 +109,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
         val comparison = compareDirectories(sourceDir, restoreDir)
         if (!comparison.identical) {
             throw AssertionError(
-                "Restored content does not match original for config $config: $comparison"
+                "Restored content does not match original for config $config: $comparison",
             )
         }
     }
@@ -138,13 +138,13 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
         repo.use {
             // Find snapshot manifest
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             assertThat(manifest.rootEntry).isNotNull()
 
@@ -156,13 +156,13 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
                     overwriteFiles = true,
-                    overwriteSymlinks = true
-                )
+                    overwriteSymlinks = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
                 options = RestoreOptions(parallel = 1),
-                progress = progress
+                progress = progress,
             )
             val stats = restorer.restore(rootEntry)
 
@@ -176,12 +176,12 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
                 ComparisonOptions(
                     checkTypes = true,
                     checkSymlinkTargets = true,
-                    checkEmptyDirectories = true
-                )
+                    checkEmptyDirectories = true,
+                ),
             )
             if (!comparison.identical) {
                 throw AssertionError(
-                    "Restored content does not match original for config $config: $comparison"
+                    "Restored content does not match original for config $config: $comparison",
                 )
             }
         }
@@ -212,7 +212,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
             splitter = "FIXED-1M",
             version = if (config.indexVersion == 1) 1 else 3,
             indexVersion = config.indexVersion,
-            epochParameters = EpochParameters.DISABLED
+            epochParameters = EpochParameters.DISABLED,
         )
 
         return DirectRepositoryImpl.create(storage, testPassword, repoConfig)
@@ -227,12 +227,14 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
      */
     private suspend fun createGoRepoWithConfig(config: AlgorithmConfig) {
         cliRunner.run(
-            "repository", "create", "filesystem",
-            "--path=${repoDir}",
-            "--password=${testPassword}",
+            "repository",
+            "create",
+            "filesystem",
+            "--path=$repoDir",
+            "--password=$testPassword",
             "--block-hash=${config.hashAlgorithm}",
             "--encryption=${config.encryptionAlgorithm}",
-            "--format-version=${config.goFormatVersion}"
+            "--format-version=${config.goFormatVersion}",
         ).requireSuccess()
     }
 
@@ -244,7 +246,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
             val source = SourceInfo(
                 host = "test-host",
                 userName = "test-user",
-                path = sourceDir.toString()
+                path = sourceDir.toString(),
             )
 
             val progress = CountingUploadProgress()
@@ -252,7 +254,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val rootDir = LocalFilesystem.directory(sourceDir)
@@ -279,7 +281,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
 
             // BLAKE2B-256-256 (full-length BLAKE2B)
             AlgorithmConfig(hashAlgorithm = "BLAKE2B-256-256", indexVersion = 1),
-            AlgorithmConfig(hashAlgorithm = "BLAKE2B-256-256", indexVersion = 2)
+            AlgorithmConfig(hashAlgorithm = "BLAKE2B-256-256", indexVersion = 2),
         )
     }
 }

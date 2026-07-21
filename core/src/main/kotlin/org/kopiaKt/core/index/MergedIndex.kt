@@ -25,7 +25,7 @@ import java.io.Closeable
  * @property indexes The list of indexes to merge
  */
 class MergedIndex(
-    private val indexes: List<PackIndex>
+    private val indexes: List<PackIndex>,
 ) : Closeable {
 
     /**
@@ -96,7 +96,7 @@ class MergedIndex(
      */
     fun iterate(
         startId: ContentId? = null,
-        endId: ContentId? = null
+        endId: ContentId? = null,
     ): Sequence<ContentInfo> = sequence {
         // Merge-sort across all indexes
         val iterators = indexes.map {

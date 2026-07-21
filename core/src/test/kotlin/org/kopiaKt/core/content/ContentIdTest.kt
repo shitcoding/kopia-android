@@ -145,14 +145,14 @@ class ContentIdTest {
     @Test
     fun `parse rejects invalid hex characters`() {
         assertThrows<IllegalArgumentException> {
-            ContentId.parse("xyz123")  // 'x', 'y' are not valid hex
+            ContentId.parse("xyz123") // 'x', 'y' are not valid hex
         }
     }
 
     @Test
     fun `parse rejects hash too long`() {
         // 65 hex chars = 32.5 bytes > 32 bytes max
-        val hex = "g" + "0".repeat(65)  // 66 chars total, odd, prefix 'g', hash 65 chars
+        val hex = "g" + "0".repeat(65) // 66 chars total, odd, prefix 'g', hash 65 chars
         val ex = assertThrows<IllegalArgumentException> {
             ContentId.parse(hex)
         }
@@ -181,7 +181,7 @@ class ContentIdTest {
     fun `fromHash validates prefix range`() {
         val hash = byteArrayOf(0x12, 0x34)
         assertThrows<IllegalArgumentException> {
-            ContentId.fromHash('a', hash)  // 'a' < 'g'
+            ContentId.fromHash('a', hash) // 'a' < 'g'
         }
     }
 
@@ -250,7 +250,7 @@ class ContentIdTest {
     @Test
     fun `different prefix means different ID`() {
         val id1 = ContentId.parse("kabcdef12")
-        val id2 = ContentId.parse("mabcdef12")  // Note: this is odd length with 'm' prefix
+        val id2 = ContentId.parse("mabcdef12") // Note: this is odd length with 'm' prefix
         // Actually "mabcdef12" has 9 chars (odd), first char 'm' is in g-z range
         // So prefix='m', hash="abcdef12" (4 bytes)
         assertTrue(id1 != id2)
@@ -286,7 +286,7 @@ class ContentIdTest {
         // "KABCDEF1" has even length (8), so no prefix, parse as hex
         // But 'K' is not valid hex either... this should fail
         assertThrows<IllegalArgumentException> {
-            ContentId.parse("KABCDEF1")  // 'K' is not valid hex
+            ContentId.parse("KABCDEF1") // 'K' is not valid hex
         }
     }
 

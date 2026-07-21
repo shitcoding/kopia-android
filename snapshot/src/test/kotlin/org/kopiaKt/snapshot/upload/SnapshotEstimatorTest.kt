@@ -32,22 +32,24 @@ class SnapshotEstimatorTest {
         override val mode: Int = 420,
         override val owner: OwnerInfo = OwnerInfo.EMPTY,
         override val device: DeviceInfo = DeviceInfo.EMPTY,
-        override val localFilesystemPath: String = ""
+        override val localFilesystemPath: String = "",
     ) : Entry
 
     private class InMemoryFile(
         name: String,
         fileSize: Long,
-        modTime: Instant = Instant.now()
-    ) : InMemoryEntry(name, EntryType.FILE, fileSize, modTime), File {
+        modTime: Instant = Instant.now(),
+    ) : InMemoryEntry(name, EntryType.FILE, fileSize, modTime),
+        File {
         override suspend fun open(): InputStream = ByteArray(size.toInt()).inputStream()
     }
 
     private class InMemoryDirectory(
         name: String,
         private val entries: List<Entry>,
-        modTime: Instant = Instant.now()
-    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0, modTime), Directory {
+        modTime: Instant = Instant.now(),
+    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0, modTime),
+        Directory {
         override suspend fun child(name: String): Entry? = entries.find { it.name == name }
         override suspend fun iterate(): DirectoryIterator = ListIterator(entries)
         override fun supportsMultipleIterations(): Boolean = true
@@ -56,8 +58,9 @@ class SnapshotEstimatorTest {
     private class InMemorySymlink(
         name: String,
         private val target: String,
-        modTime: Instant = Instant.now()
-    ) : InMemoryEntry(name, EntryType.SYMLINK, 0, modTime), Symlink {
+        modTime: Instant = Instant.now(),
+    ) : InMemoryEntry(name, EntryType.SYMLINK, 0, modTime),
+        Symlink {
         override suspend fun readlink(): String = target
         override suspend fun resolve(): Entry? = null
     }
@@ -68,8 +71,9 @@ class SnapshotEstimatorTest {
     private class SlowFile(
         name: String,
         fileSize: Long,
-        private val delayMs: Long
-    ) : InMemoryEntry(name, EntryType.FILE, fileSize), File {
+        private val delayMs: Long,
+    ) : InMemoryEntry(name, EntryType.FILE, fileSize),
+        File {
         override suspend fun open(): InputStream {
             delay(delayMs)
             return ByteArray(size.toInt()).inputStream()
@@ -82,8 +86,9 @@ class SnapshotEstimatorTest {
     private class SlowDirectory(
         name: String,
         private val entries: List<Entry>,
-        private val delayPerEntry: Long
-    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0), Directory {
+        private val delayPerEntry: Long,
+    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0),
+        Directory {
         override suspend fun child(name: String): Entry? = entries.find { it.name == name }
         override suspend fun iterate(): DirectoryIterator = SlowIterator(entries, delayPerEntry)
         override fun supportsMultipleIterations(): Boolean = true
@@ -91,7 +96,7 @@ class SnapshotEstimatorTest {
 
     private class SlowIterator(
         entries: List<Entry>,
-        private val delayMs: Long
+        private val delayMs: Long,
     ) : DirectoryIterator {
         private val iter = entries.iterator()
         override suspend fun next(): Entry? {
@@ -106,8 +111,9 @@ class SnapshotEstimatorTest {
      * An entry that represents a file that can't be read (permission denied).
      */
     private class UnreadableFile(
-        name: String
-    ) : InMemoryEntry(name, EntryType.FILE, 100), File {
+        name: String,
+    ) : InMemoryEntry(name, EntryType.FILE, 100),
+        File {
         override suspend fun open(): InputStream = throw java.io.IOException("Permission denied")
     }
 
@@ -125,13 +131,14 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate counts all files`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("a.txt", 100),
                     InMemoryFile("b.txt", 200),
                     InMemoryFile("c.txt", 300),
                     InMemoryFile("d.txt", 400),
-                    InMemoryFile("e.txt", 500)
-                )
+                    InMemoryFile("e.txt", 500),
+                ),
             )
 
             val result = SnapshotEstimator.estimate(root)
@@ -142,11 +149,12 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate sums file sizes`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("small.txt", 100),
                     InMemoryFile("medium.txt", 1_000),
-                    InMemoryFile("large.txt", 10_000)
-                )
+                    InMemoryFile("large.txt", 10_000),
+                ),
             )
 
             val result = SnapshotEstimator.estimate(root)
@@ -162,12 +170,13 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate applies exclusion policy`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("data.txt", 100),
                     InMemoryFile("debug.log", 200),
                     InMemoryFile("error.log", 300),
-                    InMemoryFile("readme.md", 50)
-                )
+                    InMemoryFile("readme.md", 50),
+                ),
             )
 
             val policy = FilesPolicy(ignoreRules = listOf("*.log"))
@@ -231,11 +240,12 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate reports progress`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("a.txt", 100),
                     InMemoryFile("b.txt", 200),
-                    InMemoryFile("c.txt", 300)
-                )
+                    InMemoryFile("c.txt", 300),
+                ),
             )
 
             val progressUpdates = mutableListOf<EstimateProgress>()
@@ -275,8 +285,10 @@ class SnapshotEstimatorTest {
             // The job was cancelled so it should have thrown CancellationException.
             // result may be null (cancelled before finishing) or partial.
             // The key assertion: the job completed without hanging
-            assertTrue(result == null || result!!.totalFiles < 100,
-                "Cancellation should have stopped before processing all 100 files")
+            assertTrue(
+                result == null || result!!.totalFiles < 100,
+                "Cancellation should have stopped before processing all 100 files",
+            )
         }
     }
 
@@ -286,12 +298,13 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate skips symlinks`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("real.txt", 100),
                     InMemorySymlink("link.txt", "/some/target"),
                     InMemorySymlink("another_link", "/other/target"),
-                    InMemoryFile("also_real.txt", 200)
-                )
+                    InMemoryFile("also_real.txt", 200),
+                ),
             )
 
             val result = SnapshotEstimator.estimate(root)
@@ -314,10 +327,11 @@ class SnapshotEstimatorTest {
             // that causes an error during iteration. We simulate this with
             // a directory that throws during iteration for some entries.
             val root = InMemoryDirectory(
-                "root", listOf(
+                "root",
+                listOf(
                     InMemoryFile("good.txt", 100),
-                    InMemoryFile("also_good.txt", 200)
-                )
+                    InMemoryFile("also_good.txt", 200),
+                ),
             )
 
             // Wrap in a directory that throws for specific children
@@ -325,9 +339,9 @@ class SnapshotEstimatorTest {
                 "root",
                 entries = listOf(
                     InMemoryFile("good.txt", 100),
-                    InMemoryFile("also_good.txt", 200)
+                    InMemoryFile("also_good.txt", 200),
                 ),
-                errorNames = setOf() // no errors in this basic case
+                errorNames = setOf(), // no errors in this basic case
             )
 
             val result = SnapshotEstimator.estimate(errorDir)
@@ -342,9 +356,9 @@ class SnapshotEstimatorTest {
                 entries = listOf(
                     InMemoryFile("good.txt", 100),
                     InMemoryFile("bad.txt", 200),
-                    InMemoryFile("also_good.txt", 300)
+                    InMemoryFile("also_good.txt", 300),
                 ),
-                errorNames = setOf("bad.txt")
+                errorNames = setOf("bad.txt"),
             )
 
             val result = SnapshotEstimator.estimate(errorDir)
@@ -362,13 +376,14 @@ class SnapshotEstimatorTest {
         @Test
         fun `estimate result includes size distribution`() = runBlocking {
             val root = InMemoryDirectory(
-                "root", listOf(
-                    InMemoryFile("tiny.txt", 50),           // < 1 KB
-                    InMemoryFile("small.txt", 500),          // < 1 KB
-                    InMemoryFile("medium.txt", 5_000),       // 1 KB - 10 KB
-                    InMemoryFile("large.txt", 500_000),      // 100 KB - 1 MB
-                    InMemoryFile("huge.txt", 5_000_000)      // 1 MB - 10 MB
-                )
+                "root",
+                listOf(
+                    InMemoryFile("tiny.txt", 50), // < 1 KB
+                    InMemoryFile("small.txt", 500), // < 1 KB
+                    InMemoryFile("medium.txt", 5_000), // 1 KB - 10 KB
+                    InMemoryFile("large.txt", 500_000), // 100 KB - 1 MB
+                    InMemoryFile("huge.txt", 5_000_000), // 1 MB - 10 MB
+                ),
             )
 
             val result = SnapshotEstimator.estimate(root)
@@ -400,20 +415,19 @@ class SnapshotEstimatorTest {
     private class ErrorThrowingDirectory(
         name: String,
         private val entries: List<Entry>,
-        private val errorNames: Set<String>
-    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0), Directory {
+        private val errorNames: Set<String>,
+    ) : InMemoryEntry(name, EntryType.DIRECTORY, 0),
+        Directory {
         override suspend fun child(name: String): Entry? = entries.find { it.name == name }
 
-        override suspend fun iterate(): DirectoryIterator {
-            return ErrorThrowingIterator(entries, errorNames)
-        }
+        override suspend fun iterate(): DirectoryIterator = ErrorThrowingIterator(entries, errorNames)
 
         override fun supportsMultipleIterations(): Boolean = true
     }
 
     private class ErrorThrowingIterator(
         entries: List<Entry>,
-        private val errorNames: Set<String>
+        private val errorNames: Set<String>,
     ) : DirectoryIterator {
         private val iter = entries.iterator()
 
@@ -434,6 +448,7 @@ class SnapshotEstimatorTest {
 
     private class ErrorEntryImpl(
         override val name: String,
-        override val error: Throwable
-    ) : InMemoryEntry(name, EntryType.ERROR, 0), org.kopiaKt.snapshot.fs.ErrorEntry
+        override val error: Throwable,
+    ) : InMemoryEntry(name, EntryType.ERROR, 0),
+        org.kopiaKt.snapshot.fs.ErrorEntry
 }

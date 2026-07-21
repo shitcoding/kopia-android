@@ -18,7 +18,7 @@ private const val BUFFER_SIZE = 8192
  * but we support it for reading existing backups.
  */
 class Lz4Compressor(
-    override val algorithm: CompressionAlgorithm = CompressionAlgorithm.LZ4_DEFAULT
+    override val algorithm: CompressionAlgorithm = CompressionAlgorithm.LZ4_DEFAULT,
 ) : Compressor {
 
     init {

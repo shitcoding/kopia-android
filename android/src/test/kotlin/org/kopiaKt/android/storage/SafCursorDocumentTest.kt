@@ -32,26 +32,23 @@ class SafCursorDocumentTest {
         DocumentsContract.Document.COLUMN_DISPLAY_NAME,
         DocumentsContract.Document.COLUMN_MIME_TYPE,
         DocumentsContract.Document.COLUMN_SIZE,
-        DocumentsContract.Document.COLUMN_LAST_MODIFIED
+        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
     )
 
-    private fun cursorOf(vararg rows: Array<Any?>): MatrixCursor =
-        MatrixCursor(projection).apply { rows.forEach { addRow(it) } }
+    private fun cursorOf(vararg rows: Array<Any?>): MatrixCursor = MatrixCursor(projection).apply { rows.forEach { addRow(it) } }
 
     /** The exact children-URI the provider must query for [documentId] under [treeUri]. */
-    private fun childrenUriFor(documentId: String): Uri =
-        DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+    private fun childrenUriFor(documentId: String): Uri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
 
-    private fun provider(resolver: ContentResolver, documentId: String): SafCursorDocument =
-        SafCursorDocument(
-            resolver = resolver,
-            treeUri = treeUri,
-            documentId = documentId,
-            displayName = documentId,
-            mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
-            size = 0L,
-            modified = 0L
-        )
+    private fun provider(resolver: ContentResolver, documentId: String): SafCursorDocument = SafCursorDocument(
+        resolver = resolver,
+        treeUri = treeUri,
+        documentId = documentId,
+        displayName = documentId,
+        mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+        size = 0L,
+        modified = 0L,
+    )
 
     @Test
     fun `listFiles queries the directory's own child URI once and maps every row`() {
@@ -61,7 +58,7 @@ class SafCursorDocumentTest {
         every { resolver.query(childrenUriFor("root"), any(), any(), any(), any()) } returns cursorOf(
             arrayOf<Any?>("doc:photo.jpg", "photo.jpg", "image/jpeg", 2048L, 1_700_000_000_000L),
             // A directory row reports a null size.
-            arrayOf<Any?>("doc:subdir", "subdir", DocumentsContract.Document.MIME_TYPE_DIR, null, 1_700_000_000_001L)
+            arrayOf<Any?>("doc:subdir", "subdir", DocumentsContract.Document.MIME_TYPE_DIR, null, 1_700_000_000_001L),
         )
 
         val children = provider(resolver, "root").listFiles()
@@ -87,10 +84,10 @@ class SafCursorDocumentTest {
     fun `a subdirectory lists under its own document id, not the root's`() {
         val resolver = mockk<ContentResolver>()
         every { resolver.query(childrenUriFor("root"), any(), any(), any(), any()) } returns cursorOf(
-            arrayOf<Any?>("doc:subdir", "subdir", DocumentsContract.Document.MIME_TYPE_DIR, null, 0L)
+            arrayOf<Any?>("doc:subdir", "subdir", DocumentsContract.Document.MIME_TYPE_DIR, null, 0L),
         )
         every { resolver.query(childrenUriFor("doc:subdir"), any(), any(), any(), any()) } returns cursorOf(
-            arrayOf<Any?>("doc:nested.txt", "nested.txt", "text/plain", 7L, 0L)
+            arrayOf<Any?>("doc:nested.txt", "nested.txt", "text/plain", 7L, 0L),
         )
 
         val subdir = provider(resolver, "root").listFiles().single { it.isDirectory() }
@@ -112,7 +109,7 @@ class SafCursorDocumentTest {
     fun `an empty MIME row is treated as unknown, not a file`() {
         val resolver = mockk<ContentResolver>()
         every { resolver.query(childrenUriFor("root"), any(), any(), any(), any()) } returns cursorOf(
-            arrayOf<Any?>("doc:weird", "weird", "", 0L, 0L)
+            arrayOf<Any?>("doc:weird", "weird", "", 0L, 0L),
         )
 
         val entry = provider(resolver, "root").listFiles().single()
@@ -126,7 +123,7 @@ class SafCursorDocumentTest {
         every { resolver.query(childrenUriFor("root"), any(), any(), any(), any()) } answers {
             cursorOf(
                 arrayOf<Any?>("doc:a.txt", "a.txt", "text/plain", 10L, 0L),
-                arrayOf<Any?>("doc:b.txt", "b.txt", "text/plain", 20L, 0L)
+                arrayOf<Any?>("doc:b.txt", "b.txt", "text/plain", 20L, 0L),
             )
         }
 
@@ -142,7 +139,7 @@ class SafCursorDocumentTest {
     fun `child document URI is built under the tree so it is openable`() {
         val resolver = mockk<ContentResolver>()
         every { resolver.query(childrenUriFor("root"), any(), any(), any(), any()) } returns cursorOf(
-            arrayOf<Any?>("doc:child", "child", "text/plain", 1L, 0L)
+            arrayOf<Any?>("doc:child", "child", "text/plain", 1L, 0L),
         )
 
         val child = provider(resolver, "root").listFiles().single()

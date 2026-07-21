@@ -130,7 +130,7 @@ class HmacSha256HasherTest {
         assertEquals(
             expectedTruncated.toHexString(),
             result.toHexString(),
-            "Hash mismatch for test case '${testCase.name}'"
+            "Hash mismatch for test case '${testCase.name}'",
         )
     }
 }

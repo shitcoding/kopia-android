@@ -17,7 +17,7 @@ const val COMPRESSION_HEADER_SIZE = 4
 enum class CompressionAlgorithm(
     val id: String,
     val headerId: Int,
-    val deprecated: Boolean = false
+    val deprecated: Boolean = false,
 ) {
     // No compression
     NONE("none", 0),
@@ -50,7 +50,8 @@ enum class CompressionAlgorithm(
     // Deflate compression variants (raw deflate without gzip wrapper)
     DEFLATE_DEFAULT("deflate-default", 0x1500),
     DEFLATE_BEST_SPEED("deflate-best-speed", 0x1501),
-    DEFLATE_BEST_COMPRESSION("deflate-best-compression", 0x1502);
+    DEFLATE_BEST_COMPRESSION("deflate-best-compression", 0x1502),
+    ;
 
     /**
      * The 4-byte header for this compression algorithm.
@@ -71,14 +72,12 @@ enum class CompressionAlgorithm(
         /**
          * Finds algorithm by ID string.
          */
-        fun fromId(id: String): CompressionAlgorithm? =
-            entries.find { it.id == id }
+        fun fromId(id: String): CompressionAlgorithm? = entries.find { it.id == id }
 
         /**
          * Finds algorithm by header ID.
          */
-        fun fromHeaderId(headerId: Int): CompressionAlgorithm? =
-            entries.find { it.headerId == headerId }
+        fun fromHeaderId(headerId: Int): CompressionAlgorithm? = entries.find { it.headerId == headerId }
 
         /**
          * Reads header ID from a byte array.
@@ -164,5 +163,4 @@ interface CompressorFactory {
 /**
  * Exception thrown when decompression fails.
  */
-class DecompressionException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+class DecompressionException(message: String, cause: Throwable? = null) : Exception(message, cause)

@@ -97,7 +97,7 @@ class InterruptedBackupTest {
             // Batch 1: write and flush (committed)
             val batch1Data = mapOf(
                 "committed-1" to "batch-one-first-object".toByteArray(),
-                "committed-2" to "batch-one-second-object".toByteArray()
+                "committed-2" to "batch-one-second-object".toByteArray(),
             )
             val batch1Ids = mutableMapOf<String, ObjectId>()
             val writer1 = repo.newDirectWriter()
@@ -144,7 +144,7 @@ class InterruptedBackupTest {
             // Create a repository with real committed data
             val realData = "legitimate-committed-data".toByteArray()
             val (createdRepo, createdStorage, objectIds) = TestRepositoryFactory.createWithObjects(
-                mapOf("real" to realData)
+                mapOf("real" to realData),
             )
             repo = createdRepo
             storage = createdStorage

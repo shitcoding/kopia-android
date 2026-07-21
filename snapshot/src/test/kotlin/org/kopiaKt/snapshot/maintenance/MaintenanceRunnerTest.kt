@@ -23,7 +23,7 @@ class MaintenanceRunnerTest {
     fun `MaintenanceOptions can be customized`() {
         var progressMessage: String? = null
         val customSafety = SafetyParameters(
-            minContentAgeSubjectToGC = Duration.ofHours(48)
+            minContentAgeSubjectToGC = Duration.ofHours(48),
         )
 
         val options = MaintenanceOptions(
@@ -31,7 +31,7 @@ class MaintenanceRunnerTest {
             force = true,
             safety = customSafety,
             gcDelete = false,
-            onProgress = { progressMessage = it }
+            onProgress = { progressMessage = it },
         )
 
         assertThat(options.mode).isEqualTo(MaintenanceMode.FULL)
@@ -50,7 +50,7 @@ class MaintenanceRunnerTest {
             mode = MaintenanceMode.FULL,
             success = true,
             startTime = now.minusSeconds(60),
-            endTime = now
+            endTime = now,
         )
 
         assertThat(result.mode).isEqualTo(MaintenanceMode.FULL)
@@ -69,7 +69,7 @@ class MaintenanceRunnerTest {
             success = false,
             error = "Something went wrong",
             startTime = now.minusSeconds(30),
-            endTime = now
+            endTime = now,
         )
 
         assertThat(result.success).isFalse()
@@ -81,7 +81,7 @@ class MaintenanceRunnerTest {
         val now = Instant.now()
         val gcStats = SnapshotGCStats(
             deletedContentCount = 10,
-            deletedContentSize = 1000
+            deletedContentSize = 1000,
         )
 
         val result = MaintenanceResult(
@@ -90,7 +90,7 @@ class MaintenanceRunnerTest {
             gcStats = gcStats,
             retentionDeletedCount = 5,
             startTime = now.minusSeconds(120),
-            endTime = now
+            endTime = now,
         )
 
         assertThat(result.gcStats).isNotNull()

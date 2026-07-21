@@ -19,9 +19,7 @@ object UriSerializer : KSerializer<Uri> {
         encoder.encodeString(value.toString())
     }
 
-    override fun deserialize(decoder: Decoder): Uri {
-        return Uri.parse(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): Uri = Uri.parse(decoder.decodeString())
 }
 
 /**
@@ -62,7 +60,7 @@ data class SafOptions(
      * If true, the storage is opened in read-only mode.
      * Write operations will fail.
      */
-    val readOnly: Boolean = false
+    val readOnly: Boolean = false,
 )
 
 /**
@@ -84,7 +82,7 @@ data class SafShardingParameters(
     /**
      * Per-prefix overrides for sharding.
      */
-    val overrides: List<SafPrefixShards> = emptyList()
+    val overrides: List<SafPrefixShards> = emptyList(),
 )
 
 /**
@@ -100,5 +98,5 @@ data class SafPrefixShards(
     /**
      * Shards to use for blobs with this prefix.
      */
-    val shards: List<Int>
+    val shards: List<Int>,
 )

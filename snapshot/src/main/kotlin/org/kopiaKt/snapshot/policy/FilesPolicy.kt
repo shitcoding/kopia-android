@@ -29,7 +29,7 @@ data class FilesPolicy(
     val maxFileSize: Long = 0,
 
     @SerialName("oneFileSystem")
-    val oneFileSystem: Boolean? = null
+    val oneFileSystem: Boolean? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -71,7 +71,7 @@ data class FilesPolicy(
             },
             oneFileSystem = mergeBool(oneFileSystem, src.oneFileSystem) {
                 newDef.oneFileSystem = si
-            }
+            },
         ) to newDef
     }
 
@@ -80,7 +80,7 @@ data class FilesPolicy(
          * Default files policy.
          */
         val Default = FilesPolicy(
-            dotIgnoreFiles = listOf(".kopiaignore")
+            dotIgnoreFiles = listOf(".kopiaignore"),
         )
     }
 }
@@ -110,24 +110,20 @@ data class FilesPolicyDefinition(
     var maxFileSize: SourceInfo? = null,
 
     @SerialName("oneFileSystem")
-    var oneFileSystem: SourceInfo? = null
+    var oneFileSystem: SourceInfo? = null,
 )
 
 // Helper merge functions for policy merging
-private inline fun mergeBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long {
-    return if (target == 0L && src != 0L) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long = if (target == 0L && src != 0L) {
+    onMerge()
+    src
+} else {
+    target
 }

@@ -68,9 +68,7 @@ class NetworkConstraintChecker(private val context: Context) {
      *
      * @return true if the network is metered
      */
-    fun isNetworkMetered(): Boolean {
-        return connectivityManager?.isActiveNetworkMetered == true
-    }
+    fun isNetworkMetered(): Boolean = connectivityManager?.isActiveNetworkMetered == true
 
     /**
      * Checks if connected to unmetered (WiFi) network.
@@ -131,7 +129,8 @@ class NetworkConstraintChecker(private val context: Context) {
             TelephonyManager.NETWORK_TYPE_EDGE,
             TelephonyManager.NETWORK_TYPE_CDMA,
             TelephonyManager.NETWORK_TYPE_1xRTT,
-            TelephonyManager.NETWORK_TYPE_IDEN -> NetworkType.MOBILE_2G
+            TelephonyManager.NETWORK_TYPE_IDEN,
+            -> NetworkType.MOBILE_2G
 
             TelephonyManager.NETWORK_TYPE_UMTS,
             TelephonyManager.NETWORK_TYPE_EVDO_0,
@@ -142,10 +141,12 @@ class NetworkConstraintChecker(private val context: Context) {
             TelephonyManager.NETWORK_TYPE_EVDO_B,
             TelephonyManager.NETWORK_TYPE_EHRPD,
             TelephonyManager.NETWORK_TYPE_HSPAP,
-            TelephonyManager.NETWORK_TYPE_TD_SCDMA -> NetworkType.MOBILE_3G
+            TelephonyManager.NETWORK_TYPE_TD_SCDMA,
+            -> NetworkType.MOBILE_3G
 
             TelephonyManager.NETWORK_TYPE_LTE,
-            TelephonyManager.NETWORK_TYPE_IWLAN -> NetworkType.MOBILE_4G
+            TelephonyManager.NETWORK_TYPE_IWLAN,
+            -> NetworkType.MOBILE_4G
 
             TelephonyManager.NETWORK_TYPE_NR -> NetworkType.MOBILE_5G
 
@@ -207,7 +208,7 @@ class NetworkConstraintChecker(private val context: Context) {
 
             override fun onCapabilitiesChanged(
                 network: Network,
-                networkCapabilities: NetworkCapabilities
+                networkCapabilities: NetworkCapabilities,
             ) {
                 trySend(getCurrentNetworkState())
             }
@@ -232,15 +233,13 @@ class NetworkConstraintChecker(private val context: Context) {
      *
      * @return NetworkState representing current connectivity
      */
-    fun getCurrentNetworkState(): NetworkState {
-        return NetworkState(
-            isConnected = isNetworkAvailable(),
-            type = getNetworkType(),
-            isMetered = isNetworkMetered(),
-            downstreamBandwidthKbps = getEstimatedDownstreamBandwidthKbps(),
-            upstreamBandwidthKbps = getEstimatedUpstreamBandwidthKbps()
-        )
-    }
+    fun getCurrentNetworkState(): NetworkState = NetworkState(
+        isConnected = isNetworkAvailable(),
+        type = getNetworkType(),
+        isMetered = isNetworkMetered(),
+        downstreamBandwidthKbps = getEstimatedDownstreamBandwidthKbps(),
+        upstreamBandwidthKbps = getEstimatedUpstreamBandwidthKbps(),
+    )
 
     /**
      * Checks if network constraints are satisfied for backup.
@@ -251,7 +250,7 @@ class NetworkConstraintChecker(private val context: Context) {
      */
     fun checkBackupConstraints(
         requireWifi: Boolean = true,
-        requireConnected: Boolean = true
+        requireConnected: Boolean = true,
     ): ConstraintCheckResult {
         val violations = mutableListOf<String>()
 
@@ -266,7 +265,7 @@ class NetworkConstraintChecker(private val context: Context) {
 
         return ConstraintCheckResult(
             satisfied = violations.isEmpty(),
-            violations = violations
+            violations = violations,
         )
     }
 
@@ -275,18 +274,16 @@ class NetworkConstraintChecker(private val context: Context) {
      *
      * @return Suggested upload speed limit in bytes per second, or 0 for no limit
      */
-    fun suggestThrottleSpeed(): Long {
-        return when (getNetworkType()) {
-            NetworkType.WIFI, NetworkType.ETHERNET -> 0L // No limit
-            NetworkType.MOBILE_5G -> 50 * 1024 * 1024L // 50 MB/s
-            NetworkType.MOBILE_4G -> 10 * 1024 * 1024L // 10 MB/s
-            NetworkType.MOBILE_3G -> 1 * 1024 * 1024L // 1 MB/s
-            NetworkType.MOBILE_2G -> 100 * 1024L // 100 KB/s
-            NetworkType.MOBILE_UNKNOWN -> 5 * 1024 * 1024L // 5 MB/s conservative
-            NetworkType.VPN -> 0L // No limit, VPN handles its own throttling
-            NetworkType.OTHER -> 5 * 1024 * 1024L // 5 MB/s conservative
-            NetworkType.NONE -> 0L
-        }
+    fun suggestThrottleSpeed(): Long = when (getNetworkType()) {
+        NetworkType.WIFI, NetworkType.ETHERNET -> 0L // No limit
+        NetworkType.MOBILE_5G -> 50 * 1024 * 1024L // 50 MB/s
+        NetworkType.MOBILE_4G -> 10 * 1024 * 1024L // 10 MB/s
+        NetworkType.MOBILE_3G -> 1 * 1024 * 1024L // 1 MB/s
+        NetworkType.MOBILE_2G -> 100 * 1024L // 100 KB/s
+        NetworkType.MOBILE_UNKNOWN -> 5 * 1024 * 1024L // 5 MB/s conservative
+        NetworkType.VPN -> 0L // No limit, VPN handles its own throttling
+        NetworkType.OTHER -> 5 * 1024 * 1024L // 5 MB/s conservative
+        NetworkType.NONE -> 0L
     }
 }
 
@@ -303,7 +300,7 @@ enum class NetworkType {
     MOBILE_5G,
     MOBILE_UNKNOWN,
     VPN,
-    OTHER
+    OTHER,
 }
 
 /**
@@ -319,7 +316,7 @@ data class NetworkState(
     /** Estimated downstream bandwidth in Kbps (-1 if unknown) */
     val downstreamBandwidthKbps: Int = -1,
     /** Estimated upstream bandwidth in Kbps (-1 if unknown) */
-    val upstreamBandwidthKbps: Int = -1
+    val upstreamBandwidthKbps: Int = -1,
 ) {
     /**
      * Whether this network is suitable for backup without user confirmation.

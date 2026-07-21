@@ -32,9 +32,7 @@ object PackIndexV2 {
     const val HIGH_LENGTH_PACKED_MASK = 0x0F
     const val EXTENDED_PACK_ID_SHIFT = 16
 
-    fun open(data: ByteArray, perContentOverhead: UInt = 0u): PackIndex {
-        return PackIndexV2Impl(data)
-    }
+    fun open(data: ByteArray, perContentOverhead: UInt = 0u): PackIndex = PackIndexV2Impl(data)
 
     fun build(entries: List<ContentInfo>): ByteArray {
         val entrySize = ENTRY_OFFSET_HIGH_LENGTH_BITS + 1 // 19
@@ -58,15 +56,17 @@ object PackIndexV2 {
         val keySize = keyEntryPairs[0].first.size
 
         // Sort by key bytes using unsigned byte comparison
-        val sorted = keyEntryPairs.sortedWith(Comparator { a, b ->
-            val ak = a.first
-            val bk = b.first
-            for (i in 0 until minOf(ak.size, bk.size)) {
-                val diff = (ak[i].toInt() and 0xFF) - (bk[i].toInt() and 0xFF)
-                if (diff != 0) return@Comparator diff
-            }
-            ak.size - bk.size
-        })
+        val sorted = keyEntryPairs.sortedWith(
+            Comparator { a, b ->
+                val ak = a.first
+                val bk = b.first
+                for (i in 0 until minOf(ak.size, bk.size)) {
+                    val diff = (ak[i].toInt() and 0xFF) - (bk[i].toInt() and 0xFF)
+                    if (diff != 0) return@Comparator diff
+                }
+                ak.size - bk.size
+            },
+        )
 
         // Compute baseTimestamp = min of all timestampSeconds, clamped to UInt range
         val baseTimestamp: Long = sorted.minOf { (_, entry) ->
@@ -120,15 +120,23 @@ object PackIndexV2 {
         // Write 17-byte header
         output.write(VERSION)
         output.write(keySize)
-        output.write(ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN)
-            .putShort(entrySize.toShort()).array())
-        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-            .putInt(entryCount).array())
-        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-            .putInt(packCount).array())
+        output.write(
+            ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN)
+                .putShort(entrySize.toShort()).array(),
+        )
+        output.write(
+            ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(entryCount).array(),
+        )
+        output.write(
+            ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(packCount).array(),
+        )
         output.write(numFormatInfos)
-        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-            .putInt(baseTimestamp.toInt()).array())
+        output.write(
+            ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(baseTimestamp.toInt()).array(),
+        )
 
         // Write entries section
         for ((keyBytes, entry) in sorted) {
@@ -190,14 +198,18 @@ object PackIndexV2 {
             val nameLen = packNameLengths[name] ?: 0
             val nameOffset = stringDataAbsoluteBase + (packNameOffsetInStringData[name] ?: 0)
             output.write(nameLen)
-            output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-                .putInt(nameOffset).array())
+            output.write(
+                ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                    .putInt(nameOffset).array(),
+            )
         }
 
         // Write formats section (6 bytes each)
         for ((compressionHeaderId, formatVersion, encryptionKeyId) in formats) {
-            output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-                .putInt(compressionHeaderId).array())
+            output.write(
+                ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                    .putInt(compressionHeaderId).array(),
+            )
             output.write(formatVersion.toInt())
             output.write(encryptionKeyId.toInt())
         }
@@ -225,9 +237,16 @@ object PackIndexV2 {
 }
 
 private data class V2HeaderInfo(
-    val version: Int, val keySize: Int, val entrySize: Int, val entryCount: Int,
-    val packCount: Int, val numFormatInfos: Int, val baseTimestamp: Long,
-    val entriesOffset: Int, val packsOffset: Int, val formatsOffset: Int
+    val version: Int,
+    val keySize: Int,
+    val entrySize: Int,
+    val entryCount: Int,
+    val packCount: Int,
+    val numFormatInfos: Int,
+    val baseTimestamp: Long,
+    val entriesOffset: Int,
+    val packsOffset: Int,
+    val formatsOffset: Int,
 )
 
 private data class V2FormatInfo(val compressionHeaderId: Int, val formatVersion: Byte, val encryptionKeyId: Byte)
@@ -351,7 +370,9 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
         val startPosition = if (startId != null) {
             val keyBytes = contentIdToBytes(startId)
             if (keyBytes.size == header.keySize) findEntryPosition(keyBytes) else 0
-        } else 0
+        } else {
+            0
+        }
         for (i in startPosition until header.entryCount) {
             val entryOffset = header.entriesOffset + entryStride * i
             if (entryOffset + entryStride > data.size) break
@@ -397,7 +418,8 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
     }
 
     private fun findEntryPosition(keyBytes: ByteArray): Int {
-        var low = 0; var high = header.entryCount
+        var low = 0
+        var high = header.entryCount
         while (low < high) {
             val mid = (low + high) / 2
             val midOffset = header.entriesOffset + entryStride * mid
@@ -410,24 +432,30 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
 
     override fun close() {}
 
-    private fun decodeBigEndianUint32(data: ByteArray, offset: Int): UInt =
-        (((data[offset].toInt() and 0xFF) shl 24) or
-         ((data[offset + 1].toInt() and 0xFF) shl 16) or
-         ((data[offset + 2].toInt() and 0xFF) shl 8) or
-         (data[offset + 3].toInt() and 0xFF)).toUInt()
+    private fun decodeBigEndianUint32(data: ByteArray, offset: Int): UInt = (
+        ((data[offset].toInt() and 0xFF) shl 24) or
+            ((data[offset + 1].toInt() and 0xFF) shl 16) or
+            ((data[offset + 2].toInt() and 0xFF) shl 8) or
+            (data[offset + 3].toInt() and 0xFF)
+        ).toUInt()
 
-    private fun decodeBigEndianUint24(data: ByteArray, offset: Int): UInt =
-        (((data[offset].toInt() and 0xFF) shl 16) or
-         ((data[offset + 1].toInt() and 0xFF) shl 8) or
-         (data[offset + 2].toInt() and 0xFF)).toUInt()
+    private fun decodeBigEndianUint24(data: ByteArray, offset: Int): UInt = (
+        ((data[offset].toInt() and 0xFF) shl 16) or
+            ((data[offset + 1].toInt() and 0xFF) shl 8) or
+            (data[offset + 2].toInt() and 0xFF)
+        ).toUInt()
 
-    private fun decodeBigEndianUint16(data: ByteArray, offset: Int): UInt =
-        (((data[offset].toInt() and 0xFF) shl 8) or
-         (data[offset + 1].toInt() and 0xFF)).toUInt()
+    private fun decodeBigEndianUint16(data: ByteArray, offset: Int): UInt = (
+        ((data[offset].toInt() and 0xFF) shl 8) or
+            (data[offset + 1].toInt() and 0xFF)
+        ).toUInt()
 
     private fun compareBytes(a: ByteArray, b: ByteArray): Int {
         val minLen = minOf(a.size, b.size)
-        for (i in 0 until minLen) { val diff = (a[i].toInt() and 0xFF) - (b[i].toInt() and 0xFF); if (diff != 0) return diff }
+        for (i in 0 until minLen) {
+            val diff = (a[i].toInt() and 0xFF) - (b[i].toInt() and 0xFF)
+            if (diff != 0) return diff
+        }
         return a.size - b.size
     }
 
@@ -467,7 +495,5 @@ private class PackIndexV2Impl(private val data: ByteArray) : PackIndex {
      * Since contentIdToBytes always adds a marker byte, any index built by
      * this implementation will have an odd keySize.
      */
-    private fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        return keySize % 2 == 1
-    }
+    private fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean = keySize % 2 == 1
 }

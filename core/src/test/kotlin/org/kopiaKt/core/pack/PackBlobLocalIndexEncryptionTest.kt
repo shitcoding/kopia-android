@@ -26,15 +26,14 @@ class PackBlobLocalIndexEncryptionTest {
     private val rnd = SecureRandom()
     private fun randomBytes(n: Int) = ByteArray(n).also { rnd.nextBytes(it) }
 
-    private fun hasher() =
-        DefaultContentHasherFactory().create(HashAlgorithm.BLAKE2B_256_128, randomBytes(32))
+    private fun hasher() = DefaultContentHasherFactory().create(HashAlgorithm.BLAKE2B_256_128, randomBytes(32))
 
     private fun encryptor() = Aes256GcmHmacSha256Encryptor.create(randomBytes(32))
 
     private fun builder(overhead: Int) = PackBlobBuilder(
         packBlobId = BlobId.packBlob("test123456789012"),
         preambleLength = 32,
-        encryptionOverhead = overhead
+        encryptionOverhead = overhead,
     )
 
     @Test
@@ -46,7 +45,7 @@ class PackBlobLocalIndexEncryptionTest {
         val contents = listOf(
             ContentId.parse("aaaa000011112222") to ByteArray(50) { 0xAA.toByte() },
             ContentId.parse("bbbb333344445555") to ByteArray(75) { 0xBB.toByte() },
-            ContentId.parse("cccc666677778888") to ByteArray(100) { 0xCC.toByte() }
+            ContentId.parse("cccc666677778888") to ByteArray(100) { 0xCC.toByte() },
         )
         for ((cid, data) in contents) {
             builder.addContent(cid, data, originalLength = (data.size - encryptor.overhead).toUInt())
@@ -75,7 +74,7 @@ class PackBlobLocalIndexEncryptionTest {
         builder.addContent(
             ContentId.parse("1234567890abcdef"),
             ByteArray(64) { it.toByte() },
-            originalLength = 36u
+            originalLength = 36u,
         )
 
         val (packData, _) = builder.buildEncrypted(hasher, encryptor)
@@ -86,7 +85,7 @@ class PackBlobLocalIndexEncryptionTest {
         // The stored span is the CIPHERTEXT (nonce + ciphertext + tag), not the plaintext index.
         val ciphertext = packData.copyOfRange(
             postamble!!.localIndexOffset.toInt(),
-            postamble.localIndexOffset.toInt() + postamble.localIndexLength.toInt()
+            postamble.localIndexOffset.toInt() + postamble.localIndexLength.toInt(),
         )
         val plaintextIndex = encryptor.decryptWithRawId(ciphertext, postamble.localIndexIV)
         assertThat(postamble.localIndexLength.toInt())
@@ -115,7 +114,7 @@ class PackBlobLocalIndexEncryptionTest {
         val postamble = PackBlobPostamble(
             localIndexIV = ByteArray(16),
             localIndexOffset = 2_000_000_000u,
-            localIndexLength = 2_000_000_000u
+            localIndexLength = 2_000_000_000u,
         )
         val packData = ByteArray(64) + postamble.toBytes()
 

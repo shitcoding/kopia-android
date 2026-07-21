@@ -20,7 +20,7 @@ import org.bouncycastle.crypto.params.Blake3Parameters
  */
 class Blake3Hasher(
     override val algorithm: HashAlgorithm,
-    private val key: ByteArray
+    private val key: ByteArray,
 ) : ContentHasher {
 
     init {

@@ -30,7 +30,7 @@ class BuildVerificationTest {
         val source = SourceInfo(
             host = "laptop",
             userName = "alice",
-            path = "/home/alice/Documents"
+            path = "/home/alice/Documents",
         )
 
         assertThat(source.toString()).isEqualTo("alice@laptop:/home/alice/Documents")
@@ -62,8 +62,8 @@ class BuildVerificationTest {
             endTime = Instant.parse("2025-01-20T12:05:00Z"),
             stats = SnapshotStats(
                 totalFileCount = 100,
-                totalFileSize = 1024L * 1024 * 50
-            )
+                totalFileSize = 1024L * 1024 * 50,
+            ),
         )
 
         val jsonString = json.encodeToString(manifest)
@@ -79,17 +79,17 @@ class BuildVerificationTest {
         val file = DirEntry(
             name = "test.txt",
             type = EntryType.FILE,
-            fileSize = 1024L
+            fileSize = 1024L,
         )
 
         val dir = DirEntry(
             name = "subdir",
-            type = EntryType.DIRECTORY
+            type = EntryType.DIRECTORY,
         )
 
         val symlink = DirEntry(
             name = "link",
-            type = EntryType.SYMLINK
+            type = EntryType.SYMLINK,
             // Note: symlink target is stored in the object the ObjectID points to, not in DirEntry
         )
 
@@ -119,7 +119,7 @@ class BuildVerificationTest {
             keepLatest = 10,
             keepDaily = 7,
             keepWeekly = 4,
-            keepMonthly = 12
+            keepMonthly = 12,
         )
 
         assertThat(retention.keepLatest).isEqualTo(10)
@@ -135,7 +135,7 @@ class BuildVerificationTest {
         val compression = CompressionPolicy(
             compressorName = "lz4",
             neverCompress = listOf("*.jpg", "*.mp4", "*.zip"),
-            minSize = 1024
+            minSize = 1024,
         )
 
         assertThat(compression.compressorName).isEqualTo("lz4")

@@ -309,7 +309,7 @@ abstract class BlobStorageContractTest {
             val blobs = mapOf(
                 BlobId("abc") to "data1".toByteArray(),
                 BlobId("def") to "data2".toByteArray(),
-                BlobId("ghi") to "data3".toByteArray()
+                BlobId("ghi") to "data3".toByteArray(),
             )
 
             blobs.forEach { (id, data) -> storage.putBlob(id, data) }

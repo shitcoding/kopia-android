@@ -25,7 +25,8 @@ enum class TaskType(val id: String) {
     EPOCH_DELETE_SUPERSEDED_INDEXES("delete-superseded-epoch-indexes"),
     EPOCH_CLEANUP_MARKERS("cleanup-epoch-markers"),
     EPOCH_GENERATE_RANGE("generate-epoch-range-index"),
-    EPOCH_COMPACT_SINGLE("compact-single-epoch");
+    EPOCH_COMPACT_SINGLE("compact-single-epoch"),
+    ;
 
     companion object {
         fun fromId(id: String): TaskType? = entries.find { it.id == id }
@@ -40,12 +41,15 @@ enum class TaskType(val id: String) {
 enum class MaintenanceMode {
     /** No maintenance. */
     NONE,
+
     /** Quick maintenance (frequent, lightweight). */
     QUICK,
+
     /** Full maintenance (less frequent, comprehensive). */
     FULL,
+
     /** Automatically determine mode based on schedule. */
-    AUTO
+    AUTO,
 }
 
 /**
@@ -61,7 +65,7 @@ data class RunInfo(
     val end: Instant,
     val success: Boolean,
     val error: String? = null,
-    val extra: List<TaskStats> = emptyList()
+    val extra: List<TaskStats> = emptyList(),
 )
 
 /**
@@ -70,7 +74,7 @@ data class RunInfo(
 @Serializable
 data class TaskStats(
     val name: String,
-    val value: Long
+    val value: Long,
 )
 
 /**
@@ -82,7 +86,7 @@ data class TaskStats(
 data class CycleParams(
     val enabled: Boolean = true,
     @Serializable(with = JavaDurationSerializer::class)
-    val interval: Duration = Duration.ZERO
+    val interval: Duration = Duration.ZERO,
 ) {
     companion object {
         /**
@@ -90,7 +94,7 @@ data class CycleParams(
          */
         val QuickDefault = CycleParams(
             enabled = true,
-            interval = Duration.ofHours(1)
+            interval = Duration.ofHours(1),
         )
 
         /**
@@ -98,7 +102,7 @@ data class CycleParams(
          */
         val FullDefault = CycleParams(
             enabled = true,
-            interval = Duration.ofHours(24)
+            interval = Duration.ofHours(24),
         )
     }
 }
@@ -112,7 +116,7 @@ data class CycleParams(
 data class LogRetentionOptions(
     @Serializable(with = JavaDurationSerializer::class)
     val maxAge: Duration = Duration.ofDays(30),
-    val maxTotalSize: Long = 100 * 1024 * 1024 // 100MB
+    val maxTotalSize: Long = 100 * 1024 * 1024, // 100MB
 )
 
 /**
@@ -151,7 +155,7 @@ data class MaintenanceParams(
     /**
      * Parallelism for blob listing operations.
      */
-    val listParallelism: Int = 1
+    val listParallelism: Int = 1,
 )
 
 /**
@@ -181,28 +185,22 @@ data class MaintenanceSchedule(
     /**
      * History of maintenance runs by task type.
      */
-    val runs: Map<String, List<RunInfo>> = emptyMap()
+    val runs: Map<String, List<RunInfo>> = emptyMap(),
 ) {
     /**
      * Gets the runs for a specific task type.
      */
-    fun runsFor(taskType: TaskType): List<RunInfo> {
-        return runs[taskType.id] ?: emptyList()
-    }
+    fun runsFor(taskType: TaskType): List<RunInfo> = runs[taskType.id] ?: emptyList()
 
     /**
      * Gets the most recent successful run for a task type.
      */
-    fun lastSuccessfulRun(taskType: TaskType): RunInfo? {
-        return runsFor(taskType).filter { it.success }.maxByOrNull { it.end }
-    }
+    fun lastSuccessfulRun(taskType: TaskType): RunInfo? = runsFor(taskType).filter { it.success }.maxByOrNull { it.end }
 
     /**
      * Gets the most recent run (successful or not) for a task type.
      */
-    fun lastRun(taskType: TaskType): RunInfo? {
-        return runsFor(taskType).maxByOrNull { it.end }
-    }
+    fun lastRun(taskType: TaskType): RunInfo? = runsFor(taskType).maxByOrNull { it.end }
 
     /**
      * Returns a new schedule with the run info added.
@@ -218,13 +216,11 @@ data class MaintenanceSchedule(
      */
     fun withNextTimes(
         nextFull: Instant? = nextFullMaintenanceTime,
-        nextQuick: Instant? = nextQuickMaintenanceTime
-    ): MaintenanceSchedule {
-        return copy(
-            nextFullMaintenanceTime = nextFull,
-            nextQuickMaintenanceTime = nextQuick
-        )
-    }
+        nextQuick: Instant? = nextQuickMaintenanceTime,
+    ): MaintenanceSchedule = copy(
+        nextFullMaintenanceTime = nextFull,
+        nextQuickMaintenanceTime = nextQuick,
+    )
 
     /**
      * Determines the maintenance mode to run based on schedule.

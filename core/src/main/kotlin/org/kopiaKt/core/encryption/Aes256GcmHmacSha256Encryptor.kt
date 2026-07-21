@@ -30,7 +30,7 @@ import javax.crypto.spec.SecretKeySpec
  * Total overhead: 28 bytes (12 nonce + 16 tag)
  */
 class Aes256GcmHmacSha256Encryptor(
-    private val keyDerivationSecret: ByteArray
+    private val keyDerivationSecret: ByteArray,
 ) : Encryptor {
 
     private val secureRandom = SecureRandom()
@@ -142,7 +142,7 @@ class Aes256GcmHmacSha256Encryptor(
             val keyDerivationSecret = deriveKeyDerivationSecret(
                 masterKey,
                 PURPOSE_ENCRYPTION_KEY.toByteArray(Charsets.UTF_8),
-                KEY_DERIVATION_SECRET_SIZE
+                KEY_DERIVATION_SECRET_SIZE,
             )
             return Aes256GcmHmacSha256Encryptor(keyDerivationSecret)
         }
@@ -163,7 +163,7 @@ class Aes256GcmHmacSha256Encryptor(
         internal fun deriveKeyDerivationSecret(
             masterKey: ByteArray,
             salt: ByteArray,
-            length: Int
+            length: Int,
         ): ByteArray {
             val hkdf = HKDFBytesGenerator(SHA256Digest())
 

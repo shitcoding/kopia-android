@@ -69,7 +69,7 @@ class S3BlobStorageIntegrationTest {
             .waitingFor(
                 HttpWaitStrategy()
                     .forPath("/minio/health/ready")
-                    .forPort(9000)
+                    .forPort(9000),
             )
     }
 
@@ -86,8 +86,8 @@ class S3BlobStorageIntegrationTest {
             .region(Region.US_EAST_1)
             .credentialsProvider(
                 StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
-                )
+                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY),
+                ),
             )
             .forcePathStyle(true)
             .build()
@@ -116,8 +116,8 @@ class S3BlobStorageIntegrationTest {
                     accessKeyId = ACCESS_KEY,
                     secretAccessKey = SECRET_KEY,
                     doNotUseTls = true,
-                    region = REGION
-                )
+                    region = REGION,
+                ),
             )
         }
     }
@@ -134,7 +134,7 @@ class S3BlobStorageIntegrationTest {
 
     private fun deleteAllObjectsInBucket() {
         val response = syncClient.listObjectsV2(
-            ListObjectsV2Request.builder().bucket(bucketName).build()
+            ListObjectsV2Request.builder().bucket(bucketName).build(),
         )
         if (response.contents().isNotEmpty()) {
             val objectIdentifiers = response.contents().map {
@@ -144,7 +144,7 @@ class S3BlobStorageIntegrationTest {
                 DeleteObjectsRequest.builder()
                     .bucket(bucketName)
                     .delete(Delete.builder().objects(objectIdentifiers).build())
-                    .build()
+                    .build(),
             )
         }
     }
@@ -415,8 +415,8 @@ class S3BlobStorageIntegrationTest {
                     region = REGION,
                     accessKeyId = ACCESS_KEY,
                     secretAccessKey = SECRET_KEY,
-                    doNotUseTls = true
-                )
+                    doNotUseTls = true,
+                ),
             )
             val blobs = s3.listBlobs("").toList()
             assertNotNull(blobs)
@@ -453,7 +453,7 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
             .waitingFor(
                 HttpWaitStrategy()
                     .forPath("/minio/health/ready")
-                    .forPort(9000)
+                    .forPort(9000),
             )
     }
 
@@ -469,8 +469,8 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
             .region(Region.US_EAST_1)
             .credentialsProvider(
                 StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
-                )
+                    AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY),
+                ),
             )
             .forcePathStyle(true)
             .build()
@@ -493,8 +493,8 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
                     accessKeyId = ACCESS_KEY,
                     secretAccessKey = SECRET_KEY,
                     doNotUseTls = true,
-                    region = REGION
-                )
+                    region = REGION,
+                ),
             )
         }
     }
@@ -503,7 +503,7 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
         if (currentBucket != null) {
             try {
                 val response = syncClient.listObjectsV2(
-                    ListObjectsV2Request.builder().bucket(currentBucket).build()
+                    ListObjectsV2Request.builder().bucket(currentBucket).build(),
                 )
                 if (response.contents().isNotEmpty()) {
                     val objectIdentifiers = response.contents().map {
@@ -513,7 +513,7 @@ class S3BlobStorageContractIntegrationTest : BlobStorageContractTest() {
                         DeleteObjectsRequest.builder()
                             .bucket(currentBucket)
                             .delete(Delete.builder().objects(objectIdentifiers).build())
-                            .build()
+                            .build(),
                     )
                 }
                 syncClient.deleteBucket(DeleteBucketRequest.builder().bucket(currentBucket).build())

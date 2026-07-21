@@ -2,7 +2,6 @@
 
 package org.kopiaKt.e2e.benchmark
 
-import kotlin.io.path.ExperimentalPathApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.writeSession
 import org.kopiaKt.e2e.KopiaCliRunner
@@ -30,6 +28,7 @@ import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -86,20 +85,16 @@ class GoComparisonBenchmarkTest {
 
     companion object {
         @JvmStatic
-        fun isE2EEnabled(): Boolean {
-            return System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
-                    System.getenv("CI")?.toBoolean() == true ||
-                    System.getProperty("e2e")?.toBoolean() == true
-        }
+        fun isE2EEnabled(): Boolean = System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
+            System.getenv("CI")?.toBoolean() == true ||
+            System.getProperty("e2e")?.toBoolean() == true
 
         @JvmStatic
-        fun isGoKopiaAvailable(): Boolean {
-            return try {
-                KopiaCliRunner.defaultKopiaBinary()
-                true
-            } catch (e: Exception) {
-                false
-            }
+        fun isGoKopiaAvailable(): Boolean = try {
+            KopiaCliRunner.defaultKopiaBinary()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -134,10 +129,10 @@ class GoComparisonBenchmarkTest {
             val testDataSpec = testDataGenerator.create(sourceDir, config)
 
             println()
-            println("=" .repeat(70))
+            println("=".repeat(70))
             println("Comparison: $name")
             println("Data: ${testDataSpec.fileCount} files, ${formatBytes(testDataSpec.totalBytes)}")
-            println("=" .repeat(70))
+            println("=".repeat(70))
 
             // Warmup
             println("Warmup...")
@@ -217,14 +212,14 @@ class GoComparisonBenchmarkTest {
                     val source = SourceInfo(
                         host = "compare-test",
                         userName = "compare-test",
-                        path = sourceDir.toString()
+                        path = sourceDir.toString(),
                     )
 
                     val uploader = SnapshotUploader(
                         writer = writer,
                         source = source,
                         policy = Policy(),
-                        progress = CountingUploadProgress()
+                        progress = CountingUploadProgress(),
                     )
 
                     val rootDir = LocalFilesystem.directory(sourceDir)
@@ -246,10 +241,10 @@ class GoComparisonBenchmarkTest {
             val testDataSpec = testDataGenerator.create(sourceDir, config)
 
             println()
-            println("=" .repeat(70))
+            println("=".repeat(70))
             println("Comparison: Medium Restore")
             println("Data: ${testDataSpec.fileCount} files, ${formatBytes(testDataSpec.totalBytes)}")
-            println("=" .repeat(70))
+            println("=".repeat(70))
 
             // Create backups with both implementations
             println("Creating backups...")
@@ -353,7 +348,7 @@ class GoComparisonBenchmarkTest {
                 val restorer = SnapshotRestorer(
                     output = output,
                     options = RestoreOptions(),
-                    progress = CountingRestoreProgress()
+                    progress = CountingRestoreProgress(),
                 )
 
                 restorer.restore(rootEntry)
@@ -373,15 +368,15 @@ class GoComparisonBenchmarkTest {
             val testDataSpec = testDataGenerator.create(sourceDir, config)
 
             println()
-            println("=" .repeat(70))
+            println("=".repeat(70))
             println("Hash Algorithm Comparison")
             println("Data: ${testDataSpec.fileCount} files, ${formatBytes(testDataSpec.totalBytes)}")
-            println("=" .repeat(70))
+            println("=".repeat(70))
 
             val algorithms = listOf(
                 "BLAKE2B-256-128" to "BLAKE2B-256-128",
                 "BLAKE3-256" to "BLAKE3-256",
-                "BLAKE3-256-128" to "BLAKE3-256-128"
+                "BLAKE3-256-128" to "BLAKE3-256-128",
             )
 
             for ((algoName, algo) in algorithms) {
@@ -412,7 +407,7 @@ class GoComparisonBenchmarkTest {
                     val repo = DirectRepositoryImpl.create(
                         storage,
                         password,
-                        createBenchmarkRepositoryConfig(hash = algo)
+                        createBenchmarkRepositoryConfig(hash = algo),
                     )
 
                     try {
@@ -448,12 +443,10 @@ class GoComparisonBenchmarkTest {
         }
     }
 
-    private fun formatBytes(bytes: Long): String {
-        return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-        }
+    private fun formatBytes(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+        bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }

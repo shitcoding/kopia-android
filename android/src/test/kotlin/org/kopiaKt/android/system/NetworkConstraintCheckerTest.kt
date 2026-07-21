@@ -3,7 +3,6 @@ package org.kopiaKt.android.system
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.telephony.TelephonyManager
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -43,7 +42,7 @@ class NetworkConstraintCheckerTest {
         isVpn: Boolean = false,
         isMetered: Boolean = !isWifi,
         downstreamKbps: Int = 100000,
-        upstreamKbps: Int = 50000
+        upstreamKbps: Int = 50000,
     ) {
         val shadowCm = shadowOf(connectivityManager)
 
@@ -131,7 +130,7 @@ class NetworkConstraintCheckerTest {
     fun `checkBackupConstraints returns satisfied when network available and WiFi not required`() {
         val result = checker.checkBackupConstraints(
             requireWifi = false,
-            requireConnected = false
+            requireConnected = false,
         )
 
         // With no requirements, should be satisfied
@@ -193,7 +192,7 @@ class NetworkStateTest {
             type = NetworkType.WIFI,
             isMetered = false,
             downstreamBandwidthKbps = 100000,
-            upstreamBandwidthKbps = 50000
+            upstreamBandwidthKbps = 50000,
         )
 
         assertThat(state.isConnected).isTrue()
@@ -208,7 +207,7 @@ class NetworkStateTest {
         val state = NetworkState(
             isConnected = true,
             type = NetworkType.WIFI,
-            isMetered = false
+            isMetered = false,
         )
 
         assertThat(state.isSuitableForBackup).isTrue()
@@ -219,7 +218,7 @@ class NetworkStateTest {
         val state = NetworkState(
             isConnected = true,
             type = NetworkType.MOBILE_4G,
-            isMetered = true
+            isMetered = true,
         )
 
         assertThat(state.isSuitableForBackup).isFalse()
@@ -230,7 +229,7 @@ class NetworkStateTest {
         val state = NetworkState(
             isConnected = false,
             type = NetworkType.NONE,
-            isMetered = false
+            isMetered = false,
         )
 
         assertThat(state.isSuitableForBackup).isFalse()
@@ -241,7 +240,7 @@ class NetworkStateTest {
         val state = NetworkState(
             isConnected = true,
             type = NetworkType.WIFI,
-            isMetered = false
+            isMetered = false,
         )
 
         assertThat(state.downstreamBandwidthKbps).isEqualTo(-1)

@@ -26,7 +26,7 @@ import org.kopiaKt.core.pack.PackIndexV2
  */
 class IndexBlobReader private constructor(
     private val index: PackIndex,
-    private val blobId: BlobId
+    private val blobId: BlobId,
 ) : PackIndex by index {
 
     /**
@@ -53,7 +53,7 @@ class IndexBlobReader private constructor(
             data: ByteArray,
             blobId: BlobId,
             encryptor: Encryptor? = null,
-            v1PerContentOverhead: UInt = 0u
+            v1PerContentOverhead: UInt = 0u,
         ): IndexBlobReader {
             // Decrypt if encryptor provided
             val decrypted = if (encryptor != null) {
@@ -96,7 +96,7 @@ class IndexBlobReader private constructor(
         fun openUnencrypted(
             data: ByteArray,
             blobId: BlobId,
-            v1PerContentOverhead: UInt = 0u
+            v1PerContentOverhead: UInt = 0u,
         ): IndexBlobReader {
             // Remove the random suffix (last 32 bytes)
             val indexData = if (data.size > IndexBlobConstants.RANDOM_SUFFIX_SIZE) {
@@ -133,7 +133,7 @@ class IndexBlobReader private constructor(
         fun openRaw(
             indexData: ByteArray,
             blobId: BlobId,
-            v1PerContentOverhead: UInt = 0u
+            v1PerContentOverhead: UInt = 0u,
         ): IndexBlobReader {
             if (indexData.isEmpty()) {
                 throw IllegalArgumentException("Index data is empty")
@@ -159,17 +159,14 @@ fun PackIndex.toList(): List<ContentInfo> = iterate().toList()
 /**
  * Extension function to filter content infos by pack blob ID.
  */
-fun PackIndex.filterByPackBlobId(packBlobId: BlobId): Sequence<ContentInfo> =
-    iterate().filter { it.packBlobId == packBlobId }
+fun PackIndex.filterByPackBlobId(packBlobId: BlobId): Sequence<ContentInfo> = iterate().filter { it.packBlobId == packBlobId }
 
 /**
  * Extension function to find all deleted content IDs.
  */
-fun PackIndex.findDeleted(): Sequence<ContentInfo> =
-    iterate().filter { it.deleted }
+fun PackIndex.findDeleted(): Sequence<ContentInfo> = iterate().filter { it.deleted }
 
 /**
  * Extension function to find all non-deleted content IDs.
  */
-fun PackIndex.findActive(): Sequence<ContentInfo> =
-    iterate().filter { !it.deleted }
+fun PackIndex.findActive(): Sequence<ContentInfo> = iterate().filter { !it.deleted }

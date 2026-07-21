@@ -19,8 +19,8 @@ import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.`object`.ObjectReader
 import org.kopiaKt.core.`object`.ObjectWriter
 import org.kopiaKt.core.`object`.ObjectWriterOptions
-import org.kopiaKt.core.repository.ConcatenateOptions
 import org.kopiaKt.core.repository.ClientOptions
+import org.kopiaKt.core.repository.ConcatenateOptions
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.core.repository.WriteSessionOptions
 import org.kopiaKt.snapshot.fs.DeviceInfo
@@ -74,7 +74,7 @@ class BackupRobustnessTest {
     private val testSource = SourceInfo(
         host = "stress-host",
         userName = "stress-user",
-        path = "/stress/path"
+        path = "/stress/path",
     )
 
     // -----------------------------------------------------------------------
@@ -99,7 +99,7 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             // Generate 1000 files with deterministic content
@@ -151,7 +151,7 @@ class BackupRobustnessTest {
                 assertArrayEquals(
                     expectedContent,
                     storedContent,
-                    "Content mismatch for file_${String.format("%04d", i)}.dat"
+                    "Content mismatch for file_${String.format("%04d", i)}.dat",
                 )
             }
         }
@@ -179,7 +179,7 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             // Generate 10 unique 10MB files
@@ -188,7 +188,7 @@ class BackupRobustnessTest {
             }
 
             val files = fileContents.mapIndexed { i, content ->
-                InMemoryFile("large_${i}.bin", content)
+                InMemoryFile("large_$i.bin", content)
             }
 
             val rootDir = InMemoryDirectory("root", entries = files)
@@ -207,7 +207,7 @@ class BackupRobustnessTest {
 
             // Verify content round-trip for each file
             for (i in 0 until fileCount) {
-                val entry = rootManifest.entries.find { it.name == "large_${i}.bin" }
+                val entry = rootManifest.entries.find { it.name == "large_$i.bin" }
                 assertThat(entry).isNotNull()
 
                 val storedContent = writer.readObject(ObjectId.parse(entry!!.objectId!!))
@@ -216,7 +216,7 @@ class BackupRobustnessTest {
                 assertArrayEquals(
                     expectedHash,
                     storedHash,
-                    "SHA-256 mismatch for large_${i}.bin"
+                    "SHA-256 mismatch for large_$i.bin",
                 )
             }
 
@@ -226,12 +226,15 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress2
+                progress = progress2,
             )
 
-            val rootDir2 = InMemoryDirectory("root", entries = files.map { file ->
-                InMemoryFile(file.name, fileContents[files.indexOf(file)])
-            })
+            val rootDir2 = InMemoryDirectory(
+                "root",
+                entries = files.map { file ->
+                    InMemoryFile(file.name, fileContents[files.indexOf(file)])
+                },
+            )
 
             val result2 = uploader2.upload(rootDir2)
             assertThat(result2.incomplete).isFalse()
@@ -262,7 +265,7 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             // Build a tree: each level has a file and a subdirectory
@@ -287,7 +290,7 @@ class BackupRobustnessTest {
                 // Each level should have a file
                 val fileEntry = currentManifest.entries.find { it.type == EntryType.FILE }
                 assertThat(fileEntry).isNotNull()
-                assertThat(fileEntry!!.name).isEqualTo("file_level_${level}.txt")
+                assertThat(fileEntry!!.name).isEqualTo("file_level_$level.txt")
 
                 // Verify file content
                 val content = writer.readObject(ObjectId.parse(fileEntry.objectId!!))
@@ -311,9 +314,9 @@ class BackupRobustnessTest {
                 entries = listOf(
                     InMemoryFile(
                         "file_level_${depth - 1}.txt",
-                        "content at level ${depth - 1}".toByteArray()
-                    )
-                )
+                        "content at level ${depth - 1}".toByteArray(),
+                    ),
+                ),
             )
 
             for (level in (depth - 2) downTo 0) {
@@ -321,11 +324,11 @@ class BackupRobustnessTest {
                     if (level == 0) "root" else "level_$level",
                     entries = listOf(
                         InMemoryFile(
-                            "file_level_${level}.txt",
-                            "content at level $level".toByteArray()
+                            "file_level_$level.txt",
+                            "content at level $level".toByteArray(),
                         ),
-                        current
-                    )
+                        current,
+                    ),
                 )
             }
 
@@ -353,7 +356,7 @@ class BackupRobustnessTest {
             for (i in 0 until 20) {
                 baseFiles["file_${String.format("%02d", i)}.dat"] = FileState(
                     content = generateDeterministic(1024, seed = i.toLong()),
-                    modTime = baseTime
+                    modTime = baseTime,
                 )
             }
 
@@ -368,7 +371,7 @@ class BackupRobustnessTest {
             for (i in 0 until 5) {
                 baseFiles["file_${String.format("%02d", i)}.dat"] = FileState(
                     content = generateDeterministic(1024, seed = (i + 100).toLong()),
-                    modTime = cycle2Time
+                    modTime = cycle2Time,
                 )
             }
             val result2 = doBackup(writer, baseFiles)
@@ -381,7 +384,7 @@ class BackupRobustnessTest {
             for (i in 20 until 25) {
                 baseFiles["file_${String.format("%02d", i)}.dat"] = FileState(
                     content = generateDeterministic(1024, seed = i.toLong()),
-                    modTime = cycle3Time
+                    modTime = cycle3Time,
                 )
             }
             val result3 = doBackup(writer, baseFiles)
@@ -406,11 +409,11 @@ class BackupRobustnessTest {
             val cycle5Time = Instant.parse("2025-01-05T00:00:00Z")
             baseFiles["file_00.dat"] = FileState(
                 content = generateDeterministic(2048, seed = 999L),
-                modTime = cycle5Time
+                modTime = cycle5Time,
             )
             baseFiles["file_25.dat"] = FileState(
                 content = generateDeterministic(512, seed = 25L),
-                modTime = cycle5Time
+                modTime = cycle5Time,
             )
             baseFiles.remove("file_20.dat")
             val result5 = doBackup(writer, baseFiles)
@@ -426,21 +429,21 @@ class BackupRobustnessTest {
                 assertArrayEquals(
                     state.content,
                     storedContent,
-                    "Content mismatch for $name after 5 mutation cycles"
+                    "Content mismatch for $name after 5 mutation cycles",
                 )
             }
         }
 
         private suspend fun doBackup(
             writer: TrackingRepositoryWriter,
-            files: Map<String, FileState>
+            files: Map<String, FileState>,
         ): UploadResult {
             val progress = CountingUploadProgress()
             val uploader = SnapshotUploader(
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val entries = files.map { (name, state) ->
@@ -470,7 +473,7 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             // Create a diverse set of files with varying sizes and content patterns
@@ -484,7 +487,7 @@ class BackupRobustnessTest {
                 "random_64k.bin" to generateDeterministic(65536, seed = 2L),
                 "random_256k.bin" to generateDeterministic(256 * 1024, seed = 3L),
                 "unicode.txt" to "\u00E9\u00E0\u00FC \u4F60\u597D \uD83D\uDE80".toByteArray(Charsets.UTF_8),
-                "binary_all_bytes.bin" to ByteArray(256) { it.toByte() }
+                "binary_all_bytes.bin" to ByteArray(256) { it.toByte() },
             )
 
             // Compute expected SHA-256 hashes before upload
@@ -511,14 +514,14 @@ class BackupRobustnessTest {
                 assertArrayEquals(
                     expectedHash,
                     storedHash,
-                    "SHA-256 hash mismatch for file '$name'"
+                    "SHA-256 hash mismatch for file '$name'",
                 )
 
                 // Also verify exact byte-level equality
                 assertArrayEquals(
                     testFiles[name],
                     storedContent,
-                    "Byte-level content mismatch for file '$name'"
+                    "Byte-level content mismatch for file '$name'",
                 )
             }
         }
@@ -550,22 +553,22 @@ class BackupRobustnessTest {
                         val source = SourceInfo(
                             host = "stress-host",
                             userName = "stress-user",
-                            path = "/backup/$backupIndex"
+                            path = "/backup/$backupIndex",
                         )
 
                         val uploader = SnapshotUploader(
                             writer = writer,
                             source = source,
                             policy = Policy(),
-                            progress = progress
+                            progress = progress,
                         )
 
                         val files = (0 until 50).map { i ->
                             val content = generateDeterministic(
                                 1024,
-                                seed = (backupIndex * 1000 + i).toLong()
+                                seed = (backupIndex * 1000 + i).toLong(),
                             )
-                            InMemoryFile("file_${i}.dat", content)
+                            InMemoryFile("file_$i.dat", content)
                         }
                         val rootDir = InMemoryDirectory("root", entries = files)
 
@@ -585,24 +588,25 @@ class BackupRobustnessTest {
 
                 // Verify manifest entries
                 val rootManifest = readDirManifest(
-                    writer, result.manifest.rootEntry!!.objectId!!
+                    writer,
+                    result.manifest.rootEntry!!.objectId!!,
                 )
                 assertThat(rootManifest.entries).hasSize(50)
 
                 // Spot-check content integrity for a few files per backup
                 for (i in listOf(0, 24, 49)) {
-                    val entry = rootManifest.entries.find { it.name == "file_${i}.dat" }
+                    val entry = rootManifest.entries.find { it.name == "file_$i.dat" }
                     assertThat(entry).isNotNull()
 
                     val expectedContent = generateDeterministic(
                         1024,
-                        seed = (backupIndex * 1000 + i).toLong()
+                        seed = (backupIndex * 1000 + i).toLong(),
                     )
                     val storedContent = writer.readObject(ObjectId.parse(entry!!.objectId!!))
                     assertArrayEquals(
                         expectedContent,
                         storedContent,
-                        "Content mismatch for backup $backupIndex, file_${i}.dat"
+                        "Content mismatch for backup $backupIndex, file_$i.dat",
                     )
                 }
             }
@@ -627,15 +631,15 @@ class BackupRobustnessTest {
             // Policy that ignores file errors so backup continues
             val policy = Policy(
                 errorHandlingPolicy = ErrorHandlingPolicy(
-                    ignoreFileErrors = true
-                )
+                    ignoreFileErrors = true,
+                ),
             )
 
             val uploader = SnapshotUploader(
                 writer = writer,
                 source = testSource,
                 policy = policy,
-                progress = progress
+                progress = progress,
             )
 
             // Create a mix of working files and files that fail intermittently
@@ -643,13 +647,13 @@ class BackupRobustnessTest {
             for (i in 0 until 20) {
                 if (i % 5 == 3) {
                     // Every 5th file (at index 3, 8, 13, 18) fails to read
-                    entries.add(FailingFile("fail_${i}.dat", IOException("Transient IO error at $i")))
+                    entries.add(FailingFile("fail_$i.dat", IOException("Transient IO error at $i")))
                 } else {
                     entries.add(
                         InMemoryFile(
-                            "file_${i}.dat",
-                            generateDeterministic(512, seed = i.toLong())
-                        )
+                            "file_$i.dat",
+                            generateDeterministic(512, seed = i.toLong()),
+                        ),
                     )
                 }
             }
@@ -671,7 +675,7 @@ class BackupRobustnessTest {
             for (i in 0 until 20) {
                 if (i % 5 == 3) continue // Skip failing files
 
-                val entry = rootManifest.entries.find { it.name == "file_${i}.dat" }
+                val entry = rootManifest.entries.find { it.name == "file_$i.dat" }
                 assertThat(entry).isNotNull()
 
                 val expectedContent = generateDeterministic(512, seed = i.toLong())
@@ -706,7 +710,7 @@ class BackupRobustnessTest {
                 writer = writer,
                 source = testSource,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             // Create 2000 files of 4KB each = ~8MB of file data
@@ -716,7 +720,7 @@ class BackupRobustnessTest {
             val totalDataSize = fileCount.toLong() * fileSize // ~8MB
 
             val files = (0 until fileCount).map { i ->
-                InMemoryFile("file_${i}.dat", generateDeterministic(fileSize, seed = i.toLong()))
+                InMemoryFile("file_$i.dat", generateDeterministic(fileSize, seed = i.toLong()))
             }
             val rootDir = InMemoryDirectory("root", entries = files)
 
@@ -758,9 +762,7 @@ class BackupRobustnessTest {
     /**
      * Computes SHA-256 hash of a byte array.
      */
-    private fun sha256(data: ByteArray): ByteArray {
-        return MessageDigest.getInstance("SHA-256").digest(data)
-    }
+    private fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 
     /**
      * Reads and parses a DirManifest from the writer's object store.
@@ -778,7 +780,7 @@ class BackupRobustnessTest {
         override val name: String,
         private val content: ByteArray,
         override val modTime: Instant = Instant.parse("2025-06-01T12:00:00Z"),
-        override val mode: Int = 420 // 0644
+        override val mode: Int = 420, // 0644
     ) : org.kopiaKt.snapshot.fs.File {
         override val type = org.kopiaKt.snapshot.fs.EntryType.FILE
         override val size: Long = content.size.toLong()
@@ -794,7 +796,7 @@ class BackupRobustnessTest {
         override val name: String,
         private val error: Throwable,
         override val modTime: Instant = Instant.parse("2025-06-01T12:00:00Z"),
-        override val mode: Int = 420
+        override val mode: Int = 420,
     ) : org.kopiaKt.snapshot.fs.File {
         override val type = org.kopiaKt.snapshot.fs.EntryType.FILE
         override val size: Long = 100
@@ -810,7 +812,7 @@ class BackupRobustnessTest {
         override val name: String,
         private val entries: List<Entry> = emptyList(),
         override val modTime: Instant = Instant.parse("2025-06-01T12:00:00Z"),
-        override val mode: Int = 493 // 0755
+        override val mode: Int = 493, // 0755
     ) : Directory {
         override val type = org.kopiaKt.snapshot.fs.EntryType.DIRECTORY
         override val size: Long = 0
@@ -818,25 +820,19 @@ class BackupRobustnessTest {
         override val device = DeviceInfo(0, 0)
         override val localFilesystemPath = ""
 
-        override suspend fun child(name: String): Entry? {
-            return entries.find { it.name == name }
-        }
+        override suspend fun child(name: String): Entry? = entries.find { it.name == name }
 
-        override suspend fun iterate(): DirectoryIterator {
-            return InMemoryDirectoryIterator(entries)
-        }
+        override suspend fun iterate(): DirectoryIterator = InMemoryDirectoryIterator(entries)
 
         override fun close() {}
     }
 
     private class InMemoryDirectoryIterator(
-        private val entries: List<Entry>
+        private val entries: List<Entry>,
     ) : DirectoryIterator {
         private var index = 0
 
-        override suspend fun next(): Entry? {
-            return if (index < entries.size) entries[index++] else null
-        }
+        override suspend fun next(): Entry? = if (index < entries.size) entries[index++] else null
 
         override fun close() {}
     }
@@ -857,7 +853,7 @@ class BackupRobustnessTest {
             val id: ManifestId,
             val labels: Map<String, String>,
             val payload: ByteArray,
-            val modTime: Instant
+            val modTime: Instant,
         )
 
         private fun nextHexId(): String = String.format("%032x", nextId.getAndIncrement())
@@ -876,7 +872,7 @@ class BackupRobustnessTest {
 
         override suspend fun writeObject(
             data: ByteArray,
-            options: ObjectWriterOptions
+            options: ObjectWriterOptions,
         ): ObjectId {
             synchronized(objectWriterOptions) {
                 objectWriterOptions.add(options)
@@ -889,7 +885,7 @@ class BackupRobustnessTest {
 
         override suspend fun concatenateObjects(
             objectIds: List<ObjectId>,
-            options: ConcatenateOptions
+            options: ConcatenateOptions,
         ): ObjectId {
             TODO("Not needed for robustness tests")
         }
@@ -898,7 +894,7 @@ class BackupRobustnessTest {
         override suspend fun <T> putManifest(
             labels: Map<String, String>,
             payload: T,
-            serializer: KSerializer<T>
+            serializer: KSerializer<T>,
         ): ManifestId {
             val json = kotlinx.serialization.json.Json {
                 encodeDefaults = true
@@ -910,7 +906,7 @@ class BackupRobustnessTest {
                 id = id,
                 labels = labels,
                 payload = jsonStr.toByteArray(Charsets.UTF_8),
-                modTime = Instant.now()
+                modTime = Instant.now(),
             )
             return id
         }
@@ -919,7 +915,7 @@ class BackupRobustnessTest {
         override suspend fun <T> replaceManifests(
             labels: Map<String, String>,
             payload: T,
-            serializer: KSerializer<T>
+            serializer: KSerializer<T>,
         ): ManifestId {
             manifestStore.entries.removeIf { (_, entry) ->
                 labels.all { (k, v) -> entry.labels[k] == v }
@@ -952,7 +948,7 @@ class BackupRobustnessTest {
         @Suppress("UNCHECKED_CAST")
         override suspend fun <T> getManifest(
             id: ManifestId,
-            serializer: KSerializer<T>
+            serializer: KSerializer<T>,
         ): Pair<T, EntryMetadata> {
             val entry = manifestStore[id.value]
                 ?: throw NoSuchElementException("Manifest not found: ${id.value}")
@@ -965,25 +961,23 @@ class BackupRobustnessTest {
                 id = entry.id,
                 length = entry.payload.size,
                 labels = entry.labels,
-                modTime = entry.modTime
+                modTime = entry.modTime,
             )
             return payload to metadata
         }
 
-        override suspend fun findManifests(labels: Map<String, String>): List<EntryMetadata> {
-            return manifestStore.values
-                .filter { entry ->
-                    labels.all { (k, v) -> entry.labels[k] == v }
-                }
-                .map { entry ->
-                    EntryMetadata(
-                        id = entry.id,
-                        length = entry.payload.size,
-                        labels = entry.labels,
-                        modTime = entry.modTime
-                    )
-                }
-        }
+        override suspend fun findManifests(labels: Map<String, String>): List<EntryMetadata> = manifestStore.values
+            .filter { entry ->
+                labels.all { (k, v) -> entry.labels[k] == v }
+            }
+            .map { entry ->
+                EntryMetadata(
+                    id = entry.id,
+                    length = entry.payload.size,
+                    labels = entry.labels,
+                    modTime = entry.modTime,
+                )
+            }
 
         override suspend fun contentInfo(contentId: ContentId): ContentInfo? = null
 
@@ -991,9 +985,7 @@ class BackupRobustnessTest {
 
         override fun clientOptions(): ClientOptions = ClientOptions()
 
-        override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter {
-            return this
-        }
+        override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter = this
 
         override fun updateDescription(description: String) {}
 
@@ -1003,7 +995,7 @@ class BackupRobustnessTest {
     }
 
     private class TrackingObjectWriter(
-        private val onResult: (ByteArray) -> ObjectId
+        private val onResult: (ByteArray) -> ObjectId,
     ) : ObjectWriter {
         private val buffer = ByteArrayOutputStream()
 
@@ -1012,13 +1004,9 @@ class BackupRobustnessTest {
             return data.size
         }
 
-        override suspend fun checkpoint(): ObjectId {
-            return ObjectId.Empty
-        }
+        override suspend fun checkpoint(): ObjectId = ObjectId.Empty
 
-        override suspend fun result(): ObjectId {
-            return onResult(buffer.toByteArray())
-        }
+        override suspend fun result(): ObjectId = onResult(buffer.toByteArray())
 
         override suspend fun close() {}
     }

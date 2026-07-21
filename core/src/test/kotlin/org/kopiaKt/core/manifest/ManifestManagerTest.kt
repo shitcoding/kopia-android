@@ -54,7 +54,7 @@ class ManifestManagerTest {
             encryptionAlgorithm = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256,
             encryptionKey = ByteArray(32),
             compressorFactory = DefaultCompressorFactory(),
-            defaultCompression = CompressionAlgorithm.ZSTD_FASTEST
+            defaultCompression = CompressionAlgorithm.ZSTD_FASTEST,
         )
         manifestManager = ManifestManager(contentManager)
     }
@@ -65,12 +65,12 @@ class ManifestManagerTest {
     data class TestPayload(
         val name: String,
         val value: Int,
-        val nested: NestedData? = null
+        val nested: NestedData? = null,
     )
 
     @Serializable
     data class NestedData(
-        val items: List<String>
+        val items: List<String>,
     )
 
     @Test
@@ -107,7 +107,7 @@ class ManifestManagerTest {
     @Test
     fun `put requires type label`() = runBlocking {
         val payload = TestPayload("test", 42)
-        val labels = mapOf("key" to "value")  // missing "type"
+        val labels = mapOf("key" to "value") // missing "type"
 
         assertThrows<IllegalArgumentException> {
             runBlocking { manifestManager.put(labels, payload) }
@@ -170,9 +170,14 @@ class ManifestManagerTest {
 
         val results = manifestManager.find(mapOf("host" to "server1", "user" to "alice"))
         assertEquals(1, results.size)
-        assertEquals("s1", results[0].labels["type"]?.let { runBlocking {
-            manifestManager.get<TestPayload>(results[0].id).first.name
-        } })
+        assertEquals(
+            "s1",
+            results[0].labels["type"]?.let {
+                runBlocking {
+                    manifestManager.get<TestPayload>(results[0].id).first.name
+                }
+            },
+        )
     }
 
     @Test
@@ -386,7 +391,7 @@ class ManifestManagerTest {
             repeat(3) { i ->
                 manifestManager.put(
                     mapOf("type" to "compact-test", "batch" to "$batch", "item" to "$i"),
-                    TestPayload("item_${batch}_$i", batch * 10 + i)
+                    TestPayload("item_${batch}_$i", batch * 10 + i),
                 )
             }
             manifestManager.flush()
@@ -449,7 +454,7 @@ class ManifestManagerTest {
         val entries = listOf(
             EntryMetadata(ManifestId("00000000000000000000000000000001"), 10, mapOf("type" to "a", "path" to "/a"), Instant.ofEpochSecond(100)),
             EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a", "path" to "/a"), Instant.ofEpochSecond(200)),
-            EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a", "path" to "/b"), Instant.ofEpochSecond(150))
+            EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a", "path" to "/b"), Instant.ofEpochSecond(150)),
         )
 
         val deduped = ManifestManager.dedupeByLabel(entries, "path")
@@ -469,7 +474,7 @@ class ManifestManagerTest {
         val entries = listOf(
             EntryMetadata(ManifestId("00000000000000000000000000000001"), 10, mapOf("type" to "a"), Instant.ofEpochSecond(100)),
             EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a"), Instant.ofEpochSecond(300)),
-            EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(200))
+            EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(200)),
         )
 
         val latest = ManifestManager.pickLatest(entries)
@@ -487,7 +492,7 @@ class ManifestManagerTest {
         val entries = listOf(
             EntryMetadata(ManifestId("00000000000000000000000000000001"), 10, mapOf("type" to "a"), Instant.ofEpochSecond(100)),
             EntryMetadata(ManifestId("00000000000000000000000000000003"), 30, mapOf("type" to "a"), Instant.ofEpochSecond(100)),
-            EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(100))
+            EntryMetadata(ManifestId("00000000000000000000000000000002"), 20, mapOf("type" to "a"), Instant.ofEpochSecond(100)),
         )
 
         val latest = ManifestManager.pickLatest(entries)
@@ -497,7 +502,5 @@ class ManifestManagerTest {
 
     // === Helper Functions ===
 
-    private suspend fun countManifestContents(): Int {
-        return manifestManager.getCommittedContentCount()
-    }
+    private suspend fun countManifestContents(): Int = manifestManager.getCommittedContentCount()
 }

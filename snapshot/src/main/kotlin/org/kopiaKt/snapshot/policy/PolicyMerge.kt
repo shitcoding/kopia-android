@@ -64,7 +64,7 @@ fun mergePolicies(policies: List<Policy>, si: SourceInfo): Pair<Policy, PolicyDe
             actionsPolicy = mergedActions,
             osSnapshotPolicy = mergedOSSnapshot,
             loggingPolicy = mergedLogging,
-            uploadPolicy = mergedUpload
+            uploadPolicy = mergedUpload,
         )
 
         // If noParent is set, stop merging
@@ -120,13 +120,13 @@ fun mergePolicies(policies: List<Policy>, si: SourceInfo): Pair<Policy, PolicyDe
         actionsPolicy = finalActions,
         osSnapshotPolicy = finalOSSnapshot,
         loggingPolicy = finalLogging,
-        uploadPolicy = finalUpload
+        uploadPolicy = finalUpload,
     )
 
     // Copy non-inheritable actions from the most specific policy
     if (policies.isNotEmpty()) {
         merged = merged.copy(
-            actionsPolicy = merged.actionsPolicy.withNonInheritable(policies[0].actionsPolicy)
+            actionsPolicy = merged.actionsPolicy.withNonInheritable(policies[0].actionsPolicy),
         )
     }
 
@@ -147,7 +147,7 @@ val DefaultPolicy = Policy(
     loggingPolicy = LoggingPolicy.Default,
     actionsPolicy = ActionsPolicy.Default,
     osSnapshotPolicy = OSSnapshotPolicy.Default,
-    uploadPolicy = UploadPolicy.Default
+    uploadPolicy = UploadPolicy.Default,
 )
 
 /**

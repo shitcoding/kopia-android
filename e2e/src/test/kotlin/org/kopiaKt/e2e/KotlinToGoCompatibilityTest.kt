@@ -66,7 +66,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
             splitter = "FIXED-1M",
             version = 1,
             indexVersion = MutableParameters.LEGACY_INDEX_VERSION,
-            epochParameters = EpochParameters.DISABLED
+            epochParameters = EpochParameters.DISABLED,
         )
 
         return DirectRepositoryImpl.create(storage, testPassword, config)
@@ -80,7 +80,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
             val source = SourceInfo(
                 host = "test-host",
                 userName = "test-user",
-                path = sourceDir.toString()
+                path = sourceDir.toString(),
             )
 
             val progress = CountingUploadProgress()
@@ -88,7 +88,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val rootDir = LocalFilesystem.directory(sourceDir)
@@ -360,7 +360,9 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
         // Read the raw format blob from storage
         val storage = createBlobStorage()
         val formatBlobData = storage.getBlob(
-            BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID), 0, -1
+            BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID),
+            0,
+            -1,
         )
 
         // Parse the format blob JSON

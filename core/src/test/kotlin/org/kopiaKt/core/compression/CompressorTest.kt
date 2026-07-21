@@ -129,13 +129,13 @@ class CompressorTest {
             assertEquals(
                 testCase!!.headerId,
                 algorithm.headerId,
-                "Header ID mismatch for $algorithmName"
+                "Header ID mismatch for $algorithmName",
             )
 
             assertArrayEquals(
                 testCase.header,
                 algorithm.header,
-                "Header bytes mismatch for $algorithmName"
+                "Header bytes mismatch for $algorithmName",
             )
         }
     }
@@ -204,7 +204,7 @@ class CompressorTest {
             assertEquals(
                 CompressionAlgorithm.GZIP_DEFAULT.headerId,
                 CompressionAlgorithm.readHeaderId(compressed),
-                "Compressed data should have correct header"
+                "Compressed data should have correct header",
             )
         }
     }
@@ -296,7 +296,7 @@ class CompressorTest {
             assertEquals(
                 CompressionAlgorithm.ZSTD_DEFAULT.headerId,
                 CompressionAlgorithm.readHeaderId(compressed),
-                "Compressed data should have correct header"
+                "Compressed data should have correct header",
             )
         }
     }
@@ -345,7 +345,7 @@ class CompressorTest {
             assertEquals(
                 CompressionAlgorithm.LZ4_DEFAULT.headerId,
                 CompressionAlgorithm.readHeaderId(compressed),
-                "Compressed data should have correct header"
+                "Compressed data should have correct header",
             )
         }
     }
@@ -370,7 +370,7 @@ class CompressorTest {
                 CompressionAlgorithm.LZ4_DEFAULT,
                 CompressionAlgorithm.PGZIP_DEFAULT,
                 CompressionAlgorithm.PGZIP_BEST_SPEED,
-                CompressionAlgorithm.PGZIP_BEST_COMPRESSION
+                CompressionAlgorithm.PGZIP_BEST_COMPRESSION,
             )
 
             for (algorithm in supportedAlgorithms) {
@@ -382,7 +382,7 @@ class CompressorTest {
         @Test
         @DisplayName("Factory creates compressor from header ID")
         fun factoryFromHeaderId() {
-            val compressor = factory.fromHeaderId(0x1100)  // zstd-default
+            val compressor = factory.fromHeaderId(0x1100) // zstd-default
             assertEquals(CompressionAlgorithm.ZSTD_DEFAULT, compressor.algorithm)
         }
 
@@ -446,7 +446,7 @@ class CompressorTest {
             "Round-trip failed for ${compressor.algorithm}: " +
                 "original=${original.toHexString()}, " +
                 "compressed=${compressed.toHexString()}, " +
-                "decompressed=${decompressed.toHexString()}"
+                "decompressed=${decompressed.toHexString()}",
         )
     }
 }

@@ -64,35 +64,31 @@ object LocalFilesystem {
         return entry(path) as Directory
     }
 
-    private fun readOwner(path: Path, linkOptions: Array<LinkOption>): OwnerInfo {
-        return try {
-            // Read numeric UID/GID via the unix file attribute view.
-            // This is available on Unix/macOS and returns actual numeric IDs
-            // that Go Kopia expects (uint32 in the DirEntry JSON).
-            val attrs = Files.readAttributes(path, "unix:uid,gid", *linkOptions)
-            val uid = attrs["uid"] as? Int ?: 0
-            val gid = attrs["gid"] as? Int ?: 0
-            OwnerInfo(userId = uid, groupId = gid)
-        } catch (e: UnsupportedOperationException) {
-            // Windows or other non-POSIX filesystem
-            OwnerInfo.EMPTY
-        } catch (e: IllegalArgumentException) {
-            // unix attribute view not available
-            OwnerInfo.EMPTY
-        } catch (e: Exception) {
-            OwnerInfo.EMPTY
-        }
+    private fun readOwner(path: Path, linkOptions: Array<LinkOption>): OwnerInfo = try {
+        // Read numeric UID/GID via the unix file attribute view.
+        // This is available on Unix/macOS and returns actual numeric IDs
+        // that Go Kopia expects (uint32 in the DirEntry JSON).
+        val attrs = Files.readAttributes(path, "unix:uid,gid", *linkOptions)
+        val uid = attrs["uid"] as? Int ?: 0
+        val gid = attrs["gid"] as? Int ?: 0
+        OwnerInfo(userId = uid, groupId = gid)
+    } catch (e: UnsupportedOperationException) {
+        // Windows or other non-POSIX filesystem
+        OwnerInfo.EMPTY
+    } catch (e: IllegalArgumentException) {
+        // unix attribute view not available
+        OwnerInfo.EMPTY
+    } catch (e: Exception) {
+        OwnerInfo.EMPTY
     }
 
-    private fun readDevice(path: Path): DeviceInfo {
-        return try {
-            // Java doesn't directly expose device IDs
-            // On Unix, we could use native calls, but for portability we use a hash
-            val fileStore = Files.getFileStore(path)
-            DeviceInfo(dev = fileStore.name().hashCode().toLong())
-        } catch (e: Exception) {
-            DeviceInfo.EMPTY
-        }
+    private fun readDevice(path: Path): DeviceInfo = try {
+        // Java doesn't directly expose device IDs
+        // On Unix, we could use native calls, but for portability we use a hash
+        val fileStore = Files.getFileStore(path)
+        DeviceInfo(dev = fileStore.name().hashCode().toLong())
+    } catch (e: Exception) {
+        DeviceInfo.EMPTY
     }
 
     private fun modeFromPosixPermissions(perms: Set<PosixFilePermission>): Int {
@@ -117,7 +113,7 @@ private abstract class LocalEntry(
     protected val path: Path,
     protected val attrs: BasicFileAttributes,
     override val owner: OwnerInfo,
-    override val device: DeviceInfo
+    override val device: DeviceInfo,
 ) : Entry {
 
     override val name: String = path.name
@@ -159,8 +155,9 @@ private class LocalDirectory(
     path: Path,
     attrs: BasicFileAttributes,
     owner: OwnerInfo,
-    device: DeviceInfo
-) : LocalEntry(path, attrs, owner, device), Directory {
+    device: DeviceInfo,
+) : LocalEntry(path, attrs, owner, device),
+    Directory {
 
     override val type: EntryType = EntryType.DIRECTORY
 
@@ -182,19 +179,17 @@ private class LocalDirectory(
  * Iterator over local directory contents.
  */
 private class LocalDirectoryIterator(
-    private val dirPath: Path
+    private val dirPath: Path,
 ) : DirectoryIterator {
 
     private val stream = Files.newDirectoryStream(dirPath)
     private val iterator = stream.iterator()
 
-    override suspend fun next(): Entry? {
-        return if (iterator.hasNext()) {
-            val childPath = iterator.next()
-            LocalFilesystem.entry(childPath)
-        } else {
-            null
-        }
+    override suspend fun next(): Entry? = if (iterator.hasNext()) {
+        val childPath = iterator.next()
+        LocalFilesystem.entry(childPath)
+    } else {
+        null
     }
 
     override fun close() {
@@ -209,8 +204,9 @@ private class LocalFile(
     path: Path,
     attrs: BasicFileAttributes,
     owner: OwnerInfo,
-    device: DeviceInfo
-) : LocalEntry(path, attrs, owner, device), File {
+    device: DeviceInfo,
+) : LocalEntry(path, attrs, owner, device),
+    File {
 
     override val type: EntryType = EntryType.FILE
 
@@ -224,8 +220,9 @@ private class LocalSymlink(
     path: Path,
     attrs: BasicFileAttributes,
     owner: OwnerInfo,
-    device: DeviceInfo
-) : LocalEntry(path, attrs, owner, device), Symlink {
+    device: DeviceInfo,
+) : LocalEntry(path, attrs, owner, device),
+    Symlink {
 
     override val type: EntryType = EntryType.SYMLINK
 
@@ -274,7 +271,7 @@ private class LocalUnknownEntry(
     path: Path,
     attrs: BasicFileAttributes,
     owner: OwnerInfo,
-    device: DeviceInfo
+    device: DeviceInfo,
 ) : LocalEntry(path, attrs, owner, device) {
 
     override val type: EntryType = EntryType.UNKNOWN
@@ -285,8 +282,9 @@ private class LocalUnknownEntry(
  */
 private class LocalErrorEntry(
     path: Path,
-    override val error: Throwable
-) : Entry, ErrorEntry {
+    override val error: Throwable,
+) : Entry,
+    ErrorEntry {
 
     override val name: String = path.name
     override val type: EntryType = EntryType.ERROR

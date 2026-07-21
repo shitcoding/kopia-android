@@ -58,7 +58,7 @@ object PackIndexV1 {
         val version: Int,
         val keySize: Int,
         val entrySize: Int,
-        val entryCount: Int
+        val entryCount: Int,
     )
 
     /**
@@ -70,7 +70,7 @@ object PackIndexV1 {
         val packBlobId: String,
         val packOffset: UInt,
         val packedLength: UInt,
-        val deleted: Boolean
+        val deleted: Boolean,
     )
 
     /**
@@ -129,7 +129,7 @@ object PackIndexV1 {
     fun parseEntry(
         entry: ByteArray,
         extraData: ByteArray,
-        extraDataOffset: Int
+        extraDataOffset: Int,
     ): ParsedEntry {
         require(entry.size == ENTRY_SIZE) {
             "Invalid entry size: ${entry.size}, expected $ENTRY_SIZE"
@@ -154,7 +154,8 @@ object PackIndexV1 {
         val packBlobIdOffsetInExtraData = packBlobIdOffsetInIndex - extraDataOffset
 
         // Extract pack blob ID from extra data
-        val packBlobId = if (packBlobIdLength > 0 && packBlobIdOffsetInExtraData >= 0 &&
+        val packBlobId = if (packBlobIdLength > 0 &&
+            packBlobIdOffsetInExtraData >= 0 &&
             packBlobIdOffsetInExtraData + packBlobIdLength <= extraData.size
         ) {
             String(extraData, packBlobIdOffsetInExtraData, packBlobIdLength, Charsets.UTF_8)
@@ -181,7 +182,7 @@ object PackIndexV1 {
             packBlobId = packBlobId,
             packOffset = packOffset,
             packedLength = packedLength,
-            deleted = deleted
+            deleted = deleted,
         )
     }
 
@@ -243,10 +244,14 @@ object PackIndexV1 {
         // Write header
         output.write(VERSION)
         output.write(keySize)
-        output.write(ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN)
-            .putShort(ENTRY_SIZE.toShort()).array())
-        output.write(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-            .putInt(sortedEntries.size).array())
+        output.write(
+            ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN)
+                .putShort(ENTRY_SIZE.toShort()).array(),
+        )
+        output.write(
+            ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+                .putInt(sortedEntries.size).array(),
+        )
 
         // Write entries
         for (entry in sortedEntries) {
@@ -272,9 +277,7 @@ object PackIndexV1 {
      * @param perContentOverhead Encryption overhead to subtract when computing original length
      * @return The opened index
      */
-    fun open(data: ByteArray, perContentOverhead: UInt = 0u): PackIndex {
-        return PackIndexV1Impl(data, perContentOverhead)
-    }
+    fun open(data: ByteArray, perContentOverhead: UInt = 0u): PackIndex = PackIndexV1Impl(data, perContentOverhead)
 
     /**
      * Converts a content ID to its byte representation for V1 index format.
@@ -353,22 +356,18 @@ object PackIndexV1 {
      * @param keySize The key size from the index header
      * @return true if the first byte should be treated as a marker byte
      */
-    internal fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean {
-        return keySize % 2 == 1
-    }
+    internal fun hasPrefixFromKeySize(keyBytes: ByteArray, keySize: Int): Boolean = keySize % 2 == 1
 
-    private fun buildEmptyIndex(): ByteArray {
-        return ByteArray(HEADER_SIZE).apply {
-            this[0] = VERSION.toByte()
-            this[1] = 0xFF.toByte() // Unknown key size marker
-            // Entry size and count remain 0
-        }
+    private fun buildEmptyIndex(): ByteArray = ByteArray(HEADER_SIZE).apply {
+        this[0] = VERSION.toByte()
+        this[1] = 0xFF.toByte() // Unknown key size marker
+        // Entry size and count remain 0
     }
 
     private fun buildEntry(
         entry: ContentInfo,
         packBlobIdOffsets: Map<String, Int>,
-        extraDataOffset: Int
+        extraDataOffset: Int,
     ): ByteArray {
         val buffer = ByteArray(ENTRY_SIZE)
 
@@ -415,7 +414,7 @@ object PackIndexV1 {
  */
 private class PackIndexV1Impl(
     private val data: ByteArray,
-    private val perContentOverhead: UInt
+    private val perContentOverhead: UInt,
 ) : PackIndex {
 
     private val header: PackIndexV1.HeaderInfo
@@ -480,7 +479,7 @@ private class PackIndexV1Impl(
         // Parse the entry
         val entryData = data.copyOfRange(
             entryOffset + header.keySize,
-            entryOffset + header.keySize + PackIndexV1.ENTRY_SIZE
+            entryOffset + header.keySize + PackIndexV1.ENTRY_SIZE,
         )
 
         val extraData = if (extraDataOffset < data.size) {
@@ -501,7 +500,7 @@ private class PackIndexV1Impl(
             compressionHeaderId = 0, // V1 doesn't support compression
             deleted = parsed.deleted,
             formatVersion = parsed.formatVersion,
-            encryptionKeyId = 0 // V1 doesn't support encryption key ID
+            encryptionKeyId = 0, // V1 doesn't support encryption key ID
         )
     }
 
@@ -540,7 +539,7 @@ private class PackIndexV1Impl(
 
             val entryData = data.copyOfRange(
                 entryOffset + header.keySize,
-                entryOffset + header.keySize + PackIndexV1.ENTRY_SIZE
+                entryOffset + header.keySize + PackIndexV1.ENTRY_SIZE,
             )
 
             val parsed = PackIndexV1.parseEntry(entryData, extraData, extraDataOffset)
@@ -556,8 +555,8 @@ private class PackIndexV1Impl(
                     compressionHeaderId = 0,
                     deleted = parsed.deleted,
                     formatVersion = parsed.formatVersion,
-                    encryptionKeyId = 0
-                )
+                    encryptionKeyId = 0,
+                ),
             )
         }
     }

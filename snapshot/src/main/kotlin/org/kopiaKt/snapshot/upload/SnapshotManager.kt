@@ -31,7 +31,7 @@ object SnapshotManager {
         return repo.putManifest(
             labels = labels,
             payload = manifest,
-            serializer = SnapshotManifest.serializer()
+            serializer = SnapshotManifest.serializer(),
         )
     }
 

@@ -56,13 +56,13 @@ class SafBlobStorageInstrumentedTest {
                     directoryShards = listOf(1),
                     maxNonShardedLength = 20,
                     atomicWrites = true,
-                    readOnly = false
+                    readOnly = false,
                 )
 
                 storage = SafBlobStorage.create(
                     context = context,
                     treeUri = safUri!!,
-                    options = options
+                    options = options,
                 )
             } catch (e: Exception) {
                 // SAF storage creation failed - tests will be skipped
@@ -91,8 +91,8 @@ class SafBlobStorageInstrumentedTest {
     private fun requireStorage(): SafBlobStorage {
         assumeTrue(
             "SAF storage not configured. These tests require a real SAF tree URI " +
-                    "from ACTION_OPEN_DOCUMENT_TREE. File URIs are not supported.",
-            storage != null
+                "from ACTION_OPEN_DOCUMENT_TREE. File URIs are not supported.",
+            storage != null,
         )
         return storage!!
     }
@@ -108,7 +108,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -123,7 +125,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -138,7 +142,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEmpty()
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -153,7 +159,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -178,7 +186,9 @@ class SafBlobStorageInstrumentedTest {
             val result3 = s.getBlob(blobId, offset = 0, length = 0)
             assertThat(result3).isEmpty()
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -208,7 +218,9 @@ class SafBlobStorageInstrumentedTest {
                 // Expected
             }
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -229,7 +241,9 @@ class SafBlobStorageInstrumentedTest {
             assertThat(metadata.length).isEqualTo(data.size.toLong())
             assertThat(metadata.timestamp).isAtLeast(beforePut.minusSeconds(1))
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -274,7 +288,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data1)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -293,7 +309,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data2)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -312,12 +330,20 @@ class SafBlobStorageInstrumentedTest {
 
             assertThat(blobs).hasSize(3)
             assertThat(blobs.map { it.blobId.value }).containsExactly(
-                "${prefix}a", "${prefix}b", "${prefix}c"
+                "${prefix}a",
+                "${prefix}b",
+                "${prefix}c",
             )
         } finally {
-            try { s.deleteBlob(BlobId("${prefix}a")) } catch (_: Exception) {}
-            try { s.deleteBlob(BlobId("${prefix}b")) } catch (_: Exception) {}
-            try { s.deleteBlob(BlobId("${prefix}c")) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${prefix}a"))
+            } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${prefix}b"))
+            } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${prefix}c"))
+            } catch (_: Exception) {}
         }
     }
 
@@ -336,12 +362,19 @@ class SafBlobStorageInstrumentedTest {
 
             assertThat(packBlobs).hasSize(2)
             assertThat(packBlobs.map { it.blobId.value }).containsExactly(
-                "${packPrefix}1", "${packPrefix}2"
+                "${packPrefix}1",
+                "${packPrefix}2",
             )
         } finally {
-            try { s.deleteBlob(BlobId("${packPrefix}1")) } catch (_: Exception) {}
-            try { s.deleteBlob(BlobId("${packPrefix}2")) } catch (_: Exception) {}
-            try { s.deleteBlob(BlobId("${indexPrefix}1")) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${packPrefix}1"))
+            } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${packPrefix}2"))
+            } catch (_: Exception) {}
+            try {
+                s.deleteBlob(BlobId("${indexPrefix}1"))
+            } catch (_: Exception) {}
         }
     }
 
@@ -364,7 +397,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -380,7 +415,9 @@ class SafBlobStorageInstrumentedTest {
             val result = s.getBlob(blobId)
             assertThat(result).isEqualTo(data)
         } finally {
-            try { s.deleteBlob(blobId) } catch (_: Exception) {}
+            try {
+                s.deleteBlob(blobId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -433,7 +470,7 @@ class SafBlobStorageRealSafTest {
                 storage = SafBlobStorage.create(
                     context = context,
                     treeUri = safUri,
-                    options = SafOptions(treeUri = safUri)
+                    options = SafOptions(treeUri = safUri),
                 )
             } catch (_: SecurityException) {
                 // Permission not granted

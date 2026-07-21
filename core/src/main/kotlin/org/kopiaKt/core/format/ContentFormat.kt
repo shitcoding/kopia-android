@@ -44,7 +44,7 @@ data class ContentFormat(
     val epochParameters: EpochParameters = EpochParameters.DEFAULT,
 
     /** Disables replication of kopia.repository blob in packs. */
-    val enablePasswordChange: Boolean = true
+    val enablePasswordChange: Boolean = true,
 ) {
     /**
      * Returns the mutable parameters from this content format.
@@ -53,7 +53,7 @@ data class ContentFormat(
         version = version,
         maxPackSize = maxPackSize,
         indexVersion = indexVersion,
-        epochParameters = epochParameters
+        epochParameters = epochParameters,
     )
 
     /**
@@ -61,20 +61,18 @@ data class ContentFormat(
      *
      * @return A new ContentFormat with version-specific defaults applied
      */
-    fun resolveFormatVersion(): ContentFormat {
-        return when (version) {
-            FormatVersion.V2.value, FormatVersion.V3.value -> copy(
-                enablePasswordChange = true,
-                indexVersion = 2,
-                epochParameters = EpochParameters.DEFAULT
-            )
-            FormatVersion.V1.value -> copy(
-                enablePasswordChange = false,
-                indexVersion = 1,
-                epochParameters = EpochParameters.DISABLED
-            )
-            else -> throw IllegalArgumentException("Unsupported format version: $version")
-        }
+    fun resolveFormatVersion(): ContentFormat = when (version) {
+        FormatVersion.V2.value, FormatVersion.V3.value -> copy(
+            enablePasswordChange = true,
+            indexVersion = 2,
+            epochParameters = EpochParameters.DEFAULT,
+        )
+        FormatVersion.V1.value -> copy(
+            enablePasswordChange = false,
+            indexVersion = 1,
+            epochParameters = EpochParameters.DISABLED,
+        )
+        else -> throw IllegalArgumentException("Unsupported format version: $version")
     }
 
     /**

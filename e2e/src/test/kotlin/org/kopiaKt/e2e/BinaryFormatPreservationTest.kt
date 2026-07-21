@@ -34,7 +34,7 @@ class BinaryFormatPreservationTest {
      */
     private suspend fun roundTrip(label: String, data: ByteArray): ByteArray {
         val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-            objects = mapOf(label to data)
+            objects = mapOf(label to data),
         )
         repo = repository
         return repository.readObject(objectIds.getValue(label))
@@ -118,7 +118,7 @@ class BinaryFormatPreservationTest {
             assertArrayEquals(
                 data,
                 readBack,
-                "Alternating FF/00 (JPEG escape) pattern was modified during round-trip"
+                "Alternating FF/00 (JPEG escape) pattern was modified during round-trip",
             )
         }
     }

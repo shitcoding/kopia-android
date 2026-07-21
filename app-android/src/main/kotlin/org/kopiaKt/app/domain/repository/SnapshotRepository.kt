@@ -21,7 +21,7 @@ interface SnapshotRepository {
         snapshotId: String,
         sourcePath: String,
         destinationUri: String,
-        options: RestoreOptions = RestoreOptions()
+        options: RestoreOptions = RestoreOptions(),
     ): Flow<RestoreProgress>
 
     fun cancelRestore()
@@ -36,5 +36,5 @@ interface SnapshotRepository {
 data class RestoreOptions(
     val parallel: Int = 0,
     val incremental: Boolean = false,
-    val overwriteExisting: Boolean = true
+    val overwriteExisting: Boolean = true,
 )

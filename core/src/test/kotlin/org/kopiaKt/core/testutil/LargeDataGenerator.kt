@@ -67,9 +67,7 @@ object LargeDataGenerator {
     /**
      * Compute SHA-256 hash of a byte array.
      */
-    fun sha256(data: ByteArray): ByteArray {
-        return MessageDigest.getInstance("SHA-256").digest(data)
-    }
+    fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 
     /**
      * Compare two files byte-by-byte, returning first mismatch offset or -1 if identical.

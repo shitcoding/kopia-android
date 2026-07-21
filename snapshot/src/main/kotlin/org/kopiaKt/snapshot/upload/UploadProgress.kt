@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 data class EstimationParameters(
     val type: EstimationType = EstimationType.CLASSIC,
-    val adaptiveThreshold: Long = ADAPTIVE_ESTIMATION_THRESHOLD
+    val adaptiveThreshold: Long = ADAPTIVE_ESTIMATION_THRESHOLD,
 ) {
     companion object {
         const val ADAPTIVE_ESTIMATION_THRESHOLD = 300_000L
@@ -36,7 +36,7 @@ enum class EstimationType {
      * Combination of new and old approaches. If the estimated file count is high,
      * it will use a rough estimation. If the count is low, it will switch to classic.
      */
-    ADAPTIVE
+    ADAPTIVE,
 }
 
 /**
@@ -204,7 +204,7 @@ data class UploadCounters(
     val estimatedFiles: Long = 0,
     val currentDirectory: String = "",
     val lastErrorPath: String = "",
-    val lastError: String = ""
+    val lastError: String = "",
 )
 
 /**
@@ -300,8 +300,7 @@ open class CountingUploadProgress : UploadProgress {
 
     override fun finishedDirectory(dirname: String) {}
 
-    override fun estimationParameters(): EstimationParameters =
-        EstimationParameters(EstimationType.CLASSIC)
+    override fun estimationParameters(): EstimationParameters = EstimationParameters(EstimationType.CLASSIC)
 
     override fun estimatedDataSize(fileCount: Long, totalBytes: Long) {
         estimatedBytes.set(totalBytes)
@@ -325,7 +324,7 @@ open class CountingUploadProgress : UploadProgress {
         estimatedFiles = estimatedFiles.get(),
         currentDirectory = currentDirectory.get(),
         lastErrorPath = lastErrorPath.get(),
-        lastError = lastError.get()
+        lastError = lastError.get(),
     )
 }
 
@@ -335,7 +334,7 @@ open class CountingUploadProgress : UploadProgress {
  * Useful for simple progress reporting.
  */
 class CallbackUploadProgress(
-    private val onProgress: (UploadCounters) -> Unit
+    private val onProgress: (UploadCounters) -> Unit,
 ) : CountingUploadProgress() {
 
     override fun hashedBytes(numBytes: Long) {

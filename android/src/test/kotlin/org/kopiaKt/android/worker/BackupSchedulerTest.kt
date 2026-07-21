@@ -1,10 +1,6 @@
 package org.kopiaKt.android.worker
 
 import com.google.common.truth.Truth.assertThat
-import io.mockk.Runs
-import io.mockk.confirmVerified
-import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
@@ -51,7 +47,7 @@ class BackupSchedulerTest {
             scheduler.schedulePeriodicBackup(
                 sourceId = source.id,
                 intervalHours = 24,
-                constraints = BackupConstraints()
+                constraints = BackupConstraints(),
             )
 
             verify {
@@ -59,7 +55,7 @@ class BackupSchedulerTest {
                     sourceId = source.id,
                     sourcePath = "/test/path",
                     intervalHours = 24,
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
         }
@@ -71,14 +67,14 @@ class BackupSchedulerTest {
 
             scheduler.scheduleOneTimeBackup(
                 sourceId = source.id,
-                constraints = BackupConstraints()
+                constraints = BackupConstraints(),
             )
 
             verify {
                 schedulingPort.scheduleOneTime(
                     sourceId = source.id,
                     sourcePath = "/test/path",
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
         }
@@ -94,7 +90,7 @@ class BackupSchedulerTest {
             scheduler.schedulePeriodicBackup(
                 sourceId = source.id,
                 intervalHours = 0,
-                constraints = BackupConstraints()
+                constraints = BackupConstraints(),
             )
 
             verify {
@@ -102,7 +98,7 @@ class BackupSchedulerTest {
                     sourceId = source.id,
                     sourcePath = "/test/path",
                     intervalHours = 1,
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
         }
@@ -116,13 +112,13 @@ class BackupSchedulerTest {
                 requiresWifi = false,
                 requiresBatteryNotLow = false,
                 requiresDeviceIdle = true,
-                requiresStorageNotLow = false
+                requiresStorageNotLow = false,
             )
 
             scheduler.schedulePeriodicBackup(
                 sourceId = source.id,
                 intervalHours = 6,
-                constraints = constraints
+                constraints = constraints,
             )
 
             verify {
@@ -130,7 +126,7 @@ class BackupSchedulerTest {
                     sourceId = source.id,
                     sourcePath = "/test/path",
                     intervalHours = 6,
-                    constraints = constraints
+                    constraints = constraints,
                 )
             }
         }
@@ -162,7 +158,7 @@ class BackupSchedulerTest {
             scheduler.resumeSource(
                 sourceId = source.id,
                 intervalHours = 12,
-                constraints = BackupConstraints(requiresCharging = true)
+                constraints = BackupConstraints(requiresCharging = true),
             )
 
             verify {
@@ -170,7 +166,7 @@ class BackupSchedulerTest {
                     sourceId = source.id,
                     sourcePath = "/test/path",
                     intervalHours = 12,
-                    constraints = BackupConstraints(requiresCharging = true)
+                    constraints = BackupConstraints(requiresCharging = true),
                 )
             }
             val updated = sourceManager.getSource(source.id)
@@ -186,7 +182,7 @@ class BackupSchedulerTest {
             scheduler.updateSchedule(
                 sourceId = source.id,
                 intervalHours = 48,
-                constraints = BackupConstraints(requiresWifi = false)
+                constraints = BackupConstraints(requiresWifi = false),
             )
 
             verifyOrder {
@@ -195,7 +191,7 @@ class BackupSchedulerTest {
                     sourceId = source.id,
                     sourcePath = "/test/path",
                     intervalHours = 48,
-                    constraints = BackupConstraints(requiresWifi = false)
+                    constraints = BackupConstraints(requiresWifi = false),
                 )
             }
         }
@@ -232,7 +228,7 @@ class BackupSchedulerTest {
                     sourceId = source1.id,
                     sourcePath = "/path/1",
                     intervalHours = 6,
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
             verify {
@@ -240,7 +236,7 @@ class BackupSchedulerTest {
                     sourceId = source2.id,
                     sourcePath = "/path/2",
                     intervalHours = 12,
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
             verify {
@@ -248,7 +244,7 @@ class BackupSchedulerTest {
                     sourceId = source3.id,
                     sourcePath = "/path/3",
                     intervalHours = 24,
-                    constraints = BackupConstraints()
+                    constraints = BackupConstraints(),
                 )
             }
         }

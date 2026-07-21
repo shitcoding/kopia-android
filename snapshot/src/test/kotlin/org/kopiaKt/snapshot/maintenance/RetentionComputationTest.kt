@@ -14,15 +14,13 @@ class RetentionComputationTest {
     private val source = SourceInfo(host = "localhost", userName = "user", path = "/data")
     private val zone = ZoneId.of("UTC")
 
-    private fun createSnapshot(id: String, startTime: Instant, pins: List<String> = emptyList()): SnapshotManifest {
-        return SnapshotManifest(
-            id = id,
-            source = source,
-            startTime = startTime,
-            endTime = startTime.plusSeconds(60),
-            pins = pins
-        )
-    }
+    private fun createSnapshot(id: String, startTime: Instant, pins: List<String> = emptyList()): SnapshotManifest = SnapshotManifest(
+        id = id,
+        source = source,
+        startTime = startTime,
+        endTime = startTime.plusSeconds(60),
+        pins = pins,
+    )
 
     @Test
     fun `empty snapshot list returns empty result`() {
@@ -58,7 +56,7 @@ class RetentionComputationTest {
         val snapshots = listOf(
             createSnapshot("snap1", now.minusSeconds(60)),
             createSnapshot("snap2", now.minusSeconds(120), pins = listOf("important")),
-            createSnapshot("snap3", now.minusSeconds(180))
+            createSnapshot("snap3", now.minusSeconds(180)),
         )
 
         val policy = RetentionPolicy(keepLatest = 1)
@@ -87,7 +85,7 @@ class RetentionComputationTest {
             keepDaily = 0,
             keepWeekly = 0,
             keepMonthly = 0,
-            keepAnnual = 0
+            keepAnnual = 0,
         )
 
         // effectiveKeepLatest should return MAX_VALUE when all are 0
@@ -101,7 +99,7 @@ class RetentionComputationTest {
             createSnapshot("snap1", now.minusSeconds(1800)), // 30 min ago (current hour)
             createSnapshot("snap2", now.minusSeconds(3600 + 1800)), // 1.5 hours ago
             createSnapshot("snap3", now.minusSeconds(3600 + 3000)), // also 1+ hour ago (same hour bucket)
-            createSnapshot("snap4", now.minusSeconds(7200 + 1800)) // 2.5 hours ago
+            createSnapshot("snap4", now.minusSeconds(7200 + 1800)), // 2.5 hours ago
         )
 
         val policy = RetentionPolicy(keepLatest = 0, keepHourly = 3)
@@ -167,8 +165,8 @@ class RetentionComputationTest {
                 id = "incomplete",
                 source = source,
                 startTime = now.minusSeconds(120),
-                incompleteReason = "cancelled"
-            )
+                incompleteReason = "cancelled",
+            ),
         )
 
         val policy = RetentionPolicy(keepLatest = 10)
@@ -189,7 +187,7 @@ class RetentionComputationTest {
         val snapshots = listOf(
             createSnapshot("today1", noon.minusSeconds(3600)), // 11:00 same day
             createSnapshot("today2", noon.minusSeconds(7200)), // 10:00 same day
-            createSnapshot("yesterday", noon.minusSeconds(86400 + 3600)) // Yesterday 11:00
+            createSnapshot("yesterday", noon.minusSeconds(86400 + 3600)), // Yesterday 11:00
         )
 
         val policy = RetentionPolicy(keepLatest = 0, keepDaily = 2)

@@ -53,17 +53,11 @@ interface InUseContentSet : Closeable {
 class MemoryInUseContentSet : InUseContentSet {
     private val set = ConcurrentHashMap.newKeySet<ContentId>()
 
-    override fun add(contentId: ContentId): Boolean {
-        return set.add(contentId)
-    }
+    override fun add(contentId: ContentId): Boolean = set.add(contentId)
 
-    override fun contains(contentId: ContentId): Boolean {
-        return set.contains(contentId)
-    }
+    override fun contains(contentId: ContentId): Boolean = set.contains(contentId)
 
-    override fun size(): Long {
-        return set.size.toLong()
-    }
+    override fun size(): Long = set.size.toLong()
 
     override fun clear() {
         set.clear()
@@ -91,7 +85,7 @@ class MemoryInUseContentSet : InUseContentSet {
  */
 class BloomFilterInUseContentSet(
     expectedSize: Long,
-    falsePositiveRate: Double = 0.01
+    falsePositiveRate: Double = 0.01,
 ) : InUseContentSet {
     // Simple bloom filter implementation
     private val numBits: Int

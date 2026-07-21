@@ -125,7 +125,7 @@ data class S3Options(
     /**
      * Maximum concurrent writes (0 = unlimited).
      */
-    val maxConcurrentWrites: Int = 0
+    val maxConcurrentWrites: Int = 0,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -145,7 +145,9 @@ data class S3Options(
         if (rootCa != null) {
             if (other.rootCa == null) return false
             if (!rootCa.contentEquals(other.rootCa)) return false
-        } else if (other.rootCa != null) return false
+        } else if (other.rootCa != null) {
+            return false
+        }
         if (roleArn != other.roleArn) return false
         if (sessionName != other.sessionName) return false
         if (roleDurationSeconds != other.roleDurationSeconds) return false
@@ -190,7 +192,7 @@ data class S3Options(
 @Serializable
 data class S3StorageConfig(
     @SerialName("blobOptions")
-    val blobOptions: List<PrefixAndStorageClass> = emptyList()
+    val blobOptions: List<PrefixAndStorageClass> = emptyList(),
 )
 
 /**
@@ -202,12 +204,12 @@ data class PrefixAndStorageClass(
     val prefix: String,
 
     @SerialName("storageClass")
-    val storageClass: String
+    val storageClass: String,
 )
 
 /**
  * Point-in-time view configuration for versioned buckets.
  */
 data class PointInTimeOptions(
-    val pointInTime: Instant? = null
+    val pointInTime: Instant? = null,
 )

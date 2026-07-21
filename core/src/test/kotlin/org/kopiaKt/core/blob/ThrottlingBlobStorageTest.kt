@@ -274,7 +274,7 @@ class ThrottlingBlobStorageTest {
         // High limits to avoid delays but enable tracking
         val config = ThrottlingConfig(
             downloadLimitBytesPerSecond = 1_000_000_000,
-            uploadLimitBytesPerSecond = 1_000_000_000
+            uploadLimitBytesPerSecond = 1_000_000_000,
         )
         val throttled = ThrottlingBlobStorage(delegate, config)
 
@@ -293,7 +293,7 @@ class ThrottlingBlobStorageTest {
             totalBytesDownloaded = 1000,
             totalBytesUploaded = 2000,
             downloadDelayMillis = 100,
-            uploadDelayMillis = 200
+            uploadDelayMillis = 200,
         )
 
         assertThat(stats.totalBytesDownloaded).isEqualTo(1000)

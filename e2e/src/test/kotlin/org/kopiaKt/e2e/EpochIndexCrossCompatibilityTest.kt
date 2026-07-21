@@ -41,7 +41,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = CountingUploadProgress()
+                progress = CountingUploadProgress(),
             )
             val rootDir = LocalFilesystem.directory(sourceDir)
             val uploadResult = uploader.upload(rootDir, UploadOptions())

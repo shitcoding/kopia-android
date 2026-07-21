@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.upload
 
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -13,8 +14,6 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.time.Instant
-
-import com.google.common.truth.Truth.assertThat
 
 /**
  * Tests for files that change between the scan phase and the upload phase of a backup.
@@ -44,7 +43,7 @@ class FileChangeDuringBackupTest {
                 permissions = 420,
                 fileSize = 100,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
-                objectId = "previous-object-id"
+                objectId = "previous-object-id",
             )
 
             // File on disk: metadata is IDENTICAL to previousEntry (size, modTime, permissions
@@ -56,7 +55,7 @@ class FileChangeDuringBackupTest {
                 size = 100,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
                 mode = 420,
-                content = changedContent
+                content = changedContent,
             )
 
             val result = uploader.processFile(mockFile, "data.bin", previousEntry)
@@ -87,7 +86,7 @@ class FileChangeDuringBackupTest {
                 permissions = 420,
                 fileSize = 50,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
-                objectId = "old-object-id"
+                objectId = "old-object-id",
             )
 
             // File that throws IOException when opened, simulating deletion after scan
@@ -95,7 +94,7 @@ class FileChangeDuringBackupTest {
                 name = "deleted.txt",
                 size = 50,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
-                mode = 420
+                mode = 420,
             )
 
             // processFile calls file.open() which throws IOException -- this should propagate
@@ -124,7 +123,7 @@ class FileChangeDuringBackupTest {
                 permissions = 420,
                 fileSize = 100,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
-                objectId = "old-object-id"
+                objectId = "old-object-id",
             )
 
             // MockFile reports size=100 (the scan-time size) but open() returns 200 bytes
@@ -135,7 +134,7 @@ class FileChangeDuringBackupTest {
                 size = 100, // scan-time size
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
                 mode = 420,
-                content = grownContent
+                content = grownContent,
             )
 
             val result = uploader.processFile(grownFile, "growing.log", previousEntry)
@@ -159,7 +158,7 @@ class FileChangeDuringBackupTest {
                 permissions = 420,
                 fileSize = 200,
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
-                objectId = "old-object-id"
+                objectId = "old-object-id",
             )
 
             // MockFile reports size=200 (the scan-time size) but open() returns only 50 bytes
@@ -170,7 +169,7 @@ class FileChangeDuringBackupTest {
                 size = 200, // scan-time size
                 modTime = Instant.parse("2025-06-01T12:00:00Z"),
                 mode = 420,
-                content = truncatedContent
+                content = truncatedContent,
             )
 
             val result = uploader.processFile(truncatedFile, "truncated.dat", previousEntry)
@@ -193,7 +192,7 @@ class FileChangeDuringBackupTest {
         override val size: Long,
         override val modTime: Instant,
         override val mode: Int,
-        private val content: ByteArray
+        private val content: ByteArray,
     ) : org.kopiaKt.snapshot.fs.File {
         override val type = org.kopiaKt.snapshot.fs.EntryType.FILE
         override val owner = OwnerInfo(1000, 1000)
@@ -211,16 +210,14 @@ class FileChangeDuringBackupTest {
         override val name: String,
         override val size: Long,
         override val modTime: Instant,
-        override val mode: Int
+        override val mode: Int,
     ) : org.kopiaKt.snapshot.fs.File {
         override val type = org.kopiaKt.snapshot.fs.EntryType.FILE
         override val owner = OwnerInfo(1000, 1000)
         override val device = DeviceInfo(0, 0)
         override val localFilesystemPath = ""
 
-        override suspend fun open(): InputStream {
-            throw IOException("File not found: $name (deleted between scan and upload)")
-        }
+        override suspend fun open(): InputStream = throw IOException("File not found: $name (deleted between scan and upload)")
 
         override fun close() {}
     }
@@ -237,11 +234,9 @@ class FileChangeDuringBackupTest {
             return org.kopiaKt.core.content.ObjectId.parse(hexId)
         }
 
-        override fun newObjectWriter(options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.`object`.ObjectWriter {
-            return MockObjectWriter { data ->
-                writtenObjects.add(data)
-                nextObjectId()
-            }
+        override fun newObjectWriter(options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.`object`.ObjectWriter = MockObjectWriter { data ->
+            writtenObjects.add(data)
+            nextObjectId()
         }
 
         override suspend fun writeObject(data: ByteArray, options: org.kopiaKt.core.`object`.ObjectWriterOptions): org.kopiaKt.core.content.ObjectId {
@@ -297,9 +292,7 @@ class FileChangeDuringBackupTest {
 
         override fun time(): Instant = Instant.now()
 
-        override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions {
-            return org.kopiaKt.core.repository.ClientOptions()
-        }
+        override fun clientOptions(): org.kopiaKt.core.repository.ClientOptions = org.kopiaKt.core.repository.ClientOptions()
 
         override suspend fun newWriter(options: org.kopiaKt.core.repository.WriteSessionOptions): org.kopiaKt.core.repository.RepositoryWriter {
             TODO("Not needed for test")
@@ -316,7 +309,7 @@ class FileChangeDuringBackupTest {
      * Mock object writer that buffers data and delegates to a callback on result().
      */
     private class MockObjectWriter(
-        private val onResult: (ByteArray) -> org.kopiaKt.core.content.ObjectId
+        private val onResult: (ByteArray) -> org.kopiaKt.core.content.ObjectId,
     ) : org.kopiaKt.core.`object`.ObjectWriter {
         private val buffer = java.io.ByteArrayOutputStream()
 
@@ -325,13 +318,9 @@ class FileChangeDuringBackupTest {
             return data.size
         }
 
-        override suspend fun checkpoint(): org.kopiaKt.core.content.ObjectId {
-            return org.kopiaKt.core.content.ObjectId.Empty
-        }
+        override suspend fun checkpoint(): org.kopiaKt.core.content.ObjectId = org.kopiaKt.core.content.ObjectId.Empty
 
-        override suspend fun result(): org.kopiaKt.core.content.ObjectId {
-            return onResult(buffer.toByteArray())
-        }
+        override suspend fun result(): org.kopiaKt.core.content.ObjectId = onResult(buffer.toByteArray())
 
         override suspend fun close() {}
     }

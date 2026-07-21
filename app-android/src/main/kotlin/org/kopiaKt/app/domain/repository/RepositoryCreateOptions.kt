@@ -35,5 +35,5 @@ data class RepositoryCreateOptions(
      * Null means use the core default (scrypt-65536-8-1).
      * Override via BuildConfig to use weaker parameters in debug builds.
      */
-    val keyDerivationAlgorithm: String? = null
+    val keyDerivationAlgorithm: String? = null,
 )

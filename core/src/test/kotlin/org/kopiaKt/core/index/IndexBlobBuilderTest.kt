@@ -90,7 +90,7 @@ class IndexBlobBuilderTest {
         val entries = listOf(
             createTestContentInfo("aaaa", 0),
             createTestContentInfo("bbbb", 100),
-            createTestContentInfo("cccc", 200)
+            createTestContentInfo("cccc", 200),
         )
 
         builder.addAll(entries)
@@ -217,7 +217,7 @@ class IndexBlobBuilderTest {
             compressionHeaderId = 0x1100, // ZSTD
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 0
+            encryptionKeyId = 0,
         )
         builder.add(entry)
 
@@ -252,14 +252,12 @@ class IndexBlobBuilderTest {
 
     // ===== Helper Methods =====
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 }

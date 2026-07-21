@@ -35,10 +35,14 @@ class PackIndexV1Test {
     fun `parseHeader should read valid V1 header`() {
         // Header: version=1, keySize=17, entrySize=20, entryCount=5
         val header = byteArrayOf(
-            0x01,                   // version
-            0x11,                   // keySize = 17
-            0x00, 0x14,             // entrySize = 20 (big-endian)
-            0x00, 0x00, 0x00, 0x05  // entryCount = 5 (big-endian)
+            0x01, // version
+            0x11, // keySize = 17
+            0x00,
+            0x14, // entrySize = 20 (big-endian)
+            0x00,
+            0x00,
+            0x00,
+            0x05, // entryCount = 5 (big-endian)
         )
 
         val info = PackIndexV1.parseHeader(header)
@@ -53,7 +57,13 @@ class PackIndexV1Test {
     fun `parseHeader should reject wrong version`() {
         val header = byteArrayOf(
             0x02, // wrong version
-            0x11, 0x00, 0x14, 0x00, 0x00, 0x00, 0x05
+            0x11,
+            0x00,
+            0x14,
+            0x00,
+            0x00,
+            0x00,
+            0x05,
         )
 
         assertThrows<IllegalArgumentException> {
@@ -65,7 +75,14 @@ class PackIndexV1Test {
     fun `parseHeader should reject invalid keySize`() {
         // keySize <= 1 is invalid
         val header = byteArrayOf(
-            0x01, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0x05
+            0x01,
+            0x01,
+            0x00,
+            0x14,
+            0x00,
+            0x00,
+            0x00,
+            0x05,
         )
 
         assertThrows<IllegalArgumentException> {
@@ -102,7 +119,7 @@ class PackIndexV1Test {
             packBlobIdOffset = packBlobIdOffset,
             packOffset = packOffset,
             packedLength = packedLength,
-            deleted = deleted
+            deleted = deleted,
         )
 
         val extraData = "p" + "1234567890".repeat(10) // Pack blob IDs in extra data
@@ -111,7 +128,7 @@ class PackIndexV1Test {
         val parsed = PackIndexV1.parseEntry(
             entry = entry,
             extraData = extraData.toByteArray(),
-            extraDataOffset = extraDataOffset
+            extraDataOffset = extraDataOffset,
         )
 
         assertEquals(timestamp, parsed.timestampSeconds)
@@ -130,7 +147,7 @@ class PackIndexV1Test {
             packBlobIdOffset = 0u,
             packOffset = 1024u,
             packedLength = 4096u,
-            deleted = true
+            deleted = true,
         )
 
         val extraData = "p123456789"
@@ -152,7 +169,7 @@ class PackIndexV1Test {
             packBlobIdOffset = 0u,
             packOffset = 0u,
             packedLength = 100u,
-            deleted = false
+            deleted = false,
         )
 
         val parsed = PackIndexV1.parseEntry(entry, extraData, 0)
@@ -175,7 +192,7 @@ class PackIndexV1Test {
             compressionHeaderId = 0,
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 0
+            encryptionKeyId = 0,
         )
 
         val indexData = PackIndexV1.build(listOf(info))
@@ -198,7 +215,7 @@ class PackIndexV1Test {
         val entries = listOf(
             createTestContentInfo("3333333333333333", 3),
             createTestContentInfo("1111111111111111", 1),
-            createTestContentInfo("2222222222222222", 2)
+            createTestContentInfo("2222222222222222", 2),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -224,7 +241,7 @@ class PackIndexV1Test {
             compressionHeaderId = 0x1000, // GZIP compression - not supported in V1
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 0
+            encryptionKeyId = 0,
         )
 
         assertThrows<IllegalArgumentException> {
@@ -244,7 +261,7 @@ class PackIndexV1Test {
             compressionHeaderId = 0,
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 1 // Not supported in V1
+            encryptionKeyId = 1, // Not supported in V1
         )
 
         assertThrows<IllegalArgumentException> {
@@ -258,7 +275,7 @@ class PackIndexV1Test {
     fun `open should parse valid V1 index`() {
         val entries = listOf(
             createTestContentInfo("aaaa111122223333", 1),
-            createTestContentInfo("bbbb444455556666", 2)
+            createTestContentInfo("bbbb444455556666", 2),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -295,7 +312,7 @@ class PackIndexV1Test {
         val entries = listOf(
             createTestContentInfo("cccc", 3),
             createTestContentInfo("aaaa", 1),
-            createTestContentInfo("bbbb", 2)
+            createTestContentInfo("bbbb", 2),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -315,7 +332,7 @@ class PackIndexV1Test {
             createTestContentInfo("2222", 2),
             createTestContentInfo("3333", 3),
             createTestContentInfo("4444", 4),
-            createTestContentInfo("5555", 5)
+            createTestContentInfo("5555", 5),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -324,7 +341,7 @@ class PackIndexV1Test {
         // Iterate from "2222" (inclusive) to "4444" (exclusive)
         val iterated = index.iterate(
             startId = ContentId.parse("2222"),
-            endId = ContentId.parse("4444")
+            endId = ContentId.parse("4444"),
         ).toList()
 
         assertEquals(2, iterated.size)
@@ -344,7 +361,7 @@ class PackIndexV1Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 90u,
-                packOffset = 0u
+                packOffset = 0u,
             ),
             ContentInfo(
                 contentId = ContentId.parse("bbbb"),
@@ -352,8 +369,8 @@ class PackIndexV1Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 200u,
                 packedLength = 180u,
-                packOffset = 90u
-            )
+                packOffset = 90u,
+            ),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -380,7 +397,7 @@ class PackIndexV1Test {
         // Content IDs with 'm' prefix (manifest content)
         val entries = listOf(
             createPrefixedTestContentInfo("m", "1111111122223333", 1),
-            createPrefixedTestContentInfo("m", "4444555566667777", 2)
+            createPrefixedTestContentInfo("m", "4444555566667777", 2),
         )
 
         val indexData = PackIndexV1.build(entries)
@@ -411,7 +428,7 @@ class PackIndexV1Test {
             timestampSeconds = 1700000000L,
             originalLength = 100u,
             packedLength = 100u,
-            packOffset = maxOffset
+            packOffset = maxOffset,
         )
 
         val indexData = PackIndexV1.build(listOf(info))
@@ -432,7 +449,7 @@ class PackIndexV1Test {
             timestampSeconds = 1700000000L,
             originalLength = 973u, // Should be computed: packedLength - overhead
             packedLength = 1000u,
-            packOffset = 0u
+            packOffset = 0u,
         )
 
         val encryptionOverhead = 27u // AES-256-GCM overhead
@@ -454,7 +471,7 @@ class PackIndexV1Test {
         packBlobIdOffset: UInt,
         packOffset: UInt,
         packedLength: UInt,
-        deleted: Boolean
+        deleted: Boolean,
     ): ByteArray {
         val entry = ByteArray(20)
 
@@ -498,25 +515,21 @@ class PackIndexV1Test {
         return entry
     }
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 
-    private fun createPrefixedTestContentInfo(prefix: String, hashHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(prefix + hashHex),
-            packBlobId = BlobId("q1234567890"), // q prefix for special content
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createPrefixedTestContentInfo(prefix: String, hashHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(prefix + hashHex),
+        packBlobId = BlobId("q1234567890"), // q prefix for special content
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 }

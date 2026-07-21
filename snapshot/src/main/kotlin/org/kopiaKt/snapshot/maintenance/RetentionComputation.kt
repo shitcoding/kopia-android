@@ -27,22 +27,18 @@ data class RetentionResult(
     /**
      * Whether this snapshot should be deleted.
      */
-    val shouldDelete: Boolean
+    val shouldDelete: Boolean,
 ) {
     companion object {
         /**
          * Creates a result indicating the snapshot should be kept.
          */
-        fun keep(snapshot: SnapshotManifest, reasons: List<String>): RetentionResult {
-            return RetentionResult(snapshot, reasons, shouldDelete = false)
-        }
+        fun keep(snapshot: SnapshotManifest, reasons: List<String>): RetentionResult = RetentionResult(snapshot, reasons, shouldDelete = false)
 
         /**
          * Creates a result indicating the snapshot should be deleted.
          */
-        fun delete(snapshot: SnapshotManifest): RetentionResult {
-            return RetentionResult(snapshot, emptyList(), shouldDelete = true)
-        }
+        fun delete(snapshot: SnapshotManifest): RetentionResult = RetentionResult(snapshot, emptyList(), shouldDelete = true)
     }
 }
 
@@ -61,7 +57,7 @@ fun computeRetention(
     snapshots: List<SnapshotManifest>,
     policy: RetentionPolicy,
     now: Instant,
-    zone: ZoneId = ZoneId.systemDefault()
+    zone: ZoneId = ZoneId.systemDefault(),
 ): List<RetentionResult> {
     if (snapshots.isEmpty()) {
         return emptyList()
@@ -129,7 +125,7 @@ fun computeRetention(
                 RetentionResult.keep(snapshot, reasons)
             } else {
                 RetentionResult.delete(snapshot)
-            }
+            },
         )
     }
 
@@ -143,12 +139,10 @@ fun computeSnapshotsToDelete(
     snapshots: List<SnapshotManifest>,
     policy: RetentionPolicy,
     now: Instant = Instant.now(),
-    zone: ZoneId = ZoneId.systemDefault()
-): List<SnapshotManifest> {
-    return computeRetention(snapshots, policy, now, zone)
-        .filter { it.shouldDelete }
-        .map { it.snapshot }
-}
+    zone: ZoneId = ZoneId.systemDefault(),
+): List<SnapshotManifest> = computeRetention(snapshots, policy, now, zone)
+    .filter { it.shouldDelete }
+    .map { it.snapshot }
 
 /**
  * Returns the list of snapshots that should be kept based on retention policy.
@@ -157,12 +151,10 @@ fun computeSnapshotsToKeep(
     snapshots: List<SnapshotManifest>,
     policy: RetentionPolicy,
     now: Instant = Instant.now(),
-    zone: ZoneId = ZoneId.systemDefault()
-): List<SnapshotManifest> {
-    return computeRetention(snapshots, policy, now, zone)
-        .filter { !it.shouldDelete }
-        .map { it.snapshot }
-}
+    zone: ZoneId = ZoneId.systemDefault(),
+): List<SnapshotManifest> = computeRetention(snapshots, policy, now, zone)
+    .filter { !it.shouldDelete }
+    .map { it.snapshot }
 
 // Helper class for tracking "keep N latest"
 private class RetentionTracker(private val maxCount: Int) {
@@ -181,7 +173,7 @@ private class RetentionTracker(private val maxCount: Int) {
 private class TimeBasedTracker(
     private val maxCount: Int,
     private val reasonPrefix: String,
-    private val truncate: (Instant) -> Instant
+    private val truncate: (Instant) -> Instant,
 ) {
     private val buckets = mutableSetOf<Instant>()
     private var count = 0
@@ -206,17 +198,13 @@ private class TimeBasedTracker(
 }
 
 // Extension functions for time truncation
-private fun Instant.truncateToHour(zone: ZoneId): Instant {
-    return ZonedDateTime.ofInstant(this, zone)
-        .truncatedTo(ChronoUnit.HOURS)
-        .toInstant()
-}
+private fun Instant.truncateToHour(zone: ZoneId): Instant = ZonedDateTime.ofInstant(this, zone)
+    .truncatedTo(ChronoUnit.HOURS)
+    .toInstant()
 
-private fun Instant.truncateToDay(zone: ZoneId): Instant {
-    return ZonedDateTime.ofInstant(this, zone)
-        .truncatedTo(ChronoUnit.DAYS)
-        .toInstant()
-}
+private fun Instant.truncateToDay(zone: ZoneId): Instant = ZonedDateTime.ofInstant(this, zone)
+    .truncatedTo(ChronoUnit.DAYS)
+    .toInstant()
 
 private fun Instant.truncateToWeek(zone: ZoneId): Instant {
     val zdt = ZonedDateTime.ofInstant(this, zone)
@@ -227,16 +215,12 @@ private fun Instant.truncateToWeek(zone: ZoneId): Instant {
         .toInstant()
 }
 
-private fun Instant.truncateToMonth(zone: ZoneId): Instant {
-    return ZonedDateTime.ofInstant(this, zone)
-        .withDayOfMonth(1)
-        .truncatedTo(ChronoUnit.DAYS)
-        .toInstant()
-}
+private fun Instant.truncateToMonth(zone: ZoneId): Instant = ZonedDateTime.ofInstant(this, zone)
+    .withDayOfMonth(1)
+    .truncatedTo(ChronoUnit.DAYS)
+    .toInstant()
 
-private fun Instant.truncateToYear(zone: ZoneId): Instant {
-    return ZonedDateTime.ofInstant(this, zone)
-        .withDayOfYear(1)
-        .truncatedTo(ChronoUnit.DAYS)
-        .toInstant()
-}
+private fun Instant.truncateToYear(zone: ZoneId): Instant = ZonedDateTime.ofInstant(this, zone)
+    .withDayOfYear(1)
+    .truncatedTo(ChronoUnit.DAYS)
+    .toInstant()

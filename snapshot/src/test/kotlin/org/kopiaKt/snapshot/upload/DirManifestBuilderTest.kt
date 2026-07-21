@@ -36,8 +36,8 @@ class DirManifestBuilderTest {
                 name = "test.txt",
                 type = EntryType.FILE,
                 fileSize = 1000,
-                modTime = fileModTime
-            )
+                modTime = fileModTime,
+            ),
         )
 
         val manifest = builder.build(Instant.now())
@@ -56,8 +56,8 @@ class DirManifestBuilderTest {
             DirEntry(
                 name = "link",
                 type = EntryType.SYMLINK,
-                modTime = Instant.now()
-            )
+                modTime = Instant.now(),
+            ),
         )
 
         val manifest = builder.build(Instant.now())
@@ -76,7 +76,7 @@ class DirManifestBuilderTest {
             totalSymlinkCount = 1,
             maxModTime = Instant.parse("2024-01-20T12:00:00Z"),
             fatalErrorCount = 1,
-            ignoredErrorCount = 2
+            ignoredErrorCount = 2,
         )
 
         builder.addEntry(
@@ -84,8 +84,8 @@ class DirManifestBuilderTest {
                 name = "subdir",
                 type = EntryType.DIRECTORY,
                 modTime = Instant.parse("2024-01-15T10:00:00Z"),
-                dirSummary = childSummary
-            )
+                dirSummary = childSummary,
+            ),
         )
 
         val manifest = builder.build(Instant.parse("2024-01-01T00:00:00Z"))
@@ -155,8 +155,8 @@ class DirManifestBuilderTest {
             DirEntry(
                 name = "file1.txt",
                 type = EntryType.FILE,
-                fileSize = 100
-            )
+                fileSize = 100,
+            ),
         )
 
         val clone = original.clone()
@@ -166,8 +166,8 @@ class DirManifestBuilderTest {
             DirEntry(
                 name = "file2.txt",
                 type = EntryType.FILE,
-                fileSize = 200
-            )
+                fileSize = 200,
+            ),
         )
 
         // Clone should not have the new entry
@@ -223,15 +223,15 @@ class DirManifestBuilderTest {
             DirEntry(
                 name = "old.txt",
                 type = EntryType.FILE,
-                modTime = oldTime
-            )
+                modTime = oldTime,
+            ),
         )
         builder.addEntry(
             DirEntry(
                 name = "new.txt",
                 type = EntryType.FILE,
-                modTime = newTime
-            )
+                modTime = newTime,
+            ),
         )
 
         val manifest = builder.build(Instant.parse("2024-03-01T00:00:00Z"))
@@ -246,8 +246,8 @@ class DirManifestBuilderTest {
             DirEntry(
                 name = "file.txt",
                 type = EntryType.FILE,
-                fileSize = 500
-            )
+                fileSize = 500,
+            ),
         )
 
         val summary = builder.buildSummary(Instant.now(), "test-reason")

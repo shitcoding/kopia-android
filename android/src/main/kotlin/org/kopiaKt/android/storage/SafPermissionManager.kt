@@ -2,7 +2,6 @@ package org.kopiaKt.android.storage
 
 import android.content.Context
 import android.content.Intent
-import android.content.UriPermission
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -59,7 +58,7 @@ class SafPermissionManager(private val context: Context) {
         /**
          * Timestamp when permission was granted (milliseconds since epoch).
          */
-        val persistedTime: Long
+        val persistedTime: Long,
     ) {
         /**
          * Whether the storage can be used for backups (requires both read and write).
@@ -87,11 +86,9 @@ class SafPermissionManager(private val context: Context) {
         /**
          * Creates an intent to pick a storage location for backup.
          */
-        fun createPickDirectoryIntent(): Intent {
-            return Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                addFlags(INTENT_FLAGS)
-                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            }
+        fun createPickDirectoryIntent(): Intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(INTENT_FLAGS)
+            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
     }
 
@@ -104,24 +101,22 @@ class SafPermissionManager(private val context: Context) {
      * @param displayName User-friendly name to associate with this storage
      * @return The persisted storage info, or null if permission couldn't be taken
      */
-    suspend fun takePermission(uri: Uri, displayName: String? = null): PersistedStorage? {
-        return try {
-            // Take the persistent permission
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            )
+    suspend fun takePermission(uri: Uri, displayName: String? = null): PersistedStorage? = try {
+        // Take the persistent permission
+        contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
 
-            // Save to our preferences
-            val actualDisplayName = displayName ?: extractDisplayName(uri)
-            saveUriMetadata(uri, actualDisplayName)
+        // Save to our preferences
+        val actualDisplayName = displayName ?: extractDisplayName(uri)
+        saveUriMetadata(uri, actualDisplayName)
 
-            // Return the persisted storage info
-            getPersistedStorage(uri)
-        } catch (e: SecurityException) {
-            // Permission couldn't be taken
-            null
-        }
+        // Return the persisted storage info
+        getPersistedStorage(uri)
+    } catch (e: SecurityException) {
+        // Permission couldn't be taken
+        null
     }
 
     /**
@@ -133,7 +128,7 @@ class SafPermissionManager(private val context: Context) {
         try {
             contentResolver.releasePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         } catch (_: SecurityException) {
             // Already released or never had permission
@@ -160,34 +155,30 @@ class SafPermissionManager(private val context: Context) {
             displayName = displayName,
             hasReadPermission = permission.isReadPermission,
             hasWritePermission = permission.isWritePermission,
-            persistedTime = permission.persistedTime
+            persistedTime = permission.persistedTime,
         )
     }
 
     /**
      * Gets all currently persisted storage locations.
      */
-    suspend fun getAllPersistedStorages(): List<PersistedStorage> {
-        return contentResolver.persistedUriPermissions.mapNotNull { permission ->
-            val displayName = getDisplayName(permission.uri) ?: extractDisplayName(permission.uri)
+    suspend fun getAllPersistedStorages(): List<PersistedStorage> = contentResolver.persistedUriPermissions.mapNotNull { permission ->
+        val displayName = getDisplayName(permission.uri) ?: extractDisplayName(permission.uri)
 
-            PersistedStorage(
-                uri = permission.uri,
-                displayName = displayName,
-                hasReadPermission = permission.isReadPermission,
-                hasWritePermission = permission.isWritePermission,
-                persistedTime = permission.persistedTime
-            )
-        }
+        PersistedStorage(
+            uri = permission.uri,
+            displayName = displayName,
+            hasReadPermission = permission.isReadPermission,
+            hasWritePermission = permission.isWritePermission,
+            persistedTime = permission.persistedTime,
+        )
     }
 
     /**
      * Observes changes to persisted storage locations.
      */
-    fun observePersistedStorages(): Flow<List<PersistedStorage>> {
-        return context.safUriDataStore.data.map {
-            getAllPersistedStorages()
-        }
+    fun observePersistedStorages(): Flow<List<PersistedStorage>> = context.safUriDataStore.data.map {
+        getAllPersistedStorages()
     }
 
     /**
@@ -225,7 +216,7 @@ class SafPermissionManager(private val context: Context) {
                 arrayOf(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID),
                 null,
                 null,
-                null
+                null,
             )
             val isAccessible = cursor?.use { it.count > 0 } ?: false
             !isAccessible
@@ -274,7 +265,7 @@ class SafPermissionManager(private val context: Context) {
         val preferences = context.safUriDataStore.data.first()
         val displayNames = preferences[KEY_URI_DISPLAY_NAMES] ?: emptySet()
 
-        return displayNames.find { it.startsWith("${uri}|") }
+        return displayNames.find { it.startsWith("$uri|") }
             ?.substringAfter("|")
     }
 
@@ -289,8 +280,8 @@ class SafPermissionManager(private val context: Context) {
 
             val currentNames = preferences[KEY_URI_DISPLAY_NAMES]?.toMutableSet() ?: mutableSetOf()
             // Remove old entry if exists
-            currentNames.removeAll { it.startsWith("${uri}|") }
-            currentNames.add("${uri}|${displayName}")
+            currentNames.removeAll { it.startsWith("$uri|") }
+            currentNames.add("$uri|$displayName")
             preferences[KEY_URI_DISPLAY_NAMES] = currentNames
         }
     }
@@ -305,7 +296,7 @@ class SafPermissionManager(private val context: Context) {
             preferences[KEY_PERSISTED_URIS] = currentUris
 
             val currentNames = preferences[KEY_URI_DISPLAY_NAMES]?.toMutableSet() ?: mutableSetOf()
-            currentNames.removeAll { it.startsWith("${uri}|") }
+            currentNames.removeAll { it.startsWith("$uri|") }
             preferences[KEY_URI_DISPLAY_NAMES] = currentNames
         }
     }

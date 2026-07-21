@@ -27,7 +27,7 @@ import java.util.zip.CRC32
 data class PackBlobPostamble(
     val localIndexIV: ByteArray,
     val localIndexOffset: UInt,
-    val localIndexLength: UInt
+    val localIndexLength: UInt,
 ) {
     /**
      * Serializes this postamble to bytes.
@@ -196,7 +196,7 @@ data class PackBlobPostamble(
             return PackBlobPostamble(
                 localIndexIV = iv,
                 localIndexOffset = indexOffset.toUInt(),
-                localIndexLength = indexLength.toUInt()
+                localIndexLength = indexLength.toUInt(),
             )
         }
 

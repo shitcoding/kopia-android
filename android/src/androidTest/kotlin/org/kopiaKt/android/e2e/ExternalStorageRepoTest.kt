@@ -58,7 +58,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
 
         val repository = DirectRepositoryImpl.open(
             blobStorage = storage,
-            password = GO_REPO_PASSWORD
+            password = GO_REPO_PASSWORD,
         )
 
         try {
@@ -70,7 +70,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
 
             // List snapshots
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
 
             Log.i(TAG, "Found ${manifests.size} snapshots")
@@ -79,7 +79,6 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             for (manifest in manifests) {
                 Log.i(TAG, "Snapshot: id=${manifest.id}, modTime=${manifest.modTime}")
             }
-
         } finally {
             repository.close()
             Log.i(TAG, "Repository closed")
@@ -101,7 +100,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             repository.refresh()
 
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
@@ -128,7 +127,6 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
 
             Log.i(TAG, "Total entries at root: $count")
             assertThat(count).isGreaterThan(0)
-
         } finally {
             repository.close()
         }
@@ -149,7 +147,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             repository.refresh()
 
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
@@ -172,14 +170,14 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
                 targetPath = restoreTarget.toPath(),
                 options = FilesystemOutputOptions(
                     overwriteFiles = true,
-                    overwriteDirectories = true
-                )
+                    overwriteDirectories = true,
+                ),
             )
             val progress = CountingRestoreProgress()
             val restorer = SnapshotRestorer(
                 output = output,
                 options = RestoreOptions(),
-                progress = progress
+                progress = progress,
             )
 
             restorer.restore(root)
@@ -201,7 +199,6 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
 
             // Validate restored files match snapshot metadata
             assertRestoredMatchesSnapshot(restoreTarget, expectedEntries)
-
         } finally {
             repository.close()
         }
@@ -221,7 +218,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
         assumeTrue(
             "Go test repo not available at ${repoPath.path}. " +
                 "Push repo via: adb push <source> ${repoPath.path}",
-            repoPath.exists() && repoPath.isDirectory
+            repoPath.exists() && repoPath.isDirectory,
         )
     }
 
@@ -232,7 +229,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
      */
     private data class SnapshotFileEntry(
         val relativePath: String,
-        val size: Long
+        val size: Long,
     )
 
     /**
@@ -250,7 +247,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
     private suspend fun collectSnapshotEntries(
         entry: Entry,
         basePath: String = "",
-        isRoot: Boolean = true
+        isRoot: Boolean = true,
     ): List<SnapshotFileEntry> {
         if (entry.isFile()) {
             val path = if (basePath.isEmpty()) entry.name else "$basePath/${entry.name}"
@@ -293,7 +290,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
      */
     private fun assertRestoredMatchesSnapshot(
         restoreTarget: File,
-        expectedEntries: List<SnapshotFileEntry>
+        expectedEntries: List<SnapshotFileEntry>,
     ) {
         val expectedByPath = expectedEntries.associateBy { it.relativePath }
 
@@ -317,7 +314,7 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
             val actualSize = actualFile.length()
             if (actualSize != expected.size) {
                 sizeMismatches.add(
-                    "$path: expected ${expected.size} bytes, got $actualSize bytes"
+                    "$path: expected ${expected.size} bytes, got $actualSize bytes",
                 )
             }
         }
@@ -335,8 +332,11 @@ class ExternalStorageRepoTest : AndroidE2ETestBase() {
         if (extraFiles.isNotEmpty()) {
             Log.w(TAG, "Extra files (${extraFiles.size}): ${extraFiles.take(20)}")
         }
-        Log.i(TAG, "Validated ${expectedByPath.size} expected files, " +
-            "${actualByPath.size} actual files on disk")
+        Log.i(
+            TAG,
+            "Validated ${expectedByPath.size} expected files, " +
+                "${actualByPath.size} actual files on disk",
+        )
 
         assertWithMessage("files present in snapshot but missing from restore")
             .that(missingFiles).isEmpty()

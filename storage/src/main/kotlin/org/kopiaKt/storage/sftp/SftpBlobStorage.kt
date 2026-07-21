@@ -51,7 +51,7 @@ import java.util.EnumSet
 class SftpBlobStorage private constructor(
     private val options: SftpOptions,
     private val readOnly: Boolean,
-    private val directoryShards: List<Int>
+    private val directoryShards: List<Int>,
 ) : BlobStorage {
 
     companion object {
@@ -88,7 +88,7 @@ class SftpBlobStorage private constructor(
         suspend fun create(
             options: SftpOptions,
             isCreate: Boolean = false,
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
         ): SftpBlobStorage = withContext(Dispatchers.IO) {
             val directoryShards = if (isCreate) {
                 listOf(1, 3)
@@ -122,12 +122,10 @@ class SftpBlobStorage private constructor(
             sshClient: SSHClient,
             sftpClient: SFTPClient,
             readOnly: Boolean = false,
-            directoryShards: List<Int> = listOf(1, 3)
-        ): SftpBlobStorage {
-            return SftpBlobStorage(options, readOnly, directoryShards).apply {
-                this.cachedSshClient = sshClient
-                this.cachedSftpClient = sftpClient
-            }
+            directoryShards: List<Int> = listOf(1, 3),
+        ): SftpBlobStorage = SftpBlobStorage(options, readOnly, directoryShards).apply {
+            this.cachedSshClient = sshClient
+            this.cachedSftpClient = sftpClient
         }
 
         private fun isNotExist(e: Exception): Boolean {
@@ -242,28 +240,26 @@ class SftpBlobStorage private constructor(
      * The insecure "trust anything" path is reachable only when the caller explicitly opts in via
      * [SftpOptions.insecureSkipHostKeyVerification] (dev/testing only — must be gated out of release).
      */
-    private fun createHostKeyVerifier(): HostKeyVerifier {
-        return when {
-            options.knownHostsData.isNotEmpty() -> {
-                // Create temporary file with known hosts data
-                val tempFile = File.createTempFile("kopia-known-hosts", ".tmp")
-                tempFile.deleteOnExit()
-                tempFile.writeText(options.knownHostsData)
-                OpenSSHKnownHosts(tempFile)
-            }
-            options.hostKeyFingerprint.isNotEmpty() ->
-                FingerprintVerifier.getInstance(options.hostKeyFingerprint)
-            File(options.effectiveKnownHostsFile()).exists() ->
-                OpenSSHKnownHosts(File(options.effectiveKnownHostsFile()))
-            options.insecureSkipHostKeyVerification ->
-                // Explicit opt-in ONLY. Trusts any server key — MITM-exposed; never in release builds.
-                PromiscuousVerifier()
-            else -> throw HostKeyNotTrustedException(
-                "SFTP host key for ${options.host}:${options.port} is not trusted: no knownHostsData, " +
-                    "no known_hosts file, and no hostKeyFingerprint. Provide one of those, or set " +
-                    "insecureSkipHostKeyVerification=true for local testing only.",
-            )
+    private fun createHostKeyVerifier(): HostKeyVerifier = when {
+        options.knownHostsData.isNotEmpty() -> {
+            // Create temporary file with known hosts data
+            val tempFile = File.createTempFile("kopia-known-hosts", ".tmp")
+            tempFile.deleteOnExit()
+            tempFile.writeText(options.knownHostsData)
+            OpenSSHKnownHosts(tempFile)
         }
+        options.hostKeyFingerprint.isNotEmpty() ->
+            FingerprintVerifier.getInstance(options.hostKeyFingerprint)
+        File(options.effectiveKnownHostsFile()).exists() ->
+            OpenSSHKnownHosts(File(options.effectiveKnownHostsFile()))
+        options.insecureSkipHostKeyVerification ->
+            // Explicit opt-in ONLY. Trusts any server key — MITM-exposed; never in release builds.
+            PromiscuousVerifier()
+        else -> throw HostKeyNotTrustedException(
+            "SFTP host key for ${options.host}:${options.port} is not trusted: no knownHostsData, " +
+                "no known_hosts file, and no hostKeyFingerprint. Provide one of those, or set " +
+                "insecureSkipHostKeyVerification=true for local testing only.",
+        )
     }
 
     private fun closeCachedConnection() {
@@ -279,45 +275,44 @@ class SftpBlobStorage private constructor(
         cachedSshClient = null
     }
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
-        withSftpClient { sftp ->
-            if (offset < 0) {
-                throw InvalidBlobRangeException("Offset cannot be negative: $offset")
-            }
-
-            val fullPath = getFullPath(blobId)
-
-            try {
-                val file = sftp.open(fullPath, EnumSet.of(OpenMode.READ))
-                file.use { remoteFile ->
-                    val fileSize = remoteFile.length()
-
-                    if (offset >= fileSize && fileSize > 0) {
-                        throw InvalidBlobRangeException("Offset $offset is beyond file size $fileSize")
-                    }
-
-                    when {
-                        length == 0L -> {
-                            // Zero-length read - just verify file exists
-                            ByteArray(0)
-                        }
-                        length < 0 -> {
-                            // Read from offset to end
-                            readFully(remoteFile, offset, fileSize - offset)
-                        }
-                        else -> {
-                            // Read a specific length
-                            readFully(remoteFile, offset, length)
-                        }
-                    }
-                }
-            } catch (e: SFTPException) {
-                if (isNotExist(e)) {
-                    throw BlobNotFoundException(blobId)
-                }
-                throw e
-            }
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withSftpClient { sftp ->
+        if (offset < 0) {
+            throw InvalidBlobRangeException("Offset cannot be negative: $offset")
         }
+
+        val fullPath = getFullPath(blobId)
+
+        try {
+            val file = sftp.open(fullPath, EnumSet.of(OpenMode.READ))
+            file.use { remoteFile ->
+                val fileSize = remoteFile.length()
+
+                if (offset >= fileSize && fileSize > 0) {
+                    throw InvalidBlobRangeException("Offset $offset is beyond file size $fileSize")
+                }
+
+                when {
+                    length == 0L -> {
+                        // Zero-length read - just verify file exists
+                        ByteArray(0)
+                    }
+                    length < 0 -> {
+                        // Read from offset to end
+                        readFully(remoteFile, offset, fileSize - offset)
+                    }
+                    else -> {
+                        // Read a specific length
+                        readFully(remoteFile, offset, length)
+                    }
+                }
+            }
+        } catch (e: SFTPException) {
+            if (isNotExist(e)) {
+                throw BlobNotFoundException(blobId)
+            }
+            throw e
+        }
+    }
 
     /**
      * Reads exactly [bytesToRead] bytes from [remoteFile] starting at [fileOffset].
@@ -353,25 +348,24 @@ class SftpBlobStorage private constructor(
         return buffer
     }
 
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
-        withSftpClient { sftp ->
-            val fullPath = getFullPath(blobId)
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withSftpClient { sftp ->
+        val fullPath = getFullPath(blobId)
 
-            try {
-                val attrs = sftp.stat(fullPath)
-                BlobMetadata(
-                    blobId = blobId,
-                    length = attrs.size,
-                    timestamp = Instant.ofEpochSecond(attrs.mtime)
-                )
-            } catch (e: SFTPException) {
-                if (isNotExist(e)) {
-                    null
-                } else {
-                    throw e
-                }
+        try {
+            val attrs = sftp.stat(fullPath)
+            BlobMetadata(
+                blobId = blobId,
+                length = attrs.size,
+                timestamp = Instant.ofEpochSecond(attrs.mtime),
+            )
+        } catch (e: SFTPException) {
+            if (isNotExist(e)) {
+                null
+            } else {
+                throw e
             }
         }
+    }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         val results = withSftpClient { sftp ->
@@ -391,7 +385,7 @@ class SftpBlobStorage private constructor(
         currentPrefix: String,
         filterPrefix: String,
         results: MutableList<BlobMetadata>,
-        depth: Int
+        depth: Int,
     ) {
         // Bound recursion so a server-side symlink cycle can't StackOverflow the walk (mirrors
         // WebDAV). Real repos are only 1-2 shard levels deep, so the cap is never hit legitimately.
@@ -421,7 +415,7 @@ class SftpBlobStorage private constructor(
                             newPrefix,
                             filterPrefix,
                             results,
-                            depth + 1
+                            depth + 1,
                         )
                     }
                 } else {
@@ -439,8 +433,8 @@ class SftpBlobStorage private constructor(
                             BlobMetadata(
                                 blobId = BlobId(fullBlobId),
                                 length = entry.attributes.size,
-                                timestamp = Instant.ofEpochSecond(entry.attributes.mtime)
-                            )
+                                timestamp = Instant.ofEpochSecond(entry.attributes.mtime),
+                            ),
                         )
                     }
                 }
@@ -504,7 +498,7 @@ class SftpBlobStorage private constructor(
                     val attrs = FileAttributes.Builder()
                         .withAtimeMtime(
                             modTime.epochSecond,
-                            modTime.epochSecond
+                            modTime.epochSecond,
                         )
                         .build()
                     sftp.setattr(fullPath, attrs)
@@ -557,12 +551,10 @@ class SftpBlobStorage private constructor(
      * The statvfs@openssh.com extension would need to be called directly.
      */
     @Suppress("unused")
-    suspend fun getCapacity(): Nothing {
-        throw UnsupportedOperationException(
-            "SFTP storage does not support capacity queries. " +
-                "Use filesystem-level monitoring tools instead."
-        )
-    }
+    suspend fun getCapacity(): Nothing = throw UnsupportedOperationException(
+        "SFTP storage does not support capacity queries. " +
+            "Use filesystem-level monitoring tools instead.",
+    )
 
     override fun connectionInfo(): ConnectionInfo = ConnectionInfo(
         type = SFTP_STORAGE_TYPE,
@@ -571,7 +563,7 @@ class SftpBlobStorage private constructor(
             put("port", options.port.toString())
             put("username", options.username)
             put("path", options.path)
-        }
+        },
     )
 
     override fun displayName(): String = "SFTP ${options.username}@${options.host}"
@@ -618,9 +610,7 @@ class SftpBlobStorage private constructor(
     /**
      * Gets the directory path for a blob (relative to root).
      */
-    private fun getDirPath(blobId: BlobId): String {
-        return getShardedPath(blobId).first
-    }
+    private fun getDirPath(blobId: BlobId): String = getShardedPath(blobId).first
 
     /**
      * Gets the full file path for a blob (including root path and .f suffix).
@@ -635,8 +625,7 @@ class SftpBlobStorage private constructor(
         }
     }
 
-    private fun ByteArray.toHexString(): String =
-        joinToString("") { "%02x".format(it) }
+    private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
 }
 
 /**

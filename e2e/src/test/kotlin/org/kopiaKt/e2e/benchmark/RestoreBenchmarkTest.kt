@@ -2,14 +2,12 @@
 
 package org.kopiaKt.e2e.benchmark
 
-import kotlin.io.path.ExperimentalPathApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.repository.writeSession
 import org.kopiaKt.e2e.KopiaCliRunner
@@ -28,6 +26,7 @@ import org.kopiaKt.snapshot.upload.UploadOptions
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -50,8 +49,8 @@ class RestoreBenchmarkTest {
         BenchmarkConfig(
             warmupIterations = 1,
             measurementIterations = 3,
-            compareWithGo = isGoKopiaAvailable()
-        )
+            compareWithGo = isGoKopiaAvailable(),
+        ),
     )
 
     @BeforeEach
@@ -76,20 +75,16 @@ class RestoreBenchmarkTest {
 
     companion object {
         @JvmStatic
-        fun isE2EEnabled(): Boolean {
-            return System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
-                    System.getenv("CI")?.toBoolean() == true ||
-                    System.getProperty("e2e")?.toBoolean() == true
-        }
+        fun isE2EEnabled(): Boolean = System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
+            System.getenv("CI")?.toBoolean() == true ||
+            System.getProperty("e2e")?.toBoolean() == true
 
         @JvmStatic
-        fun isGoKopiaAvailable(): Boolean {
-            return try {
-                KopiaCliRunner.defaultKopiaBinary()
-                true
-            } catch (e: Exception) {
-                false
-            }
+        fun isGoKopiaAvailable(): Boolean = try {
+            KopiaCliRunner.defaultKopiaBinary()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -125,7 +120,9 @@ class RestoreBenchmarkTest {
                         restoreDir.createDirectories()
                         benchmarkGoRestore(testDataSpec)
                     }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -165,7 +162,9 @@ class RestoreBenchmarkTest {
                         restoreDir.createDirectories()
                         benchmarkGoRestore(testDataSpec)
                     }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -205,7 +204,9 @@ class RestoreBenchmarkTest {
                         restoreDir.createDirectories()
                         benchmarkGoRestore(testDataSpec)
                     }
-                } else null
+                } else {
+                    null
+                },
             )
 
             printResult(result)
@@ -245,7 +246,7 @@ class RestoreBenchmarkTest {
                     teardown = { _ ->
                         restoreDir.deleteRecursively()
                         restoreDir.createDirectories()
-                    }
+                    },
                 )
 
                 printResult(result)
@@ -274,7 +275,7 @@ class RestoreBenchmarkTest {
                     val output = FilesystemOutput(restoreDir)
                     val restorer = SnapshotRestorer(
                         output = output,
-                        options = RestoreOptions()
+                        options = RestoreOptions(),
                     )
                     restorer.restore(rootEntry)
                 } finally {
@@ -291,7 +292,7 @@ class RestoreBenchmarkTest {
                 benchmark = { manifest ->
                     benchmarkKotlinRestore(manifest, testDataSpec, incremental = true)
                 },
-                teardown = { }
+                teardown = { },
             )
 
             printResult(result)
@@ -312,7 +313,7 @@ class RestoreBenchmarkTest {
                 val source = SourceInfo(
                     host = "benchmark-host",
                     userName = "benchmark-user",
-                    path = sourceDir.toString()
+                    path = sourceDir.toString(),
                 )
 
                 val progress = CountingUploadProgress()
@@ -320,7 +321,7 @@ class RestoreBenchmarkTest {
                     writer = writer,
                     source = source,
                     policy = Policy(),
-                    progress = progress
+                    progress = progress,
                 )
 
                 val rootDir = LocalFilesystem.directory(sourceDir)
@@ -336,11 +337,11 @@ class RestoreBenchmarkTest {
         manifest: SnapshotManifest,
         testDataSpec: TestDataSpec,
         parallelism: Int = Runtime.getRuntime().availableProcessors(),
-        incremental: Boolean = false
+        incremental: Boolean = false,
     ): BenchmarkMeasurement {
         val (_, measurement) = benchmarkRunner.measure(
             bytesProcessed = testDataSpec.totalBytes,
-            filesProcessed = testDataSpec.fileCount.toLong()
+            filesProcessed = testDataSpec.fileCount.toLong(),
         ) {
             val storage = FilesystemBlobStorage(repoDir)
             val repo = DirectRepositoryImpl.open(storage, password)
@@ -357,9 +358,9 @@ class RestoreBenchmarkTest {
                     output = output,
                     options = RestoreOptions(
                         parallel = parallelism,
-                        incremental = incremental
+                        incremental = incremental,
                     ),
-                    progress = progress
+                    progress = progress,
                 )
 
                 restorer.restore(rootEntry)
@@ -393,7 +394,7 @@ class RestoreBenchmarkTest {
             // Benchmark restore
             val (_, measurement) = benchmarkRunner.measure(
                 bytesProcessed = testDataSpec.totalBytes,
-                filesProcessed = testDataSpec.fileCount.toLong()
+                filesProcessed = testDataSpec.fileCount.toLong(),
             ) {
                 kopiaCli.snapshotRestore(snapshotId, goRestoreDir)
             }
@@ -420,12 +421,10 @@ class RestoreBenchmarkTest {
         }
     }
 
-    private fun formatBytes(bytes: Long): String {
-        return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-        }
+    private fun formatBytes(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+        bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }

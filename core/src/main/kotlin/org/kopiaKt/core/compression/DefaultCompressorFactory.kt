@@ -15,50 +15,49 @@ package org.kopiaKt.core.compression
  */
 class DefaultCompressorFactory : CompressorFactory {
 
-    override fun create(algorithm: CompressionAlgorithm): Compressor {
-        return when (algorithm) {
-            // No compression
-            CompressionAlgorithm.NONE -> NoOpCompressor
+    override fun create(algorithm: CompressionAlgorithm): Compressor = when (algorithm) {
+        // No compression
+        CompressionAlgorithm.NONE -> NoOpCompressor
 
-            // GZIP variants
-            CompressionAlgorithm.GZIP_DEFAULT -> GzipCompressor.default()
-            CompressionAlgorithm.GZIP_BEST_SPEED -> GzipCompressor.bestSpeed()
-            CompressionAlgorithm.GZIP_BEST_COMPRESSION -> GzipCompressor.bestCompression()
+        // GZIP variants
+        CompressionAlgorithm.GZIP_DEFAULT -> GzipCompressor.default()
+        CompressionAlgorithm.GZIP_BEST_SPEED -> GzipCompressor.bestSpeed()
+        CompressionAlgorithm.GZIP_BEST_COMPRESSION -> GzipCompressor.bestCompression()
 
-            // PGZIP variants (implemented as standard GZIP - parallel not needed on mobile)
-            CompressionAlgorithm.PGZIP_DEFAULT -> GzipCompressor.pgzipDefault()
-            CompressionAlgorithm.PGZIP_BEST_SPEED -> GzipCompressor.pgzipBestSpeed()
-            CompressionAlgorithm.PGZIP_BEST_COMPRESSION -> GzipCompressor.pgzipBestCompression()
+        // PGZIP variants (implemented as standard GZIP - parallel not needed on mobile)
+        CompressionAlgorithm.PGZIP_DEFAULT -> GzipCompressor.pgzipDefault()
+        CompressionAlgorithm.PGZIP_BEST_SPEED -> GzipCompressor.pgzipBestSpeed()
+        CompressionAlgorithm.PGZIP_BEST_COMPRESSION -> GzipCompressor.pgzipBestCompression()
 
-            // Deflate variants
-            CompressionAlgorithm.DEFLATE_DEFAULT -> DeflateCompressor.default()
-            CompressionAlgorithm.DEFLATE_BEST_SPEED -> DeflateCompressor.bestSpeed()
-            CompressionAlgorithm.DEFLATE_BEST_COMPRESSION -> DeflateCompressor.bestCompression()
+        // Deflate variants
+        CompressionAlgorithm.DEFLATE_DEFAULT -> DeflateCompressor.default()
+        CompressionAlgorithm.DEFLATE_BEST_SPEED -> DeflateCompressor.bestSpeed()
+        CompressionAlgorithm.DEFLATE_BEST_COMPRESSION -> DeflateCompressor.bestCompression()
 
-            // Zstd variants
-            CompressionAlgorithm.ZSTD_DEFAULT -> ZstdCompressor.default()
-            CompressionAlgorithm.ZSTD_FASTEST -> ZstdCompressor.fastest()
-            CompressionAlgorithm.ZSTD_BETTER_COMPRESSION -> ZstdCompressor.betterCompression()
-            CompressionAlgorithm.ZSTD_BEST_COMPRESSION -> ZstdCompressor.bestCompression()
+        // Zstd variants
+        CompressionAlgorithm.ZSTD_DEFAULT -> ZstdCompressor.default()
+        CompressionAlgorithm.ZSTD_FASTEST -> ZstdCompressor.fastest()
+        CompressionAlgorithm.ZSTD_BETTER_COMPRESSION -> ZstdCompressor.betterCompression()
+        CompressionAlgorithm.ZSTD_BEST_COMPRESSION -> ZstdCompressor.bestCompression()
 
-            // LZ4
-            CompressionAlgorithm.LZ4_DEFAULT -> Lz4Compressor.default()
+        // LZ4
+        CompressionAlgorithm.LZ4_DEFAULT -> Lz4Compressor.default()
 
-            // S2 is Go-specific and not supported
-            CompressionAlgorithm.S2_DEFAULT,
-            CompressionAlgorithm.S2_BETTER,
-            CompressionAlgorithm.S2_PARALLEL_4,
-            CompressionAlgorithm.S2_PARALLEL_8 ->
-                throw IllegalArgumentException(
-                    "S2 compression is not supported (Go-specific algorithm)"
-                )
-        }
+        // S2 is Go-specific and not supported
+        CompressionAlgorithm.S2_DEFAULT,
+        CompressionAlgorithm.S2_BETTER,
+        CompressionAlgorithm.S2_PARALLEL_4,
+        CompressionAlgorithm.S2_PARALLEL_8,
+        ->
+            throw IllegalArgumentException(
+                "S2 compression is not supported (Go-specific algorithm)",
+            )
     }
 
     override fun fromHeaderId(headerId: Int): Compressor {
         val algorithm = CompressionAlgorithm.fromHeaderId(headerId)
             ?: throw IllegalArgumentException(
-                "Unknown compression header ID: 0x${headerId.toString(16)}"
+                "Unknown compression header ID: 0x${headerId.toString(16)}",
             )
         return create(algorithm)
     }
@@ -96,18 +95,16 @@ object NoOpCompressor : Compressor {
         return output
     }
 
-    override fun decompress(data: ByteArray, withHeader: Boolean): ByteArray {
-        return if (withHeader) {
-            require(data.size >= COMPRESSION_HEADER_SIZE) {
-                "Data too short for compression header"
-            }
-            val headerId = CompressionAlgorithm.readHeaderId(data)
-            require(headerId == 0) {
-                "Expected no-compression header (0), got 0x${headerId.toString(16)}"
-            }
-            data.copyOfRange(COMPRESSION_HEADER_SIZE, data.size)
-        } else {
-            data.copyOf()
+    override fun decompress(data: ByteArray, withHeader: Boolean): ByteArray = if (withHeader) {
+        require(data.size >= COMPRESSION_HEADER_SIZE) {
+            "Data too short for compression header"
         }
+        val headerId = CompressionAlgorithm.readHeaderId(data)
+        require(headerId == 0) {
+            "Expected no-compression header (0), got 0x${headerId.toString(16)}"
+        }
+        data.copyOfRange(COMPRESSION_HEADER_SIZE, data.size)
+    } else {
+        data.copyOf()
     }
 }

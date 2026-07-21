@@ -21,7 +21,7 @@ import javax.inject.Singleton
  * on static state (the companion object repositoryProvider pattern).
  */
 class KopiaWorkerFactory @Inject constructor(
-    private val repositoryManager: KopiaRepositoryManager
+    private val repositoryManager: KopiaRepositoryManager,
 ) : WorkerFactory() {
 
     init {
@@ -31,12 +31,10 @@ class KopiaWorkerFactory @Inject constructor(
     override fun createWorker(
         appContext: Context,
         workerClassName: String,
-        workerParameters: WorkerParameters
-    ): ListenableWorker? {
-        return when (workerClassName) {
-            BackupWorker::class.java.name -> BackupWorker(appContext, workerParameters)
-            else -> null
-        }
+        workerParameters: WorkerParameters,
+    ): ListenableWorker? = when (workerClassName) {
+        BackupWorker::class.java.name -> BackupWorker(appContext, workerParameters)
+        else -> null
     }
 }
 
@@ -53,8 +51,6 @@ object HiltWorkerModule {
     @Provides
     @Singleton
     fun provideWorkerFactory(
-        repositoryManager: KopiaRepositoryManager
-    ): WorkerFactory {
-        return KopiaWorkerFactory(repositoryManager)
-    }
+        repositoryManager: KopiaRepositoryManager,
+    ): WorkerFactory = KopiaWorkerFactory(repositoryManager)
 }

@@ -66,5 +66,4 @@ value class ManifestId private constructor(val value: String) {
 /**
  * Extension function to convert ByteArray to lowercase hex string.
  */
-private fun ByteArray.toHexString(): String =
-    joinToString("") { "%02x".format(it) }
+private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }

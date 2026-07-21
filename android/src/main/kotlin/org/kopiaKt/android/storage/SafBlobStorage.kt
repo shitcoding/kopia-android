@@ -24,7 +24,6 @@ import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
-import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.time.Instant
@@ -47,8 +46,9 @@ class SafBlobStorage private constructor(
     private val rootUri: Uri,
     private val options: SafOptions,
     private val shardingParams: SafShardingParameters,
-    private val readOnlyMode: Boolean
-) : BlobStorage, BlobVolume {
+    private val readOnlyMode: Boolean,
+) : BlobStorage,
+    BlobVolume {
 
     private val rootDocument: DocumentFile by lazy {
         DocumentFile.fromTreeUri(context, rootUri)
@@ -61,73 +61,71 @@ class SafBlobStorage private constructor(
      */
     private val shardDirCache = mutableMapOf<String, DocumentFile>()
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
-        withContext(Dispatchers.IO) {
-            // Validate parameters
-            if (offset < 0) {
-                throw InvalidBlobRangeException("Negative offset not allowed: $offset")
-            }
-            if (length < -1) {
-                throw InvalidBlobRangeException("Invalid length: $length")
-            }
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withContext(Dispatchers.IO) {
+        // Validate parameters
+        if (offset < 0) {
+            throw InvalidBlobRangeException("Negative offset not allowed: $offset")
+        }
+        if (length < -1) {
+            throw InvalidBlobRangeException("Invalid length: $length")
+        }
 
-            if (length == 0L) {
-                return@withContext byteArrayOf()
-            }
-            // A single ByteArray cannot exceed Int.MAX_VALUE. A ranged read is a content within a pack
-            // (bounded, tens of MB), so a request larger than that cannot be buffered and is a bug/attack.
-            // (offset stays a Long throughout — it is only ever passed to skip(), never narrowed to Int.)
-            if (length > Int.MAX_VALUE) {
-                throw InvalidBlobRangeException("Requested length too large to buffer: $length for blob $blobId")
-            }
+        if (length == 0L) {
+            return@withContext byteArrayOf()
+        }
+        // A single ByteArray cannot exceed Int.MAX_VALUE. A ranged read is a content within a pack
+        // (bounded, tens of MB), so a request larger than that cannot be buffered and is a bug/attack.
+        // (offset stays a Long throughout — it is only ever passed to skip(), never narrowed to Int.)
+        if (length > Int.MAX_VALUE) {
+            throw InvalidBlobRangeException("Requested length too large to buffer: $length for blob $blobId")
+        }
 
-            val blobFile = findBlobFile(blobId)
-                ?: throw BlobNotFoundException(blobId)
+        val blobFile = findBlobFile(blobId)
+            ?: throw BlobNotFoundException(blobId)
 
-            context.contentResolver.openInputStream(blobFile.uri)?.use { stream ->
-                // True ranged read: skip to the (Long) offset, then read ONLY the requested bytes. Never
-                // buffer the whole blob — the previous readBytes() OOM'd on large packs — and never narrow
-                // the offset to Int, which returned WRONG data for offsets >= 2 GiB. See task-14.
-                val skipped = skipFully(stream, offset)
-                if (skipped < offset) {
-                    // Reached EOF before the offset: the range starts past the end of the blob. NOTE: this
-                    // only fires for streams whose skip() clamps at EOF. The real device stream
-                    // (FileInputStream-family, from ContentResolver) lseeks and over-reports skip past EOF,
-                    // so an out-of-range offset instead surfaces as a 0-byte read caught by the short-read
-                    // check below. Both guards together cover a bad packOffset on a truncated pack.
+        context.contentResolver.openInputStream(blobFile.uri)?.use { stream ->
+            // True ranged read: skip to the (Long) offset, then read ONLY the requested bytes. Never
+            // buffer the whole blob — the previous readBytes() OOM'd on large packs — and never narrow
+            // the offset to Int, which returned WRONG data for offsets >= 2 GiB. See task-14.
+            val skipped = skipFully(stream, offset)
+            if (skipped < offset) {
+                // Reached EOF before the offset: the range starts past the end of the blob. NOTE: this
+                // only fires for streams whose skip() clamps at EOF. The real device stream
+                // (FileInputStream-family, from ContentResolver) lseeks and over-reports skip past EOF,
+                // so an out-of-range offset instead surfaces as a 0-byte read caught by the short-read
+                // check below. Both guards together cover a bad packOffset on a truncated pack.
+                throw InvalidBlobRangeException(
+                    "Offset $offset exceeds blob size ($skipped bytes) for blob $blobId",
+                )
+            }
+            if (length == -1L) {
+                stream.readBytes() // remaining bytes after the offset
+            } else {
+                val data = readUpTo(stream, length.toInt())
+                // A fixed-length read must return exactly `length` bytes. Fewer means the blob is
+                // truncated past the offset (corrupt pack, or a bad packOffset/packedLength); fail loud
+                // rather than hand a short buffer upward, matching the SFTP/WebDAV/filesystem backends
+                // (task-15). Downstream decrypt would otherwise fail confusingly on the wrong length.
+                if (data.size < length.toInt()) {
                     throw InvalidBlobRangeException(
-                        "Offset $offset exceeds blob size ($skipped bytes) for blob $blobId"
+                        "Short read for blob $blobId: requested $length bytes at offset $offset " +
+                            "but only ${data.size} were available",
                     )
                 }
-                if (length == -1L) {
-                    stream.readBytes() // remaining bytes after the offset
-                } else {
-                    val data = readUpTo(stream, length.toInt())
-                    // A fixed-length read must return exactly `length` bytes. Fewer means the blob is
-                    // truncated past the offset (corrupt pack, or a bad packOffset/packedLength); fail loud
-                    // rather than hand a short buffer upward, matching the SFTP/WebDAV/filesystem backends
-                    // (task-15). Downstream decrypt would otherwise fail confusingly on the wrong length.
-                    if (data.size < length.toInt()) {
-                        throw InvalidBlobRangeException(
-                            "Short read for blob $blobId: requested $length bytes at offset $offset " +
-                                "but only ${data.size} were available"
-                        )
-                    }
-                    data
-                }
-            } ?: throw IOException("Could not open blob: $blobId")
-        }
+                data
+            }
+        } ?: throw IOException("Could not open blob: $blobId")
+    }
 
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
-        withContext(Dispatchers.IO) {
-            val blobFile = findBlobFile(blobId) ?: return@withContext null
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withContext(Dispatchers.IO) {
+        val blobFile = findBlobFile(blobId) ?: return@withContext null
 
-            BlobMetadata(
-                blobId = blobId,
-                length = blobFile.length(),
-                timestamp = Instant.ofEpochMilli(blobFile.lastModified())
-            )
-        }
+        BlobMetadata(
+            blobId = blobId,
+            length = blobFile.length(),
+            timestamp = Instant.ofEpochMilli(blobFile.lastModified()),
+        )
+    }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         listBlobsRecursive(rootDocument, prefix, "")
@@ -137,7 +135,7 @@ class SafBlobStorage private constructor(
     private fun listBlobsRecursive(
         dir: DocumentFile,
         prefix: String,
-        currentPath: String
+        currentPath: String,
     ): Flow<BlobMetadata> = flow {
         for (file in dir.listFiles()) {
             val fileName = file.name ?: continue
@@ -156,85 +154,84 @@ class SafBlobStorage private constructor(
                         BlobMetadata(
                             blobId = BlobId(fullBlobId),
                             length = file.length(),
-                            timestamp = Instant.ofEpochMilli(file.lastModified())
-                        )
+                            timestamp = Instant.ofEpochMilli(file.lastModified()),
+                        ),
                     )
                 }
             }
         }
     }
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
-        withContext(Dispatchers.IO) {
-            if (readOnlyMode) {
-                throw IOException("Storage is in read-only mode")
-            }
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
+        if (readOnlyMode) {
+            throw IOException("Storage is in read-only mode")
+        }
 
-            // Check for unsupported options
-            if (options.retentionMode != RetentionMode.NONE) {
-                throw UnsupportedPutOptionException("retentionMode")
-            }
+        // Check for unsupported options
+        if (options.retentionMode != RetentionMode.NONE) {
+            throw UnsupportedPutOptionException("retentionMode")
+        }
 
-            val existingFile = findBlobFile(blobId)
+        val existingFile = findBlobFile(blobId)
 
-            if (options.dontOverwrite && existingFile != null) {
-                return@withContext
-            }
+        if (options.dontOverwrite && existingFile != null) {
+            return@withContext
+        }
 
-            // Get or create shard directory structure
-            val (shardDir, fileName) = getBlobPathComponents(blobId)
-            val targetDir = getOrCreateShardDir(shardDir)
+        // Get or create shard directory structure
+        val (shardDir, fileName) = getBlobPathComponents(blobId)
+        val targetDir = getOrCreateShardDir(shardDir)
 
-            // Delete existing file if present
-            existingFile?.delete()
+        // Delete existing file if present
+        existingFile?.delete()
 
-            if (this@SafBlobStorage.options.atomicWrites) {
-                // Atomic write: create temp file, write, then rename
-                val tempFileName = "$fileName.tmp.${System.nanoTime()}"
-                val tempFile = targetDir.createFile("application/octet-stream", tempFileName)
-                    ?: throw IOException("Could not create temp file: $tempFileName")
+        if (this@SafBlobStorage.options.atomicWrites) {
+            // Atomic write: create temp file, write, then rename
+            val tempFileName = "$fileName.tmp.${System.nanoTime()}"
+            val tempFile = targetDir.createFile("application/octet-stream", tempFileName)
+                ?: throw IOException("Could not create temp file: $tempFileName")
 
-                try {
-                    // Write data to temp file
-                    context.contentResolver.openOutputStream(tempFile.uri)?.use { stream ->
-                        stream.write(data)
-                    } ?: throw IOException("Could not write to temp file: $tempFileName")
-
-                    // Rename to final name
-                    val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
-                    if (!tempFile.renameTo(finalFileName)) {
-                        throw IOException("Could not rename temp file to: $finalFileName")
-                    }
-
-                    // Set modification time if requested
-                    val modTime = options.setModTime
-                    if (modTime != null) {
-                        // Note: DocumentFile.setLastModified() is not available
-                        // We use DocumentsContract directly for this
-                        setLastModified(tempFile.uri, modTime.toEpochMilli())
-                    }
-                } catch (e: Exception) {
-                    // Clean up temp file on error
-                    tempFile.delete()
-                    throw e
-                }
-            } else {
-                // Direct write (non-atomic)
-                val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
-                val blobFile = targetDir.createFile("application/octet-stream", finalFileName)
-                    ?: throw IOException("Could not create blob file: $finalFileName")
-
-                context.contentResolver.openOutputStream(blobFile.uri)?.use { stream ->
+            try {
+                // Write data to temp file
+                context.contentResolver.openOutputStream(tempFile.uri)?.use { stream ->
                     stream.write(data)
-                } ?: throw IOException("Could not write to blob: $blobId")
+                } ?: throw IOException("Could not write to temp file: $tempFileName")
+
+                // Rename to final name
+                val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
+                if (!tempFile.renameTo(finalFileName)) {
+                    throw IOException("Could not rename temp file to: $finalFileName")
+                }
 
                 // Set modification time if requested
                 val modTime = options.setModTime
                 if (modTime != null) {
-                    setLastModified(blobFile.uri, modTime.toEpochMilli())
+                    // Note: DocumentFile.setLastModified() is not available
+                    // We use DocumentsContract directly for this
+                    setLastModified(tempFile.uri, modTime.toEpochMilli())
                 }
+            } catch (e: Exception) {
+                // Clean up temp file on error
+                tempFile.delete()
+                throw e
+            }
+        } else {
+            // Direct write (non-atomic)
+            val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
+            val blobFile = targetDir.createFile("application/octet-stream", finalFileName)
+                ?: throw IOException("Could not create blob file: $finalFileName")
+
+            context.contentResolver.openOutputStream(blobFile.uri)?.use { stream ->
+                stream.write(data)
+            } ?: throw IOException("Could not write to blob: $blobId")
+
+            // Set modification time if requested
+            val modTime = options.setModTime
+            if (modTime != null) {
+                setLastModified(blobFile.uri, modTime.toEpochMilli())
             }
         }
+    }
 
     /**
      * Attempts to set the last modified time of a document.
@@ -266,8 +263,8 @@ class SafBlobStorage private constructor(
         type = "saf",
         config = mapOf(
             "uri" to rootUri.toString(),
-            "shards" to shardingParams.default.joinToString(",")
-        )
+            "shards" to shardingParams.default.joinToString(","),
+        ),
     )
 
     override fun displayName(): String = "SAF: ${rootUri.path ?: rootUri.toString()}"
@@ -307,7 +304,7 @@ class SafBlobStorage private constructor(
                             val totalBytes = StatFs(statPath).totalBytes
                             return@withContext Capacity(
                                 sizeBytes = totalBytes,
-                                freeBytes = freeBytes
+                                freeBytes = freeBytes,
                             )
                         }
                     } catch (_: Exception) {
@@ -325,7 +322,7 @@ class SafBlobStorage private constructor(
             // Return a placeholder that indicates unknown capacity
             Capacity(
                 sizeBytes = -1L,
-                freeBytes = -1L
+                freeBytes = -1L,
             )
         } else {
             throw IOException("Cannot read from storage")
@@ -441,12 +438,10 @@ class SafBlobStorage private constructor(
     /**
      * Reconstructs the full blob ID from shard path and file name.
      */
-    private fun reconstructBlobId(shardPath: String, fileName: String): String {
-        return if (shardPath.isEmpty()) {
-            fileName
-        } else {
-            shardPath.replace("/", "") + fileName
-        }
+    private fun reconstructBlobId(shardPath: String, fileName: String): String = if (shardPath.isEmpty()) {
+        fileName
+    } else {
+        shardPath.replace("/", "") + fileName
     }
 
     /**
@@ -553,7 +548,7 @@ class SafBlobStorage private constructor(
         fun create(
             context: Context,
             treeUri: Uri,
-            options: SafOptions = SafOptions(treeUri = treeUri)
+            options: SafOptions = SafOptions(treeUri = treeUri),
         ): SafBlobStorage {
             // Verify we have permission
             val permissions = context.contentResolver.persistedUriPermissions
@@ -572,7 +567,7 @@ class SafBlobStorage private constructor(
             val shardingParams = loadShardingParams(context, treeUri)
                 ?: SafShardingParameters(
                     default = options.directoryShards,
-                    maxNonShardedLength = options.maxNonShardedLength
+                    maxNonShardedLength = options.maxNonShardedLength,
                 )
 
             return SafBlobStorage(
@@ -580,7 +575,7 @@ class SafBlobStorage private constructor(
                 rootUri = treeUri,
                 options = options,
                 shardingParams = shardingParams,
-                readOnlyMode = options.readOnly
+                readOnlyMode = options.readOnly,
             )
         }
 
@@ -592,7 +587,7 @@ class SafBlobStorage private constructor(
             treeUri: Uri,
             options: SafOptions,
             shardingParams: SafShardingParameters,
-            skipPermissionCheck: Boolean = false
+            skipPermissionCheck: Boolean = false,
         ): SafBlobStorage {
             if (!skipPermissionCheck) {
                 val permissions = context.contentResolver.persistedUriPermissions
@@ -608,7 +603,7 @@ class SafBlobStorage private constructor(
                 rootUri = treeUri,
                 options = options,
                 shardingParams = shardingParams,
-                readOnlyMode = options.readOnly
+                readOnlyMode = options.readOnly,
             )
         }
 
@@ -624,7 +619,7 @@ class SafBlobStorage private constructor(
                     val json = stream.bufferedReader().readText()
                     kotlinx.serialization.json.Json.decodeFromString(
                         SafShardingParameters.serializer(),
-                        json
+                        json,
                     )
                 }
             } catch (_: Exception) {
@@ -638,7 +633,7 @@ class SafBlobStorage private constructor(
         suspend fun saveShardingParams(
             context: Context,
             treeUri: Uri,
-            params: SafShardingParameters
+            params: SafShardingParameters,
         ) = withContext(Dispatchers.IO) {
             val root = DocumentFile.fromTreeUri(context, treeUri)
                 ?: throw IllegalArgumentException("Invalid root URI: $treeUri")
@@ -653,7 +648,7 @@ class SafBlobStorage private constructor(
             context.contentResolver.openOutputStream(shardsFile.uri)?.use { stream ->
                 val json = kotlinx.serialization.json.Json.encodeToString(
                     SafShardingParameters.serializer(),
-                    params
+                    params,
                 )
                 stream.write(json.toByteArray())
             } ?: throw IOException("Could not write .shards file")

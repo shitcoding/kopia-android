@@ -34,7 +34,7 @@ data class UpgradeLockIntent(
     val statusMessage: String = "",
 
     /** Whether the upgrade has been committed. */
-    val upgradeCommitted: Boolean = false
+    val upgradeCommitted: Boolean = false,
 ) {
     companion object {
         /** Default advance notice duration. */
@@ -51,14 +51,12 @@ data class UpgradeLockIntent(
 object InstantSerializer : kotlinx.serialization.KSerializer<Instant> {
     override val descriptor = kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
         "Instant",
-        kotlinx.serialization.descriptors.PrimitiveKind.STRING
+        kotlinx.serialization.descriptors.PrimitiveKind.STRING,
     )
 
     override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: Instant) {
         encoder.encodeString(formatRfc3339Nano(value))
     }
 
-    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Instant {
-        return Instant.parse(decoder.decodeString())
-    }
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Instant = Instant.parse(decoder.decodeString())
 }

@@ -1,6 +1,5 @@
 package org.kopiaKt.snapshot.upload
 
-import org.kopiaKt.snapshot.fs.DirectorySummary as FsDirectorySummary
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.DirectorySummary
@@ -9,6 +8,7 @@ import org.kopiaKt.snapshot.model.EntryWithError
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import org.kopiaKt.snapshot.fs.DirectorySummary as FsDirectorySummary
 
 /**
  * Builds directory manifests in a thread-safe manner.
@@ -128,8 +128,8 @@ class DirManifestBuilder {
             failedEntries.add(
                 EntryWithError(
                     entryPath = relativePath,
-                    error = error.message ?: error.toString()
-                )
+                    error = error.message ?: error.toString(),
+                ),
             )
         }
     }
@@ -168,18 +168,20 @@ class DirManifestBuilder {
                 incompleteReason = incompleteReason,
                 fatalErrorCount = fatalErrorCount,
                 ignoredErrorCount = ignoredErrorCount,
-                failedEntries = sortedFailedEntries.ifEmpty { null }
+                failedEntries = sortedFailedEntries.ifEmpty { null },
             )
 
             // Sort entries: directories first, then by name
-            val sortedEntries = entries.sortedWith(compareBy(
-                { it.type != EntryType.DIRECTORY },
-                { it.name }
-            ))
+            val sortedEntries = entries.sortedWith(
+                compareBy(
+                    { it.type != EntryType.DIRECTORY },
+                    { it.name },
+                ),
+            )
 
             return DirManifest(
                 entries = sortedEntries,
-                summary = summary
+                summary = summary,
             )
         }
     }
@@ -205,7 +207,7 @@ class DirManifestBuilder {
                 incompleteReason = incompleteReason,
                 fatalErrorCount = fatalErrorCount,
                 ignoredErrorCount = ignoredErrorCount,
-                failedEntries = sortedFailedEntries.ifEmpty { null }
+                failedEntries = sortedFailedEntries.ifEmpty { null },
             )
         }
     }
@@ -228,17 +230,15 @@ class DirManifestBuilder {
 /**
  * Converts filesystem DirectorySummary to model DirectorySummary.
  */
-fun FsDirectorySummary.toModelSummary(): DirectorySummary {
-    return DirectorySummary(
-        totalFileSize = totalFileSize,
-        totalFileCount = totalFileCount,
-        totalSymlinkCount = totalSymlinkCount,
-        totalDirCount = totalDirCount,
-        maxModTime = maxModTime,
-        fatalErrorCount = fatalErrorCount,
-        ignoredErrorCount = ignoredErrorCount,
-        failedEntries = failedEntries.map {
-            EntryWithError(entryPath = it.entryPath, error = it.error.message ?: it.error.toString())
-        }.ifEmpty { null }
-    )
-}
+fun FsDirectorySummary.toModelSummary(): DirectorySummary = DirectorySummary(
+    totalFileSize = totalFileSize,
+    totalFileCount = totalFileCount,
+    totalSymlinkCount = totalSymlinkCount,
+    totalDirCount = totalDirCount,
+    maxModTime = maxModTime,
+    fatalErrorCount = fatalErrorCount,
+    ignoredErrorCount = ignoredErrorCount,
+    failedEntries = failedEntries.map {
+        EntryWithError(entryPath = it.entryPath, error = it.error.message ?: it.error.toString())
+    }.ifEmpty { null },
+)

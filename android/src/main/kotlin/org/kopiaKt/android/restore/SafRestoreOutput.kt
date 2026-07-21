@@ -3,7 +3,6 @@ package org.kopiaKt.android.restore
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,7 +23,7 @@ import java.io.InputStream
  */
 class SafRestoreOutput(
     private val context: Context,
-    private val rootUri: Uri
+    private val rootUri: Uri,
 ) : RestoreOutput {
 
     private val contentResolver: ContentResolver = context.contentResolver
@@ -70,7 +69,7 @@ class SafRestoreOutput(
         relativePath: String,
         entry: DirEntry,
         reader: InputStream,
-        progressCallback: FileWriteProgress?
+        progressCallback: FileWriteProgress?,
     ) {
         withContext(Dispatchers.IO) {
             val effectivePath = mapPath(relativePath, entry.name)
@@ -144,19 +143,17 @@ class SafRestoreOutput(
      * Maps a relative path to account for root directory name when restoring a single directory.
      * When restoring a directory (not snapshot root), paths need to be prefixed with the directory name.
      */
-    private fun mapPath(relativePath: String, entryName: String): String {
-        return when {
-            // Empty path on first beginDirectory - use entry name as root
-            relativePath.isEmpty() && rootDirectoryName != null -> rootDirectoryName!!
-            // Empty path in other contexts (e.g., single file) - use entry name
-            relativePath.isEmpty() -> entryName
-            // Path already includes root directory - use as-is
-            rootDirectoryName != null && relativePath.startsWith("$rootDirectoryName/") -> relativePath
-            // Child path needs root directory prepended
-            rootDirectoryName != null -> "$rootDirectoryName/$relativePath"
-            // No root directory tracking - use as-is
-            else -> relativePath
-        }
+    private fun mapPath(relativePath: String, entryName: String): String = when {
+        // Empty path on first beginDirectory - use entry name as root
+        relativePath.isEmpty() && rootDirectoryName != null -> rootDirectoryName!!
+        // Empty path in other contexts (e.g., single file) - use entry name
+        relativePath.isEmpty() -> entryName
+        // Path already includes root directory - use as-is
+        rootDirectoryName != null && relativePath.startsWith("$rootDirectoryName/") -> relativePath
+        // Child path needs root directory prepended
+        rootDirectoryName != null -> "$rootDirectoryName/$relativePath"
+        // No root directory tracking - use as-is
+        else -> relativePath
     }
 
     private fun getOrCreateDirectory(relativePath: String): DocumentFile {

@@ -14,7 +14,7 @@ import kotlin.io.path.readLines
 class IgnoreFS internal constructor(
     private val wrapped: Directory,
     private val context: IgnoreContext,
-    private val relativePath: String
+    private val relativePath: String,
 ) : Directory {
 
     override val name: String = wrapped.name
@@ -38,27 +38,23 @@ class IgnoreFS internal constructor(
         return wrapEntry(entry, childPath)
     }
 
-    override suspend fun iterate(): DirectoryIterator {
-        return IgnoreDirectoryIterator(
-            wrapped.iterate(),
-            context,
-            relativePath
-        )
-    }
+    override suspend fun iterate(): DirectoryIterator = IgnoreDirectoryIterator(
+        wrapped.iterate(),
+        context,
+        relativePath,
+    )
 
     override fun supportsMultipleIterations(): Boolean = wrapped.supportsMultipleIterations()
 
     override fun close() = wrapped.close()
 
-    private fun wrapEntry(entry: Entry, path: String): Entry {
-        return when (entry) {
-            is Directory -> {
-                // Create child context with patterns from .kopiaignore in this directory
-                val childContext = context.childContext(entry, path)
-                IgnoreFS(entry, childContext, path)
-            }
-            else -> entry
+    private fun wrapEntry(entry: Entry, path: String): Entry = when (entry) {
+        is Directory -> {
+            // Create child context with patterns from .kopiaignore in this directory
+            val childContext = context.childContext(entry, path)
+            IgnoreFS(entry, childContext, path)
         }
+        else -> entry
     }
 
     companion object {
@@ -91,7 +87,7 @@ class IgnoreFS internal constructor(
             matchers: List<WildcardMatcher> = emptyList(),
             dotIgnoreFiles: List<String> = listOf(".kopiaignore"),
             maxFileSize: Long = 0,
-            oneFileSystem: Boolean = false
+            oneFileSystem: Boolean = false,
         ): Directory {
             // Load patterns from root directory's dotIgnoreFiles
             val rootPatterns = loadIgnoreFiles(dir, dotIgnoreFiles)
@@ -102,7 +98,7 @@ class IgnoreFS internal constructor(
                 dotIgnoreFiles = dotIgnoreFiles,
                 maxFileSize = maxFileSize,
                 oneFileSystem = oneFileSystem,
-                rootDevice = if (oneFileSystem) dir.device else DeviceInfo.EMPTY
+                rootDevice = if (oneFileSystem) dir.device else DeviceInfo.EMPTY,
             )
             return IgnoreFS(dir, context, "")
         }
@@ -137,7 +133,7 @@ class IgnoreFS internal constructor(
 private class IgnoreDirectoryIterator(
     private val wrapped: DirectoryIterator,
     private val context: IgnoreContext,
-    private val parentPath: String
+    private val parentPath: String,
 ) : DirectoryIterator {
 
     override suspend fun next(): Entry? {
@@ -173,7 +169,7 @@ class IgnoreContext(
     private val oneFileSystem: Boolean,
     private val rootDevice: DeviceInfo,
     private val noParentIgnoreRules: Boolean = false,
-    private val noParentDotIgnoreFiles: Boolean = false
+    private val noParentDotIgnoreFiles: Boolean = false,
 ) {
 
     /**
@@ -212,7 +208,7 @@ class IgnoreContext(
                 val patterns = loadIgnoreFile(dir, ignoreFileName)
                 if (patterns.isNotEmpty()) {
                     additionalMatchers.addAll(
-                        WildcardMatcher.parseAll(patterns)
+                        WildcardMatcher.parseAll(patterns),
                     )
                 }
             }
@@ -232,7 +228,7 @@ class IgnoreContext(
             oneFileSystem = oneFileSystem,
             rootDevice = rootDevice,
             noParentIgnoreRules = noParentIgnoreRules,
-            noParentDotIgnoreFiles = noParentDotIgnoreFiles
+            noParentDotIgnoreFiles = noParentDotIgnoreFiles,
         )
     }
 
@@ -272,12 +268,10 @@ class IgnoreContext(
                 oneFileSystem = policy.oneFileSystem ?: false,
                 rootDevice = DeviceInfo.EMPTY,
                 noParentIgnoreRules = policy.noParentIgnoreRules,
-                noParentDotIgnoreFiles = policy.noParentDotIgnoreFiles
+                noParentDotIgnoreFiles = policy.noParentDotIgnoreFiles,
             )
         }
     }
 }
 
-private fun joinPath(parent: String, child: String): String {
-    return if (parent.isEmpty()) child else "$parent/$child"
-}
+private fun joinPath(parent: String, child: String): String = if (parent.isEmpty()) child else "$parent/$child"

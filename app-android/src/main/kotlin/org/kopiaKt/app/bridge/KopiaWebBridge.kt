@@ -20,20 +20,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
-import java.security.MessageDigest
-import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
+import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.snapshot.policy.PolicyManager
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 
@@ -64,7 +64,7 @@ class KopiaWebBridge private constructor(
     private val scope: CoroutineScope,
     private val _taskManager: TaskManager?,
     private val _sourceManager: BackupSourceManager?,
-    private val _repositoryManager: KopiaRepositoryManager?
+    private val _repositoryManager: KopiaRepositoryManager?,
 ) {
     /**
      * Primary constructor for production use with Android context and Hilt DI.
@@ -73,7 +73,7 @@ class KopiaWebBridge private constructor(
         context: Context,
         activity: ComponentActivity,
         containerView: android.view.View,
-        scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     ) : this(
         context = context,
         activity = activity,
@@ -81,7 +81,7 @@ class KopiaWebBridge private constructor(
         scope = scope,
         _taskManager = null,
         _sourceManager = null,
-        _repositoryManager = null
+        _repositoryManager = null,
     )
 
     /**
@@ -90,7 +90,7 @@ class KopiaWebBridge private constructor(
     constructor(
         taskManager: TaskManager,
         sourceManager: BackupSourceManager,
-        repositoryManager: KopiaRepositoryManager
+        repositoryManager: KopiaRepositoryManager,
     ) : this(
         context = null,
         activity = null,
@@ -98,11 +98,12 @@ class KopiaWebBridge private constructor(
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         _taskManager = taskManager,
         _sourceManager = sourceManager,
-        _repositoryManager = repositoryManager
+        _repositoryManager = repositoryManager,
     )
 
     private companion object {
         const val TAG = "KopiaWebBridge"
+
         // Safety net so an unreachable backend can't hang the connect/create coroutine indefinitely.
         const val NETWORK_TIMEOUT_MS = 120_000L
         const val MILLIS_PER_SECOND = 1000L
@@ -111,7 +112,7 @@ class KopiaWebBridge private constructor(
     private val entryPoint by lazy {
         EntryPointAccessors.fromApplication(
             context!!,
-            WebBridgeEntryPoint::class.java
+            WebBridgeEntryPoint::class.java,
         )
     }
 
@@ -128,6 +129,7 @@ class KopiaWebBridge private constructor(
         get() = _sourceManager ?: lazySourceManager
 
     private val webViewRef = AtomicReference<WebView?>()
+
     // Shared with the bridge contract tests via WebModels.bridgeJson so the test pins can't drift.
     private val json = bridgeJson
     private var restoreJob: Job? = null
@@ -143,9 +145,7 @@ class KopiaWebBridge private constructor(
      * Simple ping to verify bridge communication is working.
      */
     @JavascriptInterface
-    fun ping(): String {
-        return json.encodeToString(WebResult.success("pong"))
-    }
+    fun ping(): String = json.encodeToString(WebResult.success("pong"))
 
     /**
      * Update the status bar and navigation bar appearance based on the app's theme.
@@ -175,7 +175,7 @@ class KopiaWebBridge private constructor(
 
             // Update status bar and navigation bar icon colors
             androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = !isDarkMode  // Light mode = dark icons, Dark mode = light icons
+                isAppearanceLightStatusBars = !isDarkMode // Light mode = dark icons, Dark mode = light icons
                 isAppearanceLightNavigationBars = !isDarkMode
             }
 
@@ -250,8 +250,8 @@ class KopiaWebBridge private constructor(
                         pushConnectResult(
                             WebResult.error<WebRepositoryConnection>(
                                 "Storage permission required. Please grant \"All files access\" permission to access local repositories.",
-                                WebErrorCodes.STORAGE_PERMISSION_REQUIRED
-                            )
+                                WebErrorCodes.STORAGE_PERMISSION_REQUIRED,
+                            ),
                         )
                         return@launch
                     }
@@ -272,16 +272,16 @@ class KopiaWebBridge private constructor(
                 pushConnectResult(
                     result.fold(
                         onSuccess = { WebResult.success(it.toWeb()) },
-                        onFailure = { WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error") }
-                    )
+                        onFailure = { WebResult.error<WebRepositoryConnection>(it.message ?: "Unknown error") },
+                    ),
                 )
             } catch (ignored: TimeoutCancellationException) {
                 // withTimeout's exception IS a CancellationException, so catch it FIRST and surface it —
                 // otherwise the rethrow below drops the JS callback and the connect promise hangs forever.
                 pushConnectResult(
                     WebResult.error<WebRepositoryConnection>(
-                        "Connection timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s"
-                    )
+                        "Connection timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s",
+                    ),
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -325,13 +325,15 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<WebSupportedAlgorithms>
      */
     @JavascriptInterface
-    fun getSupportedAlgorithms(): String {
-        return json.encodeToString(WebResult.success(WebSupportedAlgorithms(
-            hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"),
-            encryption = listOf("AES256-GCM-HMAC-SHA256", "NONE"),
-            compression = listOf("zstd", "lz4", "gzip", "pgzip", "deflate-default", "none")
-        )))
-    }
+    fun getSupportedAlgorithms(): String = json.encodeToString(
+        WebResult.success(
+            WebSupportedAlgorithms(
+                hashing = listOf("BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"),
+                encryption = listOf("AES256-GCM-HMAC-SHA256", "NONE"),
+                compression = listOf("zstd", "lz4", "gzip", "pgzip", "deflate-default", "none"),
+            ),
+        ),
+    )
 
     /**
      * Test whether the given storage configuration is reachable and writable.
@@ -352,18 +354,18 @@ class KopiaWebBridge private constructor(
                         if (!dir.exists()) {
                             if (!dir.mkdirs()) {
                                 return@runBlocking json.encodeToString(
-                                    WebResult.error<String>("Directory does not exist and cannot be created: ${domainConfig.path}")
+                                    WebResult.error<String>("Directory does not exist and cannot be created: ${domainConfig.path}"),
                                 )
                             }
                         }
                         if (!dir.isDirectory) {
                             return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Path is not a directory: ${domainConfig.path}")
+                                WebResult.error<String>("Path is not a directory: ${domainConfig.path}"),
                             )
                         }
                         if (!dir.canWrite()) {
                             return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Directory is not writable: ${domainConfig.path}")
+                                WebResult.error<String>("Directory is not writable: ${domainConfig.path}"),
                             )
                         }
                         val testFile = java.io.File(dir, ".kopia-test-${System.currentTimeMillis()}")
@@ -372,7 +374,7 @@ class KopiaWebBridge private constructor(
                             testFile.delete()
                         } catch (e: Exception) {
                             return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Cannot write to directory: ${e.message}")
+                                WebResult.error<String>("Cannot write to directory: ${e.message}"),
                             )
                         }
                         json.encodeToString(WebResult.success("OK"))
@@ -401,27 +403,29 @@ class KopiaWebBridge private constructor(
                     description = request.options.description,
                     hashAlgorithm = request.options.hash,
                     encryptionAlgorithm = request.options.encryption,
-                    keyDerivationAlgorithm = keyDerivationAlgorithm
+                    keyDerivationAlgorithm = keyDerivationAlgorithm,
                 )
                 val result = withTimeout(NETWORK_TIMEOUT_MS) {
                     repositoryManager.create(
                         config = connectionConfig,
                         repositoryPassword = request.password,
-                        options = options
+                        options = options,
                     )
                 }
                 val webResult = result.fold(
                     onSuccess = {
-                        WebResult.success(WebRepositoryCreationResult(
-                            storageType = request.config.storageType,
-                            encryption = request.options.encryption,
-                            hashing = request.options.hash,
-                            description = request.options.description
-                        ))
+                        WebResult.success(
+                            WebRepositoryCreationResult(
+                                storageType = request.config.storageType,
+                                encryption = request.options.encryption,
+                                hashing = request.options.hash,
+                                description = request.options.description,
+                            ),
+                        )
                     },
                     onFailure = {
                         WebResult.error<WebRepositoryCreationResult>(it.message ?: "Repository creation failed")
-                    }
+                    },
                 )
                 pushCallback("window.KopiaEvents?.onRepositoryCreated?.", json.encodeToString(webResult))
             } catch (ignored: TimeoutCancellationException) {
@@ -431,16 +435,16 @@ class KopiaWebBridge private constructor(
                     "window.KopiaEvents?.onRepositoryCreated?.",
                     json.encodeToString(
                         WebResult.error<WebRepositoryCreationResult>(
-                            "Repository creation timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s"
-                        )
-                    )
+                            "Repository creation timed out after ${NETWORK_TIMEOUT_MS / MILLIS_PER_SECOND}s",
+                        ),
+                    ),
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 pushCallback(
                     "window.KopiaEvents?.onRepositoryCreated?.",
-                    json.encodeToString(WebResult.error<WebRepositoryCreationResult>(e.message ?: "Parse error"))
+                    json.encodeToString(WebResult.error<WebRepositoryCreationResult>(e.message ?: "Parse error")),
                 )
             }
         }
@@ -461,14 +465,12 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebSourceInfo>>
      */
     @JavascriptInterface
-    fun listSources(): String {
-        return runBlocking {
-            try {
-                val sources = snapshotRepository.listSources()
-                json.encodeToString(WebResult.success(sources.map { it.toWeb() }))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<List<WebSourceInfo>>(e.message ?: "Error listing sources"))
-            }
+    fun listSources(): String = runBlocking {
+        try {
+            val sources = snapshotRepository.listSources()
+            json.encodeToString(WebResult.success(sources.map { it.toWeb() }))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebSourceInfo>>(e.message ?: "Error listing sources"))
         }
     }
 
@@ -477,28 +479,26 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebSourceWithStats>>
      */
     @JavascriptInterface
-    fun listSourcesWithStats(): String {
-        return runBlocking {
-            try {
-                val sources = snapshotRepository.listSourcesWithStats()
-                val webSources = sources.map { src ->
-                    WebSourceWithStats(
-                        source = src.source.toWeb(),
-                        snapshotCount = src.snapshotCount,
-                        latestSnapshotTime = src.latestSnapshotTime.toEpochMilli(),
-                        totalFileCount = src.totalFileCount.toLong(),
-                        totalFileSize = src.totalFileSize
-                    )
-                }
-                json.encodeToString(WebResult.success(webSources))
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "listSourcesWithStats ERROR", e)
-                json.encodeToString(
-                    WebResult.error<List<WebSourceWithStats>>(
-                        "listSourcesWithStats failed (${e::class.java.simpleName}): ${e.message ?: "Unknown error"}"
-                    )
+    fun listSourcesWithStats(): String = runBlocking {
+        try {
+            val sources = snapshotRepository.listSourcesWithStats()
+            val webSources = sources.map { src ->
+                WebSourceWithStats(
+                    source = src.source.toWeb(),
+                    snapshotCount = src.snapshotCount,
+                    latestSnapshotTime = src.latestSnapshotTime.toEpochMilli(),
+                    totalFileCount = src.totalFileCount.toLong(),
+                    totalFileSize = src.totalFileSize,
                 )
             }
+            json.encodeToString(WebResult.success(webSources))
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "listSourcesWithStats ERROR", e)
+            json.encodeToString(
+                WebResult.error<List<WebSourceWithStats>>(
+                    "listSourcesWithStats failed (${e::class.java.simpleName}): ${e.message ?: "Unknown error"}",
+                ),
+            )
         }
     }
 
@@ -508,30 +508,28 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebSnapshotWithRetention>>
      */
     @JavascriptInterface
-    fun listSnapshotsWithRetention(requestJson: String): String {
-        return runBlocking {
-            try {
-                val request = json.decodeFromString<WebSnapshotListRequest>(requestJson)
-                val source = request.source?.toDomain()
-                    ?: throw IllegalArgumentException("Source is required")
-                val results = snapshotRepository.listSnapshotsWithRetention(source)
-                val webResults = results.map { result ->
-                    WebSnapshotWithRetention(
-                        id = result.snapshot.id,
-                        source = result.snapshot.source.toWeb(),
-                        startTimeEpochMs = result.snapshot.startTime.toEpochMilli(),
-                        endTimeEpochMs = result.snapshot.endTime?.toEpochMilli(),
-                        description = result.snapshot.description,
-                        stats = result.snapshot.stats?.toWeb(),
-                        isIncomplete = result.snapshot.isIncomplete,
-                        tags = result.snapshot.tags,
-                        retentionReasons = result.retentionReasons
-                    )
-                }
-                json.encodeToString(WebResult.success(webResults))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<List<WebSnapshotWithRetention>>(e.message ?: "Error listing snapshots with retention"))
+    fun listSnapshotsWithRetention(requestJson: String): String = runBlocking {
+        try {
+            val request = json.decodeFromString<WebSnapshotListRequest>(requestJson)
+            val source = request.source?.toDomain()
+                ?: throw IllegalArgumentException("Source is required")
+            val results = snapshotRepository.listSnapshotsWithRetention(source)
+            val webResults = results.map { result ->
+                WebSnapshotWithRetention(
+                    id = result.snapshot.id,
+                    source = result.snapshot.source.toWeb(),
+                    startTimeEpochMs = result.snapshot.startTime.toEpochMilli(),
+                    endTimeEpochMs = result.snapshot.endTime?.toEpochMilli(),
+                    description = result.snapshot.description,
+                    stats = result.snapshot.stats?.toWeb(),
+                    isIncomplete = result.snapshot.isIncomplete,
+                    tags = result.snapshot.tags,
+                    retentionReasons = result.retentionReasons,
+                )
             }
+            json.encodeToString(WebResult.success(webResults))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebSnapshotWithRetention>>(e.message ?: "Error listing snapshots with retention"))
         }
     }
 
@@ -541,15 +539,13 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<Unit>
      */
     @JavascriptInterface
-    fun deleteSnapshots(requestJson: String): String {
-        return runBlocking {
-            try {
-                val request = json.decodeFromString<WebDeleteSnapshotsRequest>(requestJson)
-                snapshotRepository.deleteSnapshots(request.snapshotIds)
-                json.encodeToString(WebResult.success(Unit))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<Unit>(e.message ?: "Error deleting snapshots"))
-            }
+    fun deleteSnapshots(requestJson: String): String = runBlocking {
+        try {
+            val request = json.decodeFromString<WebDeleteSnapshotsRequest>(requestJson)
+            snapshotRepository.deleteSnapshots(request.snapshotIds)
+            json.encodeToString(WebResult.success(Unit))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<Unit>(e.message ?: "Error deleting snapshots"))
         }
     }
 
@@ -559,15 +555,13 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebSnapshotInfo>>
      */
     @JavascriptInterface
-    fun listSnapshots(requestJson: String): String {
-        return runBlocking {
-            try {
-                val request = json.decodeFromString<WebSnapshotListRequest>(requestJson)
-                val snapshots = snapshotRepository.listSnapshots(request.source?.toDomain())
-                json.encodeToString(WebResult.success(snapshots.map { it.toWeb() }))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<List<WebSnapshotInfo>>(e.message ?: "Error listing snapshots"))
-            }
+    fun listSnapshots(requestJson: String): String = runBlocking {
+        try {
+            val request = json.decodeFromString<WebSnapshotListRequest>(requestJson)
+            val snapshots = snapshotRepository.listSnapshots(request.source?.toDomain())
+            json.encodeToString(WebResult.success(snapshots.map { it.toWeb() }))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<List<WebSnapshotInfo>>(e.message ?: "Error listing snapshots"))
         }
     }
 
@@ -577,14 +571,12 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<WebSnapshotInfo?>
      */
     @JavascriptInterface
-    fun getSnapshot(snapshotId: String): String {
-        return runBlocking {
-            try {
-                val snapshot = snapshotRepository.getSnapshot(snapshotId)
-                json.encodeToString(WebResult.success(snapshot?.toWeb()))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<WebSnapshotInfo?>(e.message ?: "Error getting snapshot"))
-            }
+    fun getSnapshot(snapshotId: String): String = runBlocking {
+        try {
+            val snapshot = snapshotRepository.getSnapshot(snapshotId)
+            json.encodeToString(WebResult.success(snapshot?.toWeb()))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebSnapshotInfo?>(e.message ?: "Error getting snapshot"))
         }
     }
 
@@ -594,26 +586,24 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<WebDirectoryPage>
      */
     @JavascriptInterface
-    fun listDirectory(requestJson: String): String {
-        return runBlocking {
-            try {
-                val request = json.decodeFromString<WebListDirectoryRequest>(requestJson)
-                val all = snapshotRepository.browseDirectory(request.snapshotId, request.path)
+    fun listDirectory(requestJson: String): String = runBlocking {
+        try {
+            val request = json.decodeFromString<WebListDirectoryRequest>(requestJson)
+            val all = snapshotRepository.browseDirectory(request.snapshotId, request.path)
 
-                // Simple pagination
-                val start = request.pageToken?.toIntOrNull() ?: 0
-                val size = request.pageSize ?: all.size
-                val slice = all.drop(start).take(size)
-                val next = if (start + size < all.size) (start + size).toString() else null
+            // Simple pagination
+            val start = request.pageToken?.toIntOrNull() ?: 0
+            val size = request.pageSize ?: all.size
+            val slice = all.drop(start).take(size)
+            val next = if (start + size < all.size) (start + size).toString() else null
 
-                val page = WebDirectoryPage(
-                    entries = slice.map { it.toWeb() },
-                    nextPageToken = next
-                )
-                json.encodeToString(WebResult.success(page))
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<WebDirectoryPage>(e.message ?: "Error listing directory"))
-            }
+            val page = WebDirectoryPage(
+                entries = slice.map { it.toWeb() },
+                nextPageToken = next,
+            )
+            json.encodeToString(WebResult.success(page))
+        } catch (e: Exception) {
+            json.encodeToString(WebResult.error<WebDirectoryPage>(e.message ?: "Error listing directory"))
         }
     }
 
@@ -636,7 +626,7 @@ class KopiaWebBridge private constructor(
                     snapshotId = request.snapshotId,
                     sourcePath = request.sourcePath,
                     destinationUri = request.destinationUri,
-                    options = options
+                    options = options,
                 ).collect { progress ->
                     pushRestoreProgress(progress.toWeb())
 
@@ -649,14 +639,16 @@ class KopiaWebBridge private constructor(
                 // Job was cancelled externally - expected behavior
                 throw e
             } catch (e: Exception) {
-                pushRestoreProgress(WebRestoreProgress(
-                    state = "FAILED",
-                    totalFiles = 0,
-                    restoredFiles = 0,
-                    totalBytes = 0,
-                    restoredBytes = 0,
-                    errorMessage = e.message
-                ))
+                pushRestoreProgress(
+                    WebRestoreProgress(
+                        state = "FAILED",
+                        totalFiles = 0,
+                        restoredFiles = 0,
+                        totalBytes = 0,
+                        restoredBytes = 0,
+                        errorMessage = e.message,
+                    ),
+                )
             }
         }
     }
@@ -669,14 +661,16 @@ class KopiaWebBridge private constructor(
         snapshotRepository.cancelRestore()
         restoreJob?.cancel()
 
-        pushRestoreProgress(WebRestoreProgress(
-            state = "CANCELLED",
-            totalFiles = 0,
-            restoredFiles = 0,
-            totalBytes = 0,
-            restoredBytes = 0,
-            errorMessage = "Cancelled"
-        ))
+        pushRestoreProgress(
+            WebRestoreProgress(
+                state = "CANCELLED",
+                totalFiles = 0,
+                restoredFiles = 0,
+                totalBytes = 0,
+                restoredBytes = 0,
+                errorMessage = "Cancelled",
+            ),
+        )
     }
 
     /**
@@ -691,7 +685,7 @@ class KopiaWebBridge private constructor(
             var launcher: androidx.activity.result.ActivityResultLauncher<Uri?>? = null
             launcher = act.activityResultRegistry.register(
                 key,
-                ActivityResultContracts.OpenDocumentTree()
+                ActivityResultContracts.OpenDocumentTree(),
             ) { uri ->
                 launcher?.unregister()
                 val result = if (uri == null) {
@@ -699,7 +693,7 @@ class KopiaWebBridge private constructor(
                 } else {
                     WebSafPickResult(
                         uri = uri.toString(),
-                        displayName = uri.lastPathSegment
+                        displayName = uri.lastPathSegment,
                     )
                 }
                 pushDestinationPicked(result)
@@ -714,17 +708,15 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<Unit>
      */
     @JavascriptInterface
-    fun persistUriPermission(requestJson: String): String {
-        return try {
-            val ctx = context ?: error("Context not available")
-            val request = json.decodeFromString<WebPersistUriRequest>(requestJson)
-            val flags = (if (request.read) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
-                (if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
-            ctx.contentResolver.takePersistableUriPermission(Uri.parse(request.uri), flags)
-            json.encodeToString(WebResult.success(Unit))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<Unit>(e.message ?: "Failed to persist permission"))
-        }
+    fun persistUriPermission(requestJson: String): String = try {
+        val ctx = context ?: error("Context not available")
+        val request = json.decodeFromString<WebPersistUriRequest>(requestJson)
+        val flags = (if (request.read) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+            (if (request.write) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+        ctx.contentResolver.takePersistableUriPermission(Uri.parse(request.uri), flags)
+        json.encodeToString(WebResult.success(Unit))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<Unit>(e.message ?: "Failed to persist permission"))
     }
 
     /**
@@ -791,7 +783,7 @@ class KopiaWebBridge private constructor(
                     config.sftp?.host.orEmpty(),
                     config.sftp?.port?.toString().orEmpty(),
                     config.sftp?.username.orEmpty(),
-                    config.sftp?.path.orEmpty()
+                    config.sftp?.path.orEmpty(),
                 )
             "SAF" ->
                 listOf("saf", config.saf?.treeUri.orEmpty())
@@ -812,7 +804,7 @@ class KopiaWebBridge private constructor(
         webViewRef.get()?.post {
             webViewRef.get()?.evaluateJavascript(
                 "window.KopiaEvents?.onRestoreProgress?.($jsonStr);",
-                null
+                null,
             )
         }
     }
@@ -825,7 +817,7 @@ class KopiaWebBridge private constructor(
         webViewRef.get()?.post {
             webViewRef.get()?.evaluateJavascript(
                 "window.KopiaEvents?.onDestinationPicked?.($jsonStr);",
-                null
+                null,
             )
         }
     }
@@ -845,7 +837,7 @@ class KopiaWebBridge private constructor(
         webViewRef.get()?.post {
             webViewRef.get()?.evaluateJavascript(
                 "window.KopiaEvents?.onSystemThemeChanged?.($jsonStr);",
-                null
+                null,
             )
         }
     }
@@ -860,13 +852,11 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebSourceStatus>>
      */
     @JavascriptInterface
-    fun listAllSources(): String {
-        return try {
-            val sources = sourceManager.listSources()
-            json.encodeToString(WebResult.success(sources.map { it.toWebStatus() }))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<List<WebSourceStatus>>(e.message ?: "Error listing sources"))
-        }
+    fun listAllSources(): String = try {
+        val sources = sourceManager.listSources()
+        json.encodeToString(WebResult.success(sources.map { it.toWebStatus() }))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<List<WebSourceStatus>>(e.message ?: "Error listing sources"))
     }
 
     /**
@@ -888,8 +878,8 @@ class KopiaWebBridge private constructor(
                 val repo = repositoryManager.getRepository()
                     ?: return json.encodeToString(
                         WebResult.error<WebBackupSourceInfo>(
-                            "Repository not connected; cannot save the source policy"
-                        )
+                            "Repository not connected; cannot save the source policy",
+                        ),
                     )
                 runBlocking {
                     PolicyManager.setPolicy(repo, localSnapshotSourceInfo(request.path), policy)
@@ -912,7 +902,7 @@ class KopiaWebBridge private constructor(
         return try {
             val existing = sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Source not found: $sourceId")
+                    WebResult.error<Boolean>("Source not found: $sourceId"),
                 )
             sourceManager.deleteSource(sourceId)
             json.encodeToString(WebResult.success(true))
@@ -931,7 +921,7 @@ class KopiaWebBridge private constructor(
         return try {
             val source = sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
-                    WebResult.error<WebSourceStatus>("Source not found: $sourceId")
+                    WebResult.error<WebSourceStatus>("Source not found: $sourceId"),
                 )
             json.encodeToString(WebResult.success(source.toWebStatus()))
         } catch (e: Exception) {
@@ -949,7 +939,7 @@ class KopiaWebBridge private constructor(
         return try {
             val existing = sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Source not found: $sourceId")
+                    WebResult.error<Boolean>("Source not found: $sourceId"),
                 )
             sourceManager.pauseSource(sourceId)
             json.encodeToString(WebResult.success(true))
@@ -968,7 +958,7 @@ class KopiaWebBridge private constructor(
         return try {
             val existing = sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Source not found: $sourceId")
+                    WebResult.error<Boolean>("Source not found: $sourceId"),
                 )
             sourceManager.resumeSource(sourceId)
             json.encodeToString(WebResult.success(true))
@@ -987,11 +977,9 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<String> containing the task ID
      */
     @JavascriptInterface
-    fun estimateBackup(requestJson: String): String {
-        return json.encodeToString(
-            WebResult.error<String>("Backup estimation is not yet implemented")
-        )
-    }
+    fun estimateBackup(requestJson: String): String = json.encodeToString(
+        WebResult.error<String>("Backup estimation is not yet implemented"),
+    )
 
     /**
      * Start a backup for the given source.
@@ -999,11 +987,9 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<String> containing the task ID
      */
     @JavascriptInterface
-    fun startBackup(sourceId: String): String {
-        return json.encodeToString(
-            WebResult.error<String>("Backup execution is not yet implemented")
-        )
-    }
+    fun startBackup(sourceId: String): String = json.encodeToString(
+        WebResult.error<String>("Backup execution is not yet implemented"),
+    )
 
     /**
      * Cancel a running backup by task ID.
@@ -1015,7 +1001,7 @@ class KopiaWebBridge private constructor(
         return try {
             val task = taskManager.getTask(taskId)
                 ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Task not found: $taskId")
+                    WebResult.error<Boolean>("Task not found: $taskId"),
                 )
             taskManager.cancelTask(taskId)
             json.encodeToString(WebResult.success(true))
@@ -1033,13 +1019,11 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebTaskInfo>>
      */
     @JavascriptInterface
-    fun listTasks(): String {
-        return try {
-            val tasks = taskManager.listTasks()
-            json.encodeToString(WebResult.success(tasks.map { it.toWeb() }))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<List<WebTaskInfo>>(e.message ?: "Error listing tasks"))
-        }
+    fun listTasks(): String = try {
+        val tasks = taskManager.listTasks()
+        json.encodeToString(WebResult.success(tasks.map { it.toWeb() }))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<List<WebTaskInfo>>(e.message ?: "Error listing tasks"))
     }
 
     /**
@@ -1048,13 +1032,11 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<WebTaskInfo?>
      */
     @JavascriptInterface
-    fun getTask(taskId: String): String {
-        return try {
-            val task = taskManager.getTask(taskId)
-            json.encodeToString(WebResult.success(task?.toWeb()))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<WebTaskInfo?>(e.message ?: "Error getting task"))
-        }
+    fun getTask(taskId: String): String = try {
+        val task = taskManager.getTask(taskId)
+        json.encodeToString(WebResult.success(task?.toWeb()))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<WebTaskInfo?>(e.message ?: "Error getting task"))
     }
 
     /**
@@ -1063,11 +1045,9 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<List<WebTaskLogEntry>>
      */
     @JavascriptInterface
-    fun getTaskLogs(taskId: String): String {
-        return json.encodeToString(
-            WebResult.error<List<WebTaskLogEntry>>("Task log storage is not yet implemented")
-        )
-    }
+    fun getTaskLogs(taskId: String): String = json.encodeToString(
+        WebResult.error<List<WebTaskLogEntry>>("Task log storage is not yet implemented"),
+    )
 
     /**
      * Cancel a running task.
@@ -1079,7 +1059,7 @@ class KopiaWebBridge private constructor(
         return try {
             val task = taskManager.getTask(taskId)
                 ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Task not found: $taskId")
+                    WebResult.error<Boolean>("Task not found: $taskId"),
                 )
             taskManager.cancelTask(taskId)
             json.encodeToString(WebResult.success(true))
@@ -1103,7 +1083,7 @@ class KopiaWebBridge private constructor(
             try {
                 val repo = repositoryManager.getRepository()
                     ?: return@runBlocking json.encodeToString(
-                        WebResult.error<org.kopiaKt.snapshot.policy.Policy?>("Repository not connected")
+                        WebResult.error<org.kopiaKt.snapshot.policy.Policy?>("Repository not connected"),
                     )
                 val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
                 val sourceInfo = request.toSnapshotSourceInfo()
@@ -1111,7 +1091,7 @@ class KopiaWebBridge private constructor(
                 json.encodeToString(WebResult.success(policy))
             } catch (e: Exception) {
                 json.encodeToString(
-                    WebResult.error<org.kopiaKt.snapshot.policy.Policy?>(e.message ?: "Error getting policy")
+                    WebResult.error<org.kopiaKt.snapshot.policy.Policy?>(e.message ?: "Error getting policy"),
                 )
             }
         }
@@ -1128,7 +1108,7 @@ class KopiaWebBridge private constructor(
             try {
                 val repo = repositoryManager.getRepository()
                     ?: return@runBlocking json.encodeToString(
-                        WebResult.error<Boolean>("Repository not connected")
+                        WebResult.error<Boolean>("Repository not connected"),
                     )
                 val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
                 val sourceInfo = request.toSnapshotSourceInfo()
@@ -1150,13 +1130,13 @@ class KopiaWebBridge private constructor(
             try {
                 val repo = repositoryManager.getRepository()
                     ?: return@runBlocking json.encodeToString(
-                        WebResult.error<List<WebPolicyListEntry>>("Repository not connected")
+                        WebResult.error<List<WebPolicyListEntry>>("Repository not connected"),
                     )
                 val policies = PolicyManager.listPolicies(repo)
                 val entries = policies.map { twp ->
                     WebPolicyListEntry(
                         source = twp.target.toWeb(),
-                        policy = twp.policy
+                        policy = twp.policy,
                     )
                 }
                 json.encodeToString(WebResult.success(entries))
@@ -1177,17 +1157,21 @@ class KopiaWebBridge private constructor(
             try {
                 val repo = repositoryManager.getRepository()
                     ?: return@runBlocking json.encodeToString(
-                        WebResult.error<WebResolvedPolicy>("Repository not connected")
+                        WebResult.error<WebResolvedPolicy>("Repository not connected"),
                     )
                 val request = json.decodeFromString<WebPolicySourceRequest>(requestJson)
                 val sourceInfo = request.toSnapshotSourceInfo()
                 val effective = PolicyManager.getEffectivePolicy(repo, sourceInfo)
                 val defined = PolicyManager.getPolicy(repo, sourceInfo)
-                json.encodeToString(WebResult.success(WebResolvedPolicy(
-                    effective = effective,
-                    defined = defined,
-                    upcomingSnapshotTimes = emptyList()
-                )))
+                json.encodeToString(
+                    WebResult.success(
+                        WebResolvedPolicy(
+                            effective = effective,
+                            defined = defined,
+                            upcomingSnapshotTimes = emptyList(),
+                        ),
+                    ),
+                )
             } catch (e: Exception) {
                 json.encodeToString(WebResult.error<WebResolvedPolicy>(e.message ?: "Error resolving policy"))
             }
@@ -1205,7 +1189,7 @@ class KopiaWebBridge private constructor(
             try {
                 val repo = repositoryManager.getRepository()
                     ?: return@runBlocking json.encodeToString(
-                        WebResult.error<Boolean>("Repository not connected")
+                        WebResult.error<Boolean>("Repository not connected"),
                     )
                 val request = json.decodeFromString<WebSetPolicyRequest>(requestJson)
                 val sourceInfo = request.source.toSnapshotSourceInfo()
@@ -1227,37 +1211,33 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<String> containing the task ID
      */
     @JavascriptInterface
-    fun triggerMaintenance(mode: String): String {
-        return json.encodeToString(
-            WebResult.error<String>("Maintenance is not yet implemented")
-        )
-    }
+    fun triggerMaintenance(mode: String): String = json.encodeToString(
+        WebResult.error<String>("Maintenance is not yet implemented"),
+    )
 
     /**
      * Get the current maintenance status based on task history.
      * @return JSON-encoded WebResult<WebMaintenanceStatus>
      */
     @JavascriptInterface
-    fun getMaintenanceStatus(): String {
-        return try {
-            val maintenanceTasks = taskManager.listTasks()
-                .filter { it.kind == TaskKind.MAINTENANCE }
-                .sortedByDescending { it.startTime }
-            val lastTask = maintenanceTasks.firstOrNull()
-            val status = if (lastTask != null) {
-                WebMaintenanceStatus(
-                    lastRunTimeEpochMs = lastTask.startTime.toEpochMilli(),
-                    lastMode = lastTask.description.substringBefore(" maintenance", "QUICK"),
-                    lastSuccess = lastTask.status == org.kopiaKt.android.worker.TaskStatus.SUCCESS,
-                    lastError = lastTask.errorMessage
-                )
-            } else {
-                WebMaintenanceStatus()
-            }
-            json.encodeToString(WebResult.success(status))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<WebMaintenanceStatus>(e.message ?: "Error getting maintenance status"))
+    fun getMaintenanceStatus(): String = try {
+        val maintenanceTasks = taskManager.listTasks()
+            .filter { it.kind == TaskKind.MAINTENANCE }
+            .sortedByDescending { it.startTime }
+        val lastTask = maintenanceTasks.firstOrNull()
+        val status = if (lastTask != null) {
+            WebMaintenanceStatus(
+                lastRunTimeEpochMs = lastTask.startTime.toEpochMilli(),
+                lastMode = lastTask.description.substringBefore(" maintenance", "QUICK"),
+                lastSuccess = lastTask.status == org.kopiaKt.android.worker.TaskStatus.SUCCESS,
+                lastError = lastTask.errorMessage,
+            )
+        } else {
+            WebMaintenanceStatus()
         }
+        json.encodeToString(WebResult.success(status))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<WebMaintenanceStatus>(e.message ?: "Error getting maintenance status"))
     }
 
     /**

@@ -4,23 +4,20 @@ import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -126,19 +123,19 @@ class BackupSessionLifecycleTest {
         sourcePath: String,
         sourceId: String,
         tags: Map<String, String> = emptyMap(),
-        callback: BackupSessionCallback = NullBackupSessionCallback()
+        callback: BackupSessionCallback = NullBackupSessionCallback(),
     ): BackupSession {
         val config = BackupSessionConfig(
             sourcePath = sourcePath,
             sourceId = sourceId,
-            tags = tags
+            tags = tags,
         )
         return BackupSession(
             repository = repo,
             config = config,
             checkpointStore = checkpointStore,
             callback = callback,
-            context = context
+            context = context,
         )
     }
 
@@ -178,7 +175,7 @@ class BackupSessionLifecycleTest {
 
             val source = sourceManager.createSource(
                 tempDir.toAbsolutePath().toString(),
-                "Documents"
+                "Documents",
             )
 
             val (repo, writer) = mockRepository()
@@ -191,7 +188,7 @@ class BackupSessionLifecycleTest {
                 writer = writer,
                 checkpointStore = cpStore,
                 sourcePath = source.path,
-                sourceId = source.id
+                sourceId = source.id,
             )
             val result = session.run()
 
@@ -310,10 +307,12 @@ class BackupSessionLifecycleTest {
 
             val tags = mapOf("env" to "production", "team" to "platform")
             val session = createSessionForSource(
-                repo, writer, cpStore,
+                repo,
+                writer,
+                cpStore,
                 sourcePath = source.path,
                 sourceId = source.id,
-                tags = tags
+                tags = tags,
             )
             val result = session.run()
 
@@ -350,10 +349,12 @@ class BackupSessionLifecycleTest {
             }
 
             val session = createSessionForSource(
-                repo, writer, cpStore,
+                repo,
+                writer,
+                cpStore,
                 sourcePath = dir.toAbsolutePath().toString(),
                 sourceId = "progress-src",
-                callback = callback
+                callback = callback,
             )
             val result = session.run()
 
@@ -382,10 +383,12 @@ class BackupSessionLifecycleTest {
             }
 
             val session = createSessionForSource(
-                repo, writer, cpStore,
+                repo,
+                writer,
+                cpStore,
                 sourcePath = dir.toAbsolutePath().toString(),
                 sourceId = "counter-src",
-                callback = callback
+                callback = callback,
             )
             session.run()
 
@@ -419,10 +422,10 @@ class BackupSessionLifecycleTest {
                     repository = repo,
                     config = BackupSessionConfig(
                         sourcePath = dir.toAbsolutePath().toString(),
-                        sourceId = "task-src"
+                        sourceId = "task-src",
                     ),
                     checkpointStore = cpStore,
-                    context = context
+                    context = context,
                 )
                 capturedResult = session.run()
             }
@@ -467,10 +470,10 @@ class BackupSessionLifecycleTest {
                     repository = repo,
                     config = BackupSessionConfig(
                         sourcePath = source.path,
-                        sourceId = source.id
+                        sourceId = source.id,
                     ),
                     checkpointStore = cpStore,
-                    context = context
+                    context = context,
                 )
                 capturedResult = session.run()
                 // Propagate the failure so TaskManager records FAILED
@@ -509,10 +512,10 @@ class BackupSessionLifecycleTest {
                 repository = repo,
                 config = BackupSessionConfig(
                     sourcePath = dir.toAbsolutePath().toString(),
-                    sourceId = "disconnected-src"
+                    sourceId = "disconnected-src",
                 ),
                 checkpointStore = cpStore,
-                context = context
+                context = context,
             )
             val result = session.run()
 
@@ -550,10 +553,10 @@ class BackupSessionLifecycleTest {
                         repository = repo,
                         config = BackupSessionConfig(
                             sourcePath = dir.toAbsolutePath().toString(),
-                            sourceId = "cancel-src"
+                            sourceId = "cancel-src",
                         ),
                         checkpointStore = cpStore,
-                        context = context
+                        context = context,
                     )
                     session.run()
                 } finally {
@@ -609,10 +612,10 @@ class BackupSessionLifecycleTest {
                 repository = repo,
                 config = BackupSessionConfig(
                     sourcePath = dir.toAbsolutePath().toString(),
-                    sourceId = "cp-src"
+                    sourceId = "cp-src",
                 ),
                 checkpointStore = store,
-                context = context
+                context = context,
             )
 
             val job = scope.launch { session.run() }
@@ -648,10 +651,10 @@ class BackupSessionLifecycleTest {
                 repository = repo,
                 config = BackupSessionConfig(
                     sourcePath = dir.toAbsolutePath().toString(),
-                    sourceId = "early-src"
+                    sourceId = "early-src",
                 ),
                 checkpointStore = cpStore,
-                context = context
+                context = context,
             )
 
             session.cancel()
@@ -691,10 +694,10 @@ class BackupSessionLifecycleTest {
                 repository = repo,
                 config = BackupSessionConfig(
                     sourcePath = dir.toAbsolutePath().toString(),
-                    sourceId = "retry-src"
+                    sourceId = "retry-src",
                 ),
                 checkpointStore = cpStore,
-                context = context
+                context = context,
             )
             val result1 = session1.run()
             assertThat(result1).isInstanceOf(BackupSessionResult.Failed::class.java)
@@ -704,10 +707,10 @@ class BackupSessionLifecycleTest {
                 repository = repo,
                 config = BackupSessionConfig(
                     sourcePath = dir.toAbsolutePath().toString(),
-                    sourceId = "retry-src"
+                    sourceId = "retry-src",
                 ),
                 checkpointStore = cpStore,
-                context = context
+                context = context,
             )
             val result2 = session2.run()
             assertThat(result2).isInstanceOf(BackupSessionResult.Success::class.java)
@@ -735,9 +738,11 @@ class BackupSessionLifecycleTest {
 
             // Run backup
             val session = createSessionForSource(
-                repo, writer, cpStore,
+                repo,
+                writer,
+                cpStore,
                 sourcePath = source.path,
-                sourceId = source.id
+                sourceId = source.id,
             )
             val result = session.run()
             assertThat(result).isInstanceOf(BackupSessionResult.Success::class.java)

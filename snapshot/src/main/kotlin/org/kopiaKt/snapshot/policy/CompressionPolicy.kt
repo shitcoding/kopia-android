@@ -27,7 +27,7 @@ data class CompressionPolicy(
     val noParentNeverCompress: Boolean = false,
 
     val minSize: Long = 0,
-    val maxSize: Long = 0
+    val maxSize: Long = 0,
 ) {
     /**
      * Returns the compression name to be used for compressing a given file.
@@ -112,7 +112,7 @@ data class CompressionPolicy(
             },
             maxSize = mergeLong(maxSize, src.maxSize) {
                 newDef.maxSize = si
-            }
+            },
         ) to newDef
     }
 
@@ -121,7 +121,7 @@ data class CompressionPolicy(
          * Default compression policy.
          */
         val Default = CompressionPolicy(
-            compressorName = "none"
+            compressorName = "none",
         )
     }
 }
@@ -133,14 +133,12 @@ data class CompressionPolicy(
  */
 @Serializable
 data class MetadataCompressionPolicy(
-    val compressorName: String = ""
+    val compressorName: String = "",
 ) {
     /**
      * Returns the metadata compressor name.
      */
-    fun metadataCompressor(): String {
-        return if (compressorName == "none") "" else compressorName
-    }
+    fun metadataCompressor(): String = if (compressorName == "none") "" else compressorName
 
     /**
      * Merges this policy with source policy.
@@ -150,7 +148,7 @@ data class MetadataCompressionPolicy(
         return MetadataCompressionPolicy(
             compressorName = mergeString(compressorName, src.compressorName) {
                 newDef.compressorName = si
-            }
+            },
         ) to newDef
     }
 
@@ -159,7 +157,7 @@ data class MetadataCompressionPolicy(
          * Default metadata compression policy.
          */
         val Default = MetadataCompressionPolicy(
-            compressorName = "zstd-fastest"
+            compressorName = "zstd-fastest",
         )
     }
 }
@@ -175,7 +173,7 @@ data class CompressionPolicyDefinition(
     var onlyCompress: SourceInfo? = null,
     var neverCompress: SourceInfo? = null,
     var minSize: SourceInfo? = null,
-    var maxSize: SourceInfo? = null
+    var maxSize: SourceInfo? = null,
 )
 
 /**
@@ -185,7 +183,7 @@ data class CompressionPolicyDefinition(
  */
 @Serializable
 data class MetadataCompressionPolicyDefinition(
-    var compressorName: SourceInfo? = null
+    var compressorName: SourceInfo? = null,
 )
 
 private fun isInSortedList(s: String, sortedList: List<String>): Boolean {
@@ -193,20 +191,16 @@ private fun isInSortedList(s: String, sortedList: List<String>): Boolean {
     return idx >= 0
 }
 
-private inline fun mergeString(target: String, src: String, onMerge: () -> Unit): String {
-    return if (target.isEmpty() && src.isNotEmpty()) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeString(target: String, src: String, onMerge: () -> Unit): String = if (target.isEmpty() && src.isNotEmpty()) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long {
-    return if (target == 0L && src != 0L) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeLong(target: Long, src: Long, onMerge: () -> Unit): Long = if (target == 0L && src != 0L) {
+    onMerge()
+    src
+} else {
+    target
 }

@@ -134,7 +134,7 @@ class IndexBlobEncryptionTest {
         val expected = byteArrayOf(
             0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66,
             0x77, 0x77, 0x88.toByte(), 0x88.toByte(),
-            0x99.toByte(), 0x99.toByte(), 0x00, 0x00
+            0x99.toByte(), 0x99.toByte(), 0x00, 0x00,
         )
         assertArrayEquals(expected, ivBytes)
     }
@@ -219,14 +219,14 @@ class IndexBlobEncryptionTest {
         val expectedIvHex = "bbbb6666777788889999000011112222"
         assertArrayEquals(
             expectedIvHex.hexToByteArray(),
-            mockEncryptor.lastRawIdBytes
+            mockEncryptor.lastRawIdBytes,
         )
     }
 
     // ===== Mock Encryptor =====
 
     private class MockEncryptor(
-        override val overhead: Int = 16
+        override val overhead: Int = 16,
     ) : org.kopiaKt.core.encryption.Encryptor {
         override val algorithm = org.kopiaKt.core.encryption.EncryptionAlgorithm.AES256_GCM_HMAC_SHA256
 
@@ -237,7 +237,7 @@ class IndexBlobEncryptionTest {
 
         override suspend fun encrypt(
             plaintext: ByteArray,
-            contentId: org.kopiaKt.core.content.ContentId
+            contentId: org.kopiaKt.core.content.ContentId,
         ): ByteArray {
             encryptCalled = true
             lastContentId = contentId
@@ -246,7 +246,7 @@ class IndexBlobEncryptionTest {
 
         override suspend fun decrypt(
             ciphertext: ByteArray,
-            contentId: org.kopiaKt.core.content.ContentId
+            contentId: org.kopiaKt.core.content.ContentId,
         ): ByteArray {
             decryptCalled = true
             lastContentId = contentId
@@ -260,7 +260,7 @@ class IndexBlobEncryptionTest {
 
         override suspend fun decryptWithRawId(
             ciphertext: ByteArray,
-            contentIdBytes: ByteArray
+            contentIdBytes: ByteArray,
         ): ByteArray {
             decryptCalled = true
             lastRawIdBytes = contentIdBytes
@@ -274,7 +274,7 @@ class IndexBlobEncryptionTest {
 
         override suspend fun encryptWithRawId(
             plaintext: ByteArray,
-            contentIdBytes: ByteArray
+            contentIdBytes: ByteArray,
         ): ByteArray {
             encryptCalled = true
             lastRawIdBytes = contentIdBytes

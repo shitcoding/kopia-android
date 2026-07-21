@@ -49,16 +49,14 @@ class MultiSnapshotGCTest {
     /**
      * Helper to write file data as a regular object (no prefix).
      */
-    private suspend fun DirectRepositoryWriter.writeFileObject(data: ByteArray): ObjectId {
-        return writeObject(data)
-    }
+    private suspend fun DirectRepositoryWriter.writeFileObject(data: ByteArray): ObjectId = writeObject(data)
 
     /**
      * Helper to write a DirManifest as an object with 'k' prefix,
      * which is how Kopia stores directory content.
      */
     private suspend fun DirectRepositoryWriter.writeDirManifestObject(
-        dirManifest: DirManifest
+        dirManifest: DirManifest,
     ): ObjectId {
         val json = DirManifest.json.encodeToString(DirManifest.serializer(), dirManifest)
         return writeObject(json.toByteArray(Charsets.UTF_8), ObjectWriterOptions(prefix = 'k'))
@@ -71,7 +69,7 @@ class MultiSnapshotGCTest {
      * the in-use set. Deliberately distinct from writeDirManifestObject (which mimics prefixed dirs).
      */
     private suspend fun DirectRepositoryWriter.writeProductionDirManifestObject(
-        dirManifest: DirManifest
+        dirManifest: DirManifest,
     ): ObjectId {
         val json = DirManifest.json.encodeToString(DirManifest.serializer(), dirManifest)
         return writeObject(json.toByteArray(Charsets.UTF_8))
@@ -83,7 +81,7 @@ class MultiSnapshotGCTest {
     private suspend fun DirectRepositoryWriter.createSnapshot(
         id: String,
         source: SourceInfo,
-        rootDirObjectId: ObjectId
+        rootDirObjectId: ObjectId,
     ) {
         val snapshot = SnapshotManifest(
             id = id,
@@ -96,13 +94,13 @@ class MultiSnapshotGCTest {
                 permissions = 493, // 0o755
                 fileSize = 0,
                 modTime = Instant.now(),
-                objectId = rootDirObjectId.toString()
-            )
+                objectId = rootDirObjectId.toString(),
+            ),
         )
         putManifest(
             ManifestLabels.forSnapshot(source),
             snapshot,
-            SnapshotManifest.serializer()
+            SnapshotManifest.serializer(),
         )
     }
 
@@ -135,7 +133,7 @@ class MultiSnapshotGCTest {
                         permissions = 420, // 0o644
                         fileSize = fileData1.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid1.toString()
+                        objectId = fileOid1.toString(),
                     ),
                     DirEntry(
                         name = "file2.txt",
@@ -143,7 +141,7 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = fileData2.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid2.toString()
+                        objectId = fileOid2.toString(),
                     ),
                     DirEntry(
                         name = "file3.txt",
@@ -151,9 +149,9 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = fileData3.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid3.toString()
-                    )
-                )
+                        objectId = fileOid3.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dirManifest)
 
@@ -202,7 +200,7 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = fileData1.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid1.toString()
+                        objectId = fileOid1.toString(),
                     ),
                     DirEntry(
                         name = "beta.txt",
@@ -210,9 +208,9 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = fileData2.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid2.toString()
-                    )
-                )
+                        objectId = fileOid2.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dirManifest)
 
@@ -267,7 +265,7 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = data1a.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = oid1a.toString()
+                        objectId = oid1a.toString(),
                     ),
                     DirEntry(
                         name = "b.txt",
@@ -275,9 +273,9 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = data1b.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = oid1b.toString()
-                    )
-                )
+                        objectId = oid1b.toString(),
+                    ),
+                ),
             )
             val dirOid1 = writer.writeDirManifestObject(dir1)
 
@@ -295,7 +293,7 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = data2a.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = oid2a.toString()
+                        objectId = oid2a.toString(),
                     ),
                     DirEntry(
                         name = "y.dat",
@@ -303,9 +301,9 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = data2b.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = oid2b.toString()
-                    )
-                )
+                        objectId = oid2b.toString(),
+                    ),
+                ),
             )
             val dirOid2 = writer.writeDirManifestObject(dir2)
 
@@ -368,9 +366,9 @@ class MultiSnapshotGCTest {
                         permissions = 420,
                         fileSize = deepData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = deepOid.toString()
-                    )
-                )
+                        objectId = deepOid.toString(),
+                    ),
+                ),
             )
             val subDirOid = writer.writeProductionDirManifestObject(subDir)
 
@@ -382,9 +380,9 @@ class MultiSnapshotGCTest {
                         type = EntryType.DIRECTORY,
                         permissions = 493,
                         modTime = Instant.now(),
-                        objectId = subDirOid.toString()
-                    )
-                )
+                        objectId = subDirOid.toString(),
+                    ),
+                ),
             )
             val rootOid = writer.writeProductionDirManifestObject(rootDir)
 
@@ -436,9 +434,9 @@ class MultiSnapshotGCTest {
                         type = EntryType.FILE,
                         fileSize = fileData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = fileOid.toString()
-                    )
-                )
+                        objectId = fileOid.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dir)
             writer.flush()
@@ -450,8 +448,7 @@ class MultiSnapshotGCTest {
 
             // Delegate everything to the real repo, but make the tree walk hit a cancellation.
             val cancellingRepo = object : DirectRepository by repository {
-                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> =
-                    throw CancellationException("cancelled mid-walk")
+                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> = throw CancellationException("cancelled mid-walk")
             }
 
             var thrown: CancellationException? = null
@@ -512,7 +509,7 @@ class MultiSnapshotGCTest {
         private suspend fun buildRepoWithOrphan(
             repository: DirectRepositoryImpl,
             referencedData: ByteArray,
-            orphanData: ByteArray
+            orphanData: ByteArray,
         ): Pair<ObjectId, ObjectId> {
             val writer = repository.newDirectWriter()
             val referencedOid = writer.writeFileObject(referencedData)
@@ -525,9 +522,9 @@ class MultiSnapshotGCTest {
                         type = EntryType.FILE,
                         fileSize = referencedData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = referencedOid.toString()
-                    )
-                )
+                        objectId = referencedOid.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dir)
             writer.flush()
@@ -557,7 +554,7 @@ class MultiSnapshotGCTest {
 
             // The snapshot manifest ('m' content) is system content and is always kept.
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
@@ -613,8 +610,7 @@ class MultiSnapshotGCTest {
             // a delete run — a partial in-use set would let live-tree content be reclaimed. Simulate it by
             // failing verifyObject during the walk.
             val failingRepo = object : DirectRepositoryWriter by repository {
-                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> =
-                    throw RuntimeException("simulated corrupt object")
+                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> = throw RuntimeException("simulated corrupt object")
             }
 
             assertThrows<RuntimeException> {
@@ -634,8 +630,7 @@ class MultiSnapshotGCTest {
             buildRepoWithOrphan(repository, "kept".toByteArray(), "orphan".toByteArray())
 
             val failingRepo = object : DirectRepositoryWriter by repository {
-                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> =
-                    throw RuntimeException("simulated corrupt object")
+                override suspend fun verifyObject(objectId: ObjectId): List<ContentId> = throw RuntimeException("simulated corrupt object")
             }
 
             // delete=false must not abort on an unverifiable object — dry runs are best-effort.
@@ -659,14 +654,20 @@ class MultiSnapshotGCTest {
             val dir = DirManifest(
                 entries = listOf(
                     DirEntry(
-                        name = "empty.txt", type = EntryType.FILE, fileSize = 0,
-                        modTime = Instant.now(), objectId = emptyOid.toString()
+                        name = "empty.txt",
+                        type = EntryType.FILE,
+                        fileSize = 0,
+                        modTime = Instant.now(),
+                        objectId = emptyOid.toString(),
                     ),
                     DirEntry(
-                        name = "normal.txt", type = EntryType.FILE, fileSize = normalData.size.toLong(),
-                        modTime = Instant.now(), objectId = normalOid.toString()
-                    )
-                )
+                        name = "normal.txt",
+                        type = EntryType.FILE,
+                        fileSize = normalData.size.toLong(),
+                        modTime = Instant.now(),
+                        objectId = normalOid.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dir)
             writer.flush()
@@ -697,10 +698,13 @@ class MultiSnapshotGCTest {
             val dir = DirManifest(
                 entries = listOf(
                     DirEntry(
-                        name = "big.bin", type = EntryType.FILE, fileSize = bigData.size.toLong(),
-                        modTime = Instant.now(), objectId = bigOid.toString()
-                    )
-                )
+                        name = "big.bin",
+                        type = EntryType.FILE,
+                        fileSize = bigData.size.toLong(),
+                        modTime = Instant.now(),
+                        objectId = bigOid.toString(),
+                    ),
+                ),
             )
             val dirOid = writer.writeDirManifestObject(dir)
             writer.flush()
@@ -735,9 +739,9 @@ class MultiSnapshotGCTest {
                         type = EntryType.FILE,
                         fileSize = leafData.size.toLong(),
                         modTime = Instant.now(),
-                        objectId = leafOid.toString()
-                    )
-                )
+                        objectId = leafOid.toString(),
+                    ),
+                ),
             )
             val subDirOid = writer.writeProductionDirManifestObject(subDir)
 
@@ -747,9 +751,9 @@ class MultiSnapshotGCTest {
                         name = "subdir",
                         type = EntryType.UNKNOWN, // ambiguous type over a prefix-less directory object
                         modTime = Instant.now(),
-                        objectId = subDirOid.toString()
-                    )
-                )
+                        objectId = subDirOid.toString(),
+                    ),
+                ),
             )
             val rootOid = writer.writeProductionDirManifestObject(rootDir)
             writer.flush()
@@ -815,7 +819,7 @@ class MultiSnapshotGCTest {
                     type = EntryType.FILE,
                     fileSize = subFileData.size.toLong(),
                     modTime = Instant.now(),
-                    objectId = subFileOid.toString()
+                    objectId = subFileOid.toString(),
                 )
             }
             val bigDir = DirManifest(entries = entries)
@@ -827,9 +831,9 @@ class MultiSnapshotGCTest {
                         name = "bigdir",
                         type = EntryType.DIRECTORY,
                         modTime = Instant.now(),
-                        objectId = bigDirOid.toString()
-                    )
-                )
+                        objectId = bigDirOid.toString(),
+                    ),
+                ),
             )
             val rootOid = writer.writeProductionDirManifestObject(rootDir)
             writer.flush()

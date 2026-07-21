@@ -54,11 +54,11 @@ class EdgeCaseFixtureCrossCompatibilityTest {
         val fixtureResource = javaClass.classLoader.getResource("fixtures/edge_case_repos/edge_case_repo")
         Assumptions.assumeTrue(
             fixtureResource != null,
-            "Edge-case fixture repo not found in test resources"
+            "Edge-case fixture repo not found in test resources",
         )
         Assumptions.assumeTrue(
             fixtureResource!!.protocol == "file",
-            "Fixture repo must be on filesystem (not inside JAR)"
+            "Fixture repo must be on filesystem (not inside JAR)",
         )
 
         fixtureRepoDir = tempDir.resolve("fixture_repo")
@@ -85,10 +85,10 @@ class EdgeCaseFixtureCrossCompatibilityTest {
         val source = org.kopiaKt.snapshot.model.SourceInfo(
             host = "sdk_gphone64_arm64",
             userName = "local",
-            path = "/sdcard/Download"
+            path = "/sdcard/Download",
         )
         val policy = org.kopiaKt.snapshot.policy.Policy(
-            retentionPolicy = org.kopiaKt.snapshot.policy.RetentionPolicy(keepLatest = 10)
+            retentionPolicy = org.kopiaKt.snapshot.policy.RetentionPolicy(keepLatest = 10),
         )
 
         val storage = FilesystemBlobStorage(fixtureRepoDir)
@@ -118,7 +118,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
         // Find all snapshot manifests
         val snapshotMetadata = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
 
         assertThat(snapshotMetadata).isNotEmpty()
@@ -144,14 +144,14 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
         // Find snapshot manifests
         val snapshotMetadata = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
         assertThat(snapshotMetadata).isNotEmpty()
 
         // Load the first snapshot manifest
         val (manifest, _) = repository.getManifest(
             snapshotMetadata.first().id,
-            SnapshotManifest.serializer()
+            SnapshotManifest.serializer(),
         )
         assertThat(manifest.rootEntry).isNotNull()
 
@@ -167,8 +167,8 @@ class EdgeCaseFixtureCrossCompatibilityTest {
                 overwriteFiles = true,
                 overwriteSymlinks = true,
                 skipOwners = true,
-                ignorePermissionErrors = true
-            )
+                ignorePermissionErrors = true,
+            ),
         )
         val restorer = SnapshotRestorer(output = output)
         val stats = restorer.restore(rootEntry)
@@ -188,13 +188,13 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
         // Find and load snapshot
         val snapshotMetadata = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
         assertThat(snapshotMetadata).isNotEmpty()
 
         val (manifest, _) = repository.getManifest(
             snapshotMetadata.first().id,
-            SnapshotManifest.serializer()
+            SnapshotManifest.serializer(),
         )
 
         val rootEntry = snapshotRoot(repository, manifest)
@@ -207,8 +207,8 @@ class EdgeCaseFixtureCrossCompatibilityTest {
                 overwriteFiles = true,
                 overwriteSymlinks = true,
                 skipOwners = true,
-                ignorePermissionErrors = true
-            )
+                ignorePermissionErrors = true,
+            ),
         )
         val restorer = SnapshotRestorer(output = output)
         restorer.restore(rootEntry)
@@ -246,7 +246,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
         repo = repository
 
         val kotlinSnapshots = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
         val kotlinSnapshotCount = kotlinSnapshots.size
 

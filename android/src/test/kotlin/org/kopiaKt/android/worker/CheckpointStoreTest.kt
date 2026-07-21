@@ -1,17 +1,8 @@
 package org.kopiaKt.android.worker
 
 import android.content.Context
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -19,11 +10,9 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.junit.jupiter.api.io.TempDir
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import java.io.File
 
 /**
  * Unit tests for CheckpointStore.
@@ -95,7 +84,7 @@ class CheckpointStoreTest {
                 sourceId = "source-1",
                 sourcePath = "/test/path",
                 repositoryConnectionJson = "{}",
-                checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000) // 25 hours ago
+                checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000), // 25 hours ago
             )
 
             checkpointStore.saveCheckpoint(oldCheckpoint)
@@ -200,8 +189,8 @@ class CheckpointStoreTest {
                     sourceId = "source-2",
                     sourcePath = "/test/path",
                     repositoryConnectionJson = "{}",
-                    checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000)
-                )
+                    checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000),
+                ),
             )
 
             val checkpoints = checkpointStore.listActiveCheckpoints()
@@ -223,8 +212,8 @@ class CheckpointStoreTest {
                     sourceId = "stale",
                     sourcePath = "/test/path",
                     repositoryConnectionJson = "{}",
-                    checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000)
-                )
+                    checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000),
+                ),
             )
 
             val cleared = checkpointStore.clearStaleCheckpoints()
@@ -283,7 +272,7 @@ class CheckpointStoreTest {
                 sourceId = "test",
                 sourcePath = "/test",
                 repositoryConnectionJson = "{}",
-                checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000)
+                checkpointTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000),
             )
 
             assertThat(checkpoint.isStale()).isTrue()
@@ -296,7 +285,7 @@ class CheckpointStoreTest {
                 sourceId = "test",
                 sourcePath = "/test",
                 repositoryConnectionJson = "{}",
-                checkpointTime = tenMinutesAgo
+                checkpointTime = tenMinutesAgo,
             )
 
             val age = checkpoint.ageMillis()
@@ -336,12 +325,12 @@ class CheckpointStoreTest {
     private fun createTestCheckpoint(
         sourceId: String,
         processedFiles: Int = 0,
-        processedBytes: Long = 0
+        processedBytes: Long = 0,
     ) = BackupCheckpoint(
         sourceId = sourceId,
         sourcePath = "/test/path",
         repositoryConnectionJson = "{}",
         processedFiles = processedFiles,
-        processedBytes = processedBytes
+        processedBytes = processedBytes,
     )
 }

@@ -57,7 +57,7 @@ class SnapshotVerifierTest {
         @Test
         fun `should report error when content blob is corrupted`() = runTest {
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to "test data".toByteArray())
+                mapOf("obj" to "test data".toByteArray()),
             )
             repo = result.first
             storage = result.second
@@ -84,7 +84,7 @@ class SnapshotVerifierTest {
         @Test
         fun `should report error when content blob is missing`() = runTest {
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to "test data".toByteArray())
+                mapOf("obj" to "test data".toByteArray()),
             )
             repo = result.first
             storage = result.second
@@ -128,7 +128,7 @@ class SnapshotVerifierTest {
             val objects = mapOf(
                 "good1" to "good data 1".toByteArray(),
                 "good2" to "good data 2".toByteArray(),
-                "good3" to "good data 3".toByteArray()
+                "good3" to "good data 3".toByteArray(),
             )
             val result = TestRepositoryFactory.createWithObjects(objects)
             repo = result.first
@@ -164,7 +164,7 @@ class SnapshotVerifierTest {
         @Test
         fun `should return non-zero error count on failure`() = runTest {
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to "data".toByteArray())
+                mapOf("obj" to "data".toByteArray()),
             )
             repo = result.first
             storage = result.second
@@ -186,7 +186,7 @@ class SnapshotVerifierTest {
         @Test
         fun `should include meaningful error messages`() = runTest {
             val result = TestRepositoryFactory.createWithObjects(
-                mapOf("obj" to "data".toByteArray())
+                mapOf("obj" to "data".toByteArray()),
             )
             repo = result.first
             storage = result.second

@@ -25,7 +25,7 @@ data class ErrorHandlingPolicy(
      * Controls whether snapshot operation should fail when it encounters a directory entry
      * of an unknown type.
      */
-    val ignoreUnknownTypes: Boolean? = null
+    val ignoreUnknownTypes: Boolean? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -41,7 +41,7 @@ data class ErrorHandlingPolicy(
             },
             ignoreUnknownTypes = mergeOptionalBool(ignoreUnknownTypes, src.ignoreUnknownTypes) {
                 newDef.ignoreUnknownTypes = si
-            }
+            },
         ) to newDef
     }
 
@@ -52,7 +52,7 @@ data class ErrorHandlingPolicy(
         val Default = ErrorHandlingPolicy(
             ignoreFileErrors = false,
             ignoreDirectoryErrors = false,
-            ignoreUnknownTypes = true
+            ignoreUnknownTypes = true,
         )
     }
 }
@@ -66,15 +66,13 @@ data class ErrorHandlingPolicy(
 data class ErrorHandlingPolicyDefinition(
     var ignoreFileErrors: SourceInfo? = null,
     var ignoreDirectoryErrors: SourceInfo? = null,
-    var ignoreUnknownTypes: SourceInfo? = null
+    var ignoreUnknownTypes: SourceInfo? = null,
 )
 
 // Helper merge function
-private inline fun mergeOptionalBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeOptionalBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

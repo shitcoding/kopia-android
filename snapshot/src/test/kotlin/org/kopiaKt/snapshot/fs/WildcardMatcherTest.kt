@@ -165,10 +165,12 @@ class WildcardMatcherTest {
 
         @Test
         fun `shouldIgnore respects negation`() {
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "*.log",
-                "!important.log"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "*.log",
+                    "!important.log",
+                ),
+            )
 
             assertTrue(shouldIgnore("debug.log", false, matchers))
             assertTrue(shouldIgnore("error.log", false, matchers))
@@ -218,7 +220,7 @@ class WildcardMatcherTest {
         fun `case insensitive matching`() {
             val matcher = WildcardMatcher.parse(
                 "readme.md",
-                WildcardMatcher.Options(ignoreCase = true)
+                WildcardMatcher.Options(ignoreCase = true),
             )
             assertTrue(matcher.match("README.md"))
             assertTrue(matcher.match("Readme.MD"))
@@ -258,23 +260,27 @@ class WildcardMatcherTest {
     inner class ParseAll {
         @Test
         fun `parses multiple patterns`() {
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "*.log",
-                "*.tmp",
-                "build/"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "*.log",
+                    "*.tmp",
+                    "build/",
+                ),
+            )
             assertEquals(3, matchers.size)
         }
 
         @Test
         fun `filters out comments and blank lines`() {
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "# This is a comment",
-                "*.log",
-                "",
-                "   ",
-                "*.tmp"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "# This is a comment",
+                    "*.log",
+                    "",
+                    "   ",
+                    "*.tmp",
+                ),
+            )
             assertEquals(2, matchers.size)
         }
     }
@@ -283,14 +289,16 @@ class WildcardMatcherTest {
     inner class CommonIgnorePatterns {
         @Test
         fun `gitignore-style patterns`() {
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "node_modules/",
-                ".git/",
-                "*.class",
-                "build/",
-                "**/*.log",
-                "!important.log"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "node_modules/",
+                    ".git/",
+                    "*.class",
+                    "build/",
+                    "**/*.log",
+                    "!important.log",
+                ),
+            )
 
             assertTrue(shouldIgnore("node_modules", true, matchers))
             assertTrue(shouldIgnore(".git", true, matchers))
@@ -303,14 +311,16 @@ class WildcardMatcherTest {
 
         @Test
         fun `kopiaignore patterns`() {
-            val matchers = WildcardMatcher.parseAll(listOf(
-                "*.tmp",
-                "*.swp",
-                ".DS_Store",
-                "Thumbs.db",
-                "__pycache__/",
-                "*.pyc"
-            ))
+            val matchers = WildcardMatcher.parseAll(
+                listOf(
+                    "*.tmp",
+                    "*.swp",
+                    ".DS_Store",
+                    "Thumbs.db",
+                    "__pycache__/",
+                    "*.pyc",
+                ),
+            )
 
             assertTrue(shouldIgnore("temp.tmp", false, matchers))
             assertTrue(shouldIgnore(".file.swp", false, matchers))

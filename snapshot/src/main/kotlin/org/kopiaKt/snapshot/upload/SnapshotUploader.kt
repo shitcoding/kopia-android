@@ -45,7 +45,7 @@ data class UploadOptions(
     /**
      * If true, fail immediately on the first error.
      */
-    val failFast: Boolean = false
+    val failFast: Boolean = false,
 )
 
 /**
@@ -75,7 +75,7 @@ data class UploadResult(
     /**
      * Reason for incomplete snapshot, if applicable.
      */
-    val incompleteReason: String? = null
+    val incompleteReason: String? = null,
 )
 
 /**
@@ -93,7 +93,7 @@ class SnapshotUploader(
     private val writer: RepositoryWriter,
     private val source: SourceInfo,
     private val policy: Policy = Policy(),
-    private val progress: UploadProgress = NullUploadProgress()
+    private val progress: UploadProgress = NullUploadProgress(),
 ) {
     private val currentWalker = AtomicReference<TreeWalker?>(null)
 
@@ -121,7 +121,7 @@ class SnapshotUploader(
      */
     suspend fun upload(
         rootDir: Directory,
-        options: UploadOptions = UploadOptions()
+        options: UploadOptions = UploadOptions(),
     ): UploadResult {
         val startTime = Instant.now()
         progress.uploadStarted()
@@ -140,7 +140,7 @@ class SnapshotUploader(
                 progress = progress,
                 compressionPolicy = policy.compressionPolicy,
                 splitterPolicy = policy.splitterPolicy,
-                forceHashPercentage = options.forceHashPercentage
+                forceHashPercentage = options.forceHashPercentage,
             )
 
             // Create and register the tree walker
@@ -148,7 +148,7 @@ class SnapshotUploader(
                 processor = fileUploader,
                 progress = progress,
                 errorPolicy = createErrorPolicy(options),
-                parallelism = options.parallelUploads
+                parallelism = options.parallelUploads,
             )
             currentWalker.set(walker)
             // Apply a cancel that landed before the walker existed (see [cancelled]).
@@ -183,7 +183,7 @@ class SnapshotUploader(
                 excludedFileCount = counters.totalExcludedFiles,
                 excludedDirCount = counters.totalExcludedDirs,
                 ignoredErrorCount = counters.ignoredErrorCount,
-                errorCount = counters.fatalErrorCount
+                errorCount = counters.fatalErrorCount,
             )
 
             // Create the snapshot manifest
@@ -197,7 +197,7 @@ class SnapshotUploader(
                 stats = stats,
                 incompleteReason = incompleteReason,
                 rootEntry = rootEntry,
-                tags = options.tags
+                tags = options.tags,
             )
 
             // Save the manifest
@@ -214,9 +214,8 @@ class SnapshotUploader(
                 manifest = manifest,
                 stats = stats,
                 incomplete = incompleteReason != null,
-                incompleteReason = incompleteReason
+                incompleteReason = incompleteReason,
             )
-
         } finally {
             currentWalker.set(null)
         }
@@ -225,9 +224,7 @@ class SnapshotUploader(
     /**
      * Applies ignore rules from the files policy to the directory.
      */
-    private fun applyIgnoreRules(dir: Directory): Directory {
-        return IgnoreFS.wrap(dir, policy.filesPolicy)
-    }
+    private fun applyIgnoreRules(dir: Directory): Directory = IgnoreFS.wrap(dir, policy.filesPolicy)
 
     /**
      * Finds the most recent previous snapshot for the same source.
@@ -262,7 +259,7 @@ class SnapshotUploader(
             val data = writer.readObject(ObjectId.parse(rootObjectId))
             kotlinx.serialization.json.Json.decodeFromString(
                 DirManifest.serializer(),
-                data.toString(Charsets.UTF_8)
+                data.toString(Charsets.UTF_8),
             )
         } catch (e: Exception) {
             // If we can't load it, proceed without manifest caching
@@ -273,8 +270,5 @@ class SnapshotUploader(
     /**
      * Creates error handling policy from upload options and policy.
      */
-    private fun createErrorPolicy(options: UploadOptions): ErrorHandlingPolicy {
-        return policy.errorHandlingPolicy.copy()
-    }
+    private fun createErrorPolicy(options: UploadOptions): ErrorHandlingPolicy = policy.errorHandlingPolicy.copy()
 }
-

@@ -74,7 +74,7 @@ class KeyDerivationTest {
                 password = "test".toByteArray(),
                 salt = ByteArray(16) { 0x42 },
                 iterations = 1000,
-                keyLength = 32
+                keyLength = 32,
             )
             assertEquals(32, result.size)
         }
@@ -86,13 +86,13 @@ class KeyDerivationTest {
                 password = "test".toByteArray(),
                 salt = ByteArray(16) { 0x42 },
                 iterations = 1000,
-                keyLength = 16
+                keyLength = 16,
             )
             val result64 = kdf.derive(
                 password = "test".toByteArray(),
                 salt = ByteArray(16) { 0x42 },
                 iterations = 1000,
-                keyLength = 64
+                keyLength = 64,
             )
             assertEquals(16, result16.size)
             assertEquals(64, result64.size)
@@ -110,13 +110,13 @@ class KeyDerivationTest {
                 password = testCase.password.toByteArray(Charsets.UTF_8),
                 salt = testCase.salt,
                 iterations = testCase.iterations,
-                keyLength = testCase.keyLen
+                keyLength = testCase.keyLen,
             )
 
             assertEquals(
                 testCase.outputHex,
                 result.toHexString(),
-                "PBKDF2 key mismatch for test case '${testCase.name}'"
+                "PBKDF2 key mismatch for test case '${testCase.name}'",
             )
         }
     }
@@ -152,7 +152,7 @@ class KeyDerivationTest {
                 n = 1024,
                 r = 8,
                 p = 1,
-                keyLength = 32
+                keyLength = 32,
             )
             assertEquals(32, result.size)
         }
@@ -166,7 +166,7 @@ class KeyDerivationTest {
                 n = 1024,
                 r = 8,
                 p = 1,
-                keyLength = 16
+                keyLength = 16,
             )
             val result64 = kdf.derive(
                 password = "test".toByteArray(),
@@ -174,7 +174,7 @@ class KeyDerivationTest {
                 n = 1024,
                 r = 8,
                 p = 1,
-                keyLength = 64
+                keyLength = 64,
             )
             assertEquals(16, result16.size)
             assertEquals(64, result64.size)
@@ -194,13 +194,13 @@ class KeyDerivationTest {
                 n = testCase.n,
                 r = testCase.r,
                 p = testCase.p,
-                keyLength = testCase.keyLen
+                keyLength = testCase.keyLen,
             )
 
             assertEquals(
                 testCase.outputHex,
                 result.toHexString(),
-                "Scrypt key mismatch for test case '${testCase.name}'"
+                "Scrypt key mismatch for test case '${testCase.name}'",
             )
         }
     }
@@ -246,7 +246,7 @@ class KeyDerivationTest {
                 masterKey = ByteArray(32) { it.toByte() },
                 salt = ByteArray(16) { 0x42 },
                 info = "test".toByteArray(),
-                length = 32
+                length = 32,
             )
             assertEquals(32, result.size)
         }
@@ -290,13 +290,13 @@ class KeyDerivationTest {
                 masterKey = testCase.master,
                 salt = testCase.salt,
                 info = testCase.infoBytes,
-                length = testCase.length
+                length = testCase.length,
             )
 
             assertEquals(
                 testCase.outputHex,
                 result.toHexString(),
-                "HKDF key mismatch for test case '${testCase.name}'"
+                "HKDF key mismatch for test case '${testCase.name}'",
             )
         }
     }

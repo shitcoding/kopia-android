@@ -62,21 +62,21 @@ class ManifestIdTest {
     @Test
     fun `rejects too short string`() {
         assertThrows<IllegalArgumentException> {
-            ManifestId("0123456789abcdef")  // 16 chars, should be 32
+            ManifestId("0123456789abcdef") // 16 chars, should be 32
         }
     }
 
     @Test
     fun `rejects too long string`() {
         assertThrows<IllegalArgumentException> {
-            ManifestId("0123456789abcdef0123456789abcdef0")  // 33 chars
+            ManifestId("0123456789abcdef0123456789abcdef0") // 33 chars
         }
     }
 
     @Test
     fun `rejects invalid hex characters`() {
         assertThrows<IllegalArgumentException> {
-            ManifestId("0123456789abcdef0123456789abcdeg")  // 'g' is not hex
+            ManifestId("0123456789abcdef0123456789abcdeg") // 'g' is not hex
         }
     }
 

@@ -35,7 +35,7 @@ interface EntryProcessor {
     suspend fun processFile(
         file: File,
         relativePath: String,
-        previousEntry: DirEntry?
+        previousEntry: DirEntry?,
     ): DirEntry
 
     /**
@@ -49,7 +49,7 @@ interface EntryProcessor {
     suspend fun processSymlink(
         symlink: Symlink,
         relativePath: String,
-        previousEntry: DirEntry?
+        previousEntry: DirEntry?,
     ): DirEntry
 
     /**
@@ -76,7 +76,7 @@ class TreeWalker(
     private val processor: EntryProcessor,
     private val progress: UploadProgress,
     private val errorPolicy: ErrorHandlingPolicy = ErrorHandlingPolicy(),
-    private val parallelism: Int = Runtime.getRuntime().availableProcessors()
+    private val parallelism: Int = Runtime.getRuntime().availableProcessors(),
 ) {
     private val semaphore = Semaphore(parallelism)
     private val cancelled = AtomicBoolean(false)
@@ -112,10 +112,8 @@ class TreeWalker(
      */
     suspend fun walk(
         rootDir: Directory,
-        previousManifest: DirManifest? = null
-    ): DirEntry {
-        return walkDirectory(rootDir, "", previousManifest)
-    }
+        previousManifest: DirManifest? = null,
+    ): DirEntry = walkDirectory(rootDir, "", previousManifest)
 
     /**
      * Recursively walks a directory.
@@ -128,7 +126,7 @@ class TreeWalker(
     private suspend fun walkDirectory(
         dir: Directory,
         relativePath: String,
-        previousManifest: DirManifest?
+        previousManifest: DirManifest?,
     ): DirEntry {
         if (cancelled.get()) {
             throw CancelledException()
@@ -165,13 +163,12 @@ class TreeWalker(
                             entry = entry,
                             parentPath = relativePath,
                             previousEntry = previousEntries[entry.name],
-                            builder = builder
+                            builder = builder,
                         )
                     }
                 }
                 jobs.awaitAll()
             }
-
         } catch (e: CancelledException) {
             throw e
         } catch (e: FatalErrorException) {
@@ -194,7 +191,7 @@ class TreeWalker(
             userId = dir.owner.userId,
             groupId = dir.owner.groupId,
             objectId = objectId,
-            dirSummary = manifest.summary
+            dirSummary = manifest.summary,
         )
     }
 
@@ -205,7 +202,7 @@ class TreeWalker(
         entry: Entry,
         parentPath: String,
         previousEntry: DirEntry?,
-        builder: DirManifestBuilder
+        builder: DirManifestBuilder,
     ) {
         if (cancelled.get()) {
             throw CancelledException()
@@ -256,7 +253,6 @@ class TreeWalker(
             }
 
             dirEntry?.let { builder.addEntry(it) }
-
         } catch (e: CancelledException) {
             throw e
         } catch (e: FatalErrorException) {
@@ -273,7 +269,7 @@ class TreeWalker(
         path: String,
         error: Throwable,
         builder: DirManifestBuilder,
-        isDirectory: Boolean
+        isDirectory: Boolean,
     ) {
         val isIgnored = if (isDirectory) {
             errorPolicy.ignoreDirectoryErrors ?: false
@@ -292,8 +288,6 @@ class TreeWalker(
     }
 
     companion object {
-        private fun joinPath(parent: String, child: String): String {
-            return if (parent.isEmpty()) child else "$parent/$child"
-        }
+        private fun joinPath(parent: String, child: String): String = if (parent.isEmpty()) child else "$parent/$child"
     }
 }

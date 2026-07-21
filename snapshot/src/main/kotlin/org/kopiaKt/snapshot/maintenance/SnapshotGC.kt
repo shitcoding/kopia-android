@@ -85,7 +85,7 @@ data class SnapshotGCStats(
     /**
      * Total size of recovered contents.
      */
-    val recoveredContentSize: Long = 0
+    val recoveredContentSize: Long = 0,
 )
 
 /**
@@ -106,7 +106,7 @@ data class GCOptions(
     /**
      * Progress callback for GC operations.
      */
-    val onProgress: ((GCProgress) -> Unit)? = null
+    val onProgress: ((GCProgress) -> Unit)? = null,
 )
 
 /**
@@ -117,7 +117,7 @@ data class GCProgress(
     val processedSnapshots: Int = 0,
     val totalSnapshots: Int = 0,
     val processedContents: Int = 0,
-    val inUseContents: Int = 0
+    val inUseContents: Int = 0,
 )
 
 /**
@@ -137,7 +137,7 @@ data class GCProgress(
  */
 class SnapshotGC(
     private val repository: DirectRepository,
-    private val maxDirectoryManifestSize: Long = MAX_DIRECTORY_MANIFEST_SIZE
+    private val maxDirectoryManifestSize: Long = MAX_DIRECTORY_MANIFEST_SIZE,
 ) {
     /**
      * Runs garbage collection.
@@ -181,7 +181,7 @@ class SnapshotGC(
             }
             repository as? DirectRepositoryWriter
                 ?: throw IllegalStateException(
-                    "GC content deletion requires a DirectRepositoryWriter."
+                    "GC content deletion requires a DirectRepositoryWriter.",
                 )
         } else {
             null
@@ -220,8 +220,8 @@ class SnapshotGC(
             options.onProgress?.invoke(
                 GCProgress(
                     "Scanning content",
-                    inUseContents = inUseSet.size().toInt()
-                )
+                    inUseContents = inUseSet.size().toInt(),
+                ),
             )
 
             val stats = findAndProcessUnreferencedContent(inUseSet, writer, options, now)
@@ -252,7 +252,7 @@ class SnapshotGC(
      */
     internal suspend fun buildInUseSet(
         onProgress: ((GCProgress) -> Unit)? = null,
-        failClosed: Boolean = false
+        failClosed: Boolean = false,
     ): InUseContentSet {
         val inUseSet = InUseContentSetFactory.create()
         // The caller owns the returned set, but if Phase 1 throws mid-build we must close it here —
@@ -272,8 +272,8 @@ class SnapshotGC(
                         "Walking snapshot trees",
                         processedSnapshots,
                         totalSnapshots,
-                        inUseContents = inUseSet.size().toInt()
-                    )
+                        inUseContents = inUseSet.size().toInt(),
+                    ),
                 )
             }
 
@@ -286,7 +286,7 @@ class SnapshotGC(
 
     private suspend fun loadAllSnapshots(failClosed: Boolean): List<SnapshotManifest> {
         val manifests = repository.findManifests(
-            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+            mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
         )
 
         return manifests.mapNotNull { metadata ->
@@ -306,7 +306,7 @@ class SnapshotGC(
     private suspend fun collectInUseContent(
         snapshot: SnapshotManifest,
         inUseSet: InUseContentSet,
-        failClosed: Boolean
+        failClosed: Boolean,
     ) {
         val rootEntry = snapshot.rootEntry
         val rootObjectIdStr = rootEntry?.objectId
@@ -318,7 +318,7 @@ class SnapshotGC(
             if (failClosed && snapshot.incompleteReason == null) {
                 throw IllegalStateException(
                     "snapshot ${snapshot.id} has no usable root entry; refusing delete-GC over a " +
-                        "possibly-incomplete/drifted view"
+                        "possibly-incomplete/drifted view",
                 )
             }
             return
@@ -341,7 +341,7 @@ class SnapshotGC(
         objectId: ObjectId,
         isDirectory: Boolean,
         inUseSet: InUseContentSet,
-        failClosed: Boolean
+        failClosed: Boolean,
     ) {
         // Get all content IDs backing this object
         val contentIds = try {
@@ -382,7 +382,7 @@ class SnapshotGC(
         if (failClosed && !dirManifest.isValidDirectoryStream()) {
             throw IllegalStateException(
                 "object $objectId was treated as a directory but its stream type is " +
-                    "'${dirManifest.streamType}'; refusing delete-GC"
+                    "'${dirManifest.streamType}'; refusing delete-GC",
             )
         }
 
@@ -399,7 +399,7 @@ class SnapshotGC(
                 if (failClosed) {
                     throw IllegalStateException(
                         "directory $objectId has child entry '${entry.name}' with no object id; " +
-                            "refusing delete-GC"
+                            "refusing delete-GC",
                     )
                 }
                 continue
@@ -466,10 +466,9 @@ class SnapshotGC(
      * own content was already recorded). A false NEGATIVE would drop a live subtree — hence UNKNOWN is
      * treated as "recurse". See task-9.
      */
-    private fun isDirectory(entry: DirEntry, objectId: ObjectId): Boolean =
-        entry.type == EntryType.DIRECTORY ||
-            entry.type == EntryType.UNKNOWN ||
-            isDirectoryId(objectId)
+    private fun isDirectory(entry: DirEntry, objectId: ObjectId): Boolean = entry.type == EntryType.DIRECTORY ||
+        entry.type == EntryType.UNKNOWN ||
+        isDirectoryId(objectId)
 
     /**
      * Phase 2: iterate ALL content (including tombstones) and classify each item. Manifest ('m') content
@@ -484,7 +483,7 @@ class SnapshotGC(
         inUseSet: InUseContentSet,
         writer: DirectRepositoryWriter?,
         options: GCOptions,
-        now: Instant
+        now: Instant,
     ): SnapshotGCStats {
         val minAge = options.safety.minContentAgeSubjectToGC
 
@@ -506,7 +505,7 @@ class SnapshotGC(
                 deletedCount, deletedSize,
                 recentCount, recentSize,
                 inUseCount, inUseSize,
-                systemCount, systemSize
+                systemCount, systemSize,
             )
         }
 
@@ -520,7 +519,7 @@ class SnapshotGC(
             inUseContentCount = inUseCount.get(),
             inUseContentSize = inUseSize.get(),
             inUseSystemContentCount = systemCount.get(),
-            inUseSystemContentSize = systemSize.get()
+            inUseSystemContentSize = systemSize.get(),
             // recoveredContent* stays 0 — see SnapshotGCStats.recoveredContentCount.
         )
     }
@@ -541,7 +540,7 @@ class SnapshotGC(
         inUseCount: AtomicInteger,
         inUseSize: AtomicLong,
         systemCount: AtomicInteger,
-        systemSize: AtomicLong
+        systemSize: AtomicLong,
     ) {
         val contentId = info.contentId
         val size = info.packedLength.toLong()

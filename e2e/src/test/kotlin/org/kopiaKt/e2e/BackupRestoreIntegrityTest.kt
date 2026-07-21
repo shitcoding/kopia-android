@@ -48,7 +48,7 @@ class BackupRestoreIntegrityTest {
                 "binary-random-large" to LargeDataGenerator.generate(65536, seed = 3L),
                 "newlines-only" to "\n\n\n\r\n\r\n".toByteArray(),
                 "null-terminated" to byteArrayOf(0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x00),
-                "high-entropy" to LargeDataGenerator.generate(4096, seed = 99L)
+                "high-entropy" to LargeDataGenerator.generate(4096, seed = 99L),
             )
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(objects)
@@ -59,7 +59,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Content mismatch for object '$key'"
+                    "Content mismatch for object '$key'",
                 )
             }
         }
@@ -69,7 +69,7 @@ class BackupRestoreIntegrityTest {
             val emptyData = ByteArray(0)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                mapOf("empty-object" to emptyData)
+                mapOf("empty-object" to emptyData),
             )
             repo = repository
 
@@ -84,7 +84,7 @@ class BackupRestoreIntegrityTest {
             val allBytes = ByteArray(256) { it.toByte() }
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
-                mapOf("all-byte-values" to allBytes)
+                mapOf("all-byte-values" to allBytes),
             )
             repo = repository
 
@@ -116,7 +116,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Byte-level mismatch for object '$key' (size=${originalData.size})"
+                    "Byte-level mismatch for object '$key' (size=${originalData.size})",
                 )
             }
         }
@@ -139,7 +139,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Byte-level mismatch for object '$key' at splitter boundary (size=${originalData.size})"
+                    "Byte-level mismatch for object '$key' at splitter boundary (size=${originalData.size})",
                 )
             }
         }
@@ -163,7 +163,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Content mismatch for object '$key'"
+                    "Content mismatch for object '$key'",
                 )
             }
         }
@@ -206,7 +206,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Content mismatch for batch 1 object '$key'"
+                    "Content mismatch for batch 1 object '$key'",
                 )
             }
 
@@ -216,7 +216,7 @@ class BackupRestoreIntegrityTest {
                 assertArrayEquals(
                     originalData,
                     restored,
-                    "Content mismatch for batch 2 object '$key'"
+                    "Content mismatch for batch 2 object '$key'",
                 )
             }
         }

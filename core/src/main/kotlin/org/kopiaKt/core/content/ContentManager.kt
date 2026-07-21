@@ -72,7 +72,7 @@ class ContentManager(
     private val compressorFactory: CompressorFactory,
     private val defaultCompression: CompressionAlgorithm = CompressionAlgorithm.NONE,
     private val maxPackSize: Int = DEFAULT_MAX_PACK_SIZE,
-    private val epochsEnabled: Boolean = false
+    private val epochsEnabled: Boolean = false,
 ) {
     private val hasher: ContentHasher = hasherFactory.create(hashAlgorithm, hashSecret)
     private val encryptor: Encryptor = encryptorFactory.create(encryptionAlgorithm, encryptionKey)
@@ -119,7 +119,7 @@ class ContentManager(
     suspend fun writeContent(
         data: ByteArray,
         prefix: Char? = null,
-        compression: CompressionAlgorithm? = null
+        compression: CompressionAlgorithm? = null,
     ): ContentId = mutex.withLock {
         // Step 1: Hash the content
         val hashBytes = hasher.hashContent(data)
@@ -207,7 +207,7 @@ class ContentManager(
         val candidates = listOfNotNull(
             pendingContents[contentId]?.info,
             writtenContents[contentId],
-            committedContents[contentId]
+            committedContents[contentId],
         )
         return candidates.reduceOrNull { a, b -> if (contentInfoGreaterThan(a, b)) a else b }
     }
@@ -222,7 +222,7 @@ class ContentManager(
      */
     suspend fun iterateContents(
         prefix: Char,
-        callback: suspend (ContentId) -> Unit
+        callback: suspend (ContentId) -> Unit,
     ) {
         // Collect the LIVE, de-duplicated content IDs with this prefix under the lock. committedContents
         // can now hold tombstones, so a raw concatenation would leak deleted ids and duplicates across
@@ -258,7 +258,7 @@ class ContentManager(
      */
     suspend fun iterateContentInfos(
         includeDeleted: Boolean,
-        callback: suspend (ContentInfo) -> Unit
+        callback: suspend (ContentInfo) -> Unit,
     ) {
         val infos = mutex.withLock {
             // Winner-per-id via contentInfoGreaterThan across all layers (see currentInfoUnlocked for
@@ -304,7 +304,7 @@ class ContentManager(
         // the V2 index write (task-13 / task-9 follow-up).
         writtenContents[contentId] = current.copy(
             deleted = true,
-            timestampSeconds = contentWriteTime(current.timestampSeconds)
+            timestampSeconds = contentWriteTime(current.timestampSeconds),
         )
     }
 
@@ -322,7 +322,7 @@ class ContentManager(
         if (!current.deleted) return@withLock
         writtenContents[contentId] = current.copy(
             deleted = false,
-            timestampSeconds = contentWriteTime(current.timestampSeconds)
+            timestampSeconds = contentWriteTime(current.timestampSeconds),
         )
     }
 
@@ -378,7 +378,7 @@ class ContentManager(
 
     private fun maybeCompress(
         data: ByteArray,
-        compression: CompressionAlgorithm
+        compression: CompressionAlgorithm,
     ): Pair<ByteArray, Int> {
         if (compression == CompressionAlgorithm.NONE || data.isEmpty()) {
             return data to 0
@@ -403,7 +403,7 @@ class ContentManager(
     private suspend fun decryptAndDecompress(
         encryptedData: ByteArray,
         contentId: ContentId,
-        compressionHeaderId: Int
+        compressionHeaderId: Int,
     ): ByteArray {
         val decrypted = encryptor.decrypt(encryptedData, contentId)
 
@@ -422,7 +422,7 @@ class ContentManager(
         encryptedData: ByteArray,
         originalLength: UInt,
         compressionHeaderId: Int,
-        writeTime: Long
+        writeTime: Long,
     ) {
         val contentHasPrefix = contentId.prefix != null
 
@@ -432,7 +432,7 @@ class ContentManager(
             currentPackBuilder = PackBlobBuilder(
                 packBlobId = currentPackBlobId!!,
                 encryptionOverhead = encryptor.overhead,
-                timestampSeconds = System.currentTimeMillis() / 1000
+                timestampSeconds = System.currentTimeMillis() / 1000,
             )
             currentPackHasPrefix = contentHasPrefix
         }
@@ -451,7 +451,7 @@ class ContentManager(
             currentPackBuilder = PackBlobBuilder(
                 packBlobId = currentPackBlobId!!,
                 encryptionOverhead = encryptor.overhead,
-                timestampSeconds = System.currentTimeMillis() / 1000
+                timestampSeconds = System.currentTimeMillis() / 1000,
             )
             currentPackHasPrefix = contentHasPrefix
         }
@@ -462,7 +462,7 @@ class ContentManager(
             contentId = contentId,
             encryptedData = encryptedData,
             originalLength = originalLength,
-            compressionHeaderId = compressionHeaderId
+            compressionHeaderId = compressionHeaderId,
         )
 
         // Track as pending. writeTime carries a resurrect's strictly-increasing timestamp (must beat the
@@ -475,12 +475,12 @@ class ContentManager(
             originalLength = originalLength,
             packedLength = encryptedData.size.toUInt(),
             packOffset = packOffset,
-            compressionHeaderId = compressionHeaderId
+            compressionHeaderId = compressionHeaderId,
         )
         pendingContents[contentId] = PendingContent(
             info = info,
             encryptedData = encryptedData,
-            compressionHeaderId = compressionHeaderId
+            compressionHeaderId = compressionHeaderId,
         )
     }
 
@@ -617,7 +617,7 @@ class ContentManager(
                     logger.log(
                         Level.WARNING,
                         "Skipping unreadable index blob ${metadata.blobId.value}: ${e.message}",
-                        e
+                        e,
                     )
                 }
             }
@@ -678,9 +678,7 @@ class ContentManager(
         return maxEpoch
     }
 
-    private fun generateSessionId(): String {
-        return generateRandomHex(8)
-    }
+    private fun generateSessionId(): String = generateRandomHex(8)
 
     private fun generateRandomHex(bytes: Int): String {
         val randomBytes = ByteArray(bytes)
@@ -691,7 +689,7 @@ class ContentManager(
     private data class PendingContent(
         val info: ContentInfo,
         val encryptedData: ByteArray,
-        val compressionHeaderId: Int
+        val compressionHeaderId: Int,
     )
 
     companion object {
@@ -703,10 +701,10 @@ class ContentManager(
         // letter: xn = uncompacted per-epoch index, xs = single-epoch compaction, xr = range checkpoint,
         // xe = epoch marker (plaintext), xw = deletion watermark (plaintext). Legacy (V0/pre-epoch) repos
         // use a single "n<hash>" index blob. See internal/epoch/epoch_manager.go.
-        const val INDEX_BLOB_PREFIX = "x"          // epoch uber-prefix (all epoch index blobs read under it)
-        const val INDEX_BLOB_PREFIX_OLD = "n"      // legacy (V0) single index blob prefix
+        const val INDEX_BLOB_PREFIX = "x" // epoch uber-prefix (all epoch index blobs read under it)
+        const val INDEX_BLOB_PREFIX_OLD = "n" // legacy (V0) single index blob prefix
         const val EPOCH_UNCOMPACTED_INDEX_PREFIX = "xn" // Go UncompactedIndexBlobPrefix
-        const val EPOCH_MARKER_PREFIX = "xe"       // Go EpochMarkerIndexBlobPrefix (plaintext)
+        const val EPOCH_MARKER_PREFIX = "xe" // Go EpochMarkerIndexBlobPrefix (plaintext)
 
         // Both prefixes for reading (backward compatibility): "x" covers all epoch index blobs
         // (xn/xs/xr) AND legacy Kotlin "x<hash>" blobs; "n" covers legacy V0 blobs.
@@ -742,5 +740,4 @@ class ContentManagerStats {
 /**
  * Exception thrown when content is not found.
  */
-class ContentNotFoundException(contentId: ContentId) :
-    Exception("Content not found: $contentId")
+class ContentNotFoundException(contentId: ContentId) : Exception("Content not found: $contentId")

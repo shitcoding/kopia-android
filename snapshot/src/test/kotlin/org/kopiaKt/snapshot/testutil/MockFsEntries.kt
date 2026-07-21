@@ -23,7 +23,7 @@ internal open class MockEntry(
     override val mode: Int = 420, // 0o644
     override val owner: OwnerInfo = OwnerInfo.EMPTY,
     override val device: DeviceInfo = DeviceInfo.EMPTY,
-    override val localFilesystemPath: String = ""
+    override val localFilesystemPath: String = "",
 ) : Entry
 
 /**
@@ -33,8 +33,9 @@ internal class MockFile(
     name: String,
     private val content: ByteArray,
     modTime: Instant = Instant.now(),
-    mode: Int = 420
-) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode), File {
+    mode: Int = 420,
+) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode),
+    File {
     override suspend fun open(): InputStream = content.inputStream()
 }
 
@@ -47,8 +48,9 @@ internal class SlowMockFile(
     private val content: ByteArray,
     private val delayMs: Long,
     modTime: Instant = Instant.now(),
-    mode: Int = 420
-) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode), File {
+    mode: Int = 420,
+) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode),
+    File {
     override suspend fun open(): InputStream {
         delay(delayMs)
         return content.inputStream()
@@ -62,8 +64,9 @@ internal class MockDirectory(
     name: String,
     private val entries: List<Entry>,
     modTime: Instant = Instant.now(),
-    mode: Int = 493 // 0o755
-) : MockEntry(name, EntryType.DIRECTORY, 0, modTime, mode), Directory {
+    mode: Int = 493, // 0o755
+) : MockEntry(name, EntryType.DIRECTORY, 0, modTime, mode),
+    Directory {
     override suspend fun child(name: String): Entry? = entries.find { it.name == name }
     override suspend fun iterate(): DirectoryIterator = MockIterator(entries)
     override fun supportsMultipleIterations(): Boolean = true
@@ -75,8 +78,9 @@ internal class MockDirectory(
 internal class MockSymlink(
     name: String,
     private val target: String,
-    modTime: Instant = Instant.now()
-) : MockEntry(name, EntryType.SYMLINK, 0, modTime), Symlink {
+    modTime: Instant = Instant.now(),
+) : MockEntry(name, EntryType.SYMLINK, 0, modTime),
+    Symlink {
     override suspend fun readlink(): String = target
     override suspend fun resolve(): Entry? = null
 }
@@ -86,8 +90,9 @@ internal class MockSymlink(
  */
 internal class FailingFile(
     name: String,
-    private val error: Throwable
-) : MockEntry(name, EntryType.FILE, 100), File {
+    private val error: Throwable,
+) : MockEntry(name, EntryType.FILE, 100),
+    File {
     override suspend fun open(): InputStream = throw error
 }
 

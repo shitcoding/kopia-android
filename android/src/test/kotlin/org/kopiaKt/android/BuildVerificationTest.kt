@@ -1,6 +1,5 @@
 package org.kopiaKt.android
 
-import androidx.work.Constraints
 import androidx.work.NetworkType
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
@@ -28,7 +27,7 @@ class BuildVerificationTest {
         val constraints = BackupConstraints(
             requiresCharging = true,
             requiresWifi = false,
-            requiresDeviceIdle = true
+            requiresDeviceIdle = true,
         )
 
         assertThat(constraints.requiresCharging).isTrue()
@@ -43,7 +42,7 @@ class BuildVerificationTest {
             requiresWifi = true,
             requiresBatteryNotLow = true,
             requiresDeviceIdle = false,
-            requiresStorageNotLow = true
+            requiresStorageNotLow = true,
         )
 
         val workConstraints = backupConstraints.toWorkConstraints()

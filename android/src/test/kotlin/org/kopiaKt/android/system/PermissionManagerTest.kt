@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -159,11 +158,11 @@ class PermissionManagerTest {
     fun `handlePermissionResult handles multiple permissions`() {
         val permissions = arrayOf(
             Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.POST_NOTIFICATIONS,
         )
         val grantResults = intArrayOf(
             PackageManager.PERMISSION_GRANTED,
-            PackageManager.PERMISSION_DENIED
+            PackageManager.PERMISSION_DENIED,
         )
 
         val result = permissionManager.handlePermissionResult(0, permissions, grantResults)
@@ -212,7 +211,7 @@ class BackupPermissionStateTest {
             hasNotificationPermission = true,
             isExemptFromBatteryOptimization = false,
             hasAllRequiredPermissions = true,
-            missingPermissions = emptyList()
+            missingPermissions = emptyList(),
         )
 
         assertThat(state.hasStoragePermission).isTrue()
@@ -229,7 +228,7 @@ class BackupPermissionStateTest {
             hasNotificationPermission = true,
             isExemptFromBatteryOptimization = true,
             hasAllRequiredPermissions = false,
-            missingPermissions = listOf(PermissionManager.Permission.STORAGE)
+            missingPermissions = listOf(PermissionManager.Permission.STORAGE),
         )
 
         assertThat(state.hasAllRequiredPermissions).isFalse()
@@ -246,8 +245,8 @@ class BackupPermissionStateTest {
             missingPermissions = listOf(
                 PermissionManager.Permission.STORAGE,
                 PermissionManager.Permission.NOTIFICATIONS,
-                PermissionManager.Permission.BATTERY_OPTIMIZATION
-            )
+                PermissionManager.Permission.BATTERY_OPTIMIZATION,
+            ),
         )
 
         assertThat(state.missingPermissions).hasSize(3)
@@ -264,7 +263,7 @@ class PermissionDescriptionTest {
         val description = PermissionDescription(
             title = "Test Permission",
             description = "Test description",
-            rationale = "Test rationale"
+            rationale = "Test rationale",
         )
 
         assertThat(description.title).isEqualTo("Test Permission")

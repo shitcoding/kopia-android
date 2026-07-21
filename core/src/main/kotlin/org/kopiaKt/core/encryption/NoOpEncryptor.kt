@@ -13,18 +13,11 @@ object NoOpEncryptor : Encryptor {
 
     override val overhead: Int = 0
 
-    override suspend fun encrypt(plaintext: ByteArray, contentId: ContentId): ByteArray {
-        return plaintext.copyOf()
-    }
+    override suspend fun encrypt(plaintext: ByteArray, contentId: ContentId): ByteArray = plaintext.copyOf()
 
-    override suspend fun decrypt(ciphertext: ByteArray, contentId: ContentId): ByteArray {
-        return ciphertext.copyOf()
-    }
+    override suspend fun decrypt(ciphertext: ByteArray, contentId: ContentId): ByteArray = ciphertext.copyOf()
 
-    override suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray {
-        return ciphertext.copyOf()
-    }
+    override suspend fun decryptWithRawId(ciphertext: ByteArray, contentIdBytes: ByteArray): ByteArray = ciphertext.copyOf()
 
-    override suspend fun encryptWithRawId(plaintext: ByteArray, contentIdBytes: ByteArray): ByteArray =
-        plaintext.copyOf()
+    override suspend fun encryptWithRawId(plaintext: ByteArray, contentIdBytes: ByteArray): ByteArray = plaintext.copyOf()
 }

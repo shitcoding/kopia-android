@@ -22,12 +22,29 @@ value class Pol(val value: ULong) {
 
         var x = value
         var r = 0
-        if (x and 0xffffffff00000000uL > 0uL) { x = x shr 32; r = r or 32 }
-        if (x and 0xffff0000uL > 0uL) { x = x shr 16; r = r or 16 }
-        if (x and 0xff00uL > 0uL) { x = x shr 8; r = r or 8 }
-        if (x and 0xf0uL > 0uL) { x = x shr 4; r = r or 4 }
-        if (x and 0xcuL > 0uL) { x = x shr 2; r = r or 2 }
-        if (x and 0x2uL > 0uL) { r = r or 1 }
+        if (x and 0xffffffff00000000uL > 0uL) {
+            x = x shr 32
+            r = r or 32
+        }
+        if (x and 0xffff0000uL > 0uL) {
+            x = x shr 16
+            r = r or 16
+        }
+        if (x and 0xff00uL > 0uL) {
+            x = x shr 8
+            r = r or 8
+        }
+        if (x and 0xf0uL > 0uL) {
+            x = x shr 4
+            r = r or 4
+        }
+        if (x and 0xcuL > 0uL) {
+            x = x shr 2
+            r = r or 2
+        }
+        if (x and 0x2uL > 0uL) {
+            r = r or 1
+        }
         return r
     }
 
@@ -68,7 +85,7 @@ value class Pol(val value: ULong) {
  */
 private class RabinKarp64Tables(
     val out: Array<Pol>,
-    val mod: Array<Pol>
+    val mod: Array<Pol>,
 )
 
 /**
@@ -78,7 +95,7 @@ private class RabinKarp64Tables(
  * It implements a polynomial rolling hash over GF(2).
  */
 class RabinKarp64 private constructor(
-    private val pol: Pol
+    private val pol: Pol,
 ) {
     private var tables: RabinKarp64Tables? = null
     private val polShift: Int = pol.deg() - 8
@@ -113,10 +130,10 @@ class RabinKarp64 private constructor(
         //       h = h.Mod(pol)
         //   }
         for (b in 0 until 256) {
-            var h = Pol(b.toULong())  // Start with just b, not b << 8
+            var h = Pol(b.toULong()) // Start with just b, not b << 8
             h = h.mod(pol)
             for (i in 0 until windowSize - 1) {
-                h = Pol(h.value shl 8)  // h |= 0 is a no-op
+                h = Pol(h.value shl 8) // h |= 0 is a no-op
                 h = h.mod(pol)
             }
             outTable[b] = h

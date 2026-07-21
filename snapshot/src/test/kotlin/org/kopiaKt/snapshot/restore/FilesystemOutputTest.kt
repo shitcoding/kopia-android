@@ -79,7 +79,7 @@ class FilesystemOutputTest {
     fun `beginDirectory succeeds on existing non-empty directory with overwrite`() = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
-            FilesystemOutputOptions(overwriteDirectories = true)
+            FilesystemOutputOptions(overwriteDirectories = true),
         )
 
         // Create existing directory with content
@@ -158,7 +158,7 @@ class FilesystemOutputTest {
     fun `writeFile succeeds on existing file with overwrite`() = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
-            FilesystemOutputOptions(overwriteFiles = true)
+            FilesystemOutputOptions(overwriteFiles = true),
         )
 
         val path = tempDir.resolve("existing.txt")
@@ -189,7 +189,7 @@ class FilesystemOutputTest {
     fun `writeFile atomic creates file atomically`() = runBlocking {
         val atomicOutput = FilesystemOutput(
             tempDir,
-            FilesystemOutputOptions(writeFilesAtomically = true, overwriteFiles = true)
+            FilesystemOutputOptions(writeFilesAtomically = true, overwriteFiles = true),
         )
 
         val content = "atomic content".toByteArray()
@@ -235,7 +235,7 @@ class FilesystemOutputTest {
         val entry = makeFileEntry(
             "test.txt",
             content.length.toLong(),
-            modTime = path.getLastModifiedTime().toInstant()
+            modTime = path.getLastModifiedTime().toInstant(),
         )
         assertThat(output.fileExists("test.txt", entry)).isTrue()
     }
@@ -269,7 +269,7 @@ class FilesystemOutputTest {
     fun `createSymlink succeeds on existing symlink with overwrite`() = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
-            FilesystemOutputOptions(overwriteSymlinks = true)
+            FilesystemOutputOptions(overwriteSymlinks = true),
         )
 
         val existingLink = tempDir.resolve("link")
@@ -320,25 +320,25 @@ class FilesystemOutputTest {
     private fun makeDirEntry(
         name: String,
         type: EntryType,
-        permissions: Int = 493 // 0o755
+        permissions: Int = 493, // 0o755
     ) = DirEntry(
         name = name.substringAfterLast('/'),
         type = type,
         permissions = permissions,
         fileSize = 0,
-        modTime = Instant.now()
+        modTime = Instant.now(),
     )
 
     private fun makeFileEntry(
         name: String,
         size: Long,
         permissions: Int = 420, // 0o644
-        modTime: Instant = Instant.now()
+        modTime: Instant = Instant.now(),
     ) = DirEntry(
         name = name.substringAfterLast('/'),
         type = EntryType.FILE,
         permissions = permissions,
         fileSize = size,
-        modTime = modTime
+        modTime = modTime,
     )
 }

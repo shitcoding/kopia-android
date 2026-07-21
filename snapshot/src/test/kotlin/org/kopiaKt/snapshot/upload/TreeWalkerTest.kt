@@ -201,7 +201,7 @@ class TreeWalkerTest {
         override suspend fun processFile(
             file: File,
             relativePath: String,
-            previousEntry: DirEntry?
+            previousEntry: DirEntry?,
         ): DirEntry {
             fileCount.incrementAndGet()
             return DirEntry(
@@ -210,14 +210,14 @@ class TreeWalkerTest {
                 permissions = file.mode,
                 fileSize = file.size,
                 modTime = file.modTime,
-                objectId = "obj${nextObjectId.getAndIncrement()}"
+                objectId = "obj${nextObjectId.getAndIncrement()}",
             )
         }
 
         override suspend fun processSymlink(
             symlink: Symlink,
             relativePath: String,
-            previousEntry: DirEntry?
+            previousEntry: DirEntry?,
         ): DirEntry {
             symlinkCount.incrementAndGet()
             return DirEntry(
@@ -225,7 +225,7 @@ class TreeWalkerTest {
                 type = EntryType.SYMLINK,
                 permissions = symlink.mode,
                 modTime = symlink.modTime,
-                objectId = "obj${nextObjectId.getAndIncrement()}"
+                objectId = "obj${nextObjectId.getAndIncrement()}",
             )
         }
 

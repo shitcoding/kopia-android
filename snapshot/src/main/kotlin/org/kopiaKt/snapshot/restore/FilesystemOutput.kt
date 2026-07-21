@@ -71,7 +71,7 @@ data class FilesystemOutputOptions(
     /**
      * If true, flush files to disk after writing.
      */
-    val flushFiles: Boolean = false
+    val flushFiles: Boolean = false,
 )
 
 /**
@@ -84,7 +84,7 @@ class FilesystemOutput(
      * Root path where files will be restored.
      */
     val targetPath: Path,
-    private val options: FilesystemOutputOptions = FilesystemOutputOptions()
+    private val options: FilesystemOutputOptions = FilesystemOutputOptions(),
 ) : RestoreOutput {
 
     companion object {
@@ -108,7 +108,7 @@ class FilesystemOutput(
         val normalizedTarget = targetPath.normalize()
         if (!resolved.startsWith(normalizedTarget)) {
             throw RestoreException(
-                "Path traversal detected: '$relativePath' resolves to '$resolved' which is outside restore root '$normalizedTarget'"
+                "Path traversal detected: '$relativePath' resolves to '$resolved' which is outside restore root '$normalizedTarget'",
             )
         }
 
@@ -128,7 +128,7 @@ class FilesystemOutput(
                     val realRoot = normalizedTarget.toRealPath()
                     if (!realPath.startsWith(realRoot)) {
                         throw RestoreException(
-                            "Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root"
+                            "Symlink-in-path traversal detected: '$checkPath' is a symlink resolving to '$realPath' which is outside restore root",
                         )
                     }
                 } catch (_: java.nio.file.NoSuchFileException) {
@@ -159,7 +159,7 @@ class FilesystemOutput(
         relativePath: String,
         entry: DirEntry,
         reader: InputStream,
-        progressCallback: FileWriteProgress?
+        progressCallback: FileWriteProgress?,
     ) {
         val path = validatePath(relativePath)
 
@@ -189,12 +189,12 @@ class FilesystemOutput(
         path: Path,
         entry: DirEntry,
         reader: InputStream,
-        progressCallback: FileWriteProgress?
+        progressCallback: FileWriteProgress?,
     ) {
         val openOptions = arrayOf(
             StandardOpenOption.CREATE,
             StandardOpenOption.TRUNCATE_EXISTING,
-            StandardOpenOption.WRITE
+            StandardOpenOption.WRITE,
         )
 
         Files.newOutputStream(path, *openOptions).use { output ->
@@ -216,7 +216,7 @@ class FilesystemOutput(
         path: Path,
         entry: DirEntry,
         reader: InputStream,
-        progressCallback: FileWriteProgress?
+        progressCallback: FileWriteProgress?,
     ) {
         val tempFile = Files.createTempFile(path.parent, ".kopia-restore-", ".tmp")
         try {
@@ -284,7 +284,7 @@ class FilesystemOutput(
             val resolvedTarget = path.parent.resolve(target).normalize()
             if (!resolvedTarget.startsWith(normalizedRoot)) {
                 throw RestoreException(
-                    "Symlink target traversal detected: target '$target' from '$relativePath' resolves outside restore root"
+                    "Symlink target traversal detected: target '$target' from '$relativePath' resolves outside restore root",
                 )
             }
         }
@@ -342,7 +342,7 @@ class FilesystemOutput(
                     val isEmpty = Files.list(path).use { it.findFirst().isEmpty }
                     if (!isEmpty) {
                         throw RestoreException(
-                            "Non-empty directory already exists and overwrite is disabled: $path"
+                            "Non-empty directory already exists and overwrite is disabled: $path",
                         )
                     }
                 }
@@ -350,7 +350,7 @@ class FilesystemOutput(
             }
             else -> {
                 throw RestoreException(
-                    "Cannot create directory, path exists and is not a directory: $path"
+                    "Cannot create directory, path exists and is not a directory: $path",
                 )
             }
         }

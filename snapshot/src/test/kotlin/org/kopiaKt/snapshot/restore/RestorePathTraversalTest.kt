@@ -188,7 +188,7 @@ class RestorePathTraversalTest {
         type = EntryType.FILE,
         permissions = 420, // 0o644
         fileSize = size,
-        modTime = Instant.now()
+        modTime = Instant.now(),
     )
 
     private fun makeDirEntry(name: String) = DirEntry(
@@ -196,6 +196,6 @@ class RestorePathTraversalTest {
         type = EntryType.DIRECTORY,
         permissions = 493, // 0o755
         fileSize = 0,
-        modTime = Instant.now()
+        modTime = Instant.now(),
     )
 }

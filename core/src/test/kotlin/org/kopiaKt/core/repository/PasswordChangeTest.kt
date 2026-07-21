@@ -34,7 +34,7 @@ class PasswordChangeTest {
             secret = secret,
             masterKey = masterKey,
             splitter = "FIXED-1M",
-            enablePasswordChange = enablePasswordChange
+            enablePasswordChange = enablePasswordChange,
         )
     }
 

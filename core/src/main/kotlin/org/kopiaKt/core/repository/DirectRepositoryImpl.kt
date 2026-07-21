@@ -11,13 +11,13 @@ import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentInfo
 import org.kopiaKt.core.content.ContentManager
 import org.kopiaKt.core.content.ObjectId
+import org.kopiaKt.core.crypto.HkdfSha256KeyDerivation
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.format.FormatBlobManager
 import org.kopiaKt.core.format.KopiaRepositoryJson
 import org.kopiaKt.core.format.OpenRepositoryResult
 import org.kopiaKt.core.format.RepositoryConfig
 import org.kopiaKt.core.hashing.HashAlgorithm
-import org.kopiaKt.core.crypto.HkdfSha256KeyDerivation
 import org.kopiaKt.core.manifest.EntryMetadata
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.manifest.ManifestManager
@@ -51,7 +51,7 @@ class DirectRepositoryImpl private constructor(
     private val clock: Clock,
     private val compressorFactory: CompressorFactory,
     private val isWriter: Boolean = false,
-    private val afterFlushCallbacks: MutableList<suspend (RepositoryWriter) -> Unit> = mutableListOf()
+    private val afterFlushCallbacks: MutableList<suspend (RepositoryWriter) -> Unit> = mutableListOf(),
 ) : DirectRepositoryWriter {
 
     private val closed = AtomicBoolean(false)
@@ -90,17 +90,11 @@ class DirectRepositoryImpl private constructor(
         return contentManager.getContentInfo(contentId)
     }
 
-    override fun time(): Instant {
-        return Instant.now(clock)
-    }
+    override fun time(): Instant = Instant.now(clock)
 
-    override fun clientOptions(): ClientOptions {
-        return clientOptions
-    }
+    override fun clientOptions(): ClientOptions = clientOptions
 
-    override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter {
-        return newDirectWriter(options)
-    }
+    override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter = newDirectWriter(options)
 
     override fun updateDescription(description: String) {
         clientOptions = clientOptions.copy(description = description)
@@ -191,21 +185,13 @@ class DirectRepositoryImpl private constructor(
 
     // ===== DirectRepository Interface =====
 
-    override fun objectFormat(): ObjectFormatInfo {
-        return ObjectFormatInfo(splitter = config.splitter)
-    }
+    override fun objectFormat(): ObjectFormatInfo = ObjectFormatInfo(splitter = config.splitter)
 
-    override fun blobReader(): BlobReader {
-        return blobStorage
-    }
+    override fun blobReader(): BlobReader = blobStorage
 
-    override fun blobVolume(): BlobVolume? {
-        return blobStorage as? BlobVolume
-    }
+    override fun blobVolume(): BlobVolume? = blobStorage as? BlobVolume
 
-    override fun uniqueId(): ByteArray {
-        return uniqueId.copyOf()
-    }
+    override fun uniqueId(): ByteArray = uniqueId.copyOf()
 
     override fun deriveKey(purpose: String, keyLength: Int): ByteArray {
         // Use master key if password change is supported, otherwise use format encryption key
@@ -219,13 +205,13 @@ class DirectRepositoryImpl private constructor(
             masterKey = primaryKey,
             salt = uniqueId,
             info = purpose.toByteArray(Charsets.UTF_8),
-            length = keyLength
+            length = keyLength,
         )
     }
 
     override suspend fun iterateContentInfos(
         includeDeleted: Boolean,
-        callback: suspend (ContentInfo) -> Unit
+        callback: suspend (ContentInfo) -> Unit,
     ) {
         checkNotClosed()
         contentManager.iterateContentInfos(includeDeleted, callback)
@@ -250,12 +236,12 @@ class DirectRepositoryImpl private constructor(
         // Create new object and manifest managers backed by the writer's content manager
         val writerObjectManager = ObjectManager(
             contentManager = writerContentManager,
-            compressorFactory = compressorFactory
+            compressorFactory = compressorFactory,
         )
 
         val writerManifestManager = ManifestManager(
             contentManager = writerContentManager,
-            clock = clock
+            clock = clock,
         )
 
         // Load existing manifests
@@ -272,19 +258,15 @@ class DirectRepositoryImpl private constructor(
             clientOptions = clientOptions,
             clock = clock,
             compressorFactory = compressorFactory,
-            isWriter = true
+            isWriter = true,
         )
     }
 
-    override fun supportsPasswordChange(): Boolean {
-        return config.enablePasswordChange
-    }
+    override fun supportsPasswordChange(): Boolean = config.enablePasswordChange
 
     // ===== DirectRepositoryWriter Interface =====
 
-    override fun blobStorage(): BlobStorage {
-        return blobStorage
-    }
+    override fun blobStorage(): BlobStorage = blobStorage
 
     override suspend fun deleteContent(contentId: ContentId) {
         checkNotClosed()
@@ -326,7 +308,7 @@ class DirectRepositoryImpl private constructor(
             blobStorage: BlobStorage,
             password: String,
             clientOptions: ClientOptions = ClientOptions.withDefaults(),
-            clock: Clock = Clock.systemUTC()
+            clock: Clock = Clock.systemUTC(),
         ): DirectRepositoryImpl {
             val formatBlobManager = FormatBlobManager(blobStorage)
             val result = formatBlobManager.openRepository(password)
@@ -335,7 +317,7 @@ class DirectRepositoryImpl private constructor(
                 blobStorage = blobStorage,
                 result = result,
                 clientOptions = clientOptions,
-                clock = clock
+                clock = clock,
             )
         }
 
@@ -356,13 +338,13 @@ class DirectRepositoryImpl private constructor(
             config: RepositoryConfig,
             clientOptions: ClientOptions = ClientOptions.withDefaults(),
             clock: Clock = Clock.systemUTC(),
-            keyDerivationAlgorithm: String = KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM
+            keyDerivationAlgorithm: String = KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM,
         ): DirectRepositoryImpl {
             val formatBlobManager = FormatBlobManager(blobStorage)
             val result = formatBlobManager.createRepository(
                 password = password,
                 config = config,
-                keyDerivationAlgorithm = keyDerivationAlgorithm
+                keyDerivationAlgorithm = keyDerivationAlgorithm,
             )
 
             return createFromConfig(
@@ -370,10 +352,10 @@ class DirectRepositoryImpl private constructor(
                 result = OpenRepositoryResult(
                     formatJson = result.formatJson,
                     config = result.config,
-                    formatEncryptionKey = result.formatEncryptionKey
+                    formatEncryptionKey = result.formatEncryptionKey,
                 ),
                 clientOptions = clientOptions,
-                clock = clock
+                clock = clock,
             )
         }
 
@@ -384,10 +366,8 @@ class DirectRepositoryImpl private constructor(
             blobStorage: BlobStorage,
             password: String,
             clientOptions: ClientOptions = ClientOptions.withDefaults(),
-            clock: Clock = Clock.systemUTC()
-        ): DirectRepositoryImpl {
-            return open(blobStorage, password, clientOptions, clock)
-        }
+            clock: Clock = Clock.systemUTC(),
+        ): DirectRepositoryImpl = open(blobStorage, password, clientOptions, clock)
 
         /**
          * Initializes a new repository (alias for create).
@@ -397,16 +377,14 @@ class DirectRepositoryImpl private constructor(
             password: String,
             config: RepositoryConfig,
             clientOptions: ClientOptions = ClientOptions.withDefaults(),
-            clock: Clock = Clock.systemUTC()
-        ): DirectRepositoryImpl {
-            return create(blobStorage, password, config, clientOptions, clock)
-        }
+            clock: Clock = Clock.systemUTC(),
+        ): DirectRepositoryImpl = create(blobStorage, password, config, clientOptions, clock)
 
         private suspend fun createFromConfig(
             blobStorage: BlobStorage,
             result: OpenRepositoryResult,
             clientOptions: ClientOptions,
-            clock: Clock
+            clock: Clock,
         ): DirectRepositoryImpl {
             val config = result.config
             val compressorFactory = DefaultCompressorFactory()
@@ -420,13 +398,13 @@ class DirectRepositoryImpl private constructor(
             // Create object manager
             val objectManager = ObjectManager(
                 contentManager = contentManager,
-                compressorFactory = compressorFactory
+                compressorFactory = compressorFactory,
             )
 
             // Create manifest manager
             val manifestManager = ManifestManager(
                 contentManager = contentManager,
-                clock = clock
+                clock = clock,
             )
 
             // Load existing manifests
@@ -443,13 +421,13 @@ class DirectRepositoryImpl private constructor(
                 clientOptions = clientOptions,
                 clock = clock,
                 compressorFactory = compressorFactory,
-                isWriter = false
+                isWriter = false,
             )
         }
 
         private fun createContentManager(
             blobStorage: BlobStorage,
-            config: RepositoryConfig
+            config: RepositoryConfig,
         ): ContentManager {
             val hasherFactory = org.kopiaKt.core.hashing.DefaultContentHasherFactory()
             val encryptorFactory = org.kopiaKt.core.encryption.DefaultEncryptorFactory()
@@ -477,7 +455,7 @@ class DirectRepositoryImpl private constructor(
                 compressorFactory = compressorFactory,
                 defaultCompression = defaultCompression,
                 maxPackSize = config.maxPackSize,
-                epochsEnabled = config.isEpochIndexEnabled()
+                epochsEnabled = config.isEpochIndexEnabled(),
             )
         }
     }
@@ -493,7 +471,7 @@ class DirectRepositoryImpl private constructor(
 suspend fun <T> writeSession(
     repository: Repository,
     options: WriteSessionOptions = WriteSessionOptions(),
-    block: suspend (RepositoryWriter) -> T
+    block: suspend (RepositoryWriter) -> T,
 ): T {
     val writer = repository.newWriter(options)
     var success = false
@@ -524,7 +502,7 @@ suspend fun <T> writeSession(
 suspend fun <T> directWriteSession(
     repository: DirectRepository,
     options: WriteSessionOptions = WriteSessionOptions(),
-    block: suspend (DirectRepositoryWriter) -> T
+    block: suspend (DirectRepositoryWriter) -> T,
 ): T {
     val writer = repository.newDirectWriter(options)
     var success = false

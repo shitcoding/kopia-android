@@ -64,7 +64,7 @@ data class SafetyParameters(
      * Should only be set for strongly consistent storage backends.
      * Default: false
      */
-    val disableEventualConsistencySafety: Boolean = false
+    val disableEventualConsistencySafety: Boolean = false,
 ) {
     companion object {
         /**

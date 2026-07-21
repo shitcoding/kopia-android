@@ -167,12 +167,12 @@ class Aes256GcmEncryptorTest {
                 key = testCase.key,
                 nonce = testCase.nonce,
                 plaintext = testCase.plaintext,
-                aad = ByteArray(0)
+                aad = ByteArray(0),
             )
             assertEquals(
                 testCase.ciphertextHex,
                 ciphertext.toHexString(),
-                "Encryption mismatch for test case '${testCase.name}'"
+                "Encryption mismatch for test case '${testCase.name}'",
             )
 
             // Test decryption
@@ -180,12 +180,12 @@ class Aes256GcmEncryptorTest {
                 key = testCase.key,
                 nonce = testCase.nonce,
                 ciphertext = testCase.ciphertext,
-                aad = ByteArray(0)
+                aad = ByteArray(0),
             )
             assertArrayEquals(
                 testCase.plaintext,
                 decrypted,
-                "Decryption mismatch for test case '${testCase.name}'"
+                "Decryption mismatch for test case '${testCase.name}'",
             )
         }
 
@@ -197,12 +197,12 @@ class Aes256GcmEncryptorTest {
                 key = testCase.key,
                 nonce = testCase.nonce,
                 plaintext = testCase.plaintext,
-                aad = aad
+                aad = aad,
             )
             assertEquals(
                 testCase.ciphertextHex,
                 ciphertext.toHexString(),
-                "Encryption with AAD mismatch for test case '${testCase.name}'"
+                "Encryption with AAD mismatch for test case '${testCase.name}'",
             )
 
             // Test decryption
@@ -210,12 +210,12 @@ class Aes256GcmEncryptorTest {
                 key = testCase.key,
                 nonce = testCase.nonce,
                 ciphertext = testCase.ciphertext,
-                aad = aad
+                aad = aad,
             )
             assertArrayEquals(
                 testCase.plaintext,
                 decrypted,
-                "Decryption with AAD mismatch for test case '${testCase.name}'"
+                "Decryption with AAD mismatch for test case '${testCase.name}'",
             )
 
             // Test that wrong AAD fails decryption
@@ -224,7 +224,7 @@ class Aes256GcmEncryptorTest {
                     key = testCase.key,
                     nonce = testCase.nonce,
                     ciphertext = testCase.ciphertext,
-                    aad = ByteArray(0) // Wrong AAD
+                    aad = ByteArray(0), // Wrong AAD
                 )
             }
         }
@@ -448,12 +448,14 @@ class Aes256GcmEncryptorTest {
             // Verify different purpose produces different key
             val differentPurpose = "different".toByteArray(Charsets.UTF_8)
             val derivedKeyDifferent = Aes256GcmHmacSha256Encryptor.deriveKeyDerivationSecret(
-                masterKey, differentPurpose, 32
+                masterKey,
+                differentPurpose,
+                32,
             )
             assertNotEquals(
                 derivedKey.toHexString(),
                 derivedKeyDifferent.toHexString(),
-                "Different purposes should produce different keys"
+                "Different purposes should produce different keys",
             )
         }
 
@@ -475,7 +477,7 @@ class Aes256GcmEncryptorTest {
             assertArrayEquals(
                 expectedKey,
                 derivedKey,
-                "HKDF with salt and info should match test vector"
+                "HKDF with salt and info should match test vector",
             )
         }
     }

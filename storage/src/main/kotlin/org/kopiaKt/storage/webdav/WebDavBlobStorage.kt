@@ -3,7 +3,6 @@ package org.kopiaKt.storage.webdav
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.kopiaKt.core.blob.BlobId
@@ -45,7 +44,7 @@ class WebDavBlobStorage private constructor(
     private val client: OkHttpWebDavClient,
     private val options: WebDavOptions,
     private val shardingParams: ShardingParameters,
-    private val readOnly: Boolean
+    private val readOnly: Boolean,
 ) : BlobStorage {
 
     companion object {
@@ -80,7 +79,7 @@ class WebDavBlobStorage private constructor(
         suspend fun create(
             options: WebDavOptions,
             isCreate: Boolean = false,
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
         ): WebDavBlobStorage = withContext(Dispatchers.IO) {
             requireSupportedOptions(options)
             val client = createClient(options)
@@ -95,7 +94,7 @@ class WebDavBlobStorage private constructor(
             client: OkHttpWebDavClient,
             options: WebDavOptions,
             shardingParams: ShardingParameters = ShardingParameters(),
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
         ): WebDavBlobStorage {
             requireSupportedOptions(options)
             return WebDavBlobStorage(client, options, shardingParams, readOnly)
@@ -115,17 +114,15 @@ class WebDavBlobStorage private constructor(
             }
         }
 
-        private fun createClient(options: WebDavOptions): OkHttpWebDavClient {
-            return OkHttpWebDavClient(
-                username = options.username,
-                password = options.password
-            )
-        }
+        private fun createClient(options: WebDavOptions): OkHttpWebDavClient = OkHttpWebDavClient(
+            username = options.username,
+            password = options.password,
+        )
 
         private suspend fun loadOrCreateShardingParams(
             client: OkHttpWebDavClient,
             options: WebDavOptions,
-            isCreate: Boolean
+            isCreate: Boolean,
         ): ShardingParameters = withContext(Dispatchers.IO) {
             val shardsUrl = normalizeUrl(options.url) + SHARDS_FILE
 
@@ -147,7 +144,7 @@ class WebDavBlobStorage private constructor(
 
                     val params = ShardingParameters(
                         default = defaultShards,
-                        maxNonShardedLength = options.maxNonShardedLength
+                        maxNonShardedLength = options.maxNonShardedLength,
                     )
 
                     // Try to persist the parameters (may fail if read-only)
@@ -165,101 +162,97 @@ class WebDavBlobStorage private constructor(
             }
         }
 
-        private fun normalizeUrl(url: String): String {
-            return if (url.endsWith("/")) url else "$url/"
+        private fun normalizeUrl(url: String): String = if (url.endsWith("/")) url else "$url/"
+    }
+
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withContext(Dispatchers.IO) {
+        if (offset < 0) {
+            throw InvalidBlobRangeException("Offset cannot be negative: $offset")
+        }
+
+        val filePath = getFilePath(blobId)
+        val fileUrl = normalizeUrl(options.url) + filePath
+
+        try {
+            val inputStream: InputStream = when {
+                length == 0L -> {
+                    // Zero-length read - verify file exists by reading 1 byte range
+                    try {
+                        client.get(fileUrl, mapOf("Range" to "bytes=$offset-$offset")).use { }
+                    } catch (e: WebDavException) {
+                        if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                            throw BlobNotFoundException(blobId)
+                        }
+                        throw e
+                    }
+                    return@withContext ByteArray(0)
+                }
+                length < 0 -> {
+                    // Read from offset to end
+                    if (offset > 0) {
+                        client.get(fileUrl, mapOf("Range" to "bytes=$offset-"))
+                    } else {
+                        client.get(fileUrl)
+                    }
+                }
+                else -> {
+                    // Read specific range
+                    client.get(fileUrl, mapOf("Range" to "bytes=$offset-${offset + length - 1}"))
+                }
+            }
+
+            inputStream.use { stream ->
+                val bytes = stream.readBytes()
+
+                // A fixed-length ranged read must return exactly `length` bytes. An empty body
+                // means the range is beyond EOF; any other wrong size means the server
+                // mishandled the Range header (e.g. ignored it and returned the whole file — a
+                // 200 instead of 206), in which case `bytes` is the wrong content entirely.
+                // Returning it as-is would hand back silently-wrong data for a content-addressed
+                // blob, so fail loudly instead.
+                if (length > 0 && bytes.size.toLong() != length) {
+                    if (bytes.isEmpty()) {
+                        throw InvalidBlobRangeException(
+                            "Requested offset $offset is beyond blob size",
+                        )
+                    }
+                    throw InvalidBlobRangeException(
+                        "Expected $length bytes for the range at offset $offset " +
+                            "but the server returned ${bytes.size}",
+                    )
+                }
+
+                bytes
+            }
+        } catch (e: WebDavException) {
+            handleWebDavException(e, blobId)
         }
     }
 
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray =
-        withContext(Dispatchers.IO) {
-            if (offset < 0) {
-                throw InvalidBlobRangeException("Offset cannot be negative: $offset")
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withContext(Dispatchers.IO) {
+        val filePath = getFilePath(blobId)
+        val fileUrl = normalizeUrl(options.url) + filePath
+
+        try {
+            val resources = client.list(fileUrl, 0)
+            if (resources.isEmpty()) {
+                return@withContext null
             }
 
-            val filePath = getFilePath(blobId)
-            val fileUrl = normalizeUrl(options.url) + filePath
-
-            try {
-                val inputStream: InputStream = when {
-                    length == 0L -> {
-                        // Zero-length read - verify file exists by reading 1 byte range
-                        try {
-                            client.get(fileUrl, mapOf("Range" to "bytes=$offset-$offset")).use { }
-                        } catch (e: WebDavException) {
-                            if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                                throw BlobNotFoundException(blobId)
-                            }
-                            throw e
-                        }
-                        return@withContext ByteArray(0)
-                    }
-                    length < 0 -> {
-                        // Read from offset to end
-                        if (offset > 0) {
-                            client.get(fileUrl, mapOf("Range" to "bytes=$offset-"))
-                        } else {
-                            client.get(fileUrl)
-                        }
-                    }
-                    else -> {
-                        // Read specific range
-                        client.get(fileUrl, mapOf("Range" to "bytes=$offset-${offset + length - 1}"))
-                    }
-                }
-
-                inputStream.use { stream ->
-                    val bytes = stream.readBytes()
-
-                    // A fixed-length ranged read must return exactly `length` bytes. An empty body
-                    // means the range is beyond EOF; any other wrong size means the server
-                    // mishandled the Range header (e.g. ignored it and returned the whole file — a
-                    // 200 instead of 206), in which case `bytes` is the wrong content entirely.
-                    // Returning it as-is would hand back silently-wrong data for a content-addressed
-                    // blob, so fail loudly instead.
-                    if (length > 0 && bytes.size.toLong() != length) {
-                        if (bytes.isEmpty()) {
-                            throw InvalidBlobRangeException(
-                                "Requested offset $offset is beyond blob size"
-                            )
-                        }
-                        throw InvalidBlobRangeException(
-                            "Expected $length bytes for the range at offset $offset " +
-                                "but the server returned ${bytes.size}"
-                        )
-                    }
-
-                    bytes
-                }
-            } catch (e: WebDavException) {
+            val resource = resources.first()
+            BlobMetadata(
+                blobId = blobId,
+                length = resource.contentLength,
+                timestamp = parseLastModified(resource.lastModified) ?: Instant.now(),
+            )
+        } catch (e: WebDavException) {
+            if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                null
+            } else {
                 handleWebDavException(e, blobId)
             }
         }
-
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? =
-        withContext(Dispatchers.IO) {
-            val filePath = getFilePath(blobId)
-            val fileUrl = normalizeUrl(options.url) + filePath
-
-            try {
-                val resources = client.list(fileUrl, 0)
-                if (resources.isEmpty()) {
-                    return@withContext null
-                }
-
-                val resource = resources.first()
-                BlobMetadata(
-                    blobId = blobId,
-                    length = resource.contentLength,
-                    timestamp = parseLastModified(resource.lastModified) ?: Instant.now()
-                )
-            } catch (e: WebDavException) {
-                if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                    null
-                } else {
-                    handleWebDavException(e, blobId)
-                }
-            }
-        }
+    }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
         val rootUrl = normalizeUrl(options.url)
@@ -287,7 +280,7 @@ class WebDavBlobStorage private constructor(
         currentPrefix: String,
         filterPrefix: String,
         results: MutableList<BlobMetadata>,
-        depth: Int
+        depth: Int,
     ) {
         if (depth > MAX_WALK_DEPTH) return
 
@@ -322,11 +315,11 @@ class WebDavBlobStorage private constructor(
 
                     if (shouldDescend) {
                         walkDirectory(
-                            "$dirUrl${subDirName}/",
+                            "$dirUrl$subDirName/",
                             newPrefix,
                             filterPrefix,
                             results,
-                            depth + 1
+                            depth + 1,
                         )
                     }
                 } else {
@@ -345,8 +338,8 @@ class WebDavBlobStorage private constructor(
                             BlobMetadata(
                                 blobId = BlobId(fullBlobId),
                                 length = resource.contentLength,
-                                timestamp = parseLastModified(resource.lastModified) ?: Instant.now()
-                            )
+                                timestamp = parseLastModified(resource.lastModified) ?: Instant.now(),
+                            ),
                         )
                     }
                 }
@@ -359,78 +352,77 @@ class WebDavBlobStorage private constructor(
         }
     }
 
-    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) =
-        withContext(Dispatchers.IO) {
-            if (readOnly) {
-                throw IllegalStateException("Storage is read-only")
-            }
-            // WebDAV doesn't support retention options
-            if (options.retentionMode != org.kopiaKt.core.blob.RetentionMode.NONE) {
-                throw UnsupportedPutOptionException("blob-retention")
-            }
+    override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
+        if (readOnly) {
+            throw IllegalStateException("Storage is read-only")
+        }
+        // WebDAV doesn't support retention options
+        if (options.retentionMode != org.kopiaKt.core.blob.RetentionMode.NONE) {
+            throw UnsupportedPutOptionException("blob-retention")
+        }
 
-            // WebDAV doesn't support setModTime
-            if (options.setModTime != null) {
-                throw UnsupportedPutOptionException("setModTime")
-            }
+        // WebDAV doesn't support setModTime
+        if (options.setModTime != null) {
+            throw UnsupportedPutOptionException("setModTime")
+        }
 
-            val filePath = getFilePath(blobId)
-            val fileUrl = normalizeUrl(this@WebDavBlobStorage.options.url) + filePath
-            val dirPath = getDirPath(blobId)
-            val dirUrl = normalizeUrl(this@WebDavBlobStorage.options.url) + dirPath
+        val filePath = getFilePath(blobId)
+        val fileUrl = normalizeUrl(this@WebDavBlobStorage.options.url) + filePath
+        val dirPath = getDirPath(blobId)
+        val dirUrl = normalizeUrl(this@WebDavBlobStorage.options.url) + dirPath
 
-            // Check for existing blob if dontOverwrite is set
-            if (options.dontOverwrite) {
-                try {
-                    val resources = client.list(fileUrl, 0)
-                    if (resources.isNotEmpty()) {
-                        return@withContext // Blob exists, don't overwrite
-                    }
-                } catch (e: WebDavException) {
-                    if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
-                        handleWebDavException(e, blobId)
-                    }
-                    // Not found is fine - we'll create it
-                }
-            }
-
-            // Determine write path
-            val writePath = if (this@WebDavBlobStorage.options.atomicWrites) {
-                fileUrl
-            } else {
-                // A full 64-bit SecureRandom suffix (not Math.random) so two concurrent PUTs of the
-                // same blob are vanishingly unlikely to collide on the temp-file name and clobber
-                // each other's in-flight write.
-                "$fileUrl-${System.currentTimeMillis()}-${secureRandom.nextLong().toULong()}"
-            }
-
+        // Check for existing blob if dontOverwrite is set
+        if (options.dontOverwrite) {
             try {
-                // Try to write the file
-                try {
-                    client.put(writePath, data, CONTENT_TYPE)
-                } catch (e: WebDavException) {
-                    // If write failed, try creating parent directories and retry
-                    if (dirPath.isNotEmpty()) {
-                        try {
-                            mkdirAll(dirUrl)
-                            client.put(writePath, data, CONTENT_TYPE)
-                        } catch (retryError: Exception) {
-                            // If still failing after mkdir, throw original error
-                            throw e
-                        }
-                    } else {
-                        throw e
-                    }
-                }
-
-                // If not atomic writes, rename temp file to final location
-                if (!this@WebDavBlobStorage.options.atomicWrites) {
-                    client.move(writePath, fileUrl, true)
+                val resources = client.list(fileUrl, 0)
+                if (resources.isNotEmpty()) {
+                    return@withContext // Blob exists, don't overwrite
                 }
             } catch (e: WebDavException) {
-                handleWebDavException(e, blobId)
+                if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
+                    handleWebDavException(e, blobId)
+                }
+                // Not found is fine - we'll create it
             }
         }
+
+        // Determine write path
+        val writePath = if (this@WebDavBlobStorage.options.atomicWrites) {
+            fileUrl
+        } else {
+            // A full 64-bit SecureRandom suffix (not Math.random) so two concurrent PUTs of the
+            // same blob are vanishingly unlikely to collide on the temp-file name and clobber
+            // each other's in-flight write.
+            "$fileUrl-${System.currentTimeMillis()}-${secureRandom.nextLong().toULong()}"
+        }
+
+        try {
+            // Try to write the file
+            try {
+                client.put(writePath, data, CONTENT_TYPE)
+            } catch (e: WebDavException) {
+                // If write failed, try creating parent directories and retry
+                if (dirPath.isNotEmpty()) {
+                    try {
+                        mkdirAll(dirUrl)
+                        client.put(writePath, data, CONTENT_TYPE)
+                    } catch (retryError: Exception) {
+                        // If still failing after mkdir, throw original error
+                        throw e
+                    }
+                } else {
+                    throw e
+                }
+            }
+
+            // If not atomic writes, rename temp file to final location
+            if (!this@WebDavBlobStorage.options.atomicWrites) {
+                client.move(writePath, fileUrl, true)
+            }
+        } catch (e: WebDavException) {
+            handleWebDavException(e, blobId)
+        }
+    }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {
         if (readOnly) {
@@ -455,7 +447,7 @@ class WebDavBlobStorage private constructor(
         config = buildMap {
             put("url", options.url)
             if (options.username.isNotEmpty()) put("username", options.username)
-        }
+        },
     )
 
     override fun displayName(): String = "WebDAV: ${options.url}"
@@ -567,9 +559,7 @@ class WebDavBlobStorage private constructor(
     /**
      * Gets the directory path for a blob.
      */
-    private fun getDirPath(blobId: BlobId): String {
-        return getShardedPath(blobId).first
-    }
+    private fun getDirPath(blobId: BlobId): String = getShardedPath(blobId).first
 
     /**
      * Gets the full file path for a blob (including .f suffix).

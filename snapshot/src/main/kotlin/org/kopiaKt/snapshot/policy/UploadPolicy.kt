@@ -12,7 +12,7 @@ import org.kopiaKt.snapshot.model.SourceInfo
 data class UploadPolicy(
     val maxParallelSnapshots: Int? = null,
     val maxParallelFileReads: Int? = null,
-    val parallelUploadAboveSize: Long? = null
+    val parallelUploadAboveSize: Long? = null,
 ) {
     /**
      * Merges this policy with source policy.
@@ -28,7 +28,7 @@ data class UploadPolicy(
             },
             parallelUploadAboveSize = mergeOptionalLong(parallelUploadAboveSize, src.parallelUploadAboveSize) {
                 newDef.parallelUploadAboveSize = si
-            }
+            },
         ) to newDef
     }
 
@@ -39,7 +39,7 @@ data class UploadPolicy(
         val Default = UploadPolicy(
             maxParallelSnapshots = 1,
             maxParallelFileReads = null, // Defaults to runtime.NumCPUs() equivalent
-            parallelUploadAboveSize = 2L shl 30 // 2 GiB
+            parallelUploadAboveSize = 2L shl 30, // 2 GiB
         )
     }
 }
@@ -53,7 +53,7 @@ data class UploadPolicy(
 data class UploadPolicyDefinition(
     var maxParallelSnapshots: SourceInfo? = null,
     var maxParallelFileReads: SourceInfo? = null,
-    var parallelUploadAboveSize: SourceInfo? = null
+    var parallelUploadAboveSize: SourceInfo? = null,
 )
 
 /**
@@ -72,20 +72,16 @@ fun validateUploadPolicy(si: SourceInfo, p: UploadPolicy): String? {
 }
 
 // Helper merge functions
-private inline fun mergeOptionalInt(target: Int?, src: Int?, onMerge: () -> Unit): Int? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeOptionalInt(target: Int?, src: Int?, onMerge: () -> Unit): Int? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeOptionalLong(target: Long?, src: Long?, onMerge: () -> Unit): Long? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeOptionalLong(target: Long?, src: Long?, onMerge: () -> Unit): Long? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

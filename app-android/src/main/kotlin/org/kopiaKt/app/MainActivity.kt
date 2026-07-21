@@ -37,8 +37,8 @@ class MainActivity : ComponentActivity() {
 
         // Configure status bar appearance - dark icons on light background
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true  // Dark icons for light background
-            isAppearanceLightNavigationBars = true  // Dark icons for navigation bar
+            isAppearanceLightStatusBars = true // Dark icons for light background
+            isAppearanceLightNavigationBars = true // Dark icons for navigation bar
         }
 
         setupWebView()
@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
             webBridge = KopiaWebBridge(
                 context = applicationContext,
                 activity = this@MainActivity,
-                containerView = container!!
+                containerView = container!!,
             ).also { bridge ->
                 addJavascriptInterface(bridge, "KopiaBridge")
                 bridge.attachWebView(this)
@@ -69,10 +69,13 @@ class MainActivity : ComponentActivity() {
             loadUrl(APP_URL)
         }
 
-        container!!.addView(webView, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ))
+        container!!.addView(
+            webView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
 
         // Apply window insets to the container for proper safe area handling
         ViewCompat.setOnApplyWindowInsetsListener(container!!) { view, windowInsets ->
@@ -81,7 +84,7 @@ class MainActivity : ComponentActivity() {
                 top = insets.top,
                 bottom = insets.bottom,
                 left = insets.left,
-                right = insets.right
+                right = insets.right,
             )
             WindowInsetsCompat.CONSUMED
         }

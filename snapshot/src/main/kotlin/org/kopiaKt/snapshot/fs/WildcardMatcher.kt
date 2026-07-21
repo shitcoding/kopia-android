@@ -22,21 +22,21 @@ class WildcardMatcher private constructor(
     val negated: Boolean,
     val dirOnly: Boolean,
     private val matchBasename: Boolean, // If true, match against basename only (no / in original pattern)
-    private val options: Options = Options()
+    private val options: Options = Options(),
 ) {
 
     data class Options(
         val ignoreCase: Boolean = false,
-        val baseDir: String = ""
+        val baseDir: String = "",
     )
 
     private sealed class Token {
-        data object Star : Token()                     // *
-        data object DoubleStar : Token()              // **
-        data object Question : Token()                // ?
+        data object Star : Token() // *
+        data object DoubleStar : Token() // **
+        data object Question : Token() // ?
         data class Literal(val text: String) : Token()
         data class CharClass(val chars: Set<Char>, val negated: Boolean) : Token()
-        data object Separator : Token()               // /
+        data object Separator : Token() // /
     }
 
     /**
@@ -238,11 +238,9 @@ class WildcardMatcher private constructor(
         /**
          * Creates a list of matchers from multiple patterns.
          */
-        fun parseAll(patterns: List<String>, options: Options = Options()): List<WildcardMatcher> {
-            return patterns
-                .filter { it.isNotBlank() && !it.startsWith("#") }
-                .map { parse(it, options) }
-        }
+        fun parseAll(patterns: List<String>, options: Options = Options()): List<WildcardMatcher> = patterns
+            .filter { it.isNotBlank() && !it.startsWith("#") }
+            .map { parse(it, options) }
 
         private fun tokenize(pattern: String, options: Options): List<Token> {
             val tokens = mutableListOf<Token>()

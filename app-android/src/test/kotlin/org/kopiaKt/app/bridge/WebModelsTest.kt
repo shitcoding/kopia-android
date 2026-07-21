@@ -69,7 +69,7 @@ class WebModelsTest {
     fun `toDomain maps S3 secretAccessKey`() {
         val webConfig = WebConnectionConfig(
             storageType = "S3",
-            s3 = WebS3Config("bucket", "endpoint", "region", "akid", "secret")
+            s3 = WebS3Config("bucket", "endpoint", "region", "akid", "secret"),
         )
         val domain = webConfig.toDomain() as ConnectionConfig.S3
         assertEquals("secret", domain.secretAccessKey)
@@ -81,7 +81,7 @@ class WebModelsTest {
     fun `toDomain maps WebDAV password`() {
         val webConfig = WebConnectionConfig(
             storageType = "WEBDAV",
-            webdav = WebWebDavConfig("http://url", "user", "pass")
+            webdav = WebWebDavConfig("http://url", "user", "pass"),
         )
         val domain = webConfig.toDomain() as ConnectionConfig.WebDAV
         assertEquals("pass", domain.password)
@@ -92,7 +92,7 @@ class WebModelsTest {
     fun `toDomain maps SFTP password`() {
         val webConfig = WebConnectionConfig(
             storageType = "SFTP",
-            sftp = WebSftpConfig("host", 22, "user", "/path", "spass")
+            sftp = WebSftpConfig("host", 22, "user", "/path", "spass"),
         )
         val domain = webConfig.toDomain() as ConnectionConfig.SFTP
         assertEquals("spass", domain.password)
@@ -105,11 +105,15 @@ class WebModelsTest {
         val webConfig = WebConnectionConfig(
             storageType = "SFTP",
             sftp = WebSftpConfig(
-                host = "host", port = 22, username = "user", path = "/path", password = "spass",
+                host = "host",
+                port = 22,
+                username = "user",
+                path = "/path",
+                password = "spass",
                 knownHostsData = "host ssh-ed25519 AAAAKEY",
                 hostKeyFingerprint = "SHA256:abc123",
-                insecureSkipHostKeyVerification = true
-            )
+                insecureSkipHostKeyVerification = true,
+            ),
         )
         val domain = webConfig.toDomain() as ConnectionConfig.SFTP
         assertEquals("host ssh-ed25519 AAAAKEY", domain.knownHostsData)
@@ -120,9 +124,14 @@ class WebModelsTest {
     @Test
     fun `toWeb echoes SFTP host-key trust material`() {
         val domain = ConnectionConfig.SFTP(
-            host = "h", port = 22, username = "u", path = "/p", password = "pw",
-            knownHostsData = "kh", hostKeyFingerprint = "SHA256:fp",
-            insecureSkipHostKeyVerification = true
+            host = "h",
+            port = 22,
+            username = "u",
+            path = "/p",
+            password = "pw",
+            knownHostsData = "kh",
+            hostKeyFingerprint = "SHA256:fp",
+            insecureSkipHostKeyVerification = true,
         )
         val web = domain.toWeb().sftp!!
         assertEquals("kh", web.knownHostsData)
@@ -161,7 +170,7 @@ class WebModelsTest {
     fun `WebPolicySourceRequest decodes the host userName path object the TS parseSourceId sends`() {
         // getPolicy/resolvePolicy/deletePolicy send parseSourceId(sourceId) -> {userName, host, path}.
         val request = json.decodeFromString<WebPolicySourceRequest>(
-            """{"userName":"user","host":"laptop","path":"/home/user/docs"}"""
+            """{"userName":"user","host":"laptop","path":"/home/user/docs"}""",
         )
         assertEquals("laptop", request.host)
         assertEquals("user", request.userName)
@@ -172,7 +181,7 @@ class WebModelsTest {
     fun `WebSetPolicyRequest decodes the source and policy wrapper`() {
         // setPolicy sends { source: parseSourceId(...), policy }, NOT a bare { sourceId, policy }.
         val request = json.decodeFromString<WebSetPolicyRequest>(
-            """{"source":{"userName":"u","host":"h","path":"/p"},"policy":{}}"""
+            """{"source":{"userName":"u","host":"h","path":"/p"},"policy":{}}""",
         )
         assertEquals("h", request.source.host)
         assertEquals("/p", request.source.path)
@@ -183,8 +192,11 @@ class WebModelsTest {
         // The TS union/icon map key on Snapshot/Restore/Maintenance/Estimate; the raw enum name
         // (BACKUP) would make TASK_KIND_ICON[kind] undefined and crash the task list.
         fun kindWire(kind: TaskKind) = TaskInfo(
-            id = "t", kind = kind, description = "d",
-            status = TaskStatus.RUNNING, startTime = Instant.EPOCH
+            id = "t",
+            kind = kind,
+            description = "d",
+            status = TaskStatus.RUNNING,
+            startTime = Instant.EPOCH,
         ).toWeb().kind
         assertEquals("Snapshot", kindWire(TaskKind.BACKUP))
         assertEquals("Restore", kindWire(TaskKind.RESTORE))
@@ -198,9 +210,13 @@ class WebModelsTest {
         // task.error on FAILED. @SerialName("error") must keep emitting that wire name.
         val out = bridgeJson.encodeToString(
             WebTaskInfo(
-                id = "t1", kind = "Snapshot", description = "d", status = "FAILED",
-                errorMessage = "boom", startTimeEpochMs = 0L
-            )
+                id = "t1",
+                kind = "Snapshot",
+                description = "d",
+                status = "FAILED",
+                errorMessage = "boom",
+                startTimeEpochMs = 0L,
+            ),
         )
         assertTrue(out.contains("\"error\":\"boom\""), out)
         assertFalse(out.contains("errorMessage"), out)

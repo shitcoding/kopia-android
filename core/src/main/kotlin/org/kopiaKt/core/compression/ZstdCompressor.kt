@@ -18,7 +18,7 @@ import java.io.ByteArrayOutputStream
  */
 class ZstdCompressor(
     override val algorithm: CompressionAlgorithm,
-    private val level: Int = DEFAULT_LEVEL
+    private val level: Int = DEFAULT_LEVEL,
 ) : Compressor {
 
     init {
@@ -72,15 +72,15 @@ class ZstdCompressor(
     companion object {
         // Zstd compression levels mapping to Go's zstd.EncoderLevel
         private const val LEVEL_FASTEST = 1
-        private const val DEFAULT_LEVEL = 3           // SpeedDefault
-        private const val LEVEL_BETTER = 7            // SpeedBetterCompression
-        private const val LEVEL_BEST = 19             // SpeedBestCompression
+        private const val DEFAULT_LEVEL = 3 // SpeedDefault
+        private const val LEVEL_BETTER = 7 // SpeedBetterCompression
+        private const val LEVEL_BEST = 19 // SpeedBestCompression
 
         private val ZSTD_ALGORITHMS = setOf(
             CompressionAlgorithm.ZSTD_DEFAULT,
             CompressionAlgorithm.ZSTD_FASTEST,
             CompressionAlgorithm.ZSTD_BETTER_COMPRESSION,
-            CompressionAlgorithm.ZSTD_BEST_COMPRESSION
+            CompressionAlgorithm.ZSTD_BEST_COMPRESSION,
         )
 
         fun default() = ZstdCompressor(CompressionAlgorithm.ZSTD_DEFAULT, DEFAULT_LEVEL)

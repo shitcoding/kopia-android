@@ -56,8 +56,8 @@ class S3BlobStorageTest {
             client = mockClient,
             options = S3Options(
                 bucketName = testBucket,
-                prefix = testPrefix
-            )
+                prefix = testPrefix,
+            ),
         )
     }
 
@@ -352,9 +352,9 @@ class S3BlobStorageTest {
                 storageConfig = S3StorageConfig(
                     blobOptions = listOf(
                         PrefixAndStorageClass(prefix = "p", storageClass = "GLACIER"),
-                        PrefixAndStorageClass(prefix = "n", storageClass = "STANDARD_IA")
-                    )
-                )
+                        PrefixAndStorageClass(prefix = "n", storageClass = "STANDARD_IA"),
+                    ),
+                ),
             )
 
             val requestSlot = slot<PutObjectRequest>()
@@ -380,7 +380,7 @@ class S3BlobStorageTest {
             assertThrows<IllegalArgumentException> {
                 S3BlobStorage.createWithClient(
                     mockClient,
-                    S3Options(bucketName = testBucket, doNotVerifyTls = true)
+                    S3Options(bucketName = testBucket, doNotVerifyTls = true),
                 )
             }
         }
@@ -390,7 +390,7 @@ class S3BlobStorageTest {
             assertThrows<IllegalArgumentException> {
                 S3BlobStorage.createWithClient(
                     mockClient,
-                    S3Options(bucketName = testBucket, rootCa = byteArrayOf(1, 2, 3))
+                    S3Options(bucketName = testBucket, rootCa = byteArrayOf(1, 2, 3)),
                 )
             }
         }
@@ -400,7 +400,7 @@ class S3BlobStorageTest {
             assertThrows<IllegalArgumentException> {
                 S3BlobStorage.createWithClient(
                     mockClient,
-                    S3Options(bucketName = testBucket, roleArn = "arn:aws:iam::123:role/x")
+                    S3Options(bucketName = testBucket, roleArn = "arn:aws:iam::123:role/x"),
                 )
             }
         }
@@ -452,7 +452,7 @@ class S3BlobStorageTest {
         private fun readOnlyStorage() = S3BlobStorage.createWithClient(
             client = mockClient,
             options = S3Options(bucketName = testBucket, prefix = testPrefix),
-            readOnly = true
+            readOnly = true,
         )
 
         @Test

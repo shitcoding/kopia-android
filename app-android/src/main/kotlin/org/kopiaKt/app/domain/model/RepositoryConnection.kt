@@ -8,7 +8,7 @@ data class RepositoryConnection(
     val storageType: StorageType,
     val connectionConfig: ConnectionConfig,
     val lastConnected: Instant? = null,
-    val isConnected: Boolean = false
+    val isConnected: Boolean = false,
 )
 
 enum class StorageType {
@@ -16,7 +16,7 @@ enum class StorageType {
     S3,
     WEBDAV,
     SFTP,
-    SAF
+    SAF,
 }
 
 sealed interface ConnectionConfig {
@@ -27,13 +27,13 @@ sealed interface ConnectionConfig {
         val endpoint: String,
         val region: String,
         val accessKeyId: String,
-        val secretAccessKey: String = ""
+        val secretAccessKey: String = "",
     ) : ConnectionConfig
 
     data class WebDAV(
         val url: String,
         val username: String,
-        val password: String = ""
+        val password: String = "",
     ) : ConnectionConfig
 
     data class SFTP(
@@ -47,11 +47,11 @@ sealed interface ConnectionConfig {
         /** sshj host-key fingerprint to pin ("SHA256:<base64>" or MD5 hex), if no known_hosts. */
         val hostKeyFingerprint: String = "",
         /** Trust ANY server key — INSECURE, dev/testing only; rejected in release builds. */
-        val insecureSkipHostKeyVerification: Boolean = false
+        val insecureSkipHostKeyVerification: Boolean = false,
     ) : ConnectionConfig
 
     data class SAF(
         val treeUri: String,
-        val displayPath: String
+        val displayPath: String,
     ) : ConnectionConfig
 }

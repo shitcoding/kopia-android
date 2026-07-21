@@ -40,7 +40,8 @@ class PolicyDataModelTest {
                     "compressorName": "zstd"
                 },
                 "noParent": false
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<Policy>(goJson)
 
@@ -58,7 +59,7 @@ class PolicyDataModelTest {
             val policy = Policy(
                 retentionPolicy = RetentionPolicy(keepLatest = 10, keepDaily = 7),
                 filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp")),
-                compressionPolicy = CompressionPolicy(compressorName = "zstd")
+                compressionPolicy = CompressionPolicy(compressorName = "zstd"),
             )
 
             val serialized = json.encodeToString(policy)
@@ -99,7 +100,7 @@ class PolicyDataModelTest {
         @Test
         fun `should create labels for path source`() {
             val labels = Policy.labelsForSource(
-                SourceInfo(host = "myhost", userName = "myuser", path = "/home/myuser")
+                SourceInfo(host = "myhost", userName = "myuser", path = "/home/myuser"),
             )
 
             assertEquals("policy", labels["type"])
@@ -115,8 +116,8 @@ class PolicyDataModelTest {
                 labels = mapOf(
                     "hostname" to "myhost",
                     "username" to "myuser",
-                    "path" to "/mypath"
-                )
+                    "path" to "/mypath",
+                ),
             )
 
             val target = policy.target()
@@ -139,7 +140,8 @@ class PolicyDataModelTest {
                 "keepMonthly": 24,
                 "keepAnnual": 3,
                 "ignoreIdenticalSnapshots": true
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<RetentionPolicy>(goJson)
 
@@ -228,7 +230,8 @@ class PolicyDataModelTest {
                 "ignoreCacheDirs": true,
                 "maxFileSize": 1073741824,
                 "oneFileSystem": true
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<FilesPolicy>(goJson)
 
@@ -284,7 +287,8 @@ class PolicyDataModelTest {
                 "neverCompress": [".jpg", ".mp4"],
                 "minSize": 1024,
                 "maxSize": 1073741824
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<CompressionPolicy>(goJson)
 
@@ -327,7 +331,7 @@ class PolicyDataModelTest {
         fun `should skip compression for never compress extensions`() {
             val policy = CompressionPolicy(
                 compressorName = "zstd",
-                neverCompress = listOf(".jpg", ".mp4")
+                neverCompress = listOf(".jpg", ".mp4"),
             )
 
             assertEquals("", policy.compressorForFile("photo.jpg", 1000))
@@ -338,7 +342,7 @@ class PolicyDataModelTest {
         fun `should only compress specified extensions`() {
             val policy = CompressionPolicy(
                 compressorName = "zstd",
-                onlyCompress = listOf(".txt", ".json")
+                onlyCompress = listOf(".txt", ".json"),
             )
 
             assertEquals("zstd", policy.compressorForFile("document.txt", 1000))
@@ -395,7 +399,8 @@ class PolicyDataModelTest {
                 "manual": false,
                 "cron": ["0 2 * * *"],
                 "runMissed": true
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<SchedulingPolicy>(goJson)
 
@@ -446,7 +451,7 @@ class PolicyDataModelTest {
                 TimeOfDay(14, 30),
                 TimeOfDay(2, 0),
                 TimeOfDay(14, 30),
-                TimeOfDay(8, 15)
+                TimeOfDay(8, 15),
             )
 
             val sorted = sortAndDedupeTimesOfDay(times)
@@ -466,7 +471,8 @@ class PolicyDataModelTest {
                 "ignoreFileErrors": true,
                 "ignoreDirectoryErrors": false,
                 "ignoreUnknownTypes": true
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<ErrorHandlingPolicy>(goJson)
 
@@ -500,7 +506,8 @@ class PolicyDataModelTest {
                     "script": "echo done",
                     "mode": "optional"
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<ActionsPolicy>(goJson)
 
@@ -518,11 +525,11 @@ class PolicyDataModelTest {
         fun `should merge actions policies - only inheritable`() {
             val target = ActionsPolicy(
                 beforeFolder = ActionCommand(command = "/bin/before"),
-                beforeSnapshotRoot = ActionCommand(command = "/bin/root-before")
+                beforeSnapshotRoot = ActionCommand(command = "/bin/root-before"),
             )
             val source = ActionsPolicy(
                 beforeFolder = ActionCommand(command = "/bin/source-before"),
-                afterSnapshotRoot = ActionCommand(command = "/bin/root-after")
+                afterSnapshotRoot = ActionCommand(command = "/bin/root-after"),
             )
             val def = ActionsPolicyDefinition()
             val si = SourceInfo("host", "user", "/path")
@@ -553,7 +560,8 @@ class PolicyDataModelTest {
                     "cacheHit": 0,
                     "cacheMiss": 0
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<LoggingPolicy>(goJson)
 
@@ -581,7 +589,8 @@ class PolicyDataModelTest {
                 "maxParallelSnapshots": 1,
                 "maxParallelFileReads": 4,
                 "parallelUploadAboveSize": 2147483648
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<UploadPolicy>(goJson)
 
@@ -620,7 +629,8 @@ class PolicyDataModelTest {
                 "volumeShadowCopy": {
                     "enable": "when-available"
                 }
-            }""".trimIndent()
+            }
+            """.trimIndent()
 
             val policy = json.decodeFromString<OSSnapshotPolicy>(goJson)
 
@@ -630,7 +640,7 @@ class PolicyDataModelTest {
         @Test
         fun `should serialize OSSnapshotMode correctly`() {
             val policy = OSSnapshotPolicy(
-                volumeShadowCopy = VolumeShadowCopyPolicy(enable = OSSnapshotMode.ALWAYS)
+                volumeShadowCopy = VolumeShadowCopyPolicy(enable = OSSnapshotMode.ALWAYS),
             )
 
             val serialized = json.encodeToString(policy)
@@ -652,20 +662,20 @@ class PolicyDataModelTest {
         fun `should merge policies in order`() {
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("host", "user", "/path")),
-                retentionPolicy = RetentionPolicy(keepDaily = 14)
+                retentionPolicy = RetentionPolicy(keepDaily = 14),
             )
             val userPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("host", "user", "")),
-                retentionPolicy = RetentionPolicy(keepDaily = 7, keepWeekly = 8)
+                retentionPolicy = RetentionPolicy(keepDaily = 7, keepWeekly = 8),
             )
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("", "", "")),
-                retentionPolicy = RetentionPolicy(keepDaily = 30, keepWeekly = 4, keepMonthly = 12)
+                retentionPolicy = RetentionPolicy(keepDaily = 30, keepWeekly = 4, keepMonthly = 12),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, userPolicy, globalPolicy),
-                SourceInfo("host", "user", "/path")
+                SourceInfo("host", "user", "/path"),
             )
 
             // Path policy value takes precedence
@@ -681,16 +691,16 @@ class PolicyDataModelTest {
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("host", "user", "/path")),
                 retentionPolicy = RetentionPolicy(keepDaily = 14),
-                noParent = true
+                noParent = true,
             )
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("", "", "")),
-                retentionPolicy = RetentionPolicy(keepWeekly = 4)
+                retentionPolicy = RetentionPolicy(keepWeekly = 4),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, globalPolicy),
-                SourceInfo("host", "user", "/path")
+                SourceInfo("host", "user", "/path"),
             )
 
             assertEquals(14, merged.retentionPolicy.keepDaily)
@@ -714,20 +724,20 @@ class PolicyDataModelTest {
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("host", "user", "/path")),
                 actionsPolicy = ActionsPolicy(
-                    beforeFolder = ActionCommand(command = "/bin/path-before")
-                )
+                    beforeFolder = ActionCommand(command = "/bin/path-before"),
+                ),
             )
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(SourceInfo("", "", "")),
                 actionsPolicy = ActionsPolicy(
                     beforeFolder = ActionCommand(command = "/bin/global-before"),
-                    beforeSnapshotRoot = ActionCommand(command = "/bin/global-root")
-                )
+                    beforeSnapshotRoot = ActionCommand(command = "/bin/global-root"),
+                ),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, globalPolicy),
-                SourceInfo("host", "user", "/path")
+                SourceInfo("host", "user", "/path"),
             )
 
             // Non-inheritable from most specific policy
@@ -765,7 +775,7 @@ class PolicyDataModelTest {
         fun `should detect invalid scheduling policy`() {
             val si = SourceInfo("host", "user", "/path")
             val policy = Policy(
-                schedulingPolicy = SchedulingPolicy(manual = true, intervalSeconds = 3600)
+                schedulingPolicy = SchedulingPolicy(manual = true, intervalSeconds = 3600),
             )
 
             val error = validatePolicy(si, policy)
@@ -778,7 +788,7 @@ class PolicyDataModelTest {
         fun `should detect invalid upload policy`() {
             val si = SourceInfo("host", "user", "/path")
             val policy = Policy(
-                uploadPolicy = UploadPolicy(maxParallelSnapshots = 2)
+                uploadPolicy = UploadPolicy(maxParallelSnapshots = 2),
             )
 
             val error = validatePolicy(si, policy)

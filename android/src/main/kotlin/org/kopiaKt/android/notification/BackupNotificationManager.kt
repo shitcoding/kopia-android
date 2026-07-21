@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationCompat
@@ -37,8 +36,7 @@ object BackupNotificationIds {
     private val slotBySource = java.util.concurrent.ConcurrentHashMap<String, Int>()
     private val nextSlot = java.util.concurrent.atomic.AtomicInteger(0)
 
-    private fun slotBase(sourceId: String): Int =
-        BACKUP_PROGRESS_BASE + SLOT_SIZE * slotBySource.computeIfAbsent(sourceId) { nextSlot.getAndIncrement() }
+    private fun slotBase(sourceId: String): Int = BACKUP_PROGRESS_BASE + SLOT_SIZE * slotBySource.computeIfAbsent(sourceId) { nextSlot.getAndIncrement() }
 
     /** Returns a distinct, stable progress-notification ID for [sourceId] (collision-free across sources). */
     fun forSource(sourceId: String): Int = slotBase(sourceId)
@@ -72,7 +70,7 @@ object BackupNotificationChannels {
  */
 class BackupNotificationManager(
     private val context: Context,
-    @DrawableRes private val smallIcon: Int
+    @DrawableRes private val smallIcon: Int,
 ) {
     private val notificationManager: NotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -87,7 +85,7 @@ class BackupNotificationManager(
             val progressChannel = NotificationChannel(
                 BackupNotificationChannels.PROGRESS,
                 "Backup Progress",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "Shows progress during backup and restore operations"
                 setShowBadge(false)
@@ -96,7 +94,7 @@ class BackupNotificationManager(
             val completionChannel = NotificationChannel(
                 BackupNotificationChannels.COMPLETION,
                 "Backup Complete",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = "Notifies when backup or restore operations complete"
             }
@@ -104,13 +102,13 @@ class BackupNotificationManager(
             val errorChannel = NotificationChannel(
                 BackupNotificationChannels.ERROR,
                 "Backup Errors",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "Notifies about backup or restore errors"
             }
 
             notificationManager.createNotificationChannels(
-                listOf(progressChannel, completionChannel, errorChannel)
+                listOf(progressChannel, completionChannel, errorChannel),
             )
         }
     }
@@ -136,7 +134,7 @@ class BackupNotificationManager(
         processedBytes: Long = 0,
         totalBytes: Long = 0,
         processedFiles: Int = 0,
-        cancelIntent: PendingIntent? = null
+        cancelIntent: PendingIntent? = null,
     ): Notification {
         val title = "Backing up: $sourcePath"
         val text = buildProgressText(currentFile, processedFiles, processedBytes, totalBytes)
@@ -162,8 +160,8 @@ class BackupNotificationManager(
                         NotificationCompat.Action.Builder(
                             0, // No icon needed
                             "Cancel",
-                            intent
-                        ).build()
+                            intent,
+                        ).build(),
                     )
                 }
 
@@ -192,7 +190,7 @@ class BackupNotificationManager(
         filesCount: Int,
         totalBytes: Long,
         duration: Long,
-        contentIntent: PendingIntent? = null
+        contentIntent: PendingIntent? = null,
     ): Notification {
         val title = "Backup complete"
         val text = "Backed up $filesCount files (${formatBytes(totalBytes)})"
@@ -227,42 +225,40 @@ class BackupNotificationManager(
         sourcePath: String,
         errorMessage: String,
         retryIntent: PendingIntent? = null,
-        detailsIntent: PendingIntent? = null
-    ): Notification {
-        return NotificationCompat.Builder(context, BackupNotificationChannels.ERROR)
-            .setSmallIcon(smallIcon)
-            .setContentTitle("Backup failed")
-            .setContentText("Failed to backup: $sourcePath")
-            .setAutoCancel(true)
-            .setCategory(NotificationCompat.CATEGORY_ERROR)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .apply {
-                val style = NotificationCompat.BigTextStyle()
-                    .bigText("Failed to backup: $sourcePath\n\nError: $errorMessage")
-                setStyle(style)
+        detailsIntent: PendingIntent? = null,
+    ): Notification = NotificationCompat.Builder(context, BackupNotificationChannels.ERROR)
+        .setSmallIcon(smallIcon)
+        .setContentTitle("Backup failed")
+        .setContentText("Failed to backup: $sourcePath")
+        .setAutoCancel(true)
+        .setCategory(NotificationCompat.CATEGORY_ERROR)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .apply {
+            val style = NotificationCompat.BigTextStyle()
+                .bigText("Failed to backup: $sourcePath\n\nError: $errorMessage")
+            setStyle(style)
 
-                retryIntent?.let { intent ->
-                    addAction(
-                        NotificationCompat.Action.Builder(
-                            0,
-                            "Retry",
-                            intent
-                        ).build()
-                    )
-                }
-
-                detailsIntent?.let { intent ->
-                    addAction(
-                        NotificationCompat.Action.Builder(
-                            0,
-                            "Details",
-                            intent
-                        ).build()
-                    )
-                }
+            retryIntent?.let { intent ->
+                addAction(
+                    NotificationCompat.Action.Builder(
+                        0,
+                        "Retry",
+                        intent,
+                    ).build(),
+                )
             }
-            .build()
-    }
+
+            detailsIntent?.let { intent ->
+                addAction(
+                    NotificationCompat.Action.Builder(
+                        0,
+                        "Details",
+                        intent,
+                    ).build(),
+                )
+            }
+        }
+        .build()
 
     /**
      * Builds a progress notification for an ongoing restore operation.
@@ -274,7 +270,7 @@ class BackupNotificationManager(
         processedBytes: Long = 0,
         totalBytes: Long = 0,
         processedFiles: Int = 0,
-        cancelIntent: PendingIntent? = null
+        cancelIntent: PendingIntent? = null,
     ): Notification {
         val title = "Restoring to: $destinationPath"
         val text = buildProgressText(currentFile, processedFiles, processedBytes, totalBytes)
@@ -300,8 +296,8 @@ class BackupNotificationManager(
                         NotificationCompat.Action.Builder(
                             0,
                             "Cancel",
-                            intent
-                        ).build()
+                            intent,
+                        ).build(),
                     )
                 }
             }
@@ -316,7 +312,7 @@ class BackupNotificationManager(
         filesCount: Int,
         totalBytes: Long,
         duration: Long,
-        contentIntent: PendingIntent? = null
+        contentIntent: PendingIntent? = null,
     ): Notification {
         val title = "Restore complete"
         val text = "Restored $filesCount files (${formatBytes(totalBytes)})"
@@ -356,7 +352,7 @@ class BackupNotificationManager(
         currentFile: String?,
         processedFiles: Int,
         processedBytes: Long,
-        totalBytes: Long
+        totalBytes: Long,
     ): String {
         val parts = mutableListOf<String>()
 
@@ -384,7 +380,7 @@ class BackupNotificationManager(
         currentFile: String?,
         processedFiles: Int,
         processedBytes: Long,
-        totalBytes: Long
+        totalBytes: Long,
     ): String {
         val lines = mutableListOf<String>()
 
@@ -412,13 +408,11 @@ class BackupNotificationManager(
         /**
          * Formats bytes into human-readable format.
          */
-        fun formatBytes(bytes: Long): String {
-            return when {
-                bytes < 1024 -> "$bytes B"
-                bytes < 1024 * 1024 -> String.format("%.1f KB", bytes / 1024.0)
-                bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024))
-                else -> String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024))
-            }
+        fun formatBytes(bytes: Long): String = when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> String.format("%.1f KB", bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024))
+            else -> String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024))
         }
 
         /**

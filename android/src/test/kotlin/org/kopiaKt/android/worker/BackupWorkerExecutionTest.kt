@@ -7,12 +7,12 @@ import androidx.work.testing.WorkManagerTestInitHelper
 import androidx.work.workDataOf
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
-import org.kopiaKt.snapshot.upload.UploadCounters
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.kopiaKt.snapshot.upload.UploadCounters
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
@@ -47,8 +47,8 @@ class BackupWorkerExecutionTest {
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
             .setInputData(
                 workDataOf(
-                    BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                )
+                    BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                ),
             )
             .build()
 
@@ -57,8 +57,8 @@ class BackupWorkerExecutionTest {
         assertThat(result).isInstanceOf(ListenableWorker.Result::class.java)
         assertThat(result).isEqualTo(
             ListenableWorker.Result.failure(
-                workDataOf(BackupWorker.KEY_ERROR to "Missing source ID")
-            )
+                workDataOf(BackupWorker.KEY_ERROR to "Missing source ID"),
+            ),
         )
     }
 
@@ -67,8 +67,8 @@ class BackupWorkerExecutionTest {
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
             .setInputData(
                 workDataOf(
-                    BackupWorker.KEY_SOURCE_ID to "test-source"
-                )
+                    BackupWorker.KEY_SOURCE_ID to "test-source",
+                ),
             )
             .build()
 
@@ -77,8 +77,8 @@ class BackupWorkerExecutionTest {
         assertThat(result).isInstanceOf(ListenableWorker.Result::class.java)
         assertThat(result).isEqualTo(
             ListenableWorker.Result.failure(
-                workDataOf(BackupWorker.KEY_ERROR to "Missing source path")
-            )
+                workDataOf(BackupWorker.KEY_ERROR to "Missing source path"),
+            ),
         )
     }
 
@@ -88,8 +88,8 @@ class BackupWorkerExecutionTest {
             .setInputData(
                 workDataOf(
                     BackupWorker.KEY_SOURCE_ID to "test-source",
-                    BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                )
+                    BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                ),
             )
             .build()
 
@@ -112,8 +112,8 @@ class BackupWorkerExecutionTest {
             .setInputData(
                 workDataOf(
                     BackupWorker.KEY_SOURCE_ID to "test-source",
-                    BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                )
+                    BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                ),
             )
             .build()
 
@@ -136,8 +136,8 @@ class BackupWorkerExecutionTest {
             .setInputData(
                 workDataOf(
                     BackupWorker.KEY_SOURCE_ID to "test-source",
-                    BackupWorker.KEY_SOURCE_PATH to "/test/path"
-                )
+                    BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                ),
             )
             .build()
 
@@ -149,22 +149,21 @@ class BackupWorkerExecutionTest {
         assertThat(capturedContext).isEqualTo(context)
     }
 
-    private fun buildWorker(): BackupWorker =
-        TestListenableWorkerBuilder<BackupWorker>(context)
-            .setInputData(
-                workDataOf(
-                    BackupWorker.KEY_SOURCE_ID to "s",
-                    BackupWorker.KEY_SOURCE_PATH to "/p"
-                )
-            )
-            .build()
+    private fun buildWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(context)
+        .setInputData(
+            workDataOf(
+                BackupWorker.KEY_SOURCE_ID to "s",
+                BackupWorker.KEY_SOURCE_PATH to "/p",
+            ),
+        )
+        .build()
 
     @Test
     fun `computeProgressPercent is null when no estimate is available`() {
         assertThat(
             buildWorker().computeProgressPercent(
-                UploadCounters(totalHashedBytes = 500, estimatedBytes = 0)
-            )
+                UploadCounters(totalHashedBytes = 500, estimatedBytes = 0),
+            ),
         ).isNull()
     }
 
@@ -172,13 +171,13 @@ class BackupWorkerExecutionTest {
     fun `computeProgressPercent computes the partial percentage from cached plus hashed bytes`() {
         val worker = buildWorker()
         assertThat(
-            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 25, estimatedBytes = 100))
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 25, estimatedBytes = 100)),
         ).isEqualTo(25)
         // Both cached and hashed bytes count toward progress: 30 + 20 of 200 == 25%.
         assertThat(
             worker.computeProgressPercent(
-                UploadCounters(totalCachedBytes = 30, totalHashedBytes = 20, estimatedBytes = 200)
-            )
+                UploadCounters(totalCachedBytes = 30, totalHashedBytes = 20, estimatedBytes = 200),
+            ),
         ).isEqualTo(25)
     }
 
@@ -187,11 +186,11 @@ class BackupWorkerExecutionTest {
         val worker = buildWorker()
         // Exactly at the estimate must not show 100% before the backup actually finishes.
         assertThat(
-            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 100, estimatedBytes = 100))
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 100, estimatedBytes = 100)),
         ).isEqualTo(99)
         // Overshooting the estimate stays clamped at 99.
         assertThat(
-            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 150, estimatedBytes = 100))
+            worker.computeProgressPercent(UploadCounters(totalHashedBytes = 150, estimatedBytes = 100)),
         ).isEqualTo(99)
     }
 }

@@ -55,7 +55,7 @@ data class RepositoryConfig(
     val upgradeLock: UpgradeLockIntent? = null,
 
     /** Required features for this repository. */
-    val requiredFeatures: List<String> = emptyList()
+    val requiredFeatures: List<String> = emptyList(),
 ) {
     /**
      * Whether this repository uses Go's epoch-based index management (so index blobs must be written with
@@ -81,7 +81,7 @@ data class RepositoryConfig(
         maxPackSize = maxPackSize,
         indexVersion = indexVersion,
         epochParameters = epochParameters,
-        enablePasswordChange = enablePasswordChange
+        enablePasswordChange = enablePasswordChange,
     )
 
     /**
@@ -96,7 +96,7 @@ data class RepositoryConfig(
         version = version,
         maxPackSize = maxPackSize,
         indexVersion = indexVersion,
-        epochParameters = epochParameters
+        epochParameters = epochParameters,
     )
 
     override fun equals(other: Any?): Boolean {
@@ -143,21 +143,20 @@ data class RepositoryConfig(
         /**
          * Creates a RepositoryConfig from content and object formats.
          */
-        fun from(contentFormat: ContentFormat, objectFormat: ObjectFormat): RepositoryConfig =
-            RepositoryConfig(
-                hash = contentFormat.hash,
-                encryption = contentFormat.encryption,
-                ecc = contentFormat.ecc,
-                eccOverheadPercent = contentFormat.eccOverheadPercent,
-                secret = contentFormat.hmacSecret,
-                masterKey = contentFormat.masterKey,
-                version = contentFormat.version,
-                maxPackSize = contentFormat.maxPackSize,
-                indexVersion = contentFormat.indexVersion,
-                epochParameters = contentFormat.epochParameters,
-                enablePasswordChange = contentFormat.enablePasswordChange,
-                splitter = objectFormat.splitter
-            )
+        fun from(contentFormat: ContentFormat, objectFormat: ObjectFormat): RepositoryConfig = RepositoryConfig(
+            hash = contentFormat.hash,
+            encryption = contentFormat.encryption,
+            ecc = contentFormat.ecc,
+            eccOverheadPercent = contentFormat.eccOverheadPercent,
+            secret = contentFormat.hmacSecret,
+            masterKey = contentFormat.masterKey,
+            version = contentFormat.version,
+            maxPackSize = contentFormat.maxPackSize,
+            indexVersion = contentFormat.indexVersion,
+            epochParameters = contentFormat.epochParameters,
+            enablePasswordChange = contentFormat.enablePasswordChange,
+            splitter = objectFormat.splitter,
+        )
     }
 }
 
@@ -168,5 +167,5 @@ data class RepositoryConfig(
  */
 @Serializable
 data class EncryptedRepositoryConfig(
-    val format: RepositoryConfig
+    val format: RepositoryConfig,
 )

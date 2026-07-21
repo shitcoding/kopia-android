@@ -53,7 +53,7 @@ data class EpochParameters(
      * the first blob deletion. See internal/epoch/epoch_manager.go / repo/blob/storage.go DeleteMultiple.
      */
     @SerialName("DeleteParallelism")
-    val deleteParallelism: Int = 4
+    val deleteParallelism: Int = 4,
 ) {
     /**
      * Validates the epoch parameters.
@@ -93,7 +93,7 @@ data class EpochParameters(
             minEpochDuration = 24.hours,
             epochAdvanceOnCountThreshold = 20,
             epochAdvanceOnTotalSizeBytesThreshold = 10L * 1024 * 1024, // 10 MiB (matches Go's 10 << 20)
-            deleteParallelism = 4
+            deleteParallelism = 4,
         )
 
         /** Disabled epoch parameters. */

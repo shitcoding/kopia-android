@@ -32,20 +32,20 @@ class PolicyMergeIntegrationTest {
         fun `should apply retention policy from most specific level`() {
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(globalSi),
-                retentionPolicy = RetentionPolicy(keepDaily = 30)
+                retentionPolicy = RetentionPolicy(keepDaily = 30),
             )
             val userPolicy = Policy(
                 labels = Policy.labelsForSource(userSi),
-                retentionPolicy = RetentionPolicy(keepDaily = 7)
+                retentionPolicy = RetentionPolicy(keepDaily = 7),
             )
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
-                retentionPolicy = RetentionPolicy(keepDaily = 14)
+                retentionPolicy = RetentionPolicy(keepDaily = 14),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, userPolicy, globalPolicy),
-                pathSi
+                pathSi,
             )
 
             assertThat(merged.retentionPolicy.keepDaily).isEqualTo(14)
@@ -56,16 +56,16 @@ class PolicyMergeIntegrationTest {
         fun `should fall through to parent when child has no value set`() {
             val userPolicy = Policy(
                 labels = Policy.labelsForSource(userSi),
-                retentionPolicy = RetentionPolicy(keepWeekly = 4)
+                retentionPolicy = RetentionPolicy(keepWeekly = 4),
             )
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
-                retentionPolicy = RetentionPolicy(keepDaily = 14)
+                retentionPolicy = RetentionPolicy(keepDaily = 14),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, userPolicy),
-                pathSi
+                pathSi,
             )
 
             // keepDaily set at path level
@@ -84,17 +84,17 @@ class PolicyMergeIntegrationTest {
         fun `should stop at noParent boundary`() {
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(globalSi),
-                retentionPolicy = RetentionPolicy(keepMonthly = 12)
+                retentionPolicy = RetentionPolicy(keepMonthly = 12),
             )
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
                 retentionPolicy = RetentionPolicy(keepDaily = 14),
-                noParent = true
+                noParent = true,
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, globalPolicy),
-                pathSi
+                pathSi,
             )
 
             // keepDaily from path level is present
@@ -117,20 +117,20 @@ class PolicyMergeIntegrationTest {
         fun `should merge file ignore rules from all levels`() {
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(globalSi),
-                filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp"))
+                filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp")),
             )
             val userPolicy = Policy(
                 labels = Policy.labelsForSource(userSi),
-                filesPolicy = FilesPolicy(ignoreRules = listOf("node_modules"))
+                filesPolicy = FilesPolicy(ignoreRules = listOf("node_modules")),
             )
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
-                filesPolicy = FilesPolicy(ignoreRules = listOf("build"))
+                filesPolicy = FilesPolicy(ignoreRules = listOf("build")),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, userPolicy, globalPolicy),
-                pathSi
+                pathSi,
             )
 
             assertThat(merged.filesPolicy.ignoreRules).contains("build")
@@ -150,12 +150,12 @@ class PolicyMergeIntegrationTest {
             // manual=true combined with intervalSeconds is not allowed
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
-                schedulingPolicy = SchedulingPolicy(manual = true, intervalSeconds = 3600)
+                schedulingPolicy = SchedulingPolicy(manual = true, intervalSeconds = 3600),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy),
-                pathSi
+                pathSi,
             )
 
             // The merged policy carries through the invalid combination
@@ -191,21 +191,23 @@ class PolicyMergeIntegrationTest {
         fun `should handle duplicate ignore rules across levels`() {
             val globalPolicy = Policy(
                 labels = Policy.labelsForSource(globalSi),
-                filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp", "build"))
+                filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp", "build")),
             )
             val pathPolicy = Policy(
                 labels = Policy.labelsForSource(pathSi),
-                filesPolicy = FilesPolicy(ignoreRules = listOf("build", "*.log"))
+                filesPolicy = FilesPolicy(ignoreRules = listOf("build", "*.log")),
             )
 
             val (merged, _) = mergePolicies(
                 listOf(pathPolicy, globalPolicy),
-                pathSi
+                pathSi,
             )
 
             // The merge uses .distinct() so duplicates are removed
             assertThat(merged.filesPolicy.ignoreRules).containsExactly(
-                "build", "*.log", "*.tmp"
+                "build",
+                "*.log",
+                "*.tmp",
             )
             // "build" appears only once
             assertThat(merged.filesPolicy.ignoreRules.count { it == "build" }).isEqualTo(1)

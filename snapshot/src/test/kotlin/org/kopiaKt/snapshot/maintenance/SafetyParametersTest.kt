@@ -32,7 +32,7 @@ class SafetyParametersTest {
             minRewriteToOrphanDeletionDelay = Duration.ofHours(2),
             orphanedPackMinAge = Duration.ofHours(12),
             rewriteMinAge = Duration.ofHours(1),
-            disableEventualConsistencySafety = true
+            disableEventualConsistencySafety = true,
         )
 
         val serialized = json.encodeToString(params)
@@ -44,7 +44,7 @@ class SafetyParametersTest {
     @Test
     fun `custom constructor values`() {
         val params = SafetyParameters(
-            minContentAgeSubjectToGC = Duration.ofMinutes(30)
+            minContentAgeSubjectToGC = Duration.ofMinutes(30),
         )
 
         assertThat(params.minContentAgeSubjectToGC).isEqualTo(Duration.ofMinutes(30))

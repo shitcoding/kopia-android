@@ -47,12 +47,11 @@ class BackupWorkerCancellationTest {
         BackupSessionRegistry.unregisterAllForTest()
     }
 
-    private fun newSession(sourceId: String): BackupSession =
-        BackupSession(
-            repository = mockk<DirectRepository>(relaxed = true),
-            config = BackupSessionConfig(sourcePath = "/test/path", sourceId = sourceId),
-            checkpointStore = mockk(relaxed = true)
-        )
+    private fun newSession(sourceId: String): BackupSession = BackupSession(
+        repository = mockk<DirectRepository>(relaxed = true),
+        config = BackupSessionConfig(sourcePath = "/test/path", sourceId = sourceId),
+        checkpointStore = mockk(relaxed = true),
+    )
 
     @Test
     fun `registry cancel cooperatively cancels the registered session`() {
@@ -120,7 +119,7 @@ class BackupWorkerCancellationTest {
 
         BackupCancelReceiver().onReceive(
             context,
-            Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "coop-work")
+            Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "coop-work"),
         )
 
         assertThat(session.isCancelled()).isTrue()
@@ -143,8 +142,7 @@ class BackupWorkerCancellationTest {
         val session = newSession("escalate-work")
         BackupSessionRegistry.register("escalate-work", session)
         val wm = WorkManager.getInstance(context)
-        fun intent() =
-            Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "escalate-work")
+        fun intent() = Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "escalate-work")
 
         // First tap: cooperative only -- WorkManager work is NOT abruptly cancelled.
         BackupCancelReceiver().onReceive(context, intent())
@@ -152,7 +150,7 @@ class BackupWorkerCancellationTest {
         assertThat(
             wm.getWorkInfosForUniqueWork("backup_escalate-work").get().none {
                 it.state == WorkInfo.State.CANCELLED
-            }
+            },
         ).isTrue()
 
         // Repeat tap on the wedged/winding-down session: escalate to a hard WorkManager cancel.
@@ -160,7 +158,7 @@ class BackupWorkerCancellationTest {
         assertThat(
             wm.getWorkInfosForUniqueWork("backup_escalate-work").get().all {
                 it.state == WorkInfo.State.CANCELLED || it.state.isFinished
-            }
+            },
         ).isTrue()
     }
 
@@ -172,7 +170,7 @@ class BackupWorkerCancellationTest {
 
         BackupCancelReceiver().onReceive(
             context,
-            Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "queued-work")
+            Intent(BackupWorker.ACTION_CANCEL_BACKUP).putExtra(BackupWorker.KEY_SOURCE_ID, "queued-work"),
         )
 
         val infos = WorkManager.getInstance(context).getWorkInfosForUniqueWork("backup_queued-work").get()

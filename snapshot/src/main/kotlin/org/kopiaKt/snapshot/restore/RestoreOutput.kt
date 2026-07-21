@@ -70,7 +70,7 @@ interface RestoreOutput : Closeable {
         relativePath: String,
         entry: DirEntry,
         reader: InputStream,
-        progressCallback: FileWriteProgress? = null
+        progressCallback: FileWriteProgress? = null,
     )
 
     /**

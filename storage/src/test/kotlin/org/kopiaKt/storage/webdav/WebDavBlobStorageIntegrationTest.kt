@@ -1,5 +1,6 @@
 package org.kopiaKt.storage.webdav
 
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -12,11 +13,10 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.PutBlobOptions
-import com.google.common.truth.Truth.assertThat
-import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
 import org.testcontainers.junit.jupiter.Container
@@ -53,7 +53,7 @@ class WebDavBlobStorageIntegrationTest {
                 HttpWaitStrategy()
                     .forPath("/")
                     .forPort(80)
-                    .forStatusCode(401)
+                    .forStatusCode(401),
             )
     }
 
@@ -73,7 +73,7 @@ class WebDavBlobStorageIntegrationTest {
             password = PASSWORD,
             atomicWrites = false, // Use temp+rename for safety
             directoryShards = listOf(1, 3),
-            maxNonShardedLength = 20
+            maxNonShardedLength = 20,
         )
 
         storage = WebDavBlobStorage.create(options, isCreate = true, readOnly = false)
@@ -244,7 +244,7 @@ class WebDavBlobStorageIntegrationTest {
         val ids = listOf(
             BlobId("${prefix}blob1"),
             BlobId("${prefix}blob2"),
-            BlobId("${prefix}blob3")
+            BlobId("${prefix}blob3"),
         )
         val otherBlob = BlobId("${testPrefix}other-blob")
 
@@ -322,7 +322,7 @@ class WebDavBlobStorageIntegrationTest {
             runBlocking {
                 WebDavBlobStorage.create(
                     WebDavOptions(url = url, username = "wrong", password = "wrong"),
-                    isCreate = false
+                    isCreate = false,
                 )
             }
         }

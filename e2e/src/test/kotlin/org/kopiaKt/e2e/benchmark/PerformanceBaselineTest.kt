@@ -43,11 +43,9 @@ class PerformanceBaselineTest {
         private const val ONE_MB = 1024 * 1024
 
         @JvmStatic
-        fun isE2EEnabled(): Boolean {
-            return System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
-                System.getenv("CI")?.toBoolean() == true ||
-                System.getProperty("e2e")?.toBoolean() == true
-        }
+        fun isE2EEnabled(): Boolean = System.getenv("RUN_E2E_TESTS")?.toBoolean() == true ||
+            System.getenv("CI")?.toBoolean() == true ||
+            System.getProperty("e2e")?.toBoolean() == true
     }
 
     @Nested
@@ -95,14 +93,14 @@ class PerformanceBaselineTest {
             println()
             println("=== Write/Read 100MB Baseline ===")
             println("  Total time:  ${totalTimeMs}ms")
-            println("  Data size:   ${chunkCount} x ${chunkSize / ONE_MB}MB = ${totalBytes / ONE_MB}MB")
+            println("  Data size:   $chunkCount x ${chunkSize / ONE_MB}MB = ${totalBytes / ONE_MB}MB")
             println("  Throughput:  ${"%.2f".format(throughputMBps)} MB/s (write+read combined)")
             println()
 
             assertTrue(
                 totalTimeMs < 30_000,
                 "Write+read of ${totalBytes / ONE_MB}MB took ${totalTimeMs}ms, " +
-                    "exceeding the 30s baseline limit"
+                    "exceeding the 30s baseline limit",
             )
         }
     }
@@ -152,7 +150,7 @@ class PerformanceBaselineTest {
             assertTrue(
                 loadTimeMs < 5_000,
                 "Loading index with $objectCount entries took ${loadTimeMs}ms, " +
-                    "exceeding the 5s baseline limit"
+                    "exceeding the 5s baseline limit",
             )
         }
     }
@@ -194,7 +192,7 @@ class PerformanceBaselineTest {
             assertTrue(
                 compressTimeMs < 2_000,
                 "Compressing ${dataSize / ONE_MB}MB with zstd took ${compressTimeMs}ms, " +
-                    "exceeding the 2s baseline limit"
+                    "exceeding the 2s baseline limit",
             )
         }
     }

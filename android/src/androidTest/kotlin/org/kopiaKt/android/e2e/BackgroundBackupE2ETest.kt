@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.work.Configuration
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.impl.utils.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
@@ -22,16 +21,7 @@ import org.kopiaKt.android.worker.BackupWorker
 import org.kopiaKt.android.worker.BackupWorkerConfig
 import org.kopiaKt.android.worker.CheckpointStore
 import org.kopiaKt.core.repository.DirectRepository
-import org.kopiaKt.core.repository.WriteSessionOptions
-import org.kopiaKt.snapshot.fs.LocalFilesystem
-import org.kopiaKt.snapshot.model.ManifestLabels
-import org.kopiaKt.snapshot.model.SourceInfo
-import org.kopiaKt.snapshot.policy.Policy
-import org.kopiaKt.snapshot.upload.SnapshotUploader
-import org.kopiaKt.snapshot.upload.UploadOptions
 import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * E2E tests for background backup operations using WorkManager.
@@ -110,8 +100,8 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
                 constraints = BackupConstraints(
                     requiresWifi = false,
                     requiresBatteryNotLow = false,
-                    requiresCharging = false
-                )
+                    requiresCharging = false,
+                ),
             )
 
             // Get work info
@@ -143,7 +133,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
                 sourceId = SOURCE_ID,
                 sourcePath = sourceDir.absolutePath,
                 intervalHours = 1, // 1 hour interval
-                constraints = BackupConstraints(requiresWifi = false)
+                constraints = BackupConstraints(requiresWifi = false),
             )
 
             Log.i(TAG, "Periodic backup scheduled")
@@ -167,7 +157,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             BackupWorker.scheduleOneTime(
                 context = context,
                 sourceId = SOURCE_ID,
-                sourcePath = sourceDir.absolutePath
+                sourcePath = sourceDir.absolutePath,
             )
 
             // Cancel
@@ -208,7 +198,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
         // Verify config can be deserialized
         val deserializedConfig = Json.decodeFromString(
             BackupWorkerConfig.serializer(),
-            inputData.getString(BackupWorker.KEY_CONFIG)!!
+            inputData.getString(BackupWorker.KEY_CONFIG)!!,
         )
         assertThat(deserializedConfig.description).isEqualTo("Direct worker test")
 
@@ -226,7 +216,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             repositoryConnectionJson = "{}",
             processedFiles = 100,
             processedBytes = 1024 * 1024,
-            startTime = System.currentTimeMillis()
+            startTime = System.currentTimeMillis(),
         )
 
         // Save checkpoint
@@ -260,7 +250,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             sourceId = SOURCE_ID,
             sourcePath = sourceDir.absolutePath,
             repositoryConnectionJson = "{}",
-            startTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000) // 25 hours ago
+            startTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000), // 25 hours ago
         )
 
         checkpointStore.saveCheckpoint(oldCheckpoint)
@@ -298,7 +288,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             currentFile = "documents/file.txt",
             progress = 45,
             processedBytes = 1024 * 1024 * 10, // 10 MB
-            totalBytes = 1024 * 1024 * 100     // 100 MB
+            totalBytes = 1024 * 1024 * 100, // 100 MB
         )
 
         assertThat(notification).isNotNull()
@@ -317,7 +307,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             sourcePath = "/storage/emulated/0/Test",
             filesCount = 150,
             totalBytes = 1024 * 1024 * 50, // 50 MB
-            duration = 120_000 // 2 minutes
+            duration = 120_000, // 2 minutes
         )
 
         assertThat(notification).isNotNull()
@@ -334,7 +324,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
         // Build error notification
         val notification = notificationManager.buildErrorNotification(
             sourcePath = "/storage/emulated/0/Test",
-            errorMessage = "Permission denied"
+            errorMessage = "Permission denied",
         )
 
         assertThat(notification).isNotNull()
@@ -349,7 +339,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
         val constraints1 = BackupConstraints(
             requiresWifi = true,
             requiresCharging = true,
-            requiresBatteryNotLow = true
+            requiresBatteryNotLow = true,
         )
 
         assertThat(constraints1.requiresWifi).isTrue()
@@ -358,7 +348,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
 
         val constraints2 = BackupConstraints(
             requiresWifi = false,
-            requiresCharging = false
+            requiresCharging = false,
         )
 
         assertThat(constraints2.requiresWifi).isFalse()
@@ -388,13 +378,13 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             BackupWorker.scheduleOneTime(
                 context = context,
                 sourceId = "source1",
-                sourcePath = source1Dir.absolutePath
+                sourcePath = source1Dir.absolutePath,
             )
 
             BackupWorker.scheduleOneTime(
                 context = context,
                 sourceId = "source2",
-                sourcePath = source2Dir.absolutePath
+                sourcePath = source2Dir.absolutePath,
             )
 
             // Cancel just one
@@ -417,7 +407,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             parallelUploads = 4,
             forceHashPercentage = 5,
             checkpointIntervalMillis = 60_000,
-            minBytesBeforeCheckpoint = 1024 * 1024
+            minBytesBeforeCheckpoint = 1024 * 1024,
         )
 
         // Serialize
@@ -450,7 +440,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
                 sourcePath = sourceDir.absolutePath,
                 sourceId = SOURCE_ID,
                 description = "Full cycle test",
-                parallelUploads = 2
+                parallelUploads = 2,
             )
 
             val callback = object : org.kopiaKt.android.worker.NullBackupSessionCallback() {
@@ -465,7 +455,7 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
                 repository = repository,
                 config = sessionConfig,
                 checkpointStore = checkpointStore,
-                callback = callback
+                callback = callback,
             )
 
             val result = session.run()
@@ -473,9 +463,12 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             assertThat(result).isInstanceOf(org.kopiaKt.android.worker.BackupSessionResult.Success::class.java)
 
             val success = result as org.kopiaKt.android.worker.BackupSessionResult.Success
-            Log.i(TAG, "Backup completed: manifest=${success.manifestId.value}, " +
+            Log.i(
+                TAG,
+                "Backup completed: manifest=${success.manifestId.value}, " +
                     "duration=${success.durationMillis}ms, " +
-                    "progress callbacks=${callback.progressCount}")
+                    "progress callbacks=${callback.progressCount}",
+            )
 
             // Verify checkpoint was cleared on success
             val checkpointAfter = checkpointStore.getCheckpoint(SOURCE_ID)
@@ -498,13 +491,13 @@ class BackgroundBackupE2ETest : AndroidE2ETestBase() {
             val sessionConfig = org.kopiaKt.android.worker.BackupSessionConfig(
                 sourcePath = sourceDir.absolutePath,
                 sourceId = SOURCE_ID,
-                description = "Cancellation test"
+                description = "Cancellation test",
             )
 
             val session = org.kopiaKt.android.worker.BackupSession(
                 repository = repository,
                 config = sessionConfig,
-                checkpointStore = checkpointStore
+                checkpointStore = checkpointStore,
             )
 
             // Cancel immediately

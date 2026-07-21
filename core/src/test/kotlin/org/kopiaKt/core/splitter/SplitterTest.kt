@@ -132,7 +132,7 @@ class SplitterTest {
                 val chunkSize = boundary - (if (i > 0) boundaries[i - 1] else 0)
                 assertTrue(
                     chunkSize <= SIZE_8K * 2,
-                    "Chunk $i size $chunkSize should not exceed maxSize ${SIZE_8K * 2}"
+                    "Chunk $i size $chunkSize should not exceed maxSize ${SIZE_8K * 2}",
                 )
             }
         }
@@ -169,7 +169,7 @@ class SplitterTest {
                 val chunkSize = boundary - (if (i > 0) boundaries[i - 1] else 0)
                 assertTrue(
                     chunkSize <= SIZE_8K * 2,
-                    "Chunk $i size $chunkSize should not exceed maxSize ${SIZE_8K * 2}"
+                    "Chunk $i size $chunkSize should not exceed maxSize ${SIZE_8K * 2}",
                 )
             }
         }
@@ -202,7 +202,7 @@ class SplitterTest {
             "DYNAMIC-1M-BUZHASH", "DYNAMIC-2M-BUZHASH", "DYNAMIC-4M-BUZHASH", "DYNAMIC-8M-BUZHASH",
             "DYNAMIC-128K-RABINKARP", "DYNAMIC-256K-RABINKARP", "DYNAMIC-512K-RABINKARP",
             "DYNAMIC-1M-RABINKARP", "DYNAMIC-2M-RABINKARP", "DYNAMIC-4M-RABINKARP", "DYNAMIC-8M-RABINKARP",
-            "FIXED", "DYNAMIC"
+            "FIXED", "DYNAMIC",
         )
 
         for (alg in expectedAlgorithms) {

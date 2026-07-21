@@ -1,24 +1,11 @@
 package org.kopiaKt.android.worker
 
 import android.content.Context
-import androidx.work.Constraints
-import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.WorkManager
-import androidx.work.WorkerFactory
-import androidx.work.WorkerParameters
-import androidx.work.testing.TestWorkerBuilder
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
@@ -30,8 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 
 /**
  * Unit tests for BackupWorker.
@@ -161,7 +146,7 @@ class BackupWorkerTest {
             val config = BackupWorkerConfig(
                 description = "Test backup",
                 tags = mapOf("env" to "test"),
-                parallelUploads = 2
+                parallelUploads = 2,
             )
 
             val json = Json.encodeToString(config)
@@ -191,7 +176,7 @@ class BackupWorkerTest {
             BackupWorker.scheduleOneTime(
                 context = context,
                 sourceId = "test-source",
-                sourcePath = "/test/path"
+                sourcePath = "/test/path",
             )
 
             val workManager = WorkManager.getInstance(context)
@@ -206,7 +191,7 @@ class BackupWorkerTest {
                 context = context,
                 sourceId = "test-source",
                 sourcePath = "/test/path",
-                intervalHours = 24
+                intervalHours = 24,
             )
 
             val workManager = WorkManager.getInstance(context)
@@ -220,7 +205,7 @@ class BackupWorkerTest {
             BackupWorker.scheduleOneTime(
                 context = context,
                 sourceId = "cancel-test",
-                sourcePath = "/test/path"
+                sourcePath = "/test/path",
             )
 
             BackupWorker.cancel(context, "cancel-test")

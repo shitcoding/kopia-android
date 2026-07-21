@@ -50,7 +50,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             // Verify manifest exists
             repository.refresh()
             val manifests = repository.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
         } finally {
@@ -77,7 +77,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId = performBackup(
                 repository = repository,
                 description = "Complex test backup",
-                progress = progress
+                progress = progress,
             )
 
             // Verify backup completed
@@ -88,8 +88,11 @@ class BackupE2ETest : AndroidE2ETestBase() {
             assertThat(counters.totalHashedFiles + counters.totalCachedFiles)
                 .isEqualTo(testData.fileCount.toLong())
 
-            Log.i(TAG, "Backup completed: ${counters.totalHashedFiles} hashed, " +
-                    "${counters.totalHashedBytes} bytes")
+            Log.i(
+                TAG,
+                "Backup completed: ${counters.totalHashedFiles} hashed, " +
+                    "${counters.totalHashedBytes} bytes",
+            )
         } finally {
             repository.close()
         }
@@ -133,7 +136,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId = performBackup(
                 repository = repository,
                 description = "Large binary backup",
-                progress = progress
+                progress = progress,
             )
 
             assertThat(manifestId).isNotNull()
@@ -187,15 +190,18 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId = performBackup(
                 repository = repository,
                 description = "Dedup test backup",
-                progress = progress
+                progress = progress,
             )
 
             assertThat(manifestId).isNotNull()
 
             // First file hashed, rest should be deduplicated
             val counters = progress.snapshot()
-            Log.i(TAG, "Dedup results: hashed=${counters.totalHashedFiles}, " +
-                    "cached=${counters.totalCachedFiles}")
+            Log.i(
+                TAG,
+                "Dedup results: hashed=${counters.totalHashedFiles}, " +
+                    "cached=${counters.totalCachedFiles}",
+            )
 
             // All files should be processed (hashed at least once)
             assertThat(counters.totalHashedFiles + counters.totalCachedFiles).isAtLeast(5)
@@ -249,7 +255,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId = performBackup(
                 repository = repository,
                 description = "Many small files backup",
-                progress = progress
+                progress = progress,
             )
 
             val duration = System.currentTimeMillis() - startTime
@@ -274,7 +280,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
         val hashAlgorithms = listOf(
             "BLAKE2B-256-128",
             "BLAKE2B-256-256",
-            "BLAKE3-256"
+            "BLAKE3-256",
         )
 
         for (hashAlg in hashAlgorithms) {
@@ -310,7 +316,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId1 = performBackup(
                 repository = repository,
                 description = "Initial backup",
-                progress = progress1
+                progress = progress1,
             )
             assertThat(manifestId1).isNotNull()
 
@@ -331,7 +337,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
             val manifestId2 = performBackup(
                 repository = repository,
                 description = "Incremental backup",
-                progress = progress2
+                progress = progress2,
             )
             assertThat(manifestId2).isNotNull()
 
@@ -388,7 +394,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 // Should have two snapshots now
                 repository.refresh()
                 val manifests = repository.findManifests(
-                    mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                    mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
                 )
                 assertThat(manifests.size).isEqualTo(2)
 
@@ -407,14 +413,14 @@ class BackupE2ETest : AndroidE2ETestBase() {
     private suspend fun performBackup(
         repository: org.kopiaKt.core.repository.DirectRepository,
         description: String,
-        progress: CountingUploadProgress = CountingUploadProgress()
+        progress: CountingUploadProgress = CountingUploadProgress(),
     ): org.kopiaKt.core.manifest.ManifestId {
         val writer = repository.newWriter(WriteSessionOptions())
         try {
             val source = SourceInfo(
                 host = android.os.Build.DEVICE,
                 userName = "android",
-                path = sourceDir.absolutePath
+                path = sourceDir.absolutePath,
             )
 
             // SnapshotUploader automatically discovers the previous snapshot for the
@@ -424,7 +430,7 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 writer = writer,
                 source = source,
                 policy = Policy(),
-                progress = progress
+                progress = progress,
             )
 
             val rootDir = LocalFilesystem.directory(sourceDir.toPath())
@@ -433,8 +439,8 @@ class BackupE2ETest : AndroidE2ETestBase() {
                 rootDir = rootDir,
                 options = UploadOptions(
                     description = description,
-                    parallelUploads = 2 // Conservative for testing
-                )
+                    parallelUploads = 2, // Conservative for testing
+                ),
             )
 
             writer.flush()

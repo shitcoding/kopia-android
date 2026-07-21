@@ -9,8 +9,7 @@ import java.io.ByteArrayOutputStream
 /**
  * Exception thrown when an object cannot be found in the repository.
  */
-class ObjectNotFoundException(objectId: ObjectId) :
-    Exception("Object not found: $objectId")
+class ObjectNotFoundException(objectId: ObjectId) : Exception("Object not found: $objectId")
 
 /**
  * Interface for reading repository objects.
@@ -48,7 +47,7 @@ interface ObjectReader {
 internal class DirectObjectReader(
     private val contentManager: ContentManager,
     private val compressorFactory: CompressorFactory,
-    private val objectId: ObjectId
+    private val objectId: ObjectId,
 ) : ObjectReader {
 
     private var cachedData: ByteArray? = null
@@ -66,9 +65,7 @@ internal class DirectObjectReader(
         return data.copyOfRange(start, end)
     }
 
-    override suspend fun length(): Long {
-        return getData().size.toLong()
-    }
+    override suspend fun length(): Long = getData().size.toLong()
 
     override fun close() {
         cachedData = null
@@ -108,7 +105,7 @@ internal class DirectObjectReader(
 internal class IndirectObjectReader(
     private val contentManager: ContentManager,
     private val compressorFactory: CompressorFactory,
-    private val objectId: ObjectId
+    private val objectId: ObjectId,
 ) : ObjectReader {
 
     private var seekTable: List<IndirectObjectEntry>? = null
@@ -214,12 +211,10 @@ internal class IndirectObjectReader(
     /**
      * Opens an object for reading (may be direct or indirect).
      */
-    private fun openObject(oid: ObjectId): ObjectReader {
-        return if (oid.indirection > 0) {
-            IndirectObjectReader(contentManager, compressorFactory, oid)
-        } else {
-            DirectObjectReader(contentManager, compressorFactory, oid)
-        }
+    private fun openObject(oid: ObjectId): ObjectReader = if (oid.indirection > 0) {
+        IndirectObjectReader(contentManager, compressorFactory, oid)
+    } else {
+        DirectObjectReader(contentManager, compressorFactory, oid)
     }
 
     /**
@@ -275,13 +270,11 @@ internal class IndirectObjectReader(
 fun openObject(
     contentManager: ContentManager,
     compressorFactory: CompressorFactory,
-    objectId: ObjectId
-): ObjectReader {
-    return if (objectId.indirection > 0) {
-        IndirectObjectReader(contentManager, compressorFactory, objectId)
-    } else {
-        DirectObjectReader(contentManager, compressorFactory, objectId)
-    }
+    objectId: ObjectId,
+): ObjectReader = if (objectId.indirection > 0) {
+    IndirectObjectReader(contentManager, compressorFactory, objectId)
+} else {
+    DirectObjectReader(contentManager, compressorFactory, objectId)
 }
 
 /**
@@ -295,7 +288,7 @@ fun openObject(
 suspend fun loadIndexObject(
     contentManager: ContentManager,
     compressorFactory: CompressorFactory,
-    objectId: ObjectId
+    objectId: ObjectId,
 ): List<IndirectObjectEntry> {
     require(objectId.indirection > 0) {
         "Expected indirect object ID but got direct: $objectId"

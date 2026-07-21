@@ -40,10 +40,8 @@ class HiltWorkerFactoryTest {
         BackupWorker.repositoryProvider = savedProvider
     }
 
-    private fun createMockWorkerParams(): WorkerParameters {
-        return mockk(relaxed = true) {
-            every { id } returns UUID.randomUUID()
-        }
+    private fun createMockWorkerParams(): WorkerParameters = mockk(relaxed = true) {
+        every { id } returns UUID.randomUUID()
     }
 
     @Nested
@@ -55,7 +53,7 @@ class HiltWorkerFactoryTest {
             val worker = factory.createWorker(
                 appContext,
                 BackupWorker::class.java.name,
-                workerParams
+                workerParams,
             )
 
             assertThat(worker).isNotNull()
@@ -67,7 +65,7 @@ class HiltWorkerFactoryTest {
             val worker = factory.createWorker(
                 appContext,
                 "com.example.UnknownWorker",
-                workerParams
+                workerParams,
             )
 
             assertThat(worker).isNull()
@@ -81,7 +79,7 @@ class HiltWorkerFactoryTest {
             val worker = factory.createWorker(
                 specificContext,
                 BackupWorker::class.java.name,
-                specificParams
+                specificParams,
             )
 
             assertThat(worker).isNotNull()

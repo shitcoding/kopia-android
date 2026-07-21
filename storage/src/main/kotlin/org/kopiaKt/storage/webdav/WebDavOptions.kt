@@ -61,7 +61,7 @@ data class WebDavOptions(
     /**
      * Upload speed limit in bytes per second (0 = unlimited).
      */
-    val maxUploadSpeedBytesPerSecond: Long = 0
+    val maxUploadSpeedBytesPerSecond: Long = 0,
 )
 
 /**
@@ -83,7 +83,7 @@ data class ShardingParameters(
     /**
      * Per-prefix overrides for sharding.
      */
-    val overrides: List<PrefixShards> = emptyList()
+    val overrides: List<PrefixShards> = emptyList(),
 )
 
 /**
@@ -99,5 +99,5 @@ data class PrefixShards(
     /**
      * Shards to use for blobs with this prefix.
      */
-    val shards: List<Int>
+    val shards: List<Int>,
 )

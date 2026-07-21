@@ -44,13 +44,13 @@ class PackIndexV2Test {
     fun `open should read a valid empty V2 header`() {
         // Minimal valid header: version=2, keySize=17, entrySize=16, all counts 0.
         val header = byteArrayOf(
-            0x02,                   // version
-            0x11,                   // keySize = 17
-            0x00, 0x10,             // entrySize = 16 (minimum)
+            0x02, // version
+            0x11, // keySize = 17
+            0x00, 0x10, // entrySize = 16 (minimum)
             0x00, 0x00, 0x00, 0x00, // entryCount = 0
             0x00, 0x00, 0x00, 0x00, // packCount = 0
-            0x00,                   // numFormatInfos = 0
-            0x65, 0x53, 0xF1.toByte(), 0x00 // baseTimestamp = 1700000000
+            0x00, // numFormatInfos = 0
+            0x65, 0x53, 0xF1.toByte(), 0x00, // baseTimestamp = 1700000000
         )
 
         val index = PackIndexV2.open(header)
@@ -63,7 +63,7 @@ class PackIndexV2Test {
         val header = byteArrayOf(
             0x01, // wrong version (V1)
             0x11, 0x00, 0x10, 0x00, 0x00, 0x00, 0x05,
-            0x00, 0x00, 0x00, 0x02, 0x01, 0x65, 0x54, 0xEC.toByte(), 0x00
+            0x00, 0x00, 0x00, 0x02, 0x01, 0x65, 0x54, 0xEC.toByte(), 0x00,
         )
 
         assertThrows<IllegalArgumentException> {
@@ -92,15 +92,15 @@ class PackIndexV2Test {
                 packBlobId = BlobId("p111"),
                 timestampSeconds = base,
                 originalLength = 100u, packedLength = 90u, packOffset = 0u,
-                compressionHeaderId = 0x1000, formatVersion = 1, encryptionKeyId = 0
+                compressionHeaderId = 0x1000, formatVersion = 1, encryptionKeyId = 0,
             ),
             ContentInfo(
                 contentId = ContentId.parse("2222"),
                 packBlobId = BlobId("p222"),
                 timestampSeconds = base + 5,
                 originalLength = 200u, packedLength = 180u, packOffset = 90u,
-                compressionHeaderId = 0x1100, formatVersion = 1, encryptionKeyId = 0
-            )
+                compressionHeaderId = 0x1100, formatVersion = 1, encryptionKeyId = 0,
+            ),
         )
 
         val data = PackIndexV2.build(entries)
@@ -112,7 +112,7 @@ class PackIndexV2Test {
         assertEquals(
             19,
             ByteBuffer.wrap(data, 2, 2).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF,
-            "entrySize"
+            "entrySize",
         )
         assertEquals(2, ByteBuffer.wrap(data, 4, 4).order(ByteOrder.BIG_ENDIAN).int, "entryCount")
         assertEquals(2, ByteBuffer.wrap(data, 8, 4).order(ByteOrder.BIG_ENDIAN).int, "packCount")
@@ -120,7 +120,7 @@ class PackIndexV2Test {
         assertEquals(
             base,
             ByteBuffer.wrap(data, 13, 4).order(ByteOrder.BIG_ENDIAN).int.toLong() and 0xFFFFFFFFL,
-            "baseTimestamp"
+            "baseTimestamp",
         )
     }
 
@@ -139,7 +139,7 @@ class PackIndexV2Test {
             compressionHeaderId = 0x1100, // ZSTD
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 0
+            encryptionKeyId = 0,
         )
 
         val indexData = PackIndexV2.build(listOf(info))
@@ -169,7 +169,7 @@ class PackIndexV2Test {
                 originalLength = 2000u,
                 packedLength = 1500u,
                 packOffset = 0u,
-                compressionHeaderId = 0x1000 // GZIP
+                compressionHeaderId = 0x1000, // GZIP
             ),
             ContentInfo(
                 contentId = ContentId.parse("2222222222222222"),
@@ -178,8 +178,8 @@ class PackIndexV2Test {
                 originalLength = 3000u,
                 packedLength = 2000u,
                 packOffset = 1500u,
-                compressionHeaderId = 0x1100 // ZSTD
-            )
+                compressionHeaderId = 0x1100, // ZSTD
+            ),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -201,7 +201,7 @@ class PackIndexV2Test {
         val entries = listOf(
             createTestContentInfo("3333333333333333", 3),
             createTestContentInfo("1111111111111111", 1),
-            createTestContentInfo("2222222222222222", 2)
+            createTestContentInfo("2222222222222222", 2),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -227,7 +227,7 @@ class PackIndexV2Test {
             compressionHeaderId = 0,
             deleted = false,
             formatVersion = 1,
-            encryptionKeyId = 5
+            encryptionKeyId = 5,
         )
 
         val indexData = PackIndexV2.build(listOf(info))
@@ -252,7 +252,7 @@ class PackIndexV2Test {
                 packOffset = 0u,
                 compressionHeaderId = 0x1000, // GZIP
                 formatVersion = 1,
-                encryptionKeyId = 0
+                encryptionKeyId = 0,
             ),
             ContentInfo(
                 contentId = ContentId.parse("2222"),
@@ -263,7 +263,7 @@ class PackIndexV2Test {
                 packOffset = 90u,
                 compressionHeaderId = 0x1100, // ZSTD
                 formatVersion = 1,
-                encryptionKeyId = 0
+                encryptionKeyId = 0,
             ),
             ContentInfo(
                 contentId = ContentId.parse("3333"),
@@ -274,8 +274,8 @@ class PackIndexV2Test {
                 packOffset = 270u,
                 compressionHeaderId = 0x1000, // GZIP again
                 formatVersion = 2, // Different format version
-                encryptionKeyId = 1
-            )
+                encryptionKeyId = 1,
+            ),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -310,7 +310,7 @@ class PackIndexV2Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 90u,
-                packOffset = 0u
+                packOffset = 0u,
             ),
             ContentInfo(
                 contentId = ContentId.parse("2222"),
@@ -318,7 +318,7 @@ class PackIndexV2Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 200u,
                 packedLength = 180u,
-                packOffset = 0u
+                packOffset = 0u,
             ),
             ContentInfo(
                 contentId = ContentId.parse("3333"),
@@ -326,8 +326,8 @@ class PackIndexV2Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 300u,
                 packedLength = 250u,
-                packOffset = 90u
-            )
+                packOffset = 90u,
+            ),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -358,7 +358,7 @@ class PackIndexV2Test {
             originalLength = 100u,
             packedLength = 100u,
             packOffset = 1024u,
-            deleted = true
+            deleted = true,
         )
 
         val indexData = PackIndexV2.build(listOf(info))
@@ -380,7 +380,7 @@ class PackIndexV2Test {
             timestampSeconds = 1700000000L,
             originalLength = largeLength,
             packedLength = largeLength - 1000u,
-            packOffset = 0u
+            packOffset = 0u,
         )
 
         val indexData = PackIndexV2.build(listOf(info))
@@ -401,8 +401,8 @@ class PackIndexV2Test {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 90u,
-                packOffset = 0u
-            )
+                packOffset = 0u,
+            ),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -423,7 +423,7 @@ class PackIndexV2Test {
                 timestampSeconds = baseTimestamp,
                 originalLength = 100u,
                 packedLength = 90u,
-                packOffset = 0u
+                packOffset = 0u,
             ),
             ContentInfo(
                 contentId = ContentId.parse("2222"),
@@ -431,8 +431,8 @@ class PackIndexV2Test {
                 timestampSeconds = baseTimestamp + 3600, // 1 hour later
                 originalLength = 200u,
                 packedLength = 180u,
-                packOffset = 90u
-            )
+                packOffset = 90u,
+            ),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -449,7 +449,7 @@ class PackIndexV2Test {
         val entries = listOf(
             createTestContentInfo("cccc", 3),
             createTestContentInfo("aaaa", 1),
-            createTestContentInfo("bbbb", 2)
+            createTestContentInfo("bbbb", 2),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -469,7 +469,7 @@ class PackIndexV2Test {
             createTestContentInfo("2222", 2),
             createTestContentInfo("3333", 3),
             createTestContentInfo("4444", 4),
-            createTestContentInfo("5555", 5)
+            createTestContentInfo("5555", 5),
         )
 
         val indexData = PackIndexV2.build(entries)
@@ -477,7 +477,7 @@ class PackIndexV2Test {
 
         val iterated = index.iterate(
             startId = ContentId.parse("2222"),
-            endId = ContentId.parse("4444")
+            endId = ContentId.parse("4444"),
         ).toList()
 
         assertEquals(2, iterated.size)
@@ -499,7 +499,7 @@ class PackIndexV2Test {
             compressionHeaderId = 0x1100,
             deleted = false,
             formatVersion = 3,
-            encryptionKeyId = 2
+            encryptionKeyId = 2,
         )
 
         val indexData = PackIndexV2.build(listOf(info))
@@ -514,15 +514,13 @@ class PackIndexV2Test {
 
     // ===== Helper Methods =====
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 800u,
-            packOffset = packOffset.toUInt(),
-            compressionHeaderId = 0x1100 // ZSTD
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 800u,
+        packOffset = packOffset.toUInt(),
+        compressionHeaderId = 0x1100, // ZSTD
+    )
 }

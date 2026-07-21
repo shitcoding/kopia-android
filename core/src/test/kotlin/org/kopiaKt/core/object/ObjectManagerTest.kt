@@ -53,11 +53,11 @@ class ObjectManagerTest {
             encryptionKey = testKey,
             compressorFactory = DefaultCompressorFactory(),
             defaultCompression = CompressionAlgorithm.NONE,
-            maxPackSize = 20 * 1024 * 1024
+            maxPackSize = 20 * 1024 * 1024,
         )
         objectManager = ObjectManager(
             contentManager = contentManager,
-            splitterFactory = DefaultSplitterFactory.getFactory(SplitterAlgorithms.FIXED_128K)!!
+            splitterFactory = DefaultSplitterFactory.getFactory(SplitterAlgorithms.FIXED_128K)!!,
         )
     }
 
@@ -130,7 +130,7 @@ class ObjectManagerTest {
         val smallChunkManager = ObjectManager(
             contentManager = contentManager,
             // Use a small fixed splitter for testing
-            splitterFactory = { FixedTestSplitter(1024) } // 1KB chunks
+            splitterFactory = { FixedTestSplitter(1024) }, // 1KB chunks
         )
 
         // Create data that needs multiple levels
@@ -156,7 +156,7 @@ class ObjectManagerTest {
 
         val objectId = objectManager.writeObject(
             data = data,
-            options = ObjectWriterOptions(compression = CompressionAlgorithm.ZSTD_DEFAULT)
+            options = ObjectWriterOptions(compression = CompressionAlgorithm.ZSTD_DEFAULT),
         )
         contentManager.flush()
 
@@ -176,7 +176,7 @@ class ObjectManagerTest {
 
         val objectId = objectManager.writeObject(
             data = data,
-            options = ObjectWriterOptions(compression = CompressionAlgorithm.ZSTD_DEFAULT)
+            options = ObjectWriterOptions(compression = CompressionAlgorithm.ZSTD_DEFAULT),
         )
         contentManager.flush()
 
@@ -379,6 +379,8 @@ private class FixedTestSplitter(private val chunkSize: Int) : org.kopiaKt.core.s
     }
 
     override fun maxSegmentSize(): Int = chunkSize
-    override fun reset() { position = 0 }
+    override fun reset() {
+        position = 0
+    }
     override fun close() {}
 }

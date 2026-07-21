@@ -45,7 +45,7 @@ class FormatBlobManagerTest {
         val result = manager.createRepository(
             password = password,
             config = config,
-            buildVersion = "kopiaKt-1.0.0"
+            buildVersion = "kopiaKt-1.0.0",
         )
 
         assertEquals("kopiaKt-1.0.0", result.formatJson.buildVersion)
@@ -157,7 +157,7 @@ class FormatBlobManagerTest {
         val password = "test-password"
         val config = createTestConfig().copy(
             version = 1,
-            enablePasswordChange = false
+            enablePasswordChange = false,
         )
 
         manager.createRepository(password, config)
@@ -178,14 +178,14 @@ class FormatBlobManagerTest {
         manager.createRepository(
             password = password,
             config = config,
-            keyDerivationAlgorithm = "scrypt-65536-8-1"
+            keyDerivationAlgorithm = "scrypt-65536-8-1",
         )
 
         // Change to pbkdf2
         manager.changePassword(
             currentPassword = password,
             newPassword = newPassword,
-            newKeyDerivationAlgorithm = "pbkdf2-sha256-600000"
+            newKeyDerivationAlgorithm = "pbkdf2-sha256-600000",
         )
 
         // Verify new algorithm is used
@@ -234,7 +234,7 @@ class FormatBlobManagerTest {
             maxPackSize = 20 * 1024 * 1024,
             indexVersion = 2,
             enablePasswordChange = true,
-            splitter = "DYNAMIC-4M-BUZHASH"
+            splitter = "DYNAMIC-4M-BUZHASH",
         )
 
         // Create repository
@@ -276,6 +276,6 @@ class FormatBlobManagerTest {
         maxPackSize = 20 * 1024 * 1024,
         indexVersion = 2,
         enablePasswordChange = true,
-        splitter = "DYNAMIC-4M-BUZHASH"
+        splitter = "DYNAMIC-4M-BUZHASH",
     )
 }

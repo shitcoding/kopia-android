@@ -22,16 +22,14 @@ class CorruptedIndexBlobTest {
     private lateinit var validIndexData: ByteArray
     private val blobId = BlobId("ntest")
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 
     @BeforeEach
     fun setup() {
@@ -74,7 +72,7 @@ class CorruptedIndexBlobTest {
                 val entries = reader.iterate().toList()
                 assertTrue(
                     entries.size < 5,
-                    "Truncated-to-4-bytes index should not produce all 5 entries"
+                    "Truncated-to-4-bytes index should not produce all 5 entries",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -92,7 +90,7 @@ class CorruptedIndexBlobTest {
                 val entries = reader.iterate().toList()
                 assertTrue(
                     entries.size < 5,
-                    "Truncated-to-8-bytes index should not produce all 5 entries"
+                    "Truncated-to-8-bytes index should not produce all 5 entries",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -110,7 +108,7 @@ class CorruptedIndexBlobTest {
                 val entries = reader.iterate().toList()
                 assertTrue(
                     entries.size < 5,
-                    "Truncated index should yield fewer entries than original"
+                    "Truncated index should yield fewer entries than original",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -141,7 +139,7 @@ class CorruptedIndexBlobTest {
                     }
                 assertTrue(
                     differs,
-                    "Truncated index (missing last byte) should produce different entries"
+                    "Truncated index (missing last byte) should produce different entries",
                 )
             } catch (_: Exception) {
                 // Exception is also acceptable - corruption detected
@@ -155,7 +153,7 @@ class CorruptedIndexBlobTest {
                     val reader = IndexBlobReader.openUnencrypted(truncated, blobId)
                     assertTrue(
                         reader.approximateCount() <= 5,
-                        "Truncation '$desc' should not produce more entries than original"
+                        "Truncation '$desc' should not produce more entries than original",
                     )
                     reader.close()
                 } catch (_: Exception) {
@@ -312,7 +310,7 @@ class CorruptedIndexBlobTest {
                 val entries = reader.iterate().toList()
                 assertTrue(
                     entries.isEmpty(),
-                    "Corrupted key size 0xFF should yield no entries on iteration"
+                    "Corrupted key size 0xFF should yield no entries on iteration",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -337,7 +335,7 @@ class CorruptedIndexBlobTest {
                 // If it parsed, the count from header should be very wrong
                 assertTrue(
                     reader.approximateCount() != 5,
-                    "Corrupted entry count should differ from original"
+                    "Corrupted entry count should differ from original",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -380,7 +378,7 @@ class CorruptedIndexBlobTest {
             assertTrue(info != null, "Should find entry for duplicate content ID")
             assertTrue(
                 info!!.packOffset == 0u || info.packOffset == 1000u,
-                "Should return one of the duplicate entries"
+                "Should return one of the duplicate entries",
             )
             reader.close()
         }
@@ -427,7 +425,7 @@ class CorruptedIndexBlobTest {
                 // If parsed, should have 0 entries (header too short for entries)
                 assertTrue(
                     reader.approximateCount() == 0,
-                    "Minimal index should have 0 entries"
+                    "Minimal index should have 0 entries",
                 )
                 reader.close()
             } catch (_: Exception) {
@@ -461,7 +459,7 @@ class CorruptedIndexBlobTest {
                     // Verify entries were produced (reader didn't silently return empty)
                     assertTrue(
                         corruptedEntries.isNotEmpty(),
-                        "Corrupted index should still produce parseable entries"
+                        "Corrupted index should still produce parseable entries",
                     )
 
                     // The zeroed bytes target the extra data section (pack blob ID strings).
@@ -471,7 +469,7 @@ class CorruptedIndexBlobTest {
                     }
                     assertTrue(
                         anyBlobIdDiffers,
-                        "Zeroing bytes in extra data area should corrupt pack blob IDs"
+                        "Zeroing bytes in extra data area should corrupt pack blob IDs",
                     )
 
                     originalReader.close()

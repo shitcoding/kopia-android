@@ -21,7 +21,8 @@ enum class EncryptionAlgorithm(val id: String) {
     /**
      * ChaCha20-Poly1305 (not yet implemented).
      */
-    CHACHA20_POLY1305_HMAC_SHA256("CHACHA20-POLY1305-HMAC-SHA256");
+    CHACHA20_POLY1305_HMAC_SHA256("CHACHA20-POLY1305-HMAC-SHA256"),
+    ;
 
     companion object {
         /**
@@ -32,8 +33,7 @@ enum class EncryptionAlgorithm(val id: String) {
         /**
          * Finds algorithm by ID string.
          */
-        fun fromId(id: String): EncryptionAlgorithm? =
-            entries.find { it.id == id }
+        fun fromId(id: String): EncryptionAlgorithm? = entries.find { it.id == id }
 
         /**
          * Finds algorithm by ID string (alias for fromId).
@@ -127,5 +127,4 @@ interface EncryptorFactory {
 /**
  * Exception thrown when decryption fails.
  */
-class DecryptionException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+class DecryptionException(message: String, cause: Throwable? = null) : Exception(message, cause)

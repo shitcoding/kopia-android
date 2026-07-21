@@ -56,7 +56,7 @@ data class BackupSessionConfig(
     val policy: Policy = Policy(),
 
     /** Checkpoint options. */
-    val checkpointOptions: CheckpointOptions = CheckpointOptions()
+    val checkpointOptions: CheckpointOptions = CheckpointOptions(),
 )
 
 /**
@@ -68,20 +68,20 @@ sealed class BackupSessionResult {
         val manifestId: ManifestId,
         val manifest: SnapshotManifest,
         val counters: UploadCounters,
-        val durationMillis: Long
+        val durationMillis: Long,
     ) : BackupSessionResult()
 
     /** Backup was cancelled. */
     data class Cancelled(
         val counters: UploadCounters,
-        val checkpointSaved: Boolean
+        val checkpointSaved: Boolean,
     ) : BackupSessionResult()
 
     /** Backup failed with an error. */
     data class Failed(
         val error: Throwable,
         val counters: UploadCounters,
-        val checkpointSaved: Boolean
+        val checkpointSaved: Boolean,
     ) : BackupSessionResult()
 }
 
@@ -127,7 +127,7 @@ class BackupSession(
     private val config: BackupSessionConfig,
     private val checkpointStore: CheckpointStore,
     private val callback: BackupSessionCallback = NullBackupSessionCallback(),
-    private val context: Context? = null
+    private val context: Context? = null,
 ) {
     private val cancelled = AtomicBoolean(false)
     private val uploaderRef = AtomicReference<SnapshotUploader?>(null)
@@ -177,7 +177,7 @@ class BackupSession(
         val sourceInfo = SourceInfo(
             host = hostName,
             userName = userName,
-            path = config.sourcePath
+            path = config.sourcePath,
         )
 
         // Create repository connection JSON for checkpoint (simplified - just store path info)
@@ -197,7 +197,7 @@ class BackupSession(
                 sourcePath = config.sourcePath,
                 repositoryConnectionJson = repoConnectionJson,
                 startTime = startTimeValue.toEpochMilli(),
-                lastError = e.message
+                lastError = e.message,
             )
             val checkpointSaved = persistCheckpoint(checkpoint)
             result = BackupSessionResult.Failed(e, counters, checkpointSaved)
@@ -211,7 +211,7 @@ class BackupSession(
                 writer = writer,
                 source = sourceInfo,
                 policy = config.policy,
-                progress = progress
+                progress = progress,
             )
             uploaderRef.set(uploader)
             // Replay a cancel that arrived during setup (between register and here -- e.g. while
@@ -231,7 +231,7 @@ class BackupSession(
                 sourcePath = config.sourcePath,
                 repositoryConnectionJson = repoConnectionJson,
                 startTime = startTimeValue.toEpochMilli(),
-                resumeCount = (existingCheckpoint?.resumeCount ?: 0) + if (existingCheckpoint != null) 1 else 0
+                resumeCount = (existingCheckpoint?.resumeCount ?: 0) + if (existingCheckpoint != null) 1 else 0,
             )
             persistCheckpoint(initialCheckpoint)
 
@@ -245,8 +245,8 @@ class BackupSession(
                     description = config.description,
                     tags = config.tags,
                     parallelUploads = config.parallelUploads,
-                    forceHashPercentage = config.forceHashPercentage
-                )
+                    forceHashPercentage = config.forceHashPercentage,
+                ),
             )
 
             // Stop the periodic checkpoint loop before deciding success/clear. Its saves are now
@@ -276,7 +276,7 @@ class BackupSession(
                 processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
                 processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
                 startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis(),
-                lastError = e.message
+                lastError = e.message,
             )
             val checkpointSaved = persistCheckpoint(checkpoint)
             result = BackupSessionResult.Failed(e, counters, checkpointSaved)
@@ -300,7 +300,7 @@ class BackupSession(
             val ctx = context
                 ?: throw IllegalStateException(
                     "Context is required for SAF URI backup. " +
-                        "Pass context to BackupSession constructor."
+                        "Pass context to BackupSession constructor.",
                 )
             val uri = Uri.parse(config.sourcePath)
             return SafFilesystem.directory(ctx, uri)
@@ -344,7 +344,7 @@ class BackupSession(
             repositoryConnectionJson = repoConnectionJson,
             processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
             processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
-            startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis()
+            startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis(),
         )
         val saved = persistCheckpoint(checkpoint)
         if (saved) callback.onCheckpointSaved(checkpoint)
@@ -358,20 +358,19 @@ class BackupSession(
     // loss, cancelAll, system, or a torn-stream IOException) would leave the backup un-checkpointed.
     // Running the periodic-loop / initial saves non-cancellably too just means an in-flight save completes
     // instead of being torn. (task-14)
-    private suspend fun persistCheckpoint(checkpoint: BackupCheckpoint): Boolean =
-        withContext(NonCancellable) {
-            try {
-                checkpointStore.saveCheckpoint(checkpoint)
-                true
-            } catch (e: Exception) {
-                false
-            }
+    private suspend fun persistCheckpoint(checkpoint: BackupCheckpoint): Boolean = withContext(NonCancellable) {
+        try {
+            checkpointStore.saveCheckpoint(checkpoint)
+            true
+        } catch (e: Exception) {
+            false
         }
+    }
 
     private suspend fun handleCancelledOrIncomplete(
         uploadResult: UploadResult,
         repoConnectionJson: String,
-        sourceInfo: SourceInfo
+        sourceInfo: SourceInfo,
     ): BackupSessionResult {
         val counters = currentCounters.get()
 
@@ -383,7 +382,7 @@ class BackupSession(
             incompleteManifestId = uploadResult.manifestId.value,
             processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
             processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
-            startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis()
+            startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis(),
         )
         val checkpointSaved = persistCheckpoint(checkpoint)
 
@@ -393,14 +392,14 @@ class BackupSession(
             BackupSessionResult.Failed(
                 error = RuntimeException(uploadResult.incompleteReason ?: "Unknown error"),
                 counters = counters,
-                checkpointSaved = checkpointSaved
+                checkpointSaved = checkpointSaved,
             )
         }
     }
 
     private suspend fun handleSuccess(
         uploadResult: UploadResult,
-        startTimeValue: Instant
+        startTimeValue: Instant,
     ): BackupSessionResult {
         // Clear the checkpoint on success
         checkpointStore.clearCheckpoint(config.sourceId)
@@ -412,7 +411,7 @@ class BackupSession(
             manifestId = uploadResult.manifestId,
             manifest = uploadResult.manifest,
             counters = counters,
-            durationMillis = durationMillis
+            durationMillis = durationMillis,
         )
     }
 
@@ -420,7 +419,7 @@ class BackupSession(
      * Internal progress tracker that delegates to a lambda.
      */
     private class SessionUploadProgress(
-        private val onUpdate: (UploadCounters) -> Unit
+        private val onUpdate: (UploadCounters) -> Unit,
     ) : CountingUploadProgress() {
 
         override fun hashedBytes(numBytes: Long) {

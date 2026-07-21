@@ -32,13 +32,11 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return true if exempt, false otherwise
      */
-    fun isExemptFromBatteryOptimization(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-        } else {
-            // Pre-Marshmallow doesn't have Doze mode
-            true
-        }
+    fun isExemptFromBatteryOptimization(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+    } else {
+        // Pre-Marshmallow doesn't have Doze mode
+        true
     }
 
     /**
@@ -50,12 +48,10 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return Intent to battery optimization settings
      */
-    fun createBatteryOptimizationSettingsIntent(): Intent {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-        } else {
-            Intent(Settings.ACTION_SETTINGS)
-        }
+    fun createBatteryOptimizationSettingsIntent(): Intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+    } else {
+        Intent(Settings.ACTION_SETTINGS)
     }
 
     /**
@@ -67,14 +63,12 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return Intent to request exemption, or null if not supported
      */
-    fun createRequestExemptionIntent(): Intent? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = Uri.parse("package:${context.packageName}")
-            }
-        } else {
-            null
+    fun createRequestExemptionIntent(): Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            data = Uri.parse("package:${context.packageName}")
         }
+    } else {
+        null
     }
 
     /**
@@ -109,13 +103,11 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return Battery percentage (0-100), or -1 if unknown
      */
-    fun getBatteryLevel(): Int {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
-            batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-        } else {
-            -1
-        }
+    fun getBatteryLevel(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+        batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+    } else {
+        -1
     }
 
     /**
@@ -123,12 +115,10 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return true if in power save mode
      */
-    fun isPowerSaveMode(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            powerManager?.isPowerSaveMode == true
-        } else {
-            false
-        }
+    fun isPowerSaveMode(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        powerManager?.isPowerSaveMode == true
+    } else {
+        false
     }
 
     /**
@@ -136,36 +126,30 @@ class BatteryOptimizationChecker(private val context: Context) {
      *
      * @return true if interactive
      */
-    fun isInteractive(): Boolean {
-        return powerManager?.isInteractive == true
-    }
+    fun isInteractive(): Boolean = powerManager?.isInteractive == true
 
     /**
      * Checks if the device is currently idle (in Doze mode).
      *
      * @return true if device is idle
      */
-    fun isDeviceIdle(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            powerManager?.isDeviceIdleMode == true
-        } else {
-            false
-        }
+    fun isDeviceIdle(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        powerManager?.isDeviceIdleMode == true
+    } else {
+        false
     }
 
     /**
      * Returns a summary of the current battery state.
      */
-    fun getBatteryState(): BatteryState {
-        return BatteryState(
-            level = getBatteryLevel(),
-            isCharging = isCharging(),
-            isLow = isBatteryLow(),
-            isPowerSaveMode = isPowerSaveMode(),
-            isDeviceIdle = isDeviceIdle(),
-            isExemptFromOptimization = isExemptFromBatteryOptimization()
-        )
-    }
+    fun getBatteryState(): BatteryState = BatteryState(
+        level = getBatteryLevel(),
+        isCharging = isCharging(),
+        isLow = isBatteryLow(),
+        isPowerSaveMode = isPowerSaveMode(),
+        isDeviceIdle = isDeviceIdle(),
+        isExemptFromOptimization = isExemptFromBatteryOptimization(),
+    )
 
     /**
      * Checks if conditions are suitable for background backup.
@@ -176,7 +160,7 @@ class BatteryOptimizationChecker(private val context: Context) {
      */
     fun checkBackupConstraints(
         requireCharging: Boolean = false,
-        requireBatteryNotLow: Boolean = true
+        requireBatteryNotLow: Boolean = true,
     ): ConstraintCheckResult {
         val violations = mutableListOf<String>()
 
@@ -194,7 +178,7 @@ class BatteryOptimizationChecker(private val context: Context) {
 
         return ConstraintCheckResult(
             satisfied = violations.isEmpty(),
-            violations = violations
+            violations = violations,
         )
     }
 
@@ -219,7 +203,7 @@ data class BatteryState(
     /** Whether the device is in Doze mode */
     val isDeviceIdle: Boolean,
     /** Whether the app is exempt from battery optimization */
-    val isExemptFromOptimization: Boolean
+    val isExemptFromOptimization: Boolean,
 )
 
 /**
@@ -229,5 +213,5 @@ data class ConstraintCheckResult(
     /** Whether all constraints are satisfied */
     val satisfied: Boolean,
     /** List of constraint violations (empty if satisfied) */
-    val violations: List<String>
+    val violations: List<String>,
 )

@@ -37,7 +37,7 @@ class Pbkdf2KeyDerivation {
         password: ByteArray,
         salt: ByteArray,
         iterations: Int,
-        keyLength: Int
+        keyLength: Int,
     ): ByteArray {
         // Use BouncyCastle's PKCS5S2 generator directly with byte array password
         // This matches Go's behavior which uses raw bytes for PBKDF2
@@ -83,10 +83,8 @@ class ScryptKeyDerivation {
         n: Int,
         r: Int,
         p: Int,
-        keyLength: Int
-    ): ByteArray {
-        return SCrypt.generate(password, salt, n, r, p, keyLength)
-    }
+        keyLength: Int,
+    ): ByteArray = SCrypt.generate(password, salt, n, r, p, keyLength)
 
     companion object {
         /** Kopia's default N parameter for Scrypt */
@@ -125,7 +123,7 @@ class HkdfSha256KeyDerivation {
         masterKey: ByteArray,
         salt: ByteArray,
         info: ByteArray,
-        length: Int
+        length: Int,
     ): ByteArray {
         val hkdf = HKDFBytesGenerator(org.bouncycastle.crypto.digests.SHA256Digest())
 
@@ -186,7 +184,7 @@ fun deriveKeyFromPassword(
     password: String,
     salt: ByteArray,
     keyLength: Int,
-    algorithm: String
+    algorithm: String,
 ): ByteArray {
     val passwordBytes = password.toByteArray(Charsets.UTF_8)
 

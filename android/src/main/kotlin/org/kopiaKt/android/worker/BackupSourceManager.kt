@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 enum class SourceStatus {
     IDLE,
     UPLOADING,
-    PAUSED
+    PAUSED,
 }
 
 /**
@@ -29,7 +29,7 @@ data class SourceInfo(
     val displayName: String,
     val status: SourceStatus = SourceStatus.IDLE,
     val lastSnapshotTime: Instant? = null,
-    val createdAt: Instant = Instant.now()
+    val createdAt: Instant = Instant.now(),
 )
 
 /**
@@ -54,7 +54,7 @@ class BackupSourceManager {
         val source = SourceInfo(
             id = UUID.randomUUID().toString(),
             path = path,
-            displayName = effectiveDisplayName
+            displayName = effectiveDisplayName,
         )
         sources[source.id] = source
         return source
@@ -63,16 +63,12 @@ class BackupSourceManager {
     /**
      * Returns the source with the given ID, or null if not found.
      */
-    fun getSource(id: String): SourceInfo? {
-        return sources[id]
-    }
+    fun getSource(id: String): SourceInfo? = sources[id]
 
     /**
      * Returns all configured backup sources.
      */
-    fun listSources(): List<SourceInfo> {
-        return sources.values.toList()
-    }
+    fun listSources(): List<SourceInfo> = sources.values.toList()
 
     /**
      * Removes the source with the given ID. No-op if the ID does not exist.

@@ -8,7 +8,6 @@ import android.net.Uri
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.test.runTest
@@ -131,7 +130,7 @@ class SafPermissionManagerTest {
                 displayName = "Test",
                 hasReadPermission = true,
                 hasWritePermission = true,
-                persistedTime = System.currentTimeMillis()
+                persistedTime = System.currentTimeMillis(),
             )
 
             assertThat(storage.isUsableForBackup).isTrue()
@@ -144,7 +143,7 @@ class SafPermissionManagerTest {
                 displayName = "Test",
                 hasReadPermission = true,
                 hasWritePermission = false,
-                persistedTime = System.currentTimeMillis()
+                persistedTime = System.currentTimeMillis(),
             )
 
             assertThat(storage.isUsableForBackup).isFalse()
@@ -157,7 +156,7 @@ class SafPermissionManagerTest {
                 displayName = "Test",
                 hasReadPermission = true,
                 hasWritePermission = false,
-                persistedTime = System.currentTimeMillis()
+                persistedTime = System.currentTimeMillis(),
             )
 
             assertThat(storage.isUsableForRestore).isTrue()
@@ -170,7 +169,7 @@ class SafPermissionManagerTest {
                 displayName = "Test",
                 hasReadPermission = false,
                 hasWritePermission = true,
-                persistedTime = System.currentTimeMillis()
+                persistedTime = System.currentTimeMillis(),
             )
 
             assertThat(storage.isUsableForRestore).isFalse()

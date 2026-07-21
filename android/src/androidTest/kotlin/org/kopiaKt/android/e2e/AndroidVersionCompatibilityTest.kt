@@ -1,14 +1,11 @@
 package org.kopiaKt.android.e2e
 
-import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
-import org.junit.Assume
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.kopiaKt.android.notification.BackupNotificationManager
@@ -179,9 +176,12 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
 
         // Battery state should work on all versions
         val batteryState = checker.getBatteryState()
-        Log.i(TAG, "Battery state: level=${batteryState.level}%, " +
+        Log.i(
+            TAG,
+            "Battery state: level=${batteryState.level}%, " +
                 "charging=${batteryState.isCharging}, " +
-                "powerSaveMode=${batteryState.isPowerSaveMode}")
+                "powerSaveMode=${batteryState.isPowerSaveMode}",
+        )
 
         // Battery low check
         val isLow = checker.isBatteryLow()
@@ -214,9 +214,12 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         val checker = NetworkConstraintChecker(context)
 
         val networkState = checker.getCurrentNetworkState()
-        Log.i(TAG, "Network: available=${networkState.isConnected}, " +
+        Log.i(
+            TAG,
+            "Network: available=${networkState.isConnected}, " +
                 "type=${networkState.type}, " +
-                "metered=${networkState.isMetered}")
+                "metered=${networkState.isMetered}",
+        )
 
         // WiFi check
         val isWifi = checker.isWifiConnected()
@@ -247,10 +250,13 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         val permissionManager = PermissionManager(context)
         val state = permissionManager.getBackupPermissionState()
 
-        Log.i(TAG, "Permission state: " +
+        Log.i(
+            TAG,
+            "Permission state: " +
                 "storage=${state.hasStoragePermission}, " +
                 "notifications=${state.hasNotificationPermission}, " +
-                "batteryOptimization=${state.isExemptFromBatteryOptimization}")
+                "batteryOptimization=${state.isExemptFromBatteryOptimization}",
+        )
 
         // Check missing permissions
         val missing = state.missingPermissions
@@ -300,19 +306,19 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                 val source = SourceInfo(
                     host = android.os.Build.DEVICE,
                     userName = "android",
-                    path = sourceDir.absolutePath
+                    path = sourceDir.absolutePath,
                 )
 
                 val uploader = SnapshotUploader(
                     writer = writer,
                     source = source,
                     policy = Policy(),
-                    progress = CountingUploadProgress()
+                    progress = CountingUploadProgress(),
                 )
 
                 val result = uploader.upload(
                     rootDir = LocalFilesystem.directory(sourceDir.toPath()),
-                    options = UploadOptions(description = "Crypto test")
+                    options = UploadOptions(description = "Crypto test"),
                 )
 
                 writer.flush()
@@ -343,7 +349,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                 val uploader = SnapshotUploader(writer, source, Policy())
                 val result = uploader.upload(
                     LocalFilesystem.directory(sourceDir.toPath()),
-                    UploadOptions(description = "AES-GCM test")
+                    UploadOptions(description = "AES-GCM test"),
                 )
                 writer.flush()
                 assertThat(result.incomplete).isFalse()
@@ -362,7 +368,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
         // Test with different hash algorithm
         repository = createRepository(
             hash = "BLAKE3-256",
-            encryption = "AES256-GCM-HMAC-SHA256"
+            encryption = "AES256-GCM-HMAC-SHA256",
         )
         try {
             val writer = repository.newWriter(WriteSessionOptions())
@@ -371,7 +377,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                 val uploader = SnapshotUploader(writer, source, Policy())
                 val result = uploader.upload(
                     LocalFilesystem.directory(sourceDir.toPath()),
-                    UploadOptions(description = "BLAKE3 test")
+                    UploadOptions(description = "BLAKE3 test"),
                 )
                 writer.flush()
                 assertThat(result.incomplete).isFalse()
@@ -398,7 +404,7 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
             requiresWifi = true,
             requiresBatteryNotLow = true,
             requiresCharging = false,
-            requiresDeviceIdle = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            requiresDeviceIdle = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M,
         )
 
         // Verify constraints are created correctly
@@ -430,19 +436,19 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                 val source = SourceInfo(
                     host = android.os.Build.DEVICE,
                     userName = "android",
-                    path = sourceDir.absolutePath
+                    path = sourceDir.absolutePath,
                 )
 
                 val uploader = SnapshotUploader(
                     writer = writer,
                     source = source,
                     policy = Policy(),
-                    progress = uploadProgress
+                    progress = uploadProgress,
                 )
 
                 val result = uploader.upload(
                     rootDir = LocalFilesystem.directory(sourceDir.toPath()),
-                    options = UploadOptions(description = "Full API ${Build.VERSION.SDK_INT} test")
+                    options = UploadOptions(description = "Full API ${Build.VERSION.SDK_INT} test"),
                 )
 
                 writer.flush()
@@ -456,14 +462,14 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                 val manifests = repository.findManifests(
                     mapOf(
                         org.kopiaKt.snapshot.model.ManifestLabels.TYPE to
-                                org.kopiaKt.snapshot.model.ManifestLabels.TYPE_SNAPSHOT
-                    )
+                            org.kopiaKt.snapshot.model.ManifestLabels.TYPE_SNAPSHOT,
+                    ),
                 )
                 assertThat(manifests).isNotEmpty()
 
                 val (snapshot, _) = repository.getManifest(
                     manifests.first().id,
-                    org.kopiaKt.snapshot.model.SnapshotManifest.serializer()
+                    org.kopiaKt.snapshot.model.SnapshotManifest.serializer(),
                 )
                 assertThat(snapshot).isNotNull()
 
@@ -473,8 +479,8 @@ class AndroidVersionCompatibilityTest : AndroidE2ETestBase() {
                     targetPath = restoreDir.toPath(),
                     options = org.kopiaKt.snapshot.restore.FilesystemOutputOptions(
                         overwriteFiles = true,
-                        overwriteDirectories = true
-                    )
+                        overwriteDirectories = true,
+                    ),
                 )
 
                 val restorer = org.kopiaKt.snapshot.restore.SnapshotRestorer(output = output)

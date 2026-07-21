@@ -19,18 +19,18 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindKopiaRepositoryManager(
-        impl: KopiaRepositoryManagerImpl
+        impl: KopiaRepositoryManagerImpl,
     ): KopiaRepositoryManager
 
     @Binds
     @Singleton
     abstract fun bindSnapshotRepository(
-        impl: SnapshotRepositoryImpl
+        impl: SnapshotRepositoryImpl,
     ): SnapshotRepository
 
     @Binds
     @Singleton
     abstract fun bindCredentialRepository(
-        impl: EncryptedCredentialRepository
+        impl: EncryptedCredentialRepository,
     ): CredentialRepository
 }

@@ -143,7 +143,7 @@ class RestoreProgressTest {
             restoredFileCount = 5,
             restoredDirCount = 5,
             restoredSymlinkCount = 2,
-            skippedCount = 2  // 5 restored + 2 skipped = 7, not 10
+            skippedCount = 2, // 5 restored + 2 skipped = 7, not 10
         )
         assertThat(incomplete.isComplete).isFalse()
 
@@ -154,7 +154,7 @@ class RestoreProgressTest {
             restoredFileCount = 7,
             restoredDirCount = 5,
             restoredSymlinkCount = 2,
-            skippedCount = 3  // 7 restored + 3 skipped = 10
+            skippedCount = 3, // 7 restored + 3 skipped = 10
         )
         assertThat(complete.isComplete).isTrue()
     }
@@ -164,7 +164,7 @@ class RestoreProgressTest {
         val stats = RestoreStats(
             enqueuedTotalFileSize = 1000,
             restoredTotalFileSize = 400,
-            skippedTotalFileSize = 100
+            skippedTotalFileSize = 100,
         )
         assertThat(stats.progressPercent).isEqualTo(50f)
     }

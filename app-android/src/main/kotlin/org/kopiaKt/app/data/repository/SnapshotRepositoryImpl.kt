@@ -22,16 +22,16 @@ import org.kopiaKt.app.domain.model.SourceWithStats
 import org.kopiaKt.app.domain.repository.RestoreOptions
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.core.manifest.ManifestId
-import org.kopiaKt.snapshot.maintenance.computeRetention
-import org.kopiaKt.snapshot.policy.RetentionPolicy
-import java.time.Instant
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.Entry
+import org.kopiaKt.snapshot.maintenance.computeRetention
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
+import org.kopiaKt.snapshot.policy.RetentionPolicy
 import org.kopiaKt.snapshot.restore.RestoreStats
 import org.kopiaKt.snapshot.restore.SnapshotRestorer
 import org.kopiaKt.snapshot.snapshotfs.snapshotRoot
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.kopiaKt.snapshot.restore.RestoreOptions as CoreRestoreOptions
@@ -39,7 +39,7 @@ import org.kopiaKt.snapshot.restore.RestoreOptions as CoreRestoreOptions
 @Singleton
 class SnapshotRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repositoryManager: KopiaRepositoryManagerImpl
+    private val repositoryManager: KopiaRepositoryManagerImpl,
 ) : SnapshotRepository {
 
     private var currentRestorer: SnapshotRestorer? = null
@@ -80,7 +80,7 @@ class SnapshotRepositoryImpl @Inject constructor(
             try {
                 val (manifest, _) = repo.getManifest(
                     metadata.id,
-                    SnapshotManifest.serializer()
+                    SnapshotManifest.serializer(),
                 )
                 manifest.toSnapshotInfo(metadata.id.value)
             } catch (e: Exception) {
@@ -97,7 +97,7 @@ class SnapshotRepositoryImpl @Inject constructor(
             val manifestId = ManifestId.invoke(snapshotId)
             val (manifest, _) = repo.getManifest(
                 manifestId,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             manifest.toSnapshotInfo(snapshotId)
         } catch (e: Exception) {
@@ -112,7 +112,7 @@ class SnapshotRepositoryImpl @Inject constructor(
         val manifestId = ManifestId.invoke(snapshotId)
         val (manifest, _) = repo.getManifest(
             manifestId,
-            SnapshotManifest.serializer()
+            SnapshotManifest.serializer(),
         )
 
         var currentEntry = snapshotRoot(repo, manifest)
@@ -150,19 +150,21 @@ class SnapshotRepositoryImpl @Inject constructor(
         snapshotId: String,
         sourcePath: String,
         destinationUri: String,
-        options: RestoreOptions
+        options: RestoreOptions,
     ): Flow<RestoreProgress> = callbackFlow {
         restoreCancelled = false
 
-        send(RestoreProgress(
-            state = RestoreState.PREPARING,
-            totalFiles = 0,
-            restoredFiles = 0,
-            totalBytes = 0,
-            restoredBytes = 0,
-            currentFile = null,
-            errorMessage = null
-        ))
+        send(
+            RestoreProgress(
+                state = RestoreState.PREPARING,
+                totalFiles = 0,
+                restoredFiles = 0,
+                totalBytes = 0,
+                restoredBytes = 0,
+                currentFile = null,
+                errorMessage = null,
+            ),
+        )
 
         try {
             val repo = repositoryManager.getRepository()
@@ -172,7 +174,7 @@ class SnapshotRepositoryImpl @Inject constructor(
             val manifestId = ManifestId.invoke(snapshotId)
             val (manifest, _) = repo.getManifest(
                 manifestId,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
 
             // Navigate to source path within snapshot
@@ -239,16 +241,14 @@ class SnapshotRepositoryImpl @Inject constructor(
 
                 override fun errorIgnored() {}
 
-                override fun snapshot(): RestoreStats {
-                    return RestoreStats(
-                        restoredTotalFileSize = restoredBytes,
-                        restoredFileCount = restoredFiles.toInt(),
-                        skippedTotalFileSize = 0,
-                        skippedCount = 0,
-                        enqueuedTotalFileSize = totalBytes,
-                        enqueuedFileCount = totalFiles.toInt()
-                    )
-                }
+                override fun snapshot(): RestoreStats = RestoreStats(
+                    restoredTotalFileSize = restoredBytes,
+                    restoredFileCount = restoredFiles.toInt(),
+                    skippedTotalFileSize = 0,
+                    skippedCount = 0,
+                    enqueuedTotalFileSize = totalBytes,
+                    enqueuedFileCount = totalFiles.toInt(),
+                )
 
                 private fun makeProgress(state: RestoreState) = RestoreProgress(
                     state = state,
@@ -257,7 +257,7 @@ class SnapshotRepositoryImpl @Inject constructor(
                     totalBytes = totalBytes,
                     restoredBytes = restoredBytes,
                     currentFile = currentFile,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
 
@@ -266,49 +266,55 @@ class SnapshotRepositoryImpl @Inject constructor(
                 parallel = 1, // SAF is not thread-safe
                 incremental = options.incremental,
                 deleteExtra = false,
-                ignoreErrors = false
+                ignoreErrors = false,
             )
 
             val restorer = SnapshotRestorer(safOutput, coreOptions, progressTracker)
             currentRestorer = restorer
 
-            send(RestoreProgress(
-                state = RestoreState.IN_PROGRESS,
-                totalFiles = 0,
-                restoredFiles = 0,
-                totalBytes = 0,
-                restoredBytes = 0,
-                currentFile = null,
-                errorMessage = null
-            ))
+            send(
+                RestoreProgress(
+                    state = RestoreState.IN_PROGRESS,
+                    totalFiles = 0,
+                    restoredFiles = 0,
+                    totalBytes = 0,
+                    restoredBytes = 0,
+                    currentFile = null,
+                    errorMessage = null,
+                ),
+            )
 
             // Run restore
             withContext(Dispatchers.IO) {
                 val stats = restorer.restore(currentEntry)
 
-                send(RestoreProgress(
-                    state = RestoreState.COMPLETED,
-                    totalFiles = stats.enqueuedFileCount.toLong(),
-                    restoredFiles = stats.restoredFileCount.toLong(),
-                    totalBytes = stats.enqueuedTotalFileSize,
-                    restoredBytes = stats.restoredTotalFileSize,
-                    currentFile = null,
-                    errorMessage = null
-                ))
+                send(
+                    RestoreProgress(
+                        state = RestoreState.COMPLETED,
+                        totalFiles = stats.enqueuedFileCount.toLong(),
+                        restoredFiles = stats.restoredFileCount.toLong(),
+                        totalBytes = stats.enqueuedTotalFileSize,
+                        restoredBytes = stats.restoredTotalFileSize,
+                        currentFile = null,
+                        errorMessage = null,
+                    ),
+                )
             }
             // Close the channel to signal completion
             close()
         } catch (e: Exception) {
             android.util.Log.e("SnapshotRepo", "Restore failed", e)
-            send(RestoreProgress(
-                state = RestoreState.FAILED,
-                totalFiles = 0,
-                restoredFiles = 0,
-                totalBytes = 0,
-                restoredBytes = 0,
-                currentFile = null,
-                errorMessage = e.message ?: "Unknown error"
-            ))
+            send(
+                RestoreProgress(
+                    state = RestoreState.FAILED,
+                    totalFiles = 0,
+                    restoredFiles = 0,
+                    totalBytes = 0,
+                    restoredBytes = 0,
+                    currentFile = null,
+                    errorMessage = e.message ?: "Unknown error",
+                ),
+            )
             // Close the channel to signal failure completion
             close()
         } finally {
@@ -351,7 +357,7 @@ class SnapshotRepositoryImpl @Inject constructor(
                     latestSnapshotTime = latest.startTime,
                     totalFileCount = latest.stats?.totalFileCount ?: 0,
                     // Use deduplicated storage size (matches Kopia GUI)
-                    totalFileSize = latest.storageStats?.runningTotal?.objectBytes ?: latest.stats?.totalFileSize ?: 0
+                    totalFileSize = latest.storageStats?.runningTotal?.objectBytes ?: latest.stats?.totalFileSize ?: 0,
                 )
             }
             .sortedByDescending { it.latestSnapshotTime }
@@ -383,7 +389,7 @@ class SnapshotRepositoryImpl @Inject constructor(
         val retentionResults = computeRetention(
             snapshots = manifestsWithIds.map { it.second },
             policy = policy,
-            now = Instant.now()
+            now = Instant.now(),
         )
 
         // Build retention map: match by startTime since RetentionResult.snapshot
@@ -398,7 +404,7 @@ class SnapshotRepositoryImpl @Inject constructor(
             val snapshotInfo = manifest.toSnapshotInfo(manifestId)
             SnapshotWithRetention(
                 snapshot = snapshotInfo,
-                retentionReasons = retentionByStartTime[manifest.startTime] ?: emptyList()
+                retentionReasons = retentionByStartTime[manifest.startTime] ?: emptyList(),
             )
         }.sortedByDescending { it.snapshot.startTime }
     }
@@ -418,38 +424,34 @@ class SnapshotRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun SnapshotManifest.toSnapshotInfo(manifestId: String): SnapshotInfo {
-        return SnapshotInfo(
-            id = manifestId,
-            source = SourceInfo(source.host, source.userName, source.path),
-            startTime = startTime,
-            endTime = endTime,
-            description = description,
-            stats = stats?.let {
-                SnapshotStats(
-                    totalFileSize = it.totalFileSize,
-                    totalFileCount = it.totalFileCount,
-                    totalDirectoryCount = it.totalDirectoryCount
-                )
-            },
-            isIncomplete = incompleteReason != null,
-            tags = tags
-        )
-    }
+    private fun SnapshotManifest.toSnapshotInfo(manifestId: String): SnapshotInfo = SnapshotInfo(
+        id = manifestId,
+        source = SourceInfo(source.host, source.userName, source.path),
+        startTime = startTime,
+        endTime = endTime,
+        description = description,
+        stats = stats?.let {
+            SnapshotStats(
+                totalFileSize = it.totalFileSize,
+                totalFileCount = it.totalFileCount,
+                totalDirectoryCount = it.totalDirectoryCount,
+            )
+        },
+        isIncomplete = incompleteReason != null,
+        tags = tags,
+    )
 
-    private fun org.kopiaKt.snapshot.fs.Entry.toFileEntry(): FileEntry {
-        return FileEntry(
-            name = name,
-            type = when (type) {
-                org.kopiaKt.snapshot.fs.EntryType.FILE -> FileEntryType.FILE
-                org.kopiaKt.snapshot.fs.EntryType.DIRECTORY -> FileEntryType.DIRECTORY
-                org.kopiaKt.snapshot.fs.EntryType.SYMLINK -> FileEntryType.SYMLINK
-                else -> FileEntryType.UNKNOWN
-            },
-            size = size,
-            modTime = modTime,
-            permissions = mode,
-            objectId = null
-        )
-    }
+    private fun org.kopiaKt.snapshot.fs.Entry.toFileEntry(): FileEntry = FileEntry(
+        name = name,
+        type = when (type) {
+            org.kopiaKt.snapshot.fs.EntryType.FILE -> FileEntryType.FILE
+            org.kopiaKt.snapshot.fs.EntryType.DIRECTORY -> FileEntryType.DIRECTORY
+            org.kopiaKt.snapshot.fs.EntryType.SYMLINK -> FileEntryType.SYMLINK
+            else -> FileEntryType.UNKNOWN
+        },
+        size = size,
+        modTime = modTime,
+        permissions = mode,
+        objectId = null,
+    )
 }

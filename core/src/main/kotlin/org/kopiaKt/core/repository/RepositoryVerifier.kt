@@ -20,7 +20,7 @@ class RepositoryVerifier(private val repo: DirectRepositoryImpl) {
         val verifiedCount: Int,
         val failedCount: Int,
         val failedObjectIds: List<ObjectId>,
-        val errors: Map<ObjectId, Exception>
+        val errors: Map<ObjectId, Exception>,
     ) {
         val totalCount: Int get() = verifiedCount + failedCount
         val isSuccess: Boolean get() = failedCount == 0

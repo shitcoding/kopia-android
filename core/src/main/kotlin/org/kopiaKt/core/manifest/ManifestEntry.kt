@@ -34,7 +34,7 @@ internal data class ManifestEntry(
     val modTime: Instant,
     val deleted: Boolean = false,
     @SerialName("data")
-    val content: JsonElement? = null
+    val content: JsonElement? = null,
 )
 
 /**
@@ -49,7 +49,7 @@ internal data class ManifestEntry(
  */
 @Serializable
 internal data class ManifestContainer(
-    val entries: List<ManifestEntry>
+    val entries: List<ManifestEntry>,
 )
 
 /**
@@ -67,11 +67,10 @@ data class EntryMetadata(
     val id: ManifestId,
     val length: Int,
     val labels: Map<String, String>,
-    val modTime: Instant
+    val modTime: Instant,
 )
 
 /**
  * Exception thrown when a manifest is not found.
  */
-class ManifestNotFoundException(id: ManifestId) :
-    Exception("Manifest not found: $id")
+class ManifestNotFoundException(id: ManifestId) : Exception("Manifest not found: $id")

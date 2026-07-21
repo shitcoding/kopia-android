@@ -51,7 +51,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
@@ -72,7 +72,7 @@ class RepositoryCreationTest {
                     hash = hashAlg.id,
                     encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                     secret = randomKey(),
-                    masterKey = randomKey()
+                    masterKey = randomKey(),
                 )
 
                 val repo = DirectRepositoryImpl.create(localStorage, "password", config)
@@ -101,7 +101,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
@@ -124,12 +124,12 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
             val clientOptions = ClientOptions(
                 hostname = "test-host",
                 username = "test-user",
-                description = "My backup repository"
+                description = "My backup repository",
             )
 
             val repo = DirectRepositoryImpl.create(storage, "test-password", config, clientOptions)
@@ -146,7 +146,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             // Empty password should still create the repo (Kopia allows empty passwords)
@@ -165,7 +165,7 @@ class RepositoryCreationTest {
                 DirectRepositoryImpl.open(storage, "wrong-password")
             }
             assertThat(
-                ex is InvalidPasswordException || ex.cause is InvalidPasswordException
+                ex is InvalidPasswordException || ex.cause is InvalidPasswordException,
             ).isTrue()
         }
     }
@@ -180,7 +180,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             // Create and close
@@ -200,7 +200,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
                 // version defaults to FormatVersion.CURRENT (3)
             )
 
@@ -284,7 +284,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             val repo = DirectRepositoryImpl.create(fsStorage, "fs-password", config)
@@ -316,7 +316,7 @@ class RepositoryCreationTest {
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
                 secret = randomKey(),
-                masterKey = randomKey()
+                masterKey = randomKey(),
             )
 
             // Create with one password
@@ -329,7 +329,7 @@ class RepositoryCreationTest {
             }
 
             assertThat(
-                ex is InvalidPasswordException || ex.cause is InvalidPasswordException
+                ex is InvalidPasswordException || ex.cause is InvalidPasswordException,
             ).isTrue()
         }
     }

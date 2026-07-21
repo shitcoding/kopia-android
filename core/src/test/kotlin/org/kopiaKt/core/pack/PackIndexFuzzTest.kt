@@ -1,9 +1,9 @@
 package org.kopiaKt.core.pack
 
-import org.kopiaKt.core.blob.BlobId
-import org.kopiaKt.core.content.ContentId
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.content.ContentId
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.time.Duration
@@ -29,13 +29,11 @@ class PackIndexFuzzTest {
      */
     private fun safeRecoverIndex(
         data: ByteArray,
-        encryptionOverhead: UInt = 0u
-    ): List<*>? {
-        return try {
-            PackBlobReader.recoverIndex(data, encryptionOverhead)
-        } catch (_: Exception) {
-            null
-        }
+        encryptionOverhead: UInt = 0u,
+    ): List<*>? = try {
+        PackBlobReader.recoverIndex(data, encryptionOverhead)
+    } catch (_: Exception) {
+        null
     }
 
     @Nested
@@ -97,13 +95,13 @@ class PackIndexFuzzTest {
                 preambleLength = 32,
                 encryptionOverhead = 0,
                 timestampSeconds = 1700000000L,
-                preamble = ByteArray(32) { it.toByte() }
+                preamble = ByteArray(32) { it.toByte() },
             )
 
             val contentEntries = listOf(
                 ContentId.parse("aaaa111122223333") to ByteArray(64) { (it * 7).toByte() },
                 ContentId.parse("bbbb444455556666") to ByteArray(128) { (it * 13).toByte() },
-                ContentId.parse("cccc777788889999") to ByteArray(32) { (it * 37).toByte() }
+                ContentId.parse("cccc777788889999") to ByteArray(32) { (it * 37).toByte() },
             )
 
             for ((contentId, data) in contentEntries) {
@@ -137,8 +135,10 @@ class PackIndexFuzzTest {
 
                     val result = safeRecoverIndex(corrupted)
                     if (result != null) {
-                        assertTrue(result is List<*>,
-                            "Iteration $iteration: result should be a list if non-null")
+                        assertTrue(
+                            result is List<*>,
+                            "Iteration $iteration: result should be a list if non-null",
+                        )
                     }
                 }
             }
@@ -163,8 +163,10 @@ class PackIndexFuzzTest {
 
                     val result = safeRecoverIndex(corrupted)
                     if (result != null) {
-                        assertTrue(result is List<*>,
-                            "Iteration $iteration: result should be a list if non-null")
+                        assertTrue(
+                            result is List<*>,
+                            "Iteration $iteration: result should be a list if non-null",
+                        )
                     }
                 }
             }
@@ -194,8 +196,10 @@ class PackIndexFuzzTest {
 
                     val result = safeRecoverIndex(corrupted)
                     if (result != null) {
-                        assertTrue(result is List<*>,
-                            "Iteration $iteration: result should be a list if non-null")
+                        assertTrue(
+                            result is List<*>,
+                            "Iteration $iteration: result should be a list if non-null",
+                        )
                     }
                 }
             }
@@ -210,8 +214,10 @@ class PackIndexFuzzTest {
                     val truncated = validPack.copyOfRange(0, truncateAt)
                     val result = safeRecoverIndex(truncated)
                     if (result != null) {
-                        assertTrue(result is List<*>,
-                            "Truncate at $truncateAt: result should be a list if non-null")
+                        assertTrue(
+                            result is List<*>,
+                            "Truncate at $truncateAt: result should be a list if non-null",
+                        )
                     }
                 }
             }
@@ -229,7 +235,7 @@ class PackIndexFuzzTest {
             version: Int = 1,
             keySize: Int = 17,
             entrySize: Int = 20,
-            entryCount: Int = 0
+            entryCount: Int = 0,
         ): ByteArray {
             val header = ByteArray(8)
             header[0] = version.toByte()

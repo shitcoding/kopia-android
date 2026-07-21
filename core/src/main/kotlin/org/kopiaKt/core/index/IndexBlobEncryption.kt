@@ -14,7 +14,7 @@ import org.kopiaKt.core.encryption.Encryptor
  * @property encryptor The encryptor to use for encryption/decryption operations
  */
 class IndexBlobEncryption(
-    private val encryptor: Encryptor?
+    private val encryptor: Encryptor?,
 ) {
     /**
      * Whether encryption is enabled.
@@ -35,13 +35,11 @@ class IndexBlobEncryption(
      * @param blobId The blob ID (used for nonce derivation)
      * @return The encrypted data, or the original data if encryption is disabled
      */
-    suspend fun encrypt(data: ByteArray, blobId: BlobId): ByteArray {
-        return if (encryptor != null) {
-            val contentId = deriveContentIdFromBlobId(blobId)
-            encryptor.encrypt(data, contentId)
-        } else {
-            data
-        }
+    suspend fun encrypt(data: ByteArray, blobId: BlobId): ByteArray = if (encryptor != null) {
+        val contentId = deriveContentIdFromBlobId(blobId)
+        encryptor.encrypt(data, contentId)
+    } else {
+        data
     }
 
     /**
@@ -52,15 +50,13 @@ class IndexBlobEncryption(
      * @return The decrypted data
      * @throws org.kopiaKt.core.encryption.DecryptionException if decryption fails
      */
-    suspend fun decrypt(encryptedData: ByteArray, blobId: BlobId): ByteArray {
-        return if (encryptor != null) {
-            // Get raw IV bytes from blob ID (16 bytes)
-            val ivBytes = deriveIvBytesFromBlobId(blobId)
-            // Use decryptWithRawId which passes raw bytes to HMAC and as AAD
-            encryptor.decryptWithRawId(encryptedData, ivBytes)
-        } else {
-            encryptedData
-        }
+    suspend fun decrypt(encryptedData: ByteArray, blobId: BlobId): ByteArray = if (encryptor != null) {
+        // Get raw IV bytes from blob ID (16 bytes)
+        val ivBytes = deriveIvBytesFromBlobId(blobId)
+        // Use decryptWithRawId which passes raw bytes to HMAC and as AAD
+        encryptor.decryptWithRawId(encryptedData, ivBytes)
+    } else {
+        encryptedData
     }
 
     companion object {

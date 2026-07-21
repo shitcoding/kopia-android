@@ -1,7 +1,6 @@
 package org.kopiaKt.snapshot.fs
 
 import kotlinx.coroutines.runBlocking
-import kotlin.io.path.ExperimentalPathApi
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.condition.DisabledOnOs
 import org.junit.jupiter.api.condition.OS
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 import kotlin.io.path.createSymbolicLinkPointingTo
@@ -318,7 +318,7 @@ class LocalFilesystemTest {
         private suspend fun enumerateRecursively(
             dir: Directory,
             basePath: String,
-            visitor: (String, Entry) -> Unit
+            visitor: (String, Entry) -> Unit,
         ) {
             dir.iterate().use { iterator ->
                 while (true) {

@@ -41,11 +41,10 @@ class ContentManagerEpochIndexTest {
         compressorFactory = DefaultCompressorFactory(),
         defaultCompression = CompressionAlgorithm.NONE,
         maxPackSize = 20 * 1024 * 1024,
-        epochsEnabled = epochsEnabled
+        epochsEnabled = epochsEnabled,
     )
 
-    private suspend fun blobIds(storage: InMemoryBlobStorage, prefix: String): List<String> =
-        storage.listBlobs(prefix).toList().map { it.blobId.value }
+    private suspend fun blobIds(storage: InMemoryBlobStorage, prefix: String): List<String> = storage.listBlobs(prefix).toList().map { it.blobId.value }
 
     @Test
     fun `epoch mode writes Go-compatible xn0 uncompacted index blob names`() = runBlocking {
@@ -115,8 +114,7 @@ class ContentManagerEpochIndexTest {
         // A pre-0.9 (FormatVersion 1) format blob may OMIT the epoch key, which deserializes to the truthy
         // EpochParameters.DEFAULT. Epoch-mode detection must key on the version (Go couples them), so such a
         // legacy repo is NOT falsely treated as epoch mode.
-        fun cfg(v: Int, ep: EpochParameters) =
-            RepositoryConfig(hash = "BLAKE2B-256-128", encryption = "AES256-GCM-HMAC-SHA256", version = v, epochParameters = ep)
+        fun cfg(v: Int, ep: EpochParameters) = RepositoryConfig(hash = "BLAKE2B-256-128", encryption = "AES256-GCM-HMAC-SHA256", version = v, epochParameters = ep)
 
         assertThat(cfg(FormatVersion.V1.value, EpochParameters.DEFAULT).isEpochIndexEnabled()).isFalse()
         assertThat(cfg(FormatVersion.V1.value, EpochParameters.DISABLED).isEpochIndexEnabled()).isFalse()
@@ -139,7 +137,7 @@ class ContentManagerEpochIndexTest {
             splitter = "FIXED-1M",
             version = FormatVersion.V1.value,
             epochParameters = EpochParameters.DEFAULT, // truthy but must be IGNORED for a V1 repo
-            enablePasswordChange = false
+            enablePasswordChange = false,
         )
         val repo = DirectRepositoryImpl.create(storage, "pw", config)
         repo.use {

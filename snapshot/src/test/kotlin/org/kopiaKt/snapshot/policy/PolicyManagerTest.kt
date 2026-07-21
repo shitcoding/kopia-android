@@ -66,7 +66,7 @@ class PolicyManagerTest {
         fun `setPolicy stores policy as manifest`() = runTest {
             val r = createRepo()
             val policy = Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 5)
+                retentionPolicy = RetentionPolicy(keepLatest = 5),
             )
 
             PolicyManager.setPolicy(r, pathSource, policy)
@@ -82,7 +82,7 @@ class PolicyManagerTest {
         fun `getPolicy retrieves stored policy`() = runTest {
             val r = createRepo()
             val policy = Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 42, keepDaily = 14)
+                retentionPolicy = RetentionPolicy(keepLatest = 42, keepDaily = 14),
             )
 
             PolicyManager.setPolicy(r, pathSource, policy)
@@ -98,7 +98,7 @@ class PolicyManagerTest {
         fun `deletePolicy removes manifest`() = runTest {
             val r = createRepo()
             val policy = Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 5)
+                retentionPolicy = RetentionPolicy(keepLatest = 5),
             )
 
             PolicyManager.setPolicy(r, pathSource, policy)
@@ -113,15 +113,27 @@ class PolicyManagerTest {
         fun `listPolicies returns all policies`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 1)
-            ))
-            PolicyManager.setPolicy(r, pathSource2, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 2)
-            ))
-            PolicyManager.setPolicy(r, pathSource3, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 3)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 1),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                pathSource2,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 2),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                pathSource3,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 3),
+                ),
+            )
 
             val policies = PolicyManager.listPolicies(r)
             assertThat(policies).hasSize(3)
@@ -132,12 +144,20 @@ class PolicyManagerTest {
         fun `setPolicy overwrites existing`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 5)
-            ))
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 99)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 5),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 99),
+                ),
+            )
 
             val retrieved = PolicyManager.getPolicy(r, pathSource)
             assertThat(retrieved).isNotNull()
@@ -155,9 +175,13 @@ class PolicyManagerTest {
             val r = createRepo()
 
             // Set only a global policy
-            PolicyManager.setPolicy(r, globalSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 20)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                globalSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 20),
+                ),
+            )
 
             // Get effective for a specific path source with no source-specific policy
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
@@ -170,12 +194,20 @@ class PolicyManagerTest {
         fun `source policy overrides global default`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, globalSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 20)
-            ))
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 5)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                globalSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 20),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 5),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 
@@ -187,9 +219,13 @@ class PolicyManagerTest {
         fun `host-level policy applies to all sources on host`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, hostSource, Policy(
-                retentionPolicy = RetentionPolicy(keepDaily = 30)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                hostSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepDaily = 30),
+                ),
+            )
 
             // pathSource is on "myhost" so should inherit
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
@@ -202,15 +238,27 @@ class PolicyManagerTest {
         fun `most specific policy wins`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, globalSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 100)
-            ))
-            PolicyManager.setPolicy(r, hostSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 50)
-            ))
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 10)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                globalSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 100),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                hostSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 50),
+                ),
+            )
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 10),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 
@@ -224,13 +272,21 @@ class PolicyManagerTest {
             val r = createRepo()
 
             // Global has retention keepWeekly
-            PolicyManager.setPolicy(r, globalSource, Policy(
-                retentionPolicy = RetentionPolicy(keepWeekly = 8)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                globalSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepWeekly = 8),
+                ),
+            )
             // Source has compression
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                compressionPolicy = CompressionPolicy(compressorName = "zstd")
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    compressionPolicy = CompressionPolicy(compressorName = "zstd"),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 
@@ -250,11 +306,15 @@ class PolicyManagerTest {
         fun `resolvePolicy returns effective policy with scheduling`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                schedulingPolicy = SchedulingPolicy(
-                    timesOfDay = listOf(TimeOfDay(2, 0), TimeOfDay(14, 30))
-                )
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    schedulingPolicy = SchedulingPolicy(
+                        timesOfDay = listOf(TimeOfDay(2, 0), TimeOfDay(14, 30)),
+                    ),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 
@@ -269,9 +329,13 @@ class PolicyManagerTest {
             val r = createRepo()
 
             // Set a policy with only retention, no scheduling
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                retentionPolicy = RetentionPolicy(keepLatest = 5)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    retentionPolicy = RetentionPolicy(keepLatest = 5),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 
@@ -285,9 +349,13 @@ class PolicyManagerTest {
         fun `resolvePolicy with intervalSeconds present`() = runTest {
             val r = createRepo()
 
-            PolicyManager.setPolicy(r, pathSource, Policy(
-                schedulingPolicy = SchedulingPolicy(intervalSeconds = 3600)
-            ))
+            PolicyManager.setPolicy(
+                r,
+                pathSource,
+                Policy(
+                    schedulingPolicy = SchedulingPolicy(intervalSeconds = 3600),
+                ),
+            )
 
             val effective = PolicyManager.getEffectivePolicy(r, pathSource)
 

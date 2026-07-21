@@ -57,7 +57,7 @@ internal class SafCursorDocument(
     private val displayName: String?,
     private val mimeType: String?,
     private val size: Long,
-    private val modified: Long
+    private val modified: Long,
 ) : DocumentFileProvider {
 
     override fun getName(): String? = displayName
@@ -66,8 +66,7 @@ internal class SafCursorDocument(
 
     // Mirror DocumentFile.isFile: an empty/absent MIME is NOT a file (it becomes a SafUnknownEntry that is
     // recorded but never opened), so a bogus row isn't turned into a per-file open() error.
-    override fun isFile(): Boolean =
-        !mimeType.isNullOrEmpty() && mimeType != DocumentsContract.Document.MIME_TYPE_DIR
+    override fun isFile(): Boolean = !mimeType.isNullOrEmpty() && mimeType != DocumentsContract.Document.MIME_TYPE_DIR
     override fun length(): Long = size
     override fun lastModified(): Long = modified
 
@@ -92,16 +91,15 @@ internal class SafCursorDocument(
                         displayName = cursor.stringOrNull(nameIdx),
                         mimeType = cursor.stringOrNull(mimeIdx),
                         size = cursor.longOrZero(sizeIdx),
-                        modified = cursor.longOrZero(modIdx)
-                    )
+                        modified = cursor.longOrZero(modIdx),
+                    ),
                 )
             }
         }
         return children
     }
 
-    override fun findFile(name: String): DocumentFileProvider? =
-        listFiles().firstOrNull { it.getName() == name }
+    override fun findFile(name: String): DocumentFileProvider? = listFiles().firstOrNull { it.getName() == name }
 
     companion object {
         private val PROJECTION = arrayOf(
@@ -109,7 +107,7 @@ internal class SafCursorDocument(
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
             DocumentsContract.Document.COLUMN_MIME_TYPE,
             DocumentsContract.Document.COLUMN_SIZE,
-            DocumentsContract.Document.COLUMN_LAST_MODIFIED
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
         )
 
         /**
@@ -119,33 +117,28 @@ internal class SafCursorDocument(
          * matches the exact node validated by the caller -- `getTreeDocumentId(treeUri)` can point at a
          * DIFFERENT node when the tree URI carries a `/document/` segment.
          */
-        fun forTree(context: Context, treeUri: Uri, rootDocFile: DocumentFile): SafCursorDocument =
-            SafCursorDocument(
-                resolver = context.contentResolver,
-                treeUri = treeUri,
-                documentId = DocumentsContract.getDocumentId(rootDocFile.uri),
-                displayName = rootDocFile.name,
-                mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
-                size = 0L,
-                modified = rootDocFile.lastModified()
-            )
+        fun forTree(context: Context, treeUri: Uri, rootDocFile: DocumentFile): SafCursorDocument = SafCursorDocument(
+            resolver = context.contentResolver,
+            treeUri = treeUri,
+            documentId = DocumentsContract.getDocumentId(rootDocFile.uri),
+            displayName = rootDocFile.name,
+            mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+            size = 0L,
+            modified = rootDocFile.lastModified(),
+        )
     }
 }
 
-private fun Cursor.stringOrNull(index: Int): String? =
-    if (index >= 0 && !isNull(index)) getString(index) else null
+private fun Cursor.stringOrNull(index: Int): String? = if (index >= 0 && !isNull(index)) getString(index) else null
 
-private fun Cursor.longOrZero(index: Int): Long =
-    if (index >= 0 && !isNull(index)) getLong(index) else 0L
+private fun Cursor.longOrZero(index: Int): Long = if (index >= 0 && !isNull(index)) getLong(index) else 0L
 
 /**
  * Production ContentResolverProvider wrapping an Android Context.
  */
 class RealContentResolverProvider(private val context: Context) : ContentResolverProvider {
-    override fun openInputStream(uri: Uri): InputStream {
-        return context.contentResolver.openInputStream(uri)
-            ?: throw IOException("ContentResolver returned null for URI: $uri")
-    }
+    override fun openInputStream(uri: Uri): InputStream = context.contentResolver.openInputStream(uri)
+        ?: throw IOException("ContentResolver returned null for URI: $uri")
 }
 
 /**
@@ -183,9 +176,7 @@ object SafFilesystem {
     /**
      * Creates a Directory entry from a DocumentFileProvider (for testing).
      */
-    internal fun directory(provider: DocumentFileProvider, contentResolver: ContentResolverProvider): Directory {
-        return SafDirectory(provider, contentResolver)
-    }
+    internal fun directory(provider: DocumentFileProvider, contentResolver: ContentResolverProvider): Directory = SafDirectory(provider, contentResolver)
 }
 
 /**
@@ -193,7 +184,7 @@ object SafFilesystem {
  */
 abstract class SafEntry(
     protected val provider: DocumentFileProvider,
-    protected val contentResolverProvider: ContentResolverProvider
+    protected val contentResolverProvider: ContentResolverProvider,
 ) : Entry {
 
     override val name: String
@@ -221,8 +212,9 @@ abstract class SafEntry(
  */
 class SafDirectory(
     provider: DocumentFileProvider,
-    contentResolverProvider: ContentResolverProvider
-) : SafEntry(provider, contentResolverProvider), Directory {
+    contentResolverProvider: ContentResolverProvider,
+) : SafEntry(provider, contentResolverProvider),
+    Directory {
 
     override val type: EntryType = EntryType.DIRECTORY
 
@@ -254,8 +246,9 @@ class SafDirectory(
  */
 class SafFile(
     provider: DocumentFileProvider,
-    contentResolverProvider: ContentResolverProvider
-) : SafEntry(provider, contentResolverProvider), FsFile {
+    contentResolverProvider: ContentResolverProvider,
+) : SafEntry(provider, contentResolverProvider),
+    FsFile {
 
     override val type: EntryType = EntryType.FILE
 
@@ -264,9 +257,7 @@ class SafFile(
 
     override val mode: Int = 0b110100100 // 0644 rw-r--r--
 
-    override suspend fun open(): InputStream {
-        return contentResolverProvider.openInputStream(provider.getUri())
-    }
+    override suspend fun open(): InputStream = contentResolverProvider.openInputStream(provider.getUri())
 }
 
 /**
@@ -274,7 +265,7 @@ class SafFile(
  */
 class SafDirectoryIterator(
     private val children: List<DocumentFileProvider>,
-    private val contentResolverProvider: ContentResolverProvider
+    private val contentResolverProvider: ContentResolverProvider,
 ) : DirectoryIterator {
 
     private var index = 0
@@ -295,13 +286,11 @@ class SafDirectoryIterator(
  */
 private fun createEntry(
     provider: DocumentFileProvider,
-    contentResolverProvider: ContentResolverProvider
-): Entry {
-    return when {
-        provider.isDirectory() -> SafDirectory(provider, contentResolverProvider)
-        provider.isFile() -> SafFile(provider, contentResolverProvider)
-        else -> SafUnknownEntry(provider, contentResolverProvider)
-    }
+    contentResolverProvider: ContentResolverProvider,
+): Entry = when {
+    provider.isDirectory() -> SafDirectory(provider, contentResolverProvider)
+    provider.isFile() -> SafFile(provider, contentResolverProvider)
+    else -> SafUnknownEntry(provider, contentResolverProvider)
 }
 
 /**
@@ -309,7 +298,7 @@ private fun createEntry(
  */
 private class SafUnknownEntry(
     provider: DocumentFileProvider,
-    contentResolverProvider: ContentResolverProvider
+    contentResolverProvider: ContentResolverProvider,
 ) : SafEntry(provider, contentResolverProvider) {
 
     override val type: EntryType = EntryType.UNKNOWN

@@ -35,7 +35,7 @@ android {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             buildConfigField("int", "SCRYPT_N", "65536")
             buildConfigField("int", "SCRYPT_R", "8")
@@ -136,13 +136,13 @@ tasks.register<Exec>("buildReactAssets") {
 tasks.register<Copy>("copyReactAssets") {
     dependsOn("buildReactAssets")
     from("${rootProject.projectDir}/react-ui/dist")
-    into("${projectDir}/src/main/assets/react")
+    into("$projectDir/src/main/assets/react")
 }
 
 // Only run React build if react-ui exists and has package.json
 tasks.named("preBuild") {
     val reactUiDir = file("${rootProject.projectDir}/react-ui")
-    if (reactUiDir.exists() && file("${reactUiDir}/package.json").exists()) {
+    if (reactUiDir.exists() && file("$reactUiDir/package.json").exists()) {
         dependsOn("copyReactAssets")
     }
 }

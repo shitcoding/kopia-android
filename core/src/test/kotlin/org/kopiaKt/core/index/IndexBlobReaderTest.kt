@@ -140,7 +140,7 @@ class IndexBlobReaderTest {
 
         val range = reader.iterate(
             startId = ContentId.parse("2222"),
-            endId = ContentId.parse("4444")
+            endId = ContentId.parse("4444"),
         ).toList()
 
         assertEquals(2, range.size)
@@ -180,8 +180,8 @@ class IndexBlobReaderTest {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 100u,
-                packOffset = 0u
-            )
+                packOffset = 0u,
+            ),
         )
         builder.add(
             ContentInfo(
@@ -190,8 +190,8 @@ class IndexBlobReaderTest {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 100u,
-                packOffset = 0u
-            )
+                packOffset = 0u,
+            ),
         )
         builder.add(
             ContentInfo(
@@ -200,8 +200,8 @@ class IndexBlobReaderTest {
                 timestampSeconds = 1700000000L,
                 originalLength = 100u,
                 packedLength = 100u,
-                packOffset = 100u
-            )
+                packOffset = 100u,
+            ),
         )
 
         val data = builder.buildUnencrypted()
@@ -225,8 +225,8 @@ class IndexBlobReaderTest {
                 originalLength = 100u,
                 packedLength = 100u,
                 packOffset = 0u,
-                deleted = false
-            )
+                deleted = false,
+            ),
         )
         builder.add(
             ContentInfo(
@@ -236,8 +236,8 @@ class IndexBlobReaderTest {
                 originalLength = 100u,
                 packedLength = 100u,
                 packOffset = 100u,
-                deleted = true
-            )
+                deleted = true,
+            ),
         )
 
         val data = builder.buildUnencrypted()
@@ -261,8 +261,8 @@ class IndexBlobReaderTest {
                 originalLength = 100u,
                 packedLength = 100u,
                 packOffset = 0u,
-                deleted = false
-            )
+                deleted = false,
+            ),
         )
         builder.add(
             ContentInfo(
@@ -272,8 +272,8 @@ class IndexBlobReaderTest {
                 originalLength = 100u,
                 packedLength = 100u,
                 packOffset = 100u,
-                deleted = true
-            )
+                deleted = true,
+            ),
         )
 
         val data = builder.buildUnencrypted()
@@ -332,8 +332,8 @@ class IndexBlobReaderTest {
                 timestampSeconds = 1700000000L,
                 originalLength = 973u, // This is the expected computed value
                 packedLength = 1000u,
-                packOffset = 0u
-            )
+                packOffset = 0u,
+            ),
         )
 
         val data = builder.buildUnencrypted()
@@ -351,14 +351,12 @@ class IndexBlobReaderTest {
 
     // ===== Helper Methods =====
 
-    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo {
-        return ContentInfo(
-            contentId = ContentId.parse(contentIdHex),
-            packBlobId = BlobId("p1234567890"),
-            timestampSeconds = 1700000000L,
-            originalLength = 1000u,
-            packedLength = 1000u,
-            packOffset = packOffset.toUInt()
-        )
-    }
+    private fun createTestContentInfo(contentIdHex: String, packOffset: Int): ContentInfo = ContentInfo(
+        contentId = ContentId.parse(contentIdHex),
+        packBlobId = BlobId("p1234567890"),
+        timestampSeconds = 1700000000L,
+        originalLength = 1000u,
+        packedLength = 1000u,
+        packOffset = packOffset.toUInt(),
+    )
 }

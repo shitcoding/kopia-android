@@ -31,7 +31,7 @@ data class ThrottlingConfig(
      * Maximum concurrent write operations.
      * 0 means unlimited.
      */
-    val maxConcurrentWrites: Int = 0
+    val maxConcurrentWrites: Int = 0,
 ) {
     /**
      * Whether any throttling is configured.
@@ -59,37 +59,41 @@ data class ThrottlingConfig(
  */
 class ThrottlingBlobStorage(
     private val delegate: BlobStorage,
-    private val config: ThrottlingConfig
+    private val config: ThrottlingConfig,
 ) : BlobStorage {
 
     private val downloadBucket = if (config.downloadLimitBytesPerSecond > 0) {
         TokenBucket(config.downloadLimitBytesPerSecond)
-    } else null
+    } else {
+        null
+    }
 
     private val uploadBucket = if (config.uploadLimitBytesPerSecond > 0) {
         TokenBucket(config.uploadLimitBytesPerSecond)
-    } else null
+    } else {
+        null
+    }
 
     private val readSemaphore = if (config.maxConcurrentReads > 0) {
         Semaphore(config.maxConcurrentReads)
-    } else null
+    } else {
+        null
+    }
 
     private val writeSemaphore = if (config.maxConcurrentWrites > 0) {
         Semaphore(config.maxConcurrentWrites)
-    } else null
-
-    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray {
-        return withReadLimit {
-            val data = delegate.getBlob(blobId, offset, length)
-            downloadBucket?.consume(data.size.toLong())
-            data
-        }
+    } else {
+        null
     }
 
-    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? {
-        return withReadLimit {
-            delegate.getBlobMetadata(blobId)
-        }
+    override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withReadLimit {
+        val data = delegate.getBlob(blobId, offset, length)
+        downloadBucket?.consume(data.size.toLong())
+        data
+    }
+
+    override suspend fun getBlobMetadata(blobId: BlobId): BlobMetadata? = withReadLimit {
+        delegate.getBlobMetadata(blobId)
     }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> {
@@ -130,55 +134,47 @@ class ThrottlingBlobStorage(
         delegate.flushCaches()
     }
 
-    private suspend inline fun <T> withReadLimit(block: () -> T): T {
-        return if (readSemaphore != null) {
-            readSemaphore.acquire()
-            try {
-                block()
-            } finally {
-                readSemaphore.release()
-            }
-        } else {
+    private suspend inline fun <T> withReadLimit(block: () -> T): T = if (readSemaphore != null) {
+        readSemaphore.acquire()
+        try {
             block()
+        } finally {
+            readSemaphore.release()
         }
+    } else {
+        block()
     }
 
-    private suspend inline fun <T> withWriteLimit(block: () -> T): T {
-        return if (writeSemaphore != null) {
-            writeSemaphore.acquire()
-            try {
-                block()
-            } finally {
-                writeSemaphore.release()
-            }
-        } else {
+    private suspend inline fun <T> withWriteLimit(block: () -> T): T = if (writeSemaphore != null) {
+        writeSemaphore.acquire()
+        try {
             block()
+        } finally {
+            writeSemaphore.release()
         }
+    } else {
+        block()
     }
 
     /**
      * Gets current throttling statistics.
      */
-    fun getStatistics(): ThrottlingStatistics {
-        return ThrottlingStatistics(
-            totalBytesDownloaded = downloadBucket?.totalBytesConsumed ?: 0,
-            totalBytesUploaded = uploadBucket?.totalBytesConsumed ?: 0,
-            downloadDelayMillis = downloadBucket?.totalDelayMillis ?: 0,
-            uploadDelayMillis = uploadBucket?.totalDelayMillis ?: 0
-        )
-    }
+    fun getStatistics(): ThrottlingStatistics = ThrottlingStatistics(
+        totalBytesDownloaded = downloadBucket?.totalBytesConsumed ?: 0,
+        totalBytesUploaded = uploadBucket?.totalBytesConsumed ?: 0,
+        downloadDelayMillis = downloadBucket?.totalDelayMillis ?: 0,
+        uploadDelayMillis = uploadBucket?.totalDelayMillis ?: 0,
+    )
 
     companion object {
         /**
          * Wraps a BlobStorage with throttling if the config has any limits.
          * Returns the original storage if no throttling is configured.
          */
-        fun wrapIfNeeded(storage: BlobStorage, config: ThrottlingConfig): BlobStorage {
-            return if (config.isThrottlingEnabled) {
-                ThrottlingBlobStorage(storage, config)
-            } else {
-                storage
-            }
+        fun wrapIfNeeded(storage: BlobStorage, config: ThrottlingConfig): BlobStorage = if (config.isThrottlingEnabled) {
+            ThrottlingBlobStorage(storage, config)
+        } else {
+            storage
         }
     }
 }
@@ -194,7 +190,7 @@ data class ThrottlingStatistics(
     /** Total time spent waiting due to download throttling (milliseconds) */
     val downloadDelayMillis: Long,
     /** Total time spent waiting due to upload throttling (milliseconds) */
-    val uploadDelayMillis: Long
+    val uploadDelayMillis: Long,
 )
 
 /**
@@ -206,7 +202,7 @@ data class ThrottlingStatistics(
  * - Consuming more than available tokens results in waiting
  */
 internal class TokenBucket(
-    private val bytesPerSecond: Long
+    private val bytesPerSecond: Long,
 ) {
     private val tokens = AtomicLong(bytesPerSecond) // Start with 1 second of burst
     private var lastRefillTime = System.nanoTime()

@@ -33,7 +33,7 @@ class RepositoryFSTest {
             permissions = 420, // 0o644
             fileSize = 1000,
             modTime = Instant.now(),
-            objectId = "abc123"
+            objectId = "abc123",
         )
 
         val entry = entryFromDirEntry(repo, dirEntry)
@@ -52,7 +52,7 @@ class RepositoryFSTest {
             name = "mydir",
             type = SnapshotEntryType.DIRECTORY,
             permissions = 493, // 0o755
-            objectId = "dir123"
+            objectId = "dir123",
         )
 
         val entry = entryFromDirEntry(repo, dirEntry)
@@ -69,7 +69,7 @@ class RepositoryFSTest {
         val dirEntry = DirEntry(
             name = "link",
             type = SnapshotEntryType.SYMLINK,
-            objectId = "link123"
+            objectId = "link123",
         )
 
         val entry = entryFromDirEntry(repo, dirEntry)
@@ -84,19 +84,19 @@ class RepositoryFSTest {
         val children = listOf(
             DirEntry(name = "file1.txt", type = SnapshotEntryType.FILE, fileSize = 100),
             DirEntry(name = "file2.txt", type = SnapshotEntryType.FILE, fileSize = 200),
-            DirEntry(name = "subdir", type = SnapshotEntryType.DIRECTORY)
+            DirEntry(name = "subdir", type = SnapshotEntryType.DIRECTORY),
         )
         val dirManifest = DirManifest(entries = children)
         // Use valid hex object ID (kabcdef12 = k prefix + abcdef12 hex hash; 9 chars = odd, so k is prefix)
         val dirObjId = "kabcdef12"
         val repo = MockRepository(
-            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray())
+            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray()),
         )
 
         val dirEntry = DirEntry(
             name = "testdir",
             type = SnapshotEntryType.DIRECTORY,
-            objectId = dirObjId
+            objectId = dirObjId,
         )
         val dir = entryFromDirEntry(repo, dirEntry) as org.kopiaKt.snapshot.fs.Directory
 
@@ -113,19 +113,19 @@ class RepositoryFSTest {
     fun `RepositoryDirectory finds child by name`() = runBlocking {
         val children = listOf(
             DirEntry(name = "target.txt", type = SnapshotEntryType.FILE, fileSize = 500),
-            DirEntry(name = "other.txt", type = SnapshotEntryType.FILE, fileSize = 100)
+            DirEntry(name = "other.txt", type = SnapshotEntryType.FILE, fileSize = 100),
         )
         val dirManifest = DirManifest(entries = children)
         // Use valid hex object ID (k1234abcd = k prefix + 1234abcd hex hash; 9 chars = odd, so k is prefix)
         val dirObjId = "k1234abcd"
         val repo = MockRepository(
-            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray())
+            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray()),
         )
 
         val dirEntry = DirEntry(
             name = "testdir",
             type = SnapshotEntryType.DIRECTORY,
-            objectId = dirObjId
+            objectId = dirObjId,
         )
         val dir = entryFromDirEntry(repo, dirEntry) as org.kopiaKt.snapshot.fs.Directory
 
@@ -144,14 +144,14 @@ class RepositoryFSTest {
         // Use valid hex object ID (pabcdef12 = p prefix + abcdef12 hex; 9 chars = odd, so p is prefix)
         val fileObjId = "pabcdef12"
         val repo = MockRepository(
-            objects = mapOf(fileObjId to content.toByteArray())
+            objects = mapOf(fileObjId to content.toByteArray()),
         )
 
         val fileEntry = DirEntry(
             name = "test.txt",
             type = SnapshotEntryType.FILE,
             fileSize = content.length.toLong(),
-            objectId = fileObjId
+            objectId = fileObjId,
         )
         val file = entryFromDirEntry(repo, fileEntry)
         assertThat(file).isInstanceOf(org.kopiaKt.snapshot.fs.File::class.java)
@@ -169,13 +169,13 @@ class RepositoryFSTest {
         // Use valid hex object ID (p12345678 = p prefix + 12345678 hex; 9 chars = odd, so p is prefix)
         val linkObjId = "p12345678"
         val repo = MockRepository(
-            objects = mapOf(linkObjId to target.toByteArray())
+            objects = mapOf(linkObjId to target.toByteArray()),
         )
 
         val symlinkEntry = DirEntry(
             name = "mylink",
             type = SnapshotEntryType.SYMLINK,
-            objectId = linkObjId
+            objectId = linkObjId,
         )
         val symlink = entryFromDirEntry(repo, symlinkEntry)
         assertThat(symlink).isInstanceOf(org.kopiaKt.snapshot.fs.Symlink::class.java)
@@ -190,13 +190,13 @@ class RepositoryFSTest {
         val rootEntry = DirEntry(
             name = "",
             type = SnapshotEntryType.DIRECTORY,
-            objectId = "rootobj"
+            objectId = "rootobj",
         )
         val manifest = SnapshotManifest(
             id = "snap1",
             source = SourceInfo(host = "localhost", userName = "user", path = "/home/user"),
             startTime = Instant.now(),
-            rootEntry = rootEntry
+            rootEntry = rootEntry,
         )
 
         val entry = snapshotRoot(repo, manifest)
@@ -208,13 +208,13 @@ class RepositoryFSTest {
     @Test
     fun `directoryEntry creates directory for object ID`() = runBlocking {
         val children = listOf(
-            DirEntry(name = "child.txt", type = SnapshotEntryType.FILE)
+            DirEntry(name = "child.txt", type = SnapshotEntryType.FILE),
         )
         val dirManifest = DirManifest(entries = children)
         // Use valid hex object ID (k87654321 = k prefix + 87654321 hex; 9 chars = odd, so k is prefix)
         val dirObjId = "k87654321"
         val repo = MockRepository(
-            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray())
+            objects = mapOf(dirObjId to Json.encodeToString(dirManifest).toByteArray()),
         )
 
         val objectId = ObjectId.parse(dirObjId)
@@ -264,7 +264,7 @@ class RepositoryFSTest {
             modTime = now,
             userId = 1000,
             groupId = 100,
-            objectId = "obj123"
+            objectId = "obj123",
         )
 
         val entry = entryFromDirEntry(repo, dirEntry)
@@ -281,7 +281,7 @@ class RepositoryFSTest {
     // --- Mock Implementation ---
 
     private class MockRepository(
-        private val objects: Map<String, ByteArray> = emptyMap()
+        private val objects: Map<String, ByteArray> = emptyMap(),
     ) : Repository {
         override fun openObject(objectId: ObjectId): ObjectReader {
             val data = objects[objectId.toString()]
@@ -289,20 +289,16 @@ class RepositoryFSTest {
             return MockObjectReader(data)
         }
 
-        override suspend fun readObject(objectId: ObjectId): ByteArray {
-            return objects[objectId.toString()]
-                ?: throw RuntimeException("Object not found: $objectId")
-        }
+        override suspend fun readObject(objectId: ObjectId): ByteArray = objects[objectId.toString()]
+            ?: throw RuntimeException("Object not found: $objectId")
 
         override suspend fun verifyObject(objectId: ObjectId): List<ContentId> = emptyList()
-        override suspend fun <T> getManifest(id: ManifestId, serializer: kotlinx.serialization.KSerializer<T>): Pair<T, EntryMetadata> =
-            throw UnsupportedOperationException()
+        override suspend fun <T> getManifest(id: ManifestId, serializer: kotlinx.serialization.KSerializer<T>): Pair<T, EntryMetadata> = throw UnsupportedOperationException()
         override suspend fun findManifests(labels: Map<String, String>): List<EntryMetadata> = emptyList()
         override suspend fun contentInfo(contentId: ContentId) = null
         override fun time(): Instant = Instant.now()
         override fun clientOptions(): ClientOptions = ClientOptions()
-        override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter =
-            throw UnsupportedOperationException()
+        override suspend fun newWriter(options: WriteSessionOptions): RepositoryWriter = throw UnsupportedOperationException()
         override fun updateDescription(description: String) {}
         override suspend fun refresh() {}
         override fun close() {}

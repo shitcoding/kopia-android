@@ -20,12 +20,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.kopiaKt.core.blob.BlobId
-import org.kopiaKt.core.blob.BlobNotFoundException
-import org.kopiaKt.core.blob.PutBlobOptions
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.ByteArrayOutputStream
-import java.io.FileNotFoundException
 import java.io.IOException
 
 /**
@@ -56,11 +53,11 @@ class SafProviderEdgeCasesTest {
         options = SafOptions(
             treeUri = testUri,
             directoryShards = listOf(1),
-            maxNonShardedLength = 20
+            maxNonShardedLength = 20,
         )
         shardingParams = SafShardingParameters(
             default = listOf(1),
-            maxNonShardedLength = 20
+            maxNonShardedLength = 20,
         )
 
         mockContext = mockk(relaxed = true)
@@ -78,7 +75,7 @@ class SafProviderEdgeCasesTest {
             treeUri = testUri,
             options = options,
             shardingParams = shardingParams,
-            skipPermissionCheck = true
+            skipPermissionCheck = true,
         )
     }
 
@@ -231,7 +228,7 @@ class SafProviderEdgeCasesTest {
             val deletedOptions = SafOptions(
                 treeUri = deletedUri,
                 directoryShards = listOf(1),
-                maxNonShardedLength = 20
+                maxNonShardedLength = 20,
             )
 
             every { DocumentFile.fromTreeUri(mockContext, deletedUri) } returns null
@@ -241,7 +238,7 @@ class SafProviderEdgeCasesTest {
                 treeUri = deletedUri,
                 options = deletedOptions,
                 shardingParams = shardingParams,
-                skipPermissionCheck = true
+                skipPermissionCheck = true,
             )
 
             // Any operation that accesses the rootDocument will trigger the lazy init

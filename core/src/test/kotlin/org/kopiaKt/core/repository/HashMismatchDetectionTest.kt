@@ -72,7 +72,7 @@ class HashMismatchDetectionTest {
         fun `should detect corrupted content during readObject`() = runTest {
             val data = "integrity-test-payload".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("obj" to data)
+                objects = mapOf("obj" to data),
             )
             repo = result.first
             storage = result.second
@@ -99,7 +99,7 @@ class HashMismatchDetectionTest {
         fun `should still succeed verifyObject on corrupted blob`() = runTest {
             val data = "verify-vs-read-test".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("obj" to data)
+                objects = mapOf("obj" to data),
             )
             repo = result.first
             storage = result.second
@@ -124,7 +124,7 @@ class HashMismatchDetectionTest {
             // Use a larger payload to ensure the encrypted data area is substantial
             val data = ByteArray(4096) { (it % 251).toByte() }
             val result = TestRepositoryFactory.createWithObjects(
-                objects = mapOf("large" to data)
+                objects = mapOf("large" to data),
             )
             repo = result.first
             storage = result.second
@@ -166,7 +166,7 @@ class HashMismatchDetectionTest {
             val objects = mapOf(
                 "alpha" to "first-object-data-alpha".toByteArray(),
                 "beta" to "second-object-data-beta".toByteArray(),
-                "gamma" to "third-object-data-gamma".toByteArray()
+                "gamma" to "third-object-data-gamma".toByteArray(),
             )
             val result = TestRepositoryFactory.createWithObjects(objects)
             repo = result.first

@@ -77,7 +77,7 @@ fun directoryEntry(repository: Repository, objectId: ObjectId): Directory {
         name = "/",
         type = SnapshotEntryType.DIRECTORY,
         permissions = 365, // 0o555
-        objectId = objectId.toString()
+        objectId = objectId.toString(),
     )
     return entryFromDirEntry(repository, entry) as Directory
 }
@@ -130,7 +130,7 @@ fun isDirectoryId(objectId: ObjectId): Boolean {
  */
 internal open class RepositoryEntry(
     val metadata: DirEntry,
-    val repo: Repository
+    val repo: Repository,
 ) : Entry {
     override val name: String get() = metadata.name
     override val type: EntryType get() = when (metadata.type) {
@@ -144,7 +144,7 @@ internal open class RepositoryEntry(
     override val mode: Int get() = metadata.permissions
     override val owner: OwnerInfo get() = OwnerInfo(
         userId = metadata.userId ?: 0,
-        groupId = metadata.groupId ?: 0
+        groupId = metadata.groupId ?: 0,
     )
     override val device: DeviceInfo get() = DeviceInfo.EMPTY
     override val localFilesystemPath: String get() = ""
@@ -171,8 +171,9 @@ internal open class RepositoryEntry(
  * Go type: repositoryDirectory
  */
 internal class RepositoryDirectory(
-    private val base: RepositoryEntry
-) : Directory, Entry by base {
+    private val base: RepositoryEntry,
+) : Directory,
+    Entry by base {
 
     @Volatile
     private var entries: Map<String, DirEntry>? = null
@@ -239,7 +240,7 @@ internal class RepositoryDirectory(
             val adjustedEntry = if (entry.type == SnapshotEntryType.DIRECTORY && entry.dirSummary != null) {
                 entry.copy(
                     fileSize = entry.dirSummary.totalFileSize,
-                    modTime = entry.dirSummary.maxModTime
+                    modTime = entry.dirSummary.maxModTime,
                 )
             } else {
                 entry
@@ -261,7 +262,7 @@ internal class RepositoryDirectory(
  */
 internal class RepositoryDirectoryIterator(
     private val repo: Repository,
-    entries: List<DirEntry>
+    entries: List<DirEntry>,
 ) : DirectoryIterator {
     private val iterator = entries.iterator()
 
@@ -283,8 +284,9 @@ internal class RepositoryDirectoryIterator(
  * Go type: repositoryFile
  */
 internal class RepositoryFile(
-    private val base: RepositoryEntry
-) : File, Entry by base {
+    private val base: RepositoryEntry,
+) : File,
+    Entry by base {
 
     override suspend fun open(): InputStream {
         val objectId = base.objectId()
@@ -310,12 +312,12 @@ internal class RepositoryFile(
  * Java blocking API while ObjectReader uses Kotlin coroutines.
  */
 internal class RepositoryFileInputStream(
-    private val reader: org.kopiaKt.core.`object`.ObjectReader
+    private val reader: org.kopiaKt.core.`object`.ObjectReader,
 ) : InputStream() {
     private var position = 0L
     private var buffer = ByteArray(0)
     private var bufferPos = 0
-    private var totalLength: Long = -1L  // Cached length, -1 means not yet loaded
+    private var totalLength: Long = -1L // Cached length, -1 means not yet loaded
 
     private fun ensureLengthLoaded(): Long {
         if (totalLength == -1L) {
@@ -395,8 +397,9 @@ internal class RepositoryFileInputStream(
  * Go type: repositorySymlink
  */
 internal class RepositorySymlink(
-    private val base: RepositoryEntry
-) : Symlink, Entry by base {
+    private val base: RepositoryEntry,
+) : Symlink,
+    Entry by base {
 
     override suspend fun readlink(): String {
         val objectId = base.objectId()
@@ -427,5 +430,6 @@ internal class RepositorySymlink(
  */
 internal class RepositoryErrorEntry(
     private val base: RepositoryEntry,
-    override val error: Throwable
-) : ErrorEntry, Entry by base
+    override val error: Throwable,
+) : ErrorEntry,
+    Entry by base

@@ -29,7 +29,7 @@ data class ActionsPolicy(
     /**
      * Command to run after each snapshot root (can be inherited).
      */
-    val afterSnapshotRoot: ActionCommand? = null
+    val afterSnapshotRoot: ActionCommand? = null,
 ) {
     /**
      * Merges this policy with source policy (only inheritable properties).
@@ -44,19 +44,17 @@ data class ActionsPolicy(
             },
             afterSnapshotRoot = mergeActionCommand(afterSnapshotRoot, src.afterSnapshotRoot) {
                 newDef.afterSnapshotRoot = si
-            }
+            },
         ) to newDef
     }
 
     /**
      * Copies non-inheritable properties from source policy.
      */
-    fun withNonInheritable(src: ActionsPolicy): ActionsPolicy {
-        return copy(
-            beforeFolder = src.beforeFolder,
-            afterFolder = src.afterFolder
-        )
-    }
+    fun withNonInheritable(src: ActionsPolicy): ActionsPolicy = copy(
+        beforeFolder = src.beforeFolder,
+        afterFolder = src.afterFolder,
+    )
 
     companion object {
         /**
@@ -74,7 +72,7 @@ data class ActionsPolicy(
 @Serializable
 data class ActionsPolicyDefinition(
     var beforeSnapshotRoot: SourceInfo? = null,
-    var afterSnapshotRoot: SourceInfo? = null
+    var afterSnapshotRoot: SourceInfo? = null,
 )
 
 /**
@@ -104,7 +102,7 @@ data class ActionCommand(
     /**
      * Mode: essential, optional, or async.
      */
-    val mode: String = ""
+    val mode: String = "",
 ) {
     companion object {
         // Action modes
@@ -115,11 +113,9 @@ data class ActionCommand(
 }
 
 // Helper merge function
-private inline fun mergeActionCommand(target: ActionCommand?, src: ActionCommand?, onMerge: () -> Unit): ActionCommand? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeActionCommand(target: ActionCommand?, src: ActionCommand?, onMerge: () -> Unit): ActionCommand? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

@@ -26,7 +26,7 @@ class FileUploader(
     private val progress: UploadProgress,
     private val compressionPolicy: CompressionPolicy = CompressionPolicy(),
     private val splitterPolicy: SplitterPolicy = SplitterPolicy(),
-    private val forceHashPercentage: Int = 0
+    private val forceHashPercentage: Int = 0,
 ) : EntryProcessor {
 
     private val json = Json {
@@ -43,7 +43,7 @@ class FileUploader(
     override suspend fun processFile(
         file: File,
         relativePath: String,
-        previousEntry: DirEntry?
+        previousEntry: DirEntry?,
     ): DirEntry {
         // Check if we can reuse the previous entry (cache hit)
         if (previousEntry != null && canReuseEntry(file, previousEntry)) {
@@ -68,7 +68,7 @@ class FileUploader(
     override suspend fun processSymlink(
         symlink: Symlink,
         relativePath: String,
-        previousEntry: DirEntry?
+        previousEntry: DirEntry?,
     ): DirEntry {
         // Check if we can reuse the previous entry
         if (previousEntry != null && canReuseSymlinkEntry(symlink, previousEntry)) {
@@ -84,7 +84,7 @@ class FileUploader(
 
         val objectId = writer.writeObject(
             targetBytes,
-            ObjectWriterOptions() // No compression for symlinks
+            ObjectWriterOptions(), // No compression for symlinks
         ).toString()
 
         return createDirEntryFromSymlink(symlink, objectId)
@@ -104,8 +104,8 @@ class FileUploader(
                 // directory manifests and snapshot GC can recognise directory objects. Omitting it was a
                 // Go cross-compat divergence and a GC data-loss hazard (task-9 prerequisite #1).
                 prefix = DIRECTORY_CONTENT_PREFIX,
-                compression = DIRECTORY_COMPRESSION
-            )
+                compression = DIRECTORY_COMPRESSION,
+            ),
         )
 
         return objectId.toString()
@@ -207,33 +207,29 @@ class FileUploader(
     /**
      * Creates a DirEntry from a File with the given objectId.
      */
-    private fun createDirEntryFromFile(file: File, objectId: String?): DirEntry {
-        return DirEntry(
-            name = file.name,
-            type = EntryType.FILE,
-            permissions = file.mode,
-            fileSize = file.size,
-            modTime = file.modTime,
-            userId = file.owner.userId,
-            groupId = file.owner.groupId,
-            objectId = objectId
-        )
-    }
+    private fun createDirEntryFromFile(file: File, objectId: String?): DirEntry = DirEntry(
+        name = file.name,
+        type = EntryType.FILE,
+        permissions = file.mode,
+        fileSize = file.size,
+        modTime = file.modTime,
+        userId = file.owner.userId,
+        groupId = file.owner.groupId,
+        objectId = objectId,
+    )
 
     /**
      * Creates a DirEntry from a Symlink with the given objectId.
      */
-    private fun createDirEntryFromSymlink(symlink: Symlink, objectId: String?): DirEntry {
-        return DirEntry(
-            name = symlink.name,
-            type = EntryType.SYMLINK,
-            permissions = symlink.mode,
-            modTime = symlink.modTime,
-            userId = symlink.owner.userId,
-            groupId = symlink.owner.groupId,
-            objectId = objectId
-        )
-    }
+    private fun createDirEntryFromSymlink(symlink: Symlink, objectId: String?): DirEntry = DirEntry(
+        name = symlink.name,
+        type = EntryType.SYMLINK,
+        permissions = symlink.mode,
+        modTime = symlink.modTime,
+        userId = symlink.owner.userId,
+        groupId = symlink.owner.groupId,
+        objectId = objectId,
+    )
 
     companion object {
         private const val BUFFER_SIZE = 64 * 1024 // 64KB buffer

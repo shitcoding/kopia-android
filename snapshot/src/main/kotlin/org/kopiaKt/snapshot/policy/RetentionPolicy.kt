@@ -29,7 +29,7 @@ data class RetentionPolicy(
     val keepWeekly: Int? = null,
     val keepMonthly: Int? = null,
     val keepAnnual: Int? = null,
-    val ignoreIdenticalSnapshots: Boolean? = null
+    val ignoreIdenticalSnapshots: Boolean? = null,
 ) {
     /**
      * Returns the effective number of "latest" snapshots to keep.
@@ -70,7 +70,7 @@ data class RetentionPolicy(
             keepAnnual = mergeInt(keepAnnual, src.keepAnnual) { newDef.keepAnnual = si },
             ignoreIdenticalSnapshots = mergeBool(ignoreIdenticalSnapshots, src.ignoreIdenticalSnapshots) {
                 newDef.ignoreIdenticalSnapshots = si
-            }
+            },
         ) to newDef
     }
 
@@ -85,7 +85,7 @@ data class RetentionPolicy(
             keepWeekly = RetentionDefaults.KEEP_WEEKLY,
             keepMonthly = RetentionDefaults.KEEP_MONTHLY,
             keepAnnual = RetentionDefaults.KEEP_ANNUAL,
-            ignoreIdenticalSnapshots = RetentionDefaults.IGNORE_IDENTICAL_SNAPSHOTS
+            ignoreIdenticalSnapshots = RetentionDefaults.IGNORE_IDENTICAL_SNAPSHOTS,
         )
     }
 }
@@ -103,7 +103,7 @@ data class RetentionPolicyDefinition(
     var keepWeekly: SourceInfo? = null,
     var keepMonthly: SourceInfo? = null,
     var keepAnnual: SourceInfo? = null,
-    var ignoreIdenticalSnapshots: SourceInfo? = null
+    var ignoreIdenticalSnapshots: SourceInfo? = null,
 )
 
 /**
@@ -118,7 +118,7 @@ fun sortRetentionTags(tags: List<String>): List<String> {
         "daily" to 3,
         "weekly" to 4,
         "monthly" to 5,
-        "annual" to 6
+        "annual" to 6,
     )
 
     return tags.sortedWith { a, b ->
@@ -168,9 +168,7 @@ fun compactRetentionReasons(reasons: List<String>): List<String> {
  *
  * Go function: policy.CompactPins
  */
-fun compactPins(pins: List<String>): List<String> {
-    return pins.toSet().sorted()
-}
+fun compactPins(pins: List<String>): List<String> = pins.toSet().sorted()
 
 private fun prefixSuffix(s: String): Pair<String, String> {
     val p = s.lastIndexOf('-')
@@ -211,20 +209,16 @@ private fun appendRLE(prefix: String, numbers: List<Int>): List<String> {
 }
 
 // Helper merge functions for policy merging
-private inline fun mergeInt(target: Int?, src: Int?, onMerge: () -> Unit): Int? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeInt(target: Int?, src: Int?, onMerge: () -> Unit): Int? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }
 
-private inline fun mergeBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? {
-    return if (target == null && src != null) {
-        onMerge()
-        src
-    } else {
-        target
-    }
+private inline fun mergeBool(target: Boolean?, src: Boolean?, onMerge: () -> Unit): Boolean? = if (target == null && src != null) {
+    onMerge()
+    src
+} else {
+    target
 }

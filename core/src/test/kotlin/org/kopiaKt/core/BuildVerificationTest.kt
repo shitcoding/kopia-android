@@ -1,5 +1,6 @@
 package org.kopiaKt.core
 
+import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.kopiaKt.core.blob.BlobId
@@ -8,9 +9,8 @@ import org.kopiaKt.core.content.ContentId
 import org.kopiaKt.core.content.ContentIdPrefix
 import org.kopiaKt.core.encryption.EncryptionAlgorithm
 import org.kopiaKt.core.hashing.HashAlgorithm
-import org.kopiaKt.core.splitter.SplitterAlgorithms
 import org.kopiaKt.core.splitter.DefaultSplitterFactory
-import com.google.common.truth.Truth.assertThat
+import org.kopiaKt.core.splitter.SplitterAlgorithms
 
 /**
  * Build verification tests to ensure the project compiles and basic types work.
@@ -35,7 +35,7 @@ class BuildVerificationTest {
 
     @Test
     fun `ContentId can be created and parsed`() {
-        val contentId = ContentId.parse("kabc12345")  // 9 chars = odd = prefix 'k'
+        val contentId = ContentId.parse("kabc12345") // 9 chars = odd = prefix 'k'
         assertThat(contentId.toString()).isEqualTo("kabc12345")
         assertThat(contentId.prefix).isEqualTo('k')
         assertThat(contentId.hasPrefix).isTrue()

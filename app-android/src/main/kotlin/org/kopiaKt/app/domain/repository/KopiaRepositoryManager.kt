@@ -13,7 +13,7 @@ interface KopiaRepositoryManager {
     suspend fun create(
         config: ConnectionConfig,
         repositoryPassword: String,
-        options: RepositoryCreateOptions = RepositoryCreateOptions()
+        options: RepositoryCreateOptions = RepositoryCreateOptions(),
     ): Result<RepositoryConnection>
 
     suspend fun disconnect()

@@ -205,7 +205,8 @@ class CorruptedEncryptedBlobTest {
         fun `should reject ciphertext decrypted with different master key`() {
             val differentKey = ByteArray(32) { (it + 1).toByte() }
             val differentEncryptor = DefaultEncryptorFactory().create(
-                EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, differentKey
+                EncryptionAlgorithm.AES256_GCM_HMAC_SHA256,
+                differentKey,
             )
             assertThrows(DecryptionException::class.java) {
                 runBlocking { differentEncryptor.decrypt(validCiphertext, contentId) }

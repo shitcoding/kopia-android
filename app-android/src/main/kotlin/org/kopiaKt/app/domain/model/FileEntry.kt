@@ -8,18 +8,18 @@ data class FileEntry(
     val size: Long,
     val modTime: Instant?,
     val permissions: Int,
-    val objectId: String?
+    val objectId: String?,
 )
 
 enum class FileEntryType {
     FILE,
     DIRECTORY,
     SYMLINK,
-    UNKNOWN
+    UNKNOWN,
 }
 
 data class DirectorySummary(
     val totalSize: Long,
     val fileCount: Long,
-    val dirCount: Long
+    val dirCount: Long,
 )

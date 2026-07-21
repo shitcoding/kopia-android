@@ -2,7 +2,6 @@ package org.kopiaKt.android.e2e
 
 import android.content.Context
 import android.os.Build
-import android.os.Environment
 import android.os.StatFs
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
@@ -15,10 +14,8 @@ import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
 import java.io.File
-import java.nio.file.Path
 import java.security.SecureRandom
 import java.util.UUID
-import kotlin.io.path.createDirectories
 
 /**
  * Base class for Android E2E tests.
@@ -79,7 +76,7 @@ abstract class AndroidE2ETestBase {
     protected fun createRepository(
         hash: String = "BLAKE2B-256-128",
         encryption: String = "AES256-GCM-HMAC-SHA256",
-        splitter: String = "FIXED-1M"
+        splitter: String = "FIXED-1M",
     ): DirectRepository = runBlocking {
         val storage = createBlobStorage()
         val config = createRepositoryConfig(hash, encryption, splitter)
@@ -97,9 +94,7 @@ abstract class AndroidE2ETestBase {
     /**
      * Create blob storage for the test repository.
      */
-    protected fun createBlobStorage(): BlobStorage {
-        return FilesystemBlobStorage(repoDir.toPath())
-    }
+    protected fun createBlobStorage(): BlobStorage = FilesystemBlobStorage(repoDir.toPath())
 
     /**
      * Create repository configuration.
@@ -107,7 +102,7 @@ abstract class AndroidE2ETestBase {
     protected fun createRepositoryConfig(
         hash: String,
         encryption: String,
-        splitter: String
+        splitter: String,
     ): RepositoryConfig {
         val secret = ByteArray(32).also { random.nextBytes(it) }
         val masterKey = ByteArray(32).also { random.nextBytes(it) }
@@ -117,7 +112,7 @@ abstract class AndroidE2ETestBase {
             encryption = encryption,
             secret = secret,
             masterKey = masterKey,
-            splitter = splitter
+            splitter = splitter,
         )
     }
 
@@ -152,7 +147,7 @@ abstract class AndroidE2ETestBase {
             root = sourceDir,
             files = files,
             dirs = listOf(subDir),
-            totalSize = files.sumOf { it.content.size.toLong() }
+            totalSize = files.sumOf { it.content.size.toLong() },
         )
     }
 
@@ -233,7 +228,7 @@ abstract class AndroidE2ETestBase {
             root = sourceDir,
             files = files,
             dirs = dirs,
-            totalSize = files.sumOf { it.content.size.toLong() }
+            totalSize = files.sumOf { it.content.size.toLong() },
         )
     }
 
@@ -242,7 +237,7 @@ abstract class AndroidE2ETestBase {
      */
     protected fun createLargeTestData(
         fileCount: Int = 100,
-        avgFileSize: Int = 10 * 1024
+        avgFileSize: Int = 10 * 1024,
     ): TestDataInfo {
         val files = mutableListOf<TestFile>()
         val dirs = mutableListOf<File>()
@@ -273,7 +268,7 @@ abstract class AndroidE2ETestBase {
             root = sourceDir,
             files = files,
             dirs = dirs,
-            totalSize = files.sumOf { it.content.size.toLong() }
+            totalSize = files.sumOf { it.content.size.toLong() },
         )
     }
 
@@ -344,7 +339,7 @@ abstract class AndroidE2ETestBase {
             identical = missingFiles.isEmpty() && contentMismatches.isEmpty() && extraFiles.isEmpty(),
             missingFiles = missingFiles,
             contentMismatches = contentMismatches,
-            extraFiles = extraFiles
+            extraFiles = extraFiles,
         )
     }
 
@@ -364,19 +359,17 @@ abstract class AndroidE2ETestBase {
     /**
      * Returns device/emulator information for test context.
      */
-    protected fun getDeviceInfo(): DeviceInfo {
-        return DeviceInfo(
-            model = Build.MODEL,
-            manufacturer = Build.MANUFACTURER,
-            apiLevel = Build.VERSION.SDK_INT,
-            androidVersion = Build.VERSION.RELEASE,
-            isEmulator = Build.FINGERPRINT.contains("generic") ||
-                    Build.FINGERPRINT.contains("unknown") ||
-                    Build.MODEL.contains("Emulator") ||
-                    Build.MODEL.contains("Android SDK"),
-            availableStorage = getAvailableStorage()
-        )
-    }
+    protected fun getDeviceInfo(): DeviceInfo = DeviceInfo(
+        model = Build.MODEL,
+        manufacturer = Build.MANUFACTURER,
+        apiLevel = Build.VERSION.SDK_INT,
+        androidVersion = Build.VERSION.RELEASE,
+        isEmulator = Build.FINGERPRINT.contains("generic") ||
+            Build.FINGERPRINT.contains("unknown") ||
+            Build.MODEL.contains("Emulator") ||
+            Build.MODEL.contains("Android SDK"),
+        availableStorage = getAvailableStorage(),
+    )
 
     private fun getAvailableStorage(): Long {
         val stat = StatFs(context.filesDir.path)
@@ -390,7 +383,7 @@ abstract class AndroidE2ETestBase {
         val available = getAvailableStorage()
         Assume.assumeTrue(
             "Insufficient storage: need ${requiredBytes / 1024}KB, have ${available / 1024}KB",
-            available >= requiredBytes
+            available >= requiredBytes,
         )
     }
 
@@ -400,7 +393,7 @@ abstract class AndroidE2ETestBase {
     protected fun requireApiLevel(minApi: Int) {
         Assume.assumeTrue(
             "Requires API $minApi, device is API ${Build.VERSION.SDK_INT}",
-            Build.VERSION.SDK_INT >= minApi
+            Build.VERSION.SDK_INT >= minApi,
         )
     }
 }
@@ -410,7 +403,7 @@ abstract class AndroidE2ETestBase {
  */
 data class TestFile(
     val file: File,
-    val content: ByteArray
+    val content: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -433,7 +426,7 @@ data class TestDataInfo(
     val root: File,
     val files: List<TestFile>,
     val dirs: List<File>,
-    val totalSize: Long
+    val totalSize: Long,
 ) {
     val fileCount: Int get() = files.size
     val dirCount: Int get() = dirs.size
@@ -446,7 +439,7 @@ data class ComparisonResult(
     val identical: Boolean,
     val missingFiles: List<String>,
     val contentMismatches: List<String>,
-    val extraFiles: List<String>
+    val extraFiles: List<String>,
 ) {
     override fun toString(): String {
         if (identical) return "Directories are identical"
@@ -473,7 +466,7 @@ enum class ContentPattern {
     ONES,
     SEQUENTIAL,
     RANDOM,
-    COMPRESSIBLE
+    COMPRESSIBLE,
 }
 
 /**
@@ -485,11 +478,11 @@ data class DeviceInfo(
     val apiLevel: Int,
     val androidVersion: String,
     val isEmulator: Boolean,
-    val availableStorage: Long
+    val availableStorage: Long,
 ) {
     override fun toString(): String {
         val deviceType = if (isEmulator) "Emulator" else "Device"
         return "$deviceType: $manufacturer $model, Android $androidVersion (API $apiLevel), " +
-                "Storage: ${availableStorage / (1024 * 1024)}MB"
+            "Storage: ${availableStorage / (1024 * 1024)}MB"
     }
 }

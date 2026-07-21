@@ -41,7 +41,7 @@ class ContentManagerSoftDeleteTest {
             encryptionKey = ByteArray(32) { it.toByte() },
             compressorFactory = DefaultCompressorFactory(),
             defaultCompression = CompressionAlgorithm.NONE,
-            maxPackSize = 20 * 1024 * 1024
+            maxPackSize = 20 * 1024 * 1024,
         )
     }
 
@@ -172,9 +172,12 @@ class ContentManagerSoftDeleteTest {
     fun `delete-undelete-delete resolves to deleted via strictly increasing timestamps`() = runBlocking {
         val id = cm.writeContent("z".toByteArray())
         cm.flush()
-        cm.deleteContent(id); cm.flush()
-        cm.undeleteContent(id); cm.flush()
-        cm.deleteContent(id); cm.flush()
+        cm.deleteContent(id)
+        cm.flush()
+        cm.undeleteContent(id)
+        cm.flush()
+        cm.deleteContent(id)
+        cm.flush()
         cm.refresh()
 
         // Even if all ops land in one wall-clock second, max(now, prev+1) makes each timestamp strictly

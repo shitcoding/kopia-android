@@ -86,9 +86,11 @@ class ContentIdVectorTest {
     @Test
     fun `ContentId round-trip for valid prefixes`() {
         val validPrefixes = listOf(null, 'g', 'k', 'm', 'p', 'x', 'z')
-        val testHash = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        val testHash = byteArrayOf(
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
             0x88.toByte(), 0x99.toByte(), 0xaa.toByte(), 0xbb.toByte(),
-            0xcc.toByte(), 0xdd.toByte(), 0xee.toByte(), 0xff.toByte())
+            0xcc.toByte(), 0xdd.toByte(), 0xee.toByte(), 0xff.toByte(),
+        )
 
         for (prefix in validPrefixes) {
             val id = ContentId.fromHash(prefix, testHash)

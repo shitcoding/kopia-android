@@ -49,7 +49,7 @@ import java.util.zip.GZIPOutputStream
 class ManifestManager(
     private val contentManager: ContentManager,
     private val clock: Clock = Clock.systemUTC(),
-    private val autoCompactionThreshold: Int = DEFAULT_AUTO_COMPACTION_THRESHOLD
+    private val autoCompactionThreshold: Int = DEFAULT_AUTO_COMPACTION_THRESHOLD,
 ) {
     private val mutex = Mutex()
 
@@ -114,19 +114,18 @@ class ManifestManager(
     }
 
     @PublishedApi
-    internal suspend fun putInternal(labels: Map<String, String>, jsonPayload: JsonElement): ManifestId =
-        mutex.withLock {
-            val id = ManifestId.generate()
-            val entry = ManifestEntry(
-                id = id.value,
-                labels = labels.toMap(),
-                modTime = Instant.now(clock),
-                deleted = false,
-                content = jsonPayload
-            )
-            pendingEntries[id] = entry
-            id
-        }
+    internal suspend fun putInternal(labels: Map<String, String>, jsonPayload: JsonElement): ManifestId = mutex.withLock {
+        val id = ManifestId.generate()
+        val entry = ManifestEntry(
+            id = id.value,
+            labels = labels.toMap(),
+            modTime = Instant.now(clock),
+            deleted = false,
+            content = jsonPayload,
+        )
+        pendingEntries[id] = entry
+        id
+    }
 
     /**
      * Retrieves a manifest by ID.
@@ -201,9 +200,7 @@ class ManifestManager(
      * @return The metadata
      * @throws ManifestNotFoundException if manifest doesn't exist
      */
-    suspend fun getMetadata(id: ManifestId): EntryMetadata {
-        return getMetadataOrNull(id) ?: throw ManifestNotFoundException(id)
-    }
+    suspend fun getMetadata(id: ManifestId): EntryMetadata = getMetadataOrNull(id) ?: throw ManifestNotFoundException(id)
 
     /**
      * Gets metadata for a manifest, or null if not found.
@@ -270,7 +267,7 @@ class ManifestManager(
             labels = emptyMap(),
             modTime = Instant.now(clock),
             deleted = true,
-            content = null
+            content = null,
         )
         pendingEntries[id] = entry
     }
@@ -298,7 +295,7 @@ class ManifestManager(
         val contentId = contentManager.writeContent(
             data = compressedData,
             prefix = CONTENT_PREFIX,
-            compression = CompressionAlgorithm.NONE
+            compression = CompressionAlgorithm.NONE,
         )
 
         // Move pending to committed
@@ -373,7 +370,7 @@ class ManifestManager(
         val newContentId = contentManager.writeContent(
             data = compressedData,
             prefix = CONTENT_PREFIX,
-            compression = CompressionAlgorithm.NONE
+            compression = CompressionAlgorithm.NONE,
         )
 
         // Note: In Go, old content IDs are deleted. Since ContentManager doesn't
@@ -430,7 +427,7 @@ class ManifestManager(
                 logger.log(
                     Level.WARNING,
                     "Skipping malformed manifest content $contentId: ${e.message}",
-                    e
+                    e,
                 )
             }
         }
@@ -459,7 +456,7 @@ class ManifestManager(
             id = id,
             length = contentLength,
             labels = labels.toMap(),
-            modTime = modTime
+            modTime = modTime,
         )
     }
 
@@ -521,14 +518,14 @@ class ManifestManager(
          * @param entries List of entries
          * @return The latest entry, or null if empty
          */
-        fun pickLatest(entries: List<EntryMetadata>): EntryMetadata? {
-            return entries.maxWithOrNull(Comparator { a, b ->
+        fun pickLatest(entries: List<EntryMetadata>): EntryMetadata? = entries.maxWithOrNull(
+            Comparator { a, b ->
                 when {
                     a.modTime != b.modTime -> a.modTime.compareTo(b.modTime)
                     else -> a.id.value.compareTo(b.id.value)
                 }
-            })
-        }
+            },
+        )
 
         /**
          * Returns true if a is later than b by modification time,

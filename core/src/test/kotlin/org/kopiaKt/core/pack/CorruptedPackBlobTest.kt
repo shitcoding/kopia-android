@@ -30,7 +30,7 @@ class CorruptedPackBlobTest {
     private val testContents = listOf(
         ContentId.parse("1111000022223333") to ByteArray(100) { (it * 7).toByte() },
         ContentId.parse("4444555566667777") to ByteArray(200) { (it * 13).toByte() },
-        ContentId.parse("8888999900001111") to ByteArray(50) { (it * 3).toByte() }
+        ContentId.parse("8888999900001111") to ByteArray(50) { (it * 3).toByte() },
     )
 
     @BeforeEach
@@ -38,7 +38,7 @@ class CorruptedPackBlobTest {
         val builder = PackBlobBuilder(
             packBlobId = BlobId.packBlob("test123456789012"),
             preambleLength = 32,
-            encryptionOverhead = 0
+            encryptionOverhead = 0,
         )
         for ((contentId, data) in testContents) {
             builder.addContent(contentId, data, originalLength = data.size.toUInt())
@@ -94,7 +94,7 @@ class CorruptedPackBlobTest {
             for ((description, truncated) in truncations) {
                 assertNull(
                     PackBlobReader.recoverIndex(truncated),
-                    "recoverIndex should return null for truncation at: $description"
+                    "recoverIndex should return null for truncation at: $description",
                 )
             }
         }
@@ -138,7 +138,7 @@ class CorruptedPackBlobTest {
             val corrupted = CorruptionHelpers.zeroRange(
                 validPackData,
                 postambleStart,
-                postambleLength + 1
+                postambleLength + 1,
             )
             assertNull(PackBlobReader.recoverIndex(corrupted))
         }
@@ -185,7 +185,7 @@ class CorruptedPackBlobTest {
             val corrupted = CorruptionHelpers.zeroRange(
                 validPackData,
                 info!!.localIndexOffset,
-                minOf(8, info.localIndexLength)
+                minOf(8, info.localIndexLength),
             )
             assertNull(PackBlobReader.recoverIndex(corrupted))
         }
@@ -213,7 +213,7 @@ class CorruptedPackBlobTest {
                         }
                     assertTrue(
                         differs,
-                        "Bit flip in local index should produce entries different from originals"
+                        "Bit flip in local index should produce entries different from originals",
                     )
                 }
                 // If recovered is null, the corruption was detected - test passes
@@ -228,7 +228,7 @@ class CorruptedPackBlobTest {
             val corrupted = CorruptionHelpers.zeroRange(
                 validPackData,
                 info!!.localIndexOffset,
-                info.localIndexLength
+                info.localIndexLength,
             )
             assertNull(PackBlobReader.recoverIndex(corrupted))
         }
@@ -262,7 +262,7 @@ class CorruptedPackBlobTest {
 
             assertFalse(
                 extractedOriginal.contentEquals(extractedCorrupted),
-                "Corrupted content should differ from original"
+                "Corrupted content should differ from original",
             )
         }
 
@@ -289,7 +289,7 @@ class CorruptedPackBlobTest {
                 val corrupted = CorruptionHelpers.zeroRange(
                     validPackData,
                     contentAreaStart,
-                    contentAreaLength
+                    contentAreaLength,
                 )
                 val recovered = PackBlobReader.recoverIndex(corrupted)
                 assertNotNull(recovered, "Index recovery should succeed with zeroed content area")
@@ -307,7 +307,7 @@ class CorruptedPackBlobTest {
                 val corrupted = CorruptionHelpers.zeroRange(
                     validPackData,
                     contentAreaStart,
-                    contentAreaLength
+                    contentAreaLength,
                 )
 
                 for (contentInfo in originalInfos) {
@@ -317,7 +317,7 @@ class CorruptedPackBlobTest {
                     // Original data was non-zero patterns, so zeroed area should differ
                     assertFalse(
                         original.contentEquals(fromCorrupted),
-                        "Content ${contentInfo.contentId} should differ after zeroing"
+                        "Content ${contentInfo.contentId} should differ after zeroing",
                     )
                 }
             }
@@ -342,7 +342,9 @@ class CorruptedPackBlobTest {
         @Test
         fun `should return null for data with inserted garbage at midpoint`() {
             val corrupted = CorruptionHelpers.insertGarbage(
-                validPackData, validPackData.size / 2, 50
+                validPackData,
+                validPackData.size / 2,
+                50,
             )
             // Insertion shifts all offsets, making the postamble unreadable
             assertNull(PackBlobReader.recoverIndex(corrupted))
@@ -352,7 +354,7 @@ class CorruptedPackBlobTest {
         fun `should return null for data with garbage appended`() {
             val corrupted = CorruptionHelpers.appendBytes(
                 validPackData,
-                ByteArray(100) { 0xAB.toByte() }
+                ByteArray(100) { 0xAB.toByte() },
             )
             // Appended bytes shift where findPostamble looks for the length byte
             assertNull(PackBlobReader.recoverIndex(corrupted))
@@ -380,13 +382,13 @@ class CorruptedPackBlobTest {
             val builder = PackBlobBuilder(
                 packBlobId = BlobId.packBlob("single1234567890"),
                 preambleLength = 32,
-                encryptionOverhead = 0
+                encryptionOverhead = 0,
             )
             val singleContent = ByteArray(1) { 0x42 }
             builder.addContent(
                 ContentId.parse("aabbccdd11223344"),
                 singleContent,
-                originalLength = 1u
+                originalLength = 1u,
             )
             val (packData, _) = builder.build()
 
@@ -427,7 +429,7 @@ class CorruptedPackBlobTest {
                 // Postamble CRC check should fail
                 assertNull(
                     PackBlobReader.recoverIndex(corrupted),
-                    "Corrupting first byte of postamble should cause recovery failure"
+                    "Corrupting first byte of postamble should cause recovery failure",
                 )
             }
         }

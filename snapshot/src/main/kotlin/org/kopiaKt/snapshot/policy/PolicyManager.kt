@@ -94,7 +94,7 @@ object PolicyManager {
             TargetWithPolicy(
                 id = meta.id.value,
                 target = policyWithLabels.target(),
-                policy = policyWithLabels
+                policy = policyWithLabels,
             )
         }
     }
@@ -122,7 +122,7 @@ object PolicyManager {
             val userSource = SourceInfo(
                 host = sourceInfo.host,
                 userName = sourceInfo.userName,
-                path = ""
+                path = "",
             )
             getPolicy(repo, userSource)?.let { applicablePolicies.add(it) }
         }
@@ -132,7 +132,7 @@ object PolicyManager {
             val hostSource = SourceInfo(
                 host = sourceInfo.host,
                 userName = "",
-                path = ""
+                path = "",
             )
             getPolicy(repo, hostSource)?.let { applicablePolicies.add(it) }
         }
@@ -150,7 +150,5 @@ object PolicyManager {
      * Selects the latest manifest entry from a list, using modification time
      * with ID as tiebreaker.
      */
-    private fun pickLatestMetadata(entries: List<EntryMetadata>): EntryMetadata {
-        return entries.maxWith(compareBy({ it.modTime }, { it.id.value }))
-    }
+    private fun pickLatestMetadata(entries: List<EntryMetadata>): EntryMetadata = entries.maxWith(compareBy({ it.modTime }, { it.id.value }))
 }

@@ -22,12 +22,11 @@ class KopiaCliRunnerTest {
      * Helper that creates a runner whose "binary" is /bin/sh -c,
      * so we can execute arbitrary shell one-liners.
      */
-    private fun shellRunner(): KopiaCliRunner =
-        KopiaCliRunner(
-            kopiaBinary = Path.of("/bin/sh"),
-            configDir = null,
-            environment = emptyMap()
-        )
+    private fun shellRunner(): KopiaCliRunner = KopiaCliRunner(
+        kopiaBinary = Path.of("/bin/sh"),
+        configDir = null,
+        environment = emptyMap(),
+    )
 
     // ------------------------------------------------------------------
     // Stream capture
@@ -37,7 +36,8 @@ class KopiaCliRunnerTest {
     fun `run captures both stdout and stderr`() = runTest(timeout = 1.minutes) {
         val runner = shellRunner()
         val result = runner.run(
-            "-c", "echo hello-stdout; echo hello-stderr >&2"
+            "-c",
+            "echo hello-stdout; echo hello-stderr >&2",
         )
 
         assertThat(result.exitCode).isEqualTo(0)
@@ -60,7 +60,7 @@ class KopiaCliRunnerTest {
             """
             i=0; while [ ${'$'}i -lt $lineCount ]; do echo "stdout-line-${'$'}i-padding-to-make-line-longer"; i=${'$'}((i+1)); done
             i=0; while [ ${'$'}i -lt $lineCount ]; do echo "stderr-line-${'$'}i-padding-to-make-line-longer" >&2; i=${'$'}((i+1)); done
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertThat(result.exitCode).isEqualTo(0)
@@ -84,7 +84,7 @@ class KopiaCliRunnerTest {
             "-c",
             """
             i=0; while [ ${'$'}i -lt $iterations ]; do echo "out-${'$'}i"; echo "err-${'$'}i" >&2; i=${'$'}((i+1)); done
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertThat(result.exitCode).isEqualTo(0)

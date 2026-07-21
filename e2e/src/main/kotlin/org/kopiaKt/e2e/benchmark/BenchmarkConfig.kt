@@ -11,7 +11,7 @@ import java.time.Duration
 fun createBenchmarkRepositoryConfig(
     hash: String = "BLAKE2B-256-128",
     encryption: String = "AES256-GCM-HMAC-SHA256",
-    splitter: String = "FIXED-1M"
+    splitter: String = "FIXED-1M",
 ): RepositoryConfig {
     val random = SecureRandom()
     val secret = ByteArray(32).also { random.nextBytes(it) }
@@ -22,7 +22,7 @@ fun createBenchmarkRepositoryConfig(
         encryption = encryption,
         secret = secret,
         masterKey = masterKey,
-        splitter = splitter
+        splitter = splitter,
     )
 }
 
@@ -63,7 +63,7 @@ data class BenchmarkConfig(
     /**
      * Whether to force garbage collection between iterations.
      */
-    val forceGcBetweenIterations: Boolean = true
+    val forceGcBetweenIterations: Boolean = true,
 )
 
 /**
@@ -98,7 +98,7 @@ data class BenchmarkMeasurement(
     /**
      * Additional metadata.
      */
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
 ) {
     /**
      * Throughput in bytes per second.
@@ -148,7 +148,7 @@ data class BenchmarkResult(
     /**
      * Test data specification.
      */
-    val testDataSpec: TestDataSpec? = null
+    val testDataSpec: TestDataSpec? = null,
 ) {
     /**
      * Number of measurements.
@@ -268,13 +268,11 @@ data class BenchmarkResult(
             }
         }
 
-        private fun formatBytes(bytes: Long): String {
-            return when {
-                bytes < 1024 -> "$bytes B"
-                bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-                bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-                else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-            }
+        private fun formatBytes(bytes: Long): String = when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
         }
     }
 }
@@ -316,5 +314,5 @@ data class TestDataSpec(
     /**
      * Content pattern used.
      */
-    val contentPattern: String = "random"
+    val contentPattern: String = "random",
 )

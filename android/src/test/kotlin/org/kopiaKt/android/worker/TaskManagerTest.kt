@@ -266,8 +266,8 @@ class TaskManagerTest {
                 controller.reportCounters(
                     mapOf(
                         "files" to TaskCounterValue(42, "files"),
-                        "bytes" to TaskCounterValue(1024, "bytes", "info")
-                    )
+                        "bytes" to TaskCounterValue(1024, "bytes", "info"),
+                    ),
                 )
                 countersSet.complete(Unit)
                 awaitCancellation()

@@ -61,10 +61,10 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         // 2. Derive the repo's content-encryption key from the format blob + password (same as opening it).
         val storage = createBlobStorage()
         val formatJson = KopiaRepositoryJson.parse(
-            storage.getBlob(BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID), 0, -1)
+            storage.getBlob(BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID), 0, -1),
         )
         val config = formatJson.decryptRepositoryConfig(
-            formatJson.deriveFormatEncryptionKeyFromPassword(testPassword)
+            formatJson.deriveFormatEncryptionKeyFromPassword(testPassword),
         )
         val encryptor = Aes256GcmHmacSha256Encryptor.create(config.masterKey)
 
@@ -105,13 +105,13 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         repo.use {
             // 4. Find the snapshot manifest
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             assertThat(manifests).isNotEmpty()
 
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             assertThat(manifest.rootEntry).isNotNull()
 
@@ -123,13 +123,13 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
                     overwriteFiles = true,
-                    overwriteSymlinks = true
-                )
+                    overwriteSymlinks = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
                 options = RestoreOptions(parallel = 1),
-                progress = progress
+                progress = progress,
             )
             val stats = restorer.restore(rootEntry)
 
@@ -144,12 +144,12 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
                 ComparisonOptions(
                     checkTypes = true,
                     checkSymlinkTargets = true,
-                    checkEmptyDirectories = true
-                )
+                    checkEmptyDirectories = true,
+                ),
             )
             if (!comparison.identical) {
                 throw AssertionError(
-                    "Restored content does not match original source:\n$comparison"
+                    "Restored content does not match original source:\n$comparison",
                 )
             }
         }
@@ -177,34 +177,34 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         val repo = openRepositoryWithKotlin()
         repo.use {
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             val rootEntry = snapshotRoot(repo, manifest)
             val output = FilesystemOutput(
                 targetPath = restoreDir,
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
-                    overwriteFiles = true
-                )
+                    overwriteFiles = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             restorer.restore(rootEntry)
 
             val comparison = compareDirectories(
                 sourceDir,
                 restoreDir,
-                ComparisonOptions(checkTypes = true)
+                ComparisonOptions(checkTypes = true),
             )
             if (!comparison.identical) {
                 throw AssertionError(
-                    "Nested directory structure mismatch:\n$comparison"
+                    "Nested directory structure mismatch:\n$comparison",
                 )
             }
         }
@@ -236,23 +236,23 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         val repo = openRepositoryWithKotlin()
         repo.use {
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             val rootEntry = snapshotRoot(repo, manifest)
             val output = FilesystemOutput(
                 targetPath = restoreDir,
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
-                    overwriteFiles = true
-                )
+                    overwriteFiles = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             restorer.restore(rootEntry)
 
@@ -285,23 +285,23 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         val repo = openRepositoryWithKotlin()
         repo.use {
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             val rootEntry = snapshotRoot(repo, manifest)
             val output = FilesystemOutput(
                 targetPath = restoreDir,
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
-                    overwriteFiles = true
-                )
+                    overwriteFiles = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             restorer.restore(rootEntry)
 
@@ -310,12 +310,12 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
                 restoreDir,
                 ComparisonOptions(
                     checkTypes = true,
-                    checkEmptyDirectories = true
-                )
+                    checkEmptyDirectories = true,
+                ),
             )
             if (!comparison.identical) {
                 throw AssertionError(
-                    "Empty files/dirs mismatch:\n$comparison"
+                    "Empty files/dirs mismatch:\n$comparison",
                 )
             }
 
@@ -356,11 +356,11 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         val repo = openRepositoryWithKotlin()
         repo.use {
             val manifests = repo.findManifests(
-                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
             )
             val (manifest, _) = repo.getManifest(
                 manifests.first().id,
-                SnapshotManifest.serializer()
+                SnapshotManifest.serializer(),
             )
             val rootEntry = snapshotRoot(repo, manifest)
             val output = FilesystemOutput(
@@ -368,12 +368,12 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
                 options = FilesystemOutputOptions(
                     overwriteDirectories = true,
                     overwriteFiles = true,
-                    overwriteSymlinks = true
-                )
+                    overwriteSymlinks = true,
+                ),
             )
             val restorer = SnapshotRestorer(
                 output = output,
-                options = RestoreOptions(parallel = 1)
+                options = RestoreOptions(parallel = 1),
             )
             restorer.restore(rootEntry)
 
@@ -383,12 +383,12 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
                 restoreDir,
                 ComparisonOptions(
                     checkTypes = true,
-                    checkSymlinkTargets = true
-                )
+                    checkSymlinkTargets = true,
+                ),
             )
             if (!comparison.identical) {
                 throw AssertionError(
-                    "Symlink restore mismatch:\n$comparison"
+                    "Symlink restore mismatch:\n$comparison",
                 )
             }
         }

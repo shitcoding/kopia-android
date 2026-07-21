@@ -12,12 +12,12 @@ import java.util.concurrent.ConcurrentHashMap
  * Useful for unit testing and as a mock implementation.
  */
 class InMemoryBlobStorage(
-    private val name: String = "in-memory"
+    private val name: String = "in-memory",
 ) : BlobStorage {
 
     private data class StoredBlob(
         val data: ByteArray,
-        val timestamp: Instant
+        val timestamp: Instant,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -52,7 +52,7 @@ class InMemoryBlobStorage(
         return BlobMetadata(
             blobId = blobId,
             length = stored.data.size.toLong(),
-            timestamp = stored.timestamp
+            timestamp = stored.timestamp,
         )
     }
 
@@ -63,8 +63,8 @@ class InMemoryBlobStorage(
                     BlobMetadata(
                         blobId = blobId,
                         length = stored.data.size.toLong(),
-                        timestamp = stored.timestamp
-                    )
+                        timestamp = stored.timestamp,
+                    ),
                 )
             }
         }
@@ -77,7 +77,7 @@ class InMemoryBlobStorage(
 
         blobs[blobId] = StoredBlob(
             data = data.copyOf(),
-            timestamp = options.setModTime ?: options.getModTime ?: Instant.now()
+            timestamp = options.setModTime ?: options.getModTime ?: Instant.now(),
         )
     }
 
@@ -87,7 +87,7 @@ class InMemoryBlobStorage(
 
     override fun connectionInfo(): ConnectionInfo = ConnectionInfo(
         type = "memory",
-        config = mapOf("name" to name)
+        config = mapOf("name" to name),
     )
 
     override fun displayName(): String = "InMemory($name)"
