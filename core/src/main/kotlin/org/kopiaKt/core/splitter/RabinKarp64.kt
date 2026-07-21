@@ -1,3 +1,6 @@
+// Ported from github.com/chmduquesne/rollinghash (rabinkarp64), BSD-2-Clause,
+// adapted from restic; Copyright (c) 2014 Alexander Neumann, (c) 2017
+// Christophe-Marie Duquesne. See THIRD_PARTY_NOTICES.md.
 package org.kopiaKt.core.splitter
 
 /**

@@ -14,7 +14,7 @@
         <error line="1" column="9" source="standard:package-name" />
     </file>
     <file name="src/main/kotlin/org/kopiaKt/core/splitter/RabinKarp64.kt">
-        <error line="58" column="13" source="standard:property-naming" />
+        <error line="61" column="13" source="standard:property-naming" />
     </file>
     <file name="src/test/kotlin/org/kopiaKt/core/encryption/CorruptedEncryptedBlobTest.kt">
         <error line="4" column="1" source="standard:no-wildcard-imports" />

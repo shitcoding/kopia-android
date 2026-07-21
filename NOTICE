@@ -1,0 +1,16 @@
+KopiaKt
+Copyright 2026 Vasiliy Ivanov
+
+This product is an independent, byte-compatible reimplementation of the Kopia
+backup tool (https://github.com/kopia/kopia), which is licensed under the Apache
+License, Version 2.0. Kopia's on-disk repository format and test vectors generated
+by Kopia were used as references during development. No Kopia implementation source
+code is included in this product; the generated API-surface snapshot in
+sync-tools/snapshots/baseline.json contains Kopia's exported API/type names and
+documentation strings, used under Kopia's Apache License, Version 2.0.
+
+KopiaKt is not affiliated with, sponsored by, or endorsed by the Kopia project.
+The name "Kopia" is used only to describe repository-format compatibility.
+
+This product also includes code ported from third-party projects; see
+THIRD_PARTY_NOTICES.md.

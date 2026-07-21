@@ -1,0 +1,26 @@
+# gitleaks configuration.
+# Extends the default rule set and allowlists known-safe matches so the secret
+# scan is clean. Everything below is intentional test material, not a real secret.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Verified test vectors and local test-container credentials (not real secrets)"
+
+# Pure crypto TEST-VECTOR files: hex keys/IVs used only to prove byte-compatibility
+# with Go Kopia. Path-scoped because the whole file is test-vector data (a value
+# regex like [0-9a-f]{64} would over-suppress real 64-hex secrets elsewhere).
+paths = [
+  '''testvectors/verify_hkdf\.go''',
+  '''testvectors/verify_decrypt\.go''',
+  '''core/src/test/kotlin/org/kopiaKt/core/encryption/Aes256GcmEncryptorTest\.kt''',
+]
+
+# Local, disposable Docker test-container credentials and a SigV4 algorithm name
+# (in e2e/maestro/scripts/seed_storage_backends.sh). Value-scoped, NOT whole-file,
+# so a genuinely new secret added to that script would still be flagged.
+regexes = [
+  '''kopia123456''',
+  '''AWS4-HMAC-SHA256''',
+]

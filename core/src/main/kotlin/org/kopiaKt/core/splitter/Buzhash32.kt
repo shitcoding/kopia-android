@@ -1,3 +1,5 @@
+// Ported from github.com/chmduquesne/rollinghash (buzhash32), MIT-licensed,
+// Copyright 2015 Christophe-Marie Duquesne. See THIRD_PARTY_NOTICES.md.
 package org.kopiaKt.core.splitter
 
 /**
