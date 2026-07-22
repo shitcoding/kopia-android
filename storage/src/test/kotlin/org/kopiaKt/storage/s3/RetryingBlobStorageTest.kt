@@ -6,6 +6,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import net.schmizz.sshj.sftp.Response
+import net.schmizz.sshj.sftp.SFTPException
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -19,6 +21,7 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidCredentialsException
+import org.kopiaKt.storage.webdav.WebDavException
 import software.amazon.awssdk.services.s3.model.S3Exception
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -204,6 +207,63 @@ class RetryingBlobStorageTest {
         }
 
         @Test
+        fun `should retry on WebDAV 503 Service Unavailable`() = runTest {
+            val blobId = BlobId("test-blob")
+            val expectedData = "test data".toByteArray()
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.getBlob(blobId, 0, -1) } answers {
+                if (callCount.incrementAndGet() < 2) {
+                    throw WebDavException("Service Unavailable", 503)
+                }
+                expectedData
+            }
+
+            val result = retryingStorage.getBlob(blobId)
+
+            assertArrayEquals(expectedData, result)
+            assertEquals(2, callCount.get())
+        }
+
+        @Test
+        fun `should retry on SFTP connection lost`() = runTest {
+            val blobId = BlobId("test-blob")
+            val expectedData = "test data".toByteArray()
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.getBlob(blobId, 0, -1) } answers {
+                if (callCount.incrementAndGet() < 2) {
+                    throw SFTPException(Response.StatusCode.CONNECITON_LOST, "Connection lost")
+                }
+                expectedData
+            }
+
+            val result = retryingStorage.getBlob(blobId)
+
+            assertArrayEquals(expectedData, result)
+            assertEquals(2, callCount.get())
+        }
+
+        @Test
+        fun `should retry on WebDAV 408 Request Timeout`() = runTest {
+            val blobId = BlobId("test-blob")
+            val expectedData = "test data".toByteArray()
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.getBlob(blobId, 0, -1) } answers {
+                if (callCount.incrementAndGet() < 2) {
+                    throw WebDavException("Request Timeout", 408)
+                }
+                expectedData
+            }
+
+            val result = retryingStorage.getBlob(blobId)
+
+            assertArrayEquals(expectedData, result)
+            assertEquals(2, callCount.get())
+        }
+
+        @Test
         fun `should exhaust retries and throw`() = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
@@ -321,6 +381,40 @@ class RetryingBlobStorageTest {
         }
 
         @Test
+        fun `should not retry SFTP permission denied`() = runTest {
+            val blobId = BlobId("test-blob")
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.getBlob(blobId, 0, -1) } answers {
+                callCount.incrementAndGet()
+                throw SFTPException(Response.StatusCode.PERMISSION_DENIED, "Permission denied")
+            }
+
+            assertThrows<SFTPException> {
+                retryingStorage.getBlob(blobId)
+            }
+
+            assertEquals(1, callCount.get())
+        }
+
+        @Test
+        fun `should not retry WebDAV 404 Not Found`() = runTest {
+            val blobId = BlobId("test-blob")
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.getBlob(blobId, 0, -1) } answers {
+                callCount.incrementAndGet()
+                throw WebDavException("Not Found", 404)
+            }
+
+            assertThrows<WebDavException> {
+                retryingStorage.getBlob(blobId)
+            }
+
+            assertEquals(1, callCount.get())
+        }
+
+        @Test
         fun `should not retry IllegalArgumentException`() = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
@@ -400,6 +494,25 @@ class RetryingBlobStorageTest {
             val result = retryingStorage.listBlobs("test-").toList()
 
             assertEquals(1, result.size)
+        }
+
+        @Test
+        fun `should not double-emit already-listed blobs when retrying`() = runTest {
+            // The upstream emits a,b then fails once; on retry it emits a,b,c. The wrapper must NOT
+            // hand the collector a,b,a,b,c — a mid-stream retry cannot re-emit already-seen blobs.
+            val callCount = AtomicInteger(0)
+
+            coEvery { mockDelegate.listBlobs("test-") } returns flow {
+                val attempt = callCount.incrementAndGet()
+                emit(BlobMetadata(BlobId("test-a"), 1, Instant.now()))
+                emit(BlobMetadata(BlobId("test-b"), 1, Instant.now()))
+                if (attempt < 2) throw IOException("mid-stream failure")
+                emit(BlobMetadata(BlobId("test-c"), 1, Instant.now()))
+            }
+
+            val ids = retryingStorage.listBlobs("test-").toList().map { it.blobId.value }
+
+            assertEquals(listOf("test-a", "test-b", "test-c"), ids)
         }
     }
 

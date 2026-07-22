@@ -55,7 +55,7 @@ import java.time.Instant
  * - Synchronous operations via UrlConnectionHttpClient for Android compatibility
  * - Object retention/locking support
  * - Storage class configuration per blob prefix
- * - Retry with exponential backoff
+ * - Retries with exponential backoff (when wrapped in [RetryingBlobStorage])
  */
 class S3BlobStorage private constructor(
     private val client: S3Client,

@@ -26,6 +26,7 @@ import org.kopiaKt.core.repository.ClientOptions
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
+import org.kopiaKt.storage.s3.RetryingBlobStorage
 import org.kopiaKt.storage.s3.S3BlobStorage
 import org.kopiaKt.storage.s3.S3Options
 import org.kopiaKt.storage.sftp.SftpBlobStorage
@@ -170,23 +171,30 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         }
 
         is ConnectionConfig.S3 -> {
-            S3BlobStorage.create(
-                S3Options(
-                    bucketName = config.bucket,
-                    endpoint = config.endpoint,
-                    region = config.region,
-                    accessKeyId = config.accessKeyId,
-                    secretAccessKey = config.secretAccessKey,
+            // Remote backends are wrapped in RetryingBlobStorage so transient network / 5xx / 429
+            // failures are retried with exponential backoff (local backends are not — their errors
+            // are typically permanent, so retrying would only add latency).
+            RetryingBlobStorage(
+                S3BlobStorage.create(
+                    S3Options(
+                        bucketName = config.bucket,
+                        endpoint = config.endpoint,
+                        region = config.region,
+                        accessKeyId = config.accessKeyId,
+                        secretAccessKey = config.secretAccessKey,
+                    ),
                 ),
             )
         }
 
         is ConnectionConfig.WebDAV -> {
-            WebDavBlobStorage.create(
-                WebDavOptions(
-                    url = config.url,
-                    username = config.username,
-                    password = config.password,
+            RetryingBlobStorage(
+                WebDavBlobStorage.create(
+                    WebDavOptions(
+                        url = config.url,
+                        username = config.username,
+                        password = config.password,
+                    ),
                 ),
             )
         }
@@ -198,16 +206,18 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             // the flag set. The storage layer itself already fails closed when no trust material
             // is supplied (throws HostKeyNotTrustedException).
             requireInsecureHostKeyAllowed(config.insecureSkipHostKeyVerification, BuildConfig.DEBUG)
-            SftpBlobStorage.create(
-                SftpOptions(
-                    host = config.host,
-                    port = config.port,
-                    username = config.username,
-                    password = config.password,
-                    path = config.path,
-                    knownHostsData = config.knownHostsData,
-                    hostKeyFingerprint = config.hostKeyFingerprint,
-                    insecureSkipHostKeyVerification = config.insecureSkipHostKeyVerification,
+            RetryingBlobStorage(
+                SftpBlobStorage.create(
+                    SftpOptions(
+                        host = config.host,
+                        port = config.port,
+                        username = config.username,
+                        password = config.password,
+                        path = config.path,
+                        knownHostsData = config.knownHostsData,
+                        hostKeyFingerprint = config.hostKeyFingerprint,
+                        insecureSkipHostKeyVerification = config.insecureSkipHostKeyVerification,
+                    ),
                 ),
             )
         }

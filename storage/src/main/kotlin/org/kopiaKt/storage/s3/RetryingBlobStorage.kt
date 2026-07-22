@@ -2,7 +2,10 @@ package org.kopiaKt.storage.s3
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.retry
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import net.schmizz.sshj.sftp.Response
+import net.schmizz.sshj.sftp.SFTPException
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobMetadata
 import org.kopiaKt.core.blob.BlobNotFoundException
@@ -12,6 +15,7 @@ import org.kopiaKt.core.blob.ExtendBlobRetentionOptions
 import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.storage.webdav.WebDavException
 import software.amazon.awssdk.services.s3.model.S3Exception
 import kotlin.math.min
 import kotlin.random.Random
@@ -43,17 +47,16 @@ class RetryingBlobStorage(
         delegate.getBlobMetadata(blobId)
     }
 
-    override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> {
-        // For flows, we retry the entire operation if it fails during iteration
-        return delegate.listBlobs(prefix).retry(maxRetries.toLong()) { cause ->
-            if (isRetryable(cause)) {
-                val delayMs = calculateDelay(0) // Use initial delay for flow retries
-                delay(delayMs)
-                true
-            } else {
-                false
-            }
+    override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
+        // Retry the WHOLE listing, then emit once. A per-emission Flow.retry would re-collect the
+        // upstream from the start on a mid-stream failure and hand the collector already-seen blobs
+        // (duplicates). This buffers the listing: filesystem/SFTP/WebDAV already materialise it
+        // internally; for S3 (which paginates) it trades streaming for no-duplicate correctness —
+        // acceptable because blob METADATA is tiny next to blob content.
+        val items = retryOperation("listBlobs", null) {
+            delegate.listBlobs(prefix).toList()
         }
+        items.forEach { emit(it) }
     }
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) {
@@ -180,6 +183,22 @@ class RetryingBlobStorage(
             }
         }
 
+        // Check WebDAV-specific errors (a RuntimeException carrying the HTTP status code): retry only
+        // transient statuses — never permanent ones like 4xx (auth/not-found/bad-request) or 501/505
+        // (a non-WebDAV server), which would otherwise burn the full backoff before surfacing.
+        if (e is WebDavException) {
+            return e.statusCode in RETRYABLE_HTTP_STATUSES
+        }
+
+        // sshj's SFTPException extends IOException, so classify it BEFORE the blanket IOException rule:
+        // retry only connection loss, never a permanent server response (permission denied, no-such-file,
+        // unsupported) — those would burn the backoff and hammer auth on the internal reconnect.
+        if (e is SFTPException) {
+            // NB: CONNECITON_LOST is a real (misspelled) constant in sshj's enum, not a typo here.
+            return e.statusCode == Response.StatusCode.NO_CONNECTION ||
+                e.statusCode == Response.StatusCode.CONNECITON_LOST
+        }
+
         // Retry network-related exceptions
         if (e is java.io.IOException) return true
         if (e is java.net.SocketException) return true
@@ -198,6 +217,10 @@ class RetryingBlobStorage(
     }
 
     companion object {
+        /** Transient HTTP statuses worth retrying: request-timeout, throttling, and the 5xx that are
+         *  genuinely server-side transient (NOT 501 Not Implemented / 505 / 507, which are permanent). */
+        private val RETRYABLE_HTTP_STATUSES = setOf(408, 429, 500, 502, 503, 504)
+
         /**
          * Wraps a BlobStorage with retry logic.
          */

@@ -38,7 +38,7 @@ import java.time.format.DateTimeParseException
  * - HTTP Basic authentication
  * - Sharded directory structure (compatible with Go filesystem backend)
  * - Atomic writes via temp file + rename
- * - Retry with exponential backoff
+ * - Retries with exponential backoff (when wrapped in RetryingBlobStorage)
  */
 class WebDavBlobStorage private constructor(
     private val client: OkHttpWebDavClient,
