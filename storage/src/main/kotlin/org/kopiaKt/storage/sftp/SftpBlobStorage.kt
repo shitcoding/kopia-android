@@ -48,7 +48,10 @@ import java.util.EnumSet
  * - Known hosts verification
  * - Sharded directory structure (compatible with Go filesystem/SFTP backend)
  * - Atomic writes via temp file + rename
- * - Connection pooling with automatic reconnection
+ * - A single cached SSH/SFTP connection, serialized by a mutex, with a one-shot reconnect on
+ *   connection loss. This is NOT a pool: concurrent callers serialize through the mutex, so parallel
+ *   upload workers collapse to one in-flight op. A real connection pool can be added if/when a
+ *   concurrent upload path needs the throughput (there is no concurrent consumer today).
  */
 class SftpBlobStorage private constructor(
     private val options: SftpOptions,
@@ -177,6 +180,28 @@ class SftpBlobStorage private constructor(
                 e.message?.contains("No such file") == true
         }
 
+        /**
+         * True when [e] indicates the SSH/SFTP connection was lost (worth a one-shot reconnect), as
+         * opposed to an operation-level failure on a healthy connection. sshj's [SFTPException] extends
+         * [IOException], so it is classified first. A real connection loss surfaces as an SFTPException
+         * with status **UNKNOWN**: sshj wraps a dead transport / "EOF while reading packet" / request
+         * timeout as an SFTPException with a null status (`getStatusCode()` → UNKNOWN), and servers
+         * never send the client-only `NO_CONNECTION`/`CONNECITON_LOST` codes — so those three statuses
+         * are the connection-error set. Recognized operation statuses (NO_SUCH_FILE, PERMISSION_DENIED,
+         * FAILURE, …) carry a real status and are correctly treated as non-connection (an unrecognized
+         * server status also maps to UNKNOWN → at worst one spurious idempotent replay). Every other
+         * [IOException] here is transport/socket level (TransportException, ConnectionException,
+         * SocketException, EOFException, …) and is a connection problem. The blob-layer exceptions
+         * (BlobNotFoundException etc.) extend Exception, not IOException, so they never reach this.
+         */
+        internal fun isSftpConnectionError(e: IOException): Boolean = if (e is SFTPException) {
+            e.statusCode == net.schmizz.sshj.sftp.Response.StatusCode.NO_CONNECTION ||
+                e.statusCode == net.schmizz.sshj.sftp.Response.StatusCode.CONNECITON_LOST ||
+                e.statusCode == net.schmizz.sshj.sftp.Response.StatusCode.UNKNOWN
+        } else {
+            true
+        }
+
         private fun mkdirAll(sftp: SFTPClient, path: String) {
             val parts = path.split("/").filter { it.isNotEmpty() }
             var currentPath = if (path.startsWith("/")) "/" else ""
@@ -257,7 +282,12 @@ class SftpBlobStorage private constructor(
             try {
                 block(sftp)
             } catch (e: IOException) {
-                // Connection might be lost, close and retry once
+                // Only reconnect+replay on a genuine connection loss. An operation-level SFTPException
+                // (permission denied, no-such-file, failure) is not fixed by reconnecting, and replaying
+                // the block would pointlessly re-run the op (and, for putBlob, orphan a temp file).
+                if (!isSftpConnectionError(e)) {
+                    throw e
+                }
                 closeCachedConnection()
                 val newSftp = getOrCreateSftpClient()
                 block(newSftp)
@@ -540,6 +570,10 @@ class SftpBlobStorage private constructor(
         if (readOnly) {
             throw IllegalStateException("Storage is read-only")
         }
+        // Compute the temp-file suffix ONCE per call, outside the reconnect-replay block: a retried
+        // attempt then reuses the SAME temp file (reopened with TRUNC) instead of orphaning the first
+        // attempt's temp file on the server.
+        val tempSuffix = ByteArray(TEMP_FILE_RANDOM_SUFFIX_LEN).also { random.nextBytes(it) }.toHexString()
         withSftpClient { sftp ->
             // SFTP doesn't support retention options
             if (options.retentionMode != RetentionMode.NONE) {
@@ -562,10 +596,7 @@ class SftpBlobStorage private constructor(
                 }
             }
 
-            // Generate temp file name
-            val randomSuffix = ByteArray(TEMP_FILE_RANDOM_SUFFIX_LEN)
-            random.nextBytes(randomSuffix)
-            val tempFile = "$fullPath.tmp.${randomSuffix.toHexString()}"
+            val tempFile = "$fullPath.tmp.$tempSuffix"
 
             try {
                 // Ensure parent directory exists

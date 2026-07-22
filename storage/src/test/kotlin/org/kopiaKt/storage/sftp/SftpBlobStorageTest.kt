@@ -768,4 +768,45 @@ class SftpBlobStorageTest {
             assertThat(ssh.timeout).isEqualTo(defaultSocket)
         }
     }
+
+    @Nested
+    @DisplayName("connection error classification")
+    inner class ConnectionErrorClassificationTests {
+
+        @Test
+        fun `connection-loss SFTP statuses are treated as connection errors`() {
+            assertThat(
+                SftpBlobStorage.isSftpConnectionError(SFTPException(Response.StatusCode.NO_CONNECTION, "x")),
+            ).isTrue()
+            assertThat(
+                SftpBlobStorage.isSftpConnectionError(SFTPException(Response.StatusCode.CONNECITON_LOST, "x")),
+            ).isTrue()
+        }
+
+        @Test
+        fun `a wrapped transport failure (SFTPException with UNKNOWN status) is a connection error`() {
+            // sshj wraps a dead transport / EOF / timeout as an SFTPException with a null status →
+            // getStatusCode() == UNKNOWN. This is the DOMINANT connection-loss shape (servers never send
+            // NO_CONNECTION/CONNECITON_LOST), so it must reconnect+replay. Both real shapes: the
+            // read-side EOF (String ctor) and the chained transport IOException (Throwable ctor).
+            assertThat(SftpBlobStorage.isSftpConnectionError(SFTPException("EOF while reading packet"))).isTrue()
+            assertThat(SftpBlobStorage.isSftpConnectionError(SFTPException(java.io.IOException("reset")))).isTrue()
+        }
+
+        @Test
+        fun `operation-level SFTP errors are NOT connection errors (no reconnect-replay)`() {
+            assertThat(
+                SftpBlobStorage.isSftpConnectionError(SFTPException(Response.StatusCode.NO_SUCH_FILE, "x")),
+            ).isFalse()
+            assertThat(
+                SftpBlobStorage.isSftpConnectionError(SFTPException(Response.StatusCode.PERMISSION_DENIED, "x")),
+            ).isFalse()
+        }
+
+        @Test
+        fun `transport and socket IOExceptions are treated as connection errors`() {
+            assertThat(SftpBlobStorage.isSftpConnectionError(java.io.IOException("broken pipe"))).isTrue()
+            assertThat(SftpBlobStorage.isSftpConnectionError(java.net.SocketException("reset"))).isTrue()
+        }
+    }
 }
