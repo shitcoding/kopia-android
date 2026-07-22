@@ -70,6 +70,16 @@ class S3BlobStorage private constructor(
         private const val CONFIG_NAME = ".storageconfig"
         private const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
+        /** S3 error codes that mean a non-retryable auth failure (bad creds or denied permission). */
+        private val CREDENTIAL_ERROR_CODES = setOf(
+            "InvalidAccessKeyId",
+            "SignatureDoesNotMatch",
+            "AccessDenied",
+            "ExpiredToken",
+            "InvalidToken",
+            "TokenRefreshRequired",
+        )
+
         /**
          * Creates a new S3 blob storage instance.
          *
@@ -381,7 +391,8 @@ class S3BlobStorage private constructor(
 
             client.deleteObject(request)
         } catch (e: NoSuchKeyException) {
-            // Ignore - blob already doesn't exist
+            // Idempotent delete: a missing blob is not an error. (S3 DeleteObject does not actually
+            // throw this, but keep the guard so the contract holds if a backend/mocked client does.)
         } catch (e: S3Exception) {
             if (e.statusCode() != 404) {
                 handleS3Exception(e, blobId)
@@ -460,19 +471,18 @@ class S3BlobStorage private constructor(
     }
 
     private fun handleS3Exception(e: S3Exception, blobId: BlobId): Nothing {
-        val message = e.message ?: ""
+        // Classify by the S3 error CODE, not fragile message-substring matching. NB: AccessDenied may be
+        // a bucket-policy/permission error rather than bad credentials, but both are non-retryable auth
+        // failures, so mapping to InvalidCredentialsException (carrying the original message) is correct
+        // for control flow; the message conveys the real cause.
+        val errorCode = e.awsErrorDetails()?.errorCode().orEmpty()
 
-        // Check for invalid credentials
-        if (message.contains("InvalidAccessKeyId", ignoreCase = true) ||
-            message.contains("SignatureDoesNotMatch", ignoreCase = true) ||
-            message.contains("AccessDenied", ignoreCase = true) ||
-            message.contains("ExpiredToken", ignoreCase = true)
-        ) {
-            throw InvalidCredentialsException(message)
+        if (errorCode in CREDENTIAL_ERROR_CODES) {
+            throw InvalidCredentialsException(e.message ?: errorCode)
         }
 
         // Check for not found
-        if (e.statusCode() == 404) {
+        if (e.statusCode() == 404 || errorCode == "NoSuchKey" || errorCode == "NoSuchBucket") {
             throw BlobNotFoundException(blobId)
         }
 

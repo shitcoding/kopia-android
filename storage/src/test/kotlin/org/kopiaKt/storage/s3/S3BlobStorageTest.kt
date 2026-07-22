@@ -20,6 +20,7 @@ import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.core.sync.ResponseTransformer
@@ -298,7 +299,8 @@ class S3BlobStorageTest {
             every {
                 mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
             } throws S3Exception.builder()
-                .message("InvalidAccessKeyId")
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("InvalidAccessKeyId").build())
+                .message("The AWS Access Key Id you provided does not exist in our records")
                 .statusCode(403)
                 .build()
 
@@ -330,7 +332,8 @@ class S3BlobStorageTest {
             every {
                 mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
             } throws S3Exception.builder()
-                .message("ExpiredToken")
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("ExpiredToken").build())
+                .message("The provided token has expired")
                 .statusCode(403)
                 .build()
 
