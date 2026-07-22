@@ -3,7 +3,6 @@
 package org.kopiaKt.storage.filesystem
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -33,12 +32,8 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
         return FilesystemBlobStorage.create(storageDir!!)
     }
 
+    // cleanupStorage is invoked by the contract base's @AfterEach after every test.
     override fun cleanupStorage(storage: BlobStorage) {
-        storageDir?.deleteRecursively()
-    }
-
-    @AfterEach
-    fun cleanup() {
         storageDir?.takeIf { it.exists() }?.deleteRecursively()
     }
 

@@ -16,6 +16,8 @@ import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobNotFoundException
+import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.blob.BlobStorageContractTest
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
@@ -336,5 +338,65 @@ class WebDavBlobStorageIntegrationTest {
         s.close()
         // Storage is closed, don't use it after this
         storage = null
+    }
+}
+
+/**
+ * Runs the full [BlobStorageContractTest] suite against a real WebDAV server (bytemark/webdav via
+ * Testcontainers), so WebDAV is held to the same contract as InMemory/Filesystem/S3 instead of a
+ * hand-rolled subset. Tests run serially (PER_CLASS, no parallelism); [cleanupStorage] wipes every
+ * blob and closes the client after each test (invoked by the base class's @AfterEach), so each test
+ * starts against an empty root. The `.shards` control file is not a `.f` blob, so it never shows up in
+ * listBlobs and does not affect the empty-storage assertions.
+ */
+@Tag("integration")
+@Tag("webdav")
+@Testcontainers(disabledWithoutDocker = true)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class WebDavBlobStorageContractIntegrationTest : BlobStorageContractTest() {
+
+    companion object {
+        private const val USERNAME = "testuser"
+        private const val PASSWORD = "testpass"
+
+        @Container
+        @JvmStatic
+        val webdav: GenericContainer<*> = GenericContainer("bytemark/webdav:2.4")
+            .withExposedPorts(80)
+            .withEnv("AUTH_TYPE", "Basic")
+            .withEnv("USERNAME", USERNAME)
+            .withEnv("PASSWORD", PASSWORD)
+            .waitingFor(
+                HttpWaitStrategy()
+                    .forPath("/")
+                    .forPort(80)
+                    .forStatusCode(401),
+            )
+    }
+
+    override fun createStorage(): BlobStorage = runBlocking {
+        WebDavBlobStorage.create(
+            WebDavOptions(
+                url = "http://${webdav.host}:${webdav.getMappedPort(80)}/",
+                username = USERNAME,
+                password = PASSWORD,
+                atomicWrites = false, // bytemark WebDAV: temp+rename, matching the integration test
+                // (sharding is fixed at [1,3] on create; the option is not honored, so it is omitted.)
+            ),
+            isCreate = true,
+            readOnly = false,
+        )
+    }
+
+    override fun cleanupStorage(storage: BlobStorage) {
+        runBlocking {
+            try {
+                // A failed wipe must surface HERE, attributed to the finishing test: WebDAV reuses one
+                // root, so a silently-skipped wipe would corrupt the NEXT test's exact-count assertions.
+                storage.listBlobs("").toList().forEach { storage.deleteBlob(it.blobId) }
+            } finally {
+                storage.close()
+            }
+        }
     }
 }

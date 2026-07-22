@@ -20,6 +20,8 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.BlobStorage
+import org.kopiaKt.core.blob.BlobStorageContractTest
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -372,6 +374,60 @@ class SftpBlobStorageIntegrationTest {
     private fun writeRemoteFile(raw: SFTPClient, path: String, content: ByteArray) {
         raw.open(path, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC)).use { file ->
             file.write(0, content, 0, content.size)
+        }
+    }
+}
+
+/**
+ * Runs the full [BlobStorageContractTest] suite against a real SFTP server (atmoz/sftp via
+ * Testcontainers), so SFTP is held to the same contract as InMemory/Filesystem/S3 instead of a
+ * hand-rolled subset. Each test gets a fresh isolated upload subdirectory; [cleanupStorage] wipes it
+ * and closes the client after every test (invoked by the base class's @AfterEach).
+ */
+@Tag("integration")
+@Tag("sftp")
+@Testcontainers(disabledWithoutDocker = true)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class SftpBlobStorageContractIntegrationTest : BlobStorageContractTest() {
+
+    companion object {
+        private const val USERNAME = "kopia"
+        private const val PASSWORD = "testpass"
+
+        @Container
+        @JvmStatic
+        val sftp: GenericContainer<*> = GenericContainer("atmoz/sftp:latest")
+            .withExposedPorts(22)
+            .withCommand("$USERNAME:$PASSWORD:::upload")
+            .waitingFor(Wait.forListeningPort())
+    }
+
+    override fun createStorage(): BlobStorage = runBlocking {
+        SftpBlobStorage.create(
+            SftpOptions(
+                // Fresh subdirectory per test → isolation without cross-test cleanup ordering.
+                path = "/upload/contract-${UUID.randomUUID().toString().take(8)}",
+                host = sftp.host,
+                port = sftp.getMappedPort(22),
+                username = USERNAME,
+                password = PASSWORD,
+                // Ephemeral container host key is not in any known_hosts; opt into the insecure
+                // verifier explicitly (test-only; the default fails closed).
+                knownHostsFile = "/dev/null/nonexistent",
+                insecureSkipHostKeyVerification = true,
+            ),
+            isCreate = true,
+        )
+    }
+
+    override fun cleanupStorage(storage: BlobStorage) {
+        runBlocking {
+            try {
+                storage.listBlobs("").toList().forEach { storage.deleteBlob(it.blobId) }
+            } catch (_: Exception) {
+                // best-effort — the container is thrown away after the class anyway
+            }
+            storage.close()
         }
     }
 }

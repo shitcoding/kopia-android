@@ -2,6 +2,7 @@ package org.kopiaKt.core.blob
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,15 +17,22 @@ import org.junit.jupiter.api.assertThrows
  * Contract tests for BlobStorage implementations.
  *
  * Any BlobStorage implementation should pass all these tests.
- * Implementations extend this class and provide their specific storage in [createStorage].
+ * Implementations extend this class and provide their specific storage in [createStorage] and, if the
+ * backend needs teardown (closing clients, deleting buckets/dirs), override [cleanupStorage] — it runs
+ * after every test.
  *
  * These tests verify:
  * - Basic CRUD operations (put, get, delete, list)
  * - Partial reads with offset/length
  * - Metadata retrieval
  * - Edge cases (empty blobs, large blobs, special characters)
- * - Concurrent access safety
  * - Error handling
+ *
+ * NOT covered — an intentional backend divergence: a **zero-length read of a MISSING blob**. S3
+ * short-circuits `getBlob(length = 0)` to an empty array with no server round-trip (so a missing blob
+ * reads as empty), while SFTP and WebDAV verify existence first and throw [BlobNotFoundException].
+ * Kopia never issues a zero-length read against a missing blob, so this is left divergent rather than
+ * forcing S3 into a redundant HEAD; the contract only exercises zero-length reads of *existing* blobs.
  */
 abstract class BlobStorageContractTest {
 
@@ -35,7 +43,8 @@ abstract class BlobStorageContractTest {
     abstract fun createStorage(): BlobStorage
 
     /**
-     * Clean up resources after tests if needed.
+     * Releases resources for [storage] after each test (close clients, delete the bucket/dir). Called
+     * automatically from [tearDown]; the default is a no-op for backends that need no teardown.
      */
     open fun cleanupStorage(storage: BlobStorage) {}
 
@@ -44,6 +53,13 @@ abstract class BlobStorageContractTest {
     @BeforeEach
     fun setUp() {
         storage = createStorage()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        if (::storage.isInitialized) {
+            cleanupStorage(storage)
+        }
     }
 
     @Nested
