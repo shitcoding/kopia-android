@@ -355,7 +355,7 @@ class SftpBlobStorageTest {
                 mockSftpClient.open(capture(tempFileSlot), any<EnumSet<OpenMode>>())
             } returns mockFile
 
-            every { mockSftpClient.rename(any(), any()) } just Runs
+            every { mockSftpClient.rename(any(), any(), any()) } just Runs
 
             storage.putBlob(blobId, data)
 
@@ -363,7 +363,7 @@ class SftpBlobStorageTest {
             assertThat(tempFileSlot.captured).startsWith("$basePath/new.f.tmp.")
             verify { mockFile.write(0, data, 0, data.size) }
             verify { mockFile.close() }
-            verify { mockSftpClient.rename(any(), "$basePath/new.f") }
+            verify { mockSftpClient.rename(any(), "$basePath/new.f", any()) }
         }
 
         @Test
@@ -383,7 +383,7 @@ class SftpBlobStorageTest {
                 mockSftpClient.open(any<String>(), any<EnumSet<OpenMode>>())
             } returns mockFile
 
-            every { mockSftpClient.rename(any(), any()) } just Runs
+            every { mockSftpClient.rename(any(), any(), any()) } just Runs
 
             storage.putBlob(blobId, data)
 
@@ -434,7 +434,7 @@ class SftpBlobStorageTest {
                 mockSftpClient.open(any<String>(), any<EnumSet<OpenMode>>())
             } returns mockFile
 
-            every { mockSftpClient.rename(any(), any()) } just Runs
+            every { mockSftpClient.rename(any(), any(), any()) } just Runs
             every { mockSftpClient.setattr(any<String>(), any()) } just Runs
 
             storage.putBlob(blobId, data, PutBlobOptions(setModTime = modTime))
@@ -645,13 +645,13 @@ class SftpBlobStorageTest {
             every {
                 mockSftpClient.open(capture(tempFileSlot), any<EnumSet<OpenMode>>())
             } returns mockFile
-            every { mockSftpClient.rename(any(), any()) } just Runs
+            every { mockSftpClient.rename(any(), any(), any()) } just Runs
 
             storage.putBlob(blobId, data)
 
             // Temp file should be at root, not sharded
             assertThat(tempFileSlot.captured).startsWith("$basePath/short.f.tmp.")
-            verify { mockSftpClient.rename(any(), "$basePath/short.f") }
+            verify { mockSftpClient.rename(any(), "$basePath/short.f", any()) }
         }
 
         @Test
@@ -673,7 +673,7 @@ class SftpBlobStorageTest {
             every {
                 mockSftpClient.open(capture(tempFileSlot), any<EnumSet<OpenMode>>())
             } returns mockFile
-            every { mockSftpClient.rename(any(), any()) } just Runs
+            every { mockSftpClient.rename(any(), any(), any()) } just Runs
 
             storage.putBlob(blobId, data)
 

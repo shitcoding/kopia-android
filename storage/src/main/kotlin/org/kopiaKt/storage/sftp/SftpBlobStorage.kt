@@ -10,6 +10,7 @@ import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.sftp.FileAttributes
 import net.schmizz.sshj.sftp.OpenMode
 import net.schmizz.sshj.sftp.RemoteFile
+import net.schmizz.sshj.sftp.RenameFlags
 import net.schmizz.sshj.sftp.SFTPClient
 import net.schmizz.sshj.sftp.SFTPException
 import net.schmizz.sshj.transport.verification.FingerprintVerifier
@@ -571,8 +572,12 @@ class SftpBlobStorage private constructor(
                     file.write(0, data, 0, data.size)
                 }
 
-                // Rename temp file to final location (atomic)
-                sftp.rename(tempFile, fullPath)
+                // Rename temp file to final location (atomic). OVERWRITE is required: a plain
+                // SSH_FXP_RENAME (no flags) is rejected by OpenSSH's sftp-server when the target
+                // already exists (SFTP v3 link()→EEXIST), so overwriting an existing blob would fail.
+                // sshj maps OVERWRITE to the posix-rename@openssh.com extension on a v3 server, which
+                // replaces atomically — matching Go kopia's use of PosixRename here.
+                sftp.rename(tempFile, fullPath, EnumSet.of(RenameFlags.OVERWRITE))
 
                 // Set modification time if requested
                 options.setModTime?.let { modTime ->
