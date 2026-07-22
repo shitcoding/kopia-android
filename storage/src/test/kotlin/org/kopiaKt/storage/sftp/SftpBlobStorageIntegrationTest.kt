@@ -4,6 +4,10 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import net.schmizz.sshj.SSHClient
+import net.schmizz.sshj.sftp.OpenMode
+import net.schmizz.sshj.sftp.SFTPClient
+import net.schmizz.sshj.transport.verification.PromiscuousVerifier
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.BeforeEach
@@ -21,6 +25,7 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.EnumSet
 import java.util.UUID
 
 /**
@@ -58,6 +63,7 @@ class SftpBlobStorageIntegrationTest {
     private fun sftpOptions(
         path: String = "/home/$USERNAME/upload/$testPrefix",
         password: String = PASSWORD,
+        directoryShards: List<Int>? = null,
     ) = SftpOptions(
         path = path,
         host = sftp.host,
@@ -68,7 +74,7 @@ class SftpBlobStorageIntegrationTest {
         // so opt into the insecure verifier explicitly (test-only; the default now fails closed).
         knownHostsFile = "/dev/null/nonexistent",
         insecureSkipHostKeyVerification = true,
-        directoryShards = listOf(1, 3),
+        directoryShards = directoryShards,
     )
 
     @BeforeEach
@@ -279,6 +285,93 @@ class SftpBlobStorageIntegrationTest {
                     isCreate = false,
                 )
             }
+        }
+    }
+
+    @Test
+    @Order(15)
+    @DisplayName("honors a flat (unsharded) repo's .shards file when opening")
+    fun open_honorsFlatShardsFile() = runTest {
+        // A repo created by e.g. `kopia repository create sftp --flat` writes .shards={"default":[]}
+        // and stores blobs UNSHARDED at the repository root. create(isCreate=false) MUST read that
+        // .shards and honor it; otherwise it assumes [1,3] sharding, computes x/n0_/… and finds
+        // nothing — silently opening an EMPTY view of a real repo (BlobNotFoundException per blob).
+        val flatPath = "/home/$USERNAME/upload/flat-${UUID.randomUUID().toString().take(8)}"
+        // >20 chars, so it WOULD be sharded under the default [1,3]; must be found at the root instead.
+        val blobId = "xn0_abcdef0123456789abcdef0123"
+        val payload = "flat-layout blob content".toByteArray()
+
+        withRawSftp { raw ->
+            raw.mkdirs(flatPath)
+            writeRemoteFile(raw, "$flatPath/.shards", """{"default":[],"maxNonShardedLength":20}""".toByteArray())
+            writeRemoteFile(raw, "$flatPath/$blobId.f", payload)
+        }
+
+        val flatStorage = SftpBlobStorage.create(sftpOptions(path = flatPath), isCreate = false)
+        try {
+            assertArrayEquals(payload, flatStorage.getBlob(BlobId(blobId)))
+        } finally {
+            flatStorage.close()
+        }
+    }
+
+    @Test
+    @Order(16)
+    @DisplayName("opens a legacy repo with no .shards using Go's [3,3] fallback")
+    fun open_legacyRepoWithoutShards_usesThreeThreeFallback() = runTest {
+        // A legacy repo has NO .shards file. Go lays such a repo out with [3,3] on open, so a blob
+        // id "abc..." lives at abc/def/…. Kotlin must fall back to [3,3] (not [1,3], which would look
+        // under a/bcd/… and read the repo empty). Guards the dead-[3,3]-fallback regression.
+        val legacyPath = "/home/$USERNAME/upload/legacy-${UUID.randomUUID().toString().take(8)}"
+        val blobId = "abcdefghij0123456789klmno" // 25 chars → sharded under [3,3] as abc/def/rest
+        val payload = "legacy [3,3] blob".toByteArray()
+
+        withRawSftp { raw ->
+            raw.mkdirs("$legacyPath/abc/def")
+            writeRemoteFile(raw, "$legacyPath/abc/def/ghij0123456789klmno.f", payload)
+        }
+
+        // directoryShards left unset (null) → open resolves the Go legacy [3,3] fallback.
+        val legacy = SftpBlobStorage.create(sftpOptions(path = legacyPath), isCreate = false)
+        try {
+            assertArrayEquals(payload, legacy.getBlob(BlobId(blobId)))
+        } finally {
+            legacy.close()
+        }
+    }
+
+    @Test
+    @Order(17)
+    @DisplayName("throws when opening a repo whose .shards is present but unparseable")
+    fun open_corruptShards_throws() = runTest {
+        // A present-but-corrupt .shards must fail loud, not silently fall back to a guessed layout.
+        val corruptPath = "/home/$USERNAME/upload/corrupt-${UUID.randomUUID().toString().take(8)}"
+        withRawSftp { raw ->
+            raw.mkdirs(corruptPath)
+            writeRemoteFile(raw, "$corruptPath/.shards", "this is not valid json {".toByteArray())
+        }
+
+        assertThrows<Exception> {
+            runBlocking { SftpBlobStorage.create(sftpOptions(path = corruptPath), isCreate = false) }
+        }
+    }
+
+    /** Opens a raw sshj SFTP client to the test container to lay down an arbitrary on-disk layout. */
+    private fun withRawSftp(block: (SFTPClient) -> Unit) {
+        val ssh = SSHClient()
+        ssh.addHostKeyVerifier(PromiscuousVerifier())
+        ssh.connect(sftp.host, sftp.getMappedPort(22))
+        try {
+            ssh.authPassword(USERNAME, PASSWORD)
+            ssh.newSFTPClient().use(block)
+        } finally {
+            ssh.disconnect()
+        }
+    }
+
+    private fun writeRemoteFile(raw: SFTPClient, path: String, content: ByteArray) {
+        raw.open(path, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC)).use { file ->
+            file.write(0, content, 0, content.size)
         }
     }
 }

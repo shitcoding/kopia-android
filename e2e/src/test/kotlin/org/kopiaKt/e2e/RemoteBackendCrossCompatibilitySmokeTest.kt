@@ -413,6 +413,72 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
         }
 
         @Test
+        @DisplayName("Go creates FLAT (unsharded) snapshot on SFTP, Kotlin reads and restores")
+        fun sftp_goCreatesFlat_kotlinReads_snapshotSmoke() = runTest(timeout = 5.minutes) {
+            requireGoKopia()
+            requireDocker()
+
+            val sftp = startSftpContainer()
+            val port = sftp.getMappedPort(22)
+
+            val knownHostsFile = testDir.resolve("known_hosts")
+            writePermissiveKnownHosts(knownHostsFile, port)
+
+            testDataGenerator.createSimpleDirectory(sourceDir)
+
+            // `--flat` makes Go write `.shards={"default":[]}` and store blobs UNSHARDED at the repo
+            // root. Kotlin must read that `.shards` and honor the flat layout; otherwise it assumes
+            // [1,3] sharding, computes x/n0_/… paths, finds nothing and opens an empty repo.
+            // Regression guard for task-23.1.
+            cliRunner.run(
+                "repository", "create", "sftp",
+                "--path=/upload/repo",
+                "--host=localhost",
+                "--port=$port",
+                "--username=testuser",
+                "--sftp-password=testpass",
+                "--known-hosts=${knownHostsFile.absolutePathString()}",
+                "--password=$testPassword",
+                "--flat",
+            ).requireSuccess()
+
+            cliRunner.snapshotCreate(sourceDir)
+            cliRunner.repositoryDisconnect()
+
+            val storage = createSftpStorage("localhost", port, "/upload/repo")
+            blobStorages.add(storage)
+
+            val repo = DirectRepositoryImpl.open(storage, testPassword)
+            autoCloseables.add(repo)
+
+            val manifests = repo.findManifests(
+                mapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT),
+            )
+            assertThat(manifests).isNotEmpty()
+
+            val (manifest, _) = repo.getManifest(
+                manifests.first().id,
+                SnapshotManifest.serializer(),
+            )
+            assertThat(manifest.rootEntry).isNotNull()
+
+            val rootEntry = snapshotRoot(repo, manifest)
+            val output = createRestoreOutput(restoreDir)
+            val restorer = SnapshotRestorer(
+                output = output,
+                options = RestoreOptions(parallel = 1),
+            )
+            val stats = restorer.restore(rootEntry)
+            assertThat(stats.ignoredErrorCount).isEqualTo(0)
+            assertThat(stats.restoredFileCount).isGreaterThan(0)
+
+            val comparison = compareDirectories(sourceDir, restoreDir)
+            if (!comparison.identical) {
+                throw AssertionError("SFTP Go(flat)->Kotlin restore mismatch: $comparison")
+            }
+        }
+
+        @Test
         @DisplayName("Kotlin creates snapshot on SFTP, Go reads and restores")
         fun sftp_kotlinCreates_goReads_snapshotSmoke() = runTest(timeout = 5.minutes) {
             requireGoKopia()

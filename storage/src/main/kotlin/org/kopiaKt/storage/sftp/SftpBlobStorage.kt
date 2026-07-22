@@ -26,6 +26,7 @@ import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.security.PublicKey
@@ -51,7 +52,7 @@ import java.util.EnumSet
 class SftpBlobStorage private constructor(
     private val options: SftpOptions,
     private val readOnly: Boolean,
-    private val directoryShards: List<Int>,
+    private val shardsConfig: SftpShardsConfig,
 ) : BlobStorage {
 
     companion object {
@@ -59,6 +60,13 @@ class SftpBlobStorage private constructor(
         private const val COMPLETE_BLOB_SUFFIX = ".f"
         private const val TEMP_FILE_RANDOM_SUFFIX_LEN = 8
         private const val MAX_NON_SHARDED_LENGTH = 20
+        private const val SHARDS_FILE = ".shards"
+
+        /** Upper bound on a `.shards` file we will read into memory (it is a tiny JSON blob). */
+        private const val MAX_SHARDS_FILE_BYTES = 64 * 1024
+
+        /** Chunk size for reading the (small) `.shards` file to EOF. */
+        private const val READ_CHUNK_BYTES = 8 * 1024
 
         /** Maximum directory recursion depth to prevent infinite loops (mirrors WebDAV). */
         private const val MAX_WALK_DEPTH = 10
@@ -90,28 +98,46 @@ class SftpBlobStorage private constructor(
             isCreate: Boolean = false,
             readOnly: Boolean = false,
         ): SftpBlobStorage = withContext(Dispatchers.IO) {
-            val directoryShards = if (isCreate) {
-                listOf(1, 3)
-            } else {
-                options.directoryShards.ifEmpty { listOf(3, 3) }
-            }
+            // Fallback layout used ONLY when the repo has no `.shards` file (legacy). Go parity:
+            // create → [1,3], open → [3,3]; a caller-supplied list (incl. empty = flat) wins.
+            val fallback = SftpShardsConfig(
+                default = SftpSharding.fallbackShards(isCreate, options.directoryShards),
+            )
 
-            val storage = SftpBlobStorage(options, readOnly, directoryShards)
+            // Bootstrap: ensure the root exists and read the repo's authoritative `.shards`. The repo's
+            // `.shards` is the source of truth for its on-disk layout — including a flat (unsharded)
+            // repo whose default is []. Ignoring it computes wrong paths and reads the repo as empty.
+            val bootstrap = SftpBlobStorage(options, readOnly, fallback)
+            val resolved = try {
+                bootstrap.withSftpClient { sftp ->
+                    try {
+                        sftp.stat(options.path)
+                    } catch (e: SFTPException) {
+                        if (isNotExist(e)) mkdirAll(sftp, options.path) else throw e
+                    }
 
-            // Verify connection and create root path if needed
-            storage.withSftpClient { sftp ->
-                try {
-                    sftp.stat(options.path)
-                } catch (e: SFTPException) {
-                    if (isNotExist(e)) {
-                        mkdirAll(sftp, options.path)
-                    } else {
-                        throw e
+                    readShardsConfig(sftp, options.path) ?: run {
+                        // No `.shards` yet — persist ours only when legitimately creating the repo, so
+                        // merely opening an existing (legacy) repo never mutates it. Fail loud if the
+                        // create-time write fails: a repo without `.shards` is a latent Go-compat hazard
+                        // (Go would infer a different layout for it).
+                        if (!readOnly && isCreate) {
+                            writeShardsConfig(sftp, options.path, fallback)
+                        }
+                        fallback
                     }
                 }
+            } catch (t: Throwable) {
+                // Nothing else owns the bootstrap's open connection on the failure path — close it.
+                bootstrap.close()
+                throw t
             }
 
-            storage
+            // Build the storage with the resolved sharding, reusing the already-open connection.
+            SftpBlobStorage(options, readOnly, resolved).also {
+                it.cachedSshClient = bootstrap.cachedSshClient
+                it.cachedSftpClient = bootstrap.cachedSftpClient
+            }
         }
 
         /**
@@ -123,7 +149,12 @@ class SftpBlobStorage private constructor(
             sftpClient: SFTPClient,
             readOnly: Boolean = false,
             directoryShards: List<Int> = listOf(1, 3),
-        ): SftpBlobStorage = SftpBlobStorage(options, readOnly, directoryShards).apply {
+            maxNonShardedLength: Int = MAX_NON_SHARDED_LENGTH,
+        ): SftpBlobStorage = SftpBlobStorage(
+            options,
+            readOnly,
+            SftpShardsConfig(default = directoryShards, maxNonShardedLength = maxNonShardedLength),
+        ).apply {
             this.cachedSshClient = sshClient
             this.cachedSftpClient = sftpClient
         }
@@ -157,6 +188,51 @@ class SftpBlobStorage private constructor(
                     }
                 }
             }
+        }
+
+        /**
+         * Reads and parses the repo's `.shards` file. Returns null ONLY when the file does not exist
+         * (a legacy repo → caller falls back). A file that exists but is blank or unparseable THROWS:
+         * silently guessing the layout would reintroduce the wrong-path / empty-repo bug for a
+         * content-addressed store. The whole (tiny) file is read to EOF rather than trusting a reported
+         * length, since some SFTP servers report length 0.
+         */
+        private fun readShardsConfig(sftp: SFTPClient, path: String): SftpShardsConfig? {
+            val shardsPath = "$path/$SHARDS_FILE"
+            val content = try {
+                sftp.open(shardsPath, EnumSet.of(OpenMode.READ)).use { file ->
+                    readToEnd(file, shardsPath)
+                }
+            } catch (e: SFTPException) {
+                if (isNotExist(e)) return null else throw e
+            }
+            if (content.isBlank()) {
+                throw IOException("$SHARDS_FILE at $shardsPath exists but is empty")
+            }
+            return SftpSharding.parse(content)
+        }
+
+        /** Reads [file] fully to EOF (not trusting its reported length), capped at [MAX_SHARDS_FILE_BYTES]. */
+        private fun readToEnd(file: RemoteFile, shardsPath: String): String {
+            val buffer = ByteArray(READ_CHUNK_BYTES)
+            val out = ByteArrayOutputStream()
+            var offset = 0L
+            while (true) {
+                val read = file.read(offset, buffer, 0, buffer.size)
+                if (read <= 0) break
+                out.write(buffer, 0, read)
+                offset += read
+                if (out.size() > MAX_SHARDS_FILE_BYTES) {
+                    throw IOException("$SHARDS_FILE at $shardsPath exceeds $MAX_SHARDS_FILE_BYTES bytes")
+                }
+            }
+            return out.toString(Charsets.UTF_8)
+        }
+
+        private fun writeShardsConfig(sftp: SFTPClient, path: String, config: SftpShardsConfig) {
+            val bytes = SftpSharding.encode(config).toByteArray(Charsets.UTF_8)
+            sftp.open("$path/$SHARDS_FILE", EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC))
+                .use { file -> file.write(0, bytes, 0, bytes.size) }
         }
     }
 
@@ -581,42 +657,15 @@ class SftpBlobStorage private constructor(
     }
 
     /**
-     * Gets the sharded path components for a blob ID.
-     */
-    private fun getShardedPath(blobId: BlobId): Pair<String, String> {
-        var id = blobId.value
-        var shardPath = ""
-
-        // Short blob IDs are not sharded
-        if (id.length <= MAX_NON_SHARDED_LENGTH) {
-            return Pair(shardPath, id)
-        }
-
-        for (size in directoryShards) {
-            if (id.length <= size) {
-                break
-            }
-            shardPath = if (shardPath.isEmpty()) {
-                id.substring(0, size)
-            } else {
-                "$shardPath/${id.substring(0, size)}"
-            }
-            id = id.substring(size)
-        }
-
-        return Pair(shardPath, id)
-    }
-
-    /**
      * Gets the directory path for a blob (relative to root).
      */
-    private fun getDirPath(blobId: BlobId): String = getShardedPath(blobId).first
+    private fun getDirPath(blobId: BlobId): String = SftpSharding.shardedPath(blobId.value, shardsConfig).first
 
     /**
      * Gets the full file path for a blob (including root path and .f suffix).
      */
     private fun getFullPath(blobId: BlobId): String {
-        val (dirPath, remainingId) = getShardedPath(blobId)
+        val (dirPath, remainingId) = SftpSharding.shardedPath(blobId.value, shardsConfig)
         val fileName = "$remainingId$COMPLETE_BLOB_SUFFIX"
         return if (dirPath.isEmpty()) {
             "${options.path}/$fileName"

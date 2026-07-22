@@ -92,10 +92,12 @@ data class SftpOptions(
     val sshArguments: String = "",
 
     /**
-     * Directory sharding configuration.
-     * Defaults to [1, 3] for new repos, [3, 3] for existing.
+     * Directory sharding to force when the repo has NO `.shards` file. Mirrors Go's nullable
+     * `DirectoryShards`: `null` (unset, the default) means "infer" — `[1,3]` when creating, Go's legacy
+     * `[3,3]` when opening — while an explicit list (including an empty list = flat) is used verbatim.
+     * When the repo DOES have a `.shards` file, that file wins and this is ignored.
      */
-    val directoryShards: List<Int> = listOf(1, 3),
+    val directoryShards: List<Int>? = null,
 
     /**
      * Parallelism for listing operations.
