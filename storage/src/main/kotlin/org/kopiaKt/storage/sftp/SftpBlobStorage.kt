@@ -69,6 +69,13 @@ class SftpBlobStorage private constructor(
         /** Chunk size for reading the (small) `.shards` file to EOF. */
         private const val READ_CHUNK_BYTES = 8 * 1024
 
+        /**
+         * Max bytes per SSH_FXP_WRITE. A single write of a whole multi-hundred-KB+ blob exceeds the
+         * SFTP server's max packet and stalls, so writes are split into chunks (matches Go's SFTP
+         * client, whose default maxPacket is also 32 KiB).
+         */
+        private const val WRITE_CHUNK_BYTES = 32 * 1024
+
         /** Maximum directory recursion depth to prevent infinite loops (mirrors WebDAV). */
         private const val MAX_WALK_DEPTH = 10
 
@@ -567,9 +574,17 @@ class SftpBlobStorage private constructor(
                     ensureDirectoryExists(sftp, fullDirPath)
                 }
 
-                // Write to temp file
+                // Write to temp file in bounded chunks: a single SSH_FXP_WRITE of a whole large blob
+                // exceeds the SFTP server's max packet and stalls (the contract's 1 MiB blob hung),
+                // so cap each write at WRITE_CHUNK_BYTES. An empty blob writes zero chunks (CREAT still
+                // makes the file).
                 sftp.open(tempFile, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC)).use { file ->
-                    file.write(0, data, 0, data.size)
+                    var written = 0
+                    while (written < data.size) {
+                        val chunk = minOf(WRITE_CHUNK_BYTES, data.size - written)
+                        file.write(written.toLong(), data, written, chunk)
+                        written += chunk
+                    }
                 }
 
                 // Rename temp file to final location (atomic). OVERWRITE is required: a plain
