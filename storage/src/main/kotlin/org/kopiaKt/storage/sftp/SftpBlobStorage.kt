@@ -71,6 +71,8 @@ class SftpBlobStorage private constructor(
         /** Maximum directory recursion depth to prevent infinite loops (mirrors WebDAV). */
         private const val MAX_WALK_DEPTH = 10
 
+        private val LOGGER = java.util.logging.Logger.getLogger(SftpBlobStorage::class.java.name)
+
         /**
          * Applies the connect and socket-read timeouts from [options] to a freshly-created SSH client,
          * before it connects. Kept as a separate helper so the timeout wiring is unit-testable without
@@ -465,7 +467,10 @@ class SftpBlobStorage private constructor(
     ) {
         // Bound recursion so a server-side symlink cycle can't StackOverflow the walk (mirrors
         // WebDAV). Real repos are only 1-2 shard levels deep, so the cap is never hit legitimately.
-        if (depth > MAX_WALK_DEPTH) return
+        if (depth > MAX_WALK_DEPTH) {
+            LOGGER.warning("SFTP listing truncated at depth $MAX_WALK_DEPTH under $dirPath (possible cycle)")
+            return
+        }
 
         try {
             val entries = sftp.ls(dirPath)

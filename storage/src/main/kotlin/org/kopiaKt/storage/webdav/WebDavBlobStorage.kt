@@ -59,6 +59,8 @@ class WebDavBlobStorage private constructor(
         /** Maximum directory recursion depth to prevent infinite loops. */
         private const val MAX_WALK_DEPTH = 10
 
+        private val LOGGER = java.util.logging.Logger.getLogger(WebDavBlobStorage::class.java.name)
+
         /** RFC 1123 date format used by HTTP Last-Modified headers */
         private val HTTP_DATE_FORMAT: DateTimeFormatter =
             DateTimeFormatter.RFC_1123_DATE_TIME
@@ -282,7 +284,10 @@ class WebDavBlobStorage private constructor(
         results: MutableList<BlobMetadata>,
         depth: Int,
     ) {
-        if (depth > MAX_WALK_DEPTH) return
+        if (depth > MAX_WALK_DEPTH) {
+            LOGGER.warning("WebDAV listing truncated at depth $MAX_WALK_DEPTH under $dirUrl (possible cycle)")
+            return
+        }
 
         try {
             val resources = client.list(dirUrl, 1) // Depth 1 to list immediate children
