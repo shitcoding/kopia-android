@@ -245,7 +245,7 @@ class WebDavBlobStorage private constructor(
             BlobMetadata(
                 blobId = blobId,
                 length = resource.contentLength,
-                timestamp = parseLastModified(resource.lastModified) ?: Instant.now(),
+                timestamp = resolveTimestamp(resource.lastModified, blobId.value),
             )
         } catch (e: WebDavException) {
             if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -343,7 +343,7 @@ class WebDavBlobStorage private constructor(
                             BlobMetadata(
                                 blobId = BlobId(fullBlobId),
                                 length = resource.contentLength,
-                                timestamp = parseLastModified(resource.lastModified) ?: Instant.now(),
+                                timestamp = resolveTimestamp(resource.lastModified, fullBlobId),
                             ),
                         )
                     }
@@ -587,6 +587,22 @@ class WebDavBlobStorage private constructor(
         } catch (_: DateTimeParseException) {
             null
         }
+    }
+
+    /**
+     * Resolves a blob's timestamp from the server's Last-Modified header, falling back to
+     * [Instant.now] when it is absent or unparseable.
+     *
+     * `now()` is a deliberate, conservative choice: a fabricated "just now" makes the blob look
+     * *young* to age-based maintenance, so it is never prematurely reaped, whereas a zero/epoch
+     * sentinel would look ancient and could be deleted early. The fallback is logged (not silent)
+     * because it means the server omitted a timestamp — rare, since WebDAV `getlastmodified` is
+     * near-universal, but worth surfacing since fabricated times feed maintenance.
+     */
+    private fun resolveTimestamp(lastModified: String?, blobId: String): Instant {
+        parseLastModified(lastModified)?.let { return it }
+        LOGGER.fine("WebDAV blob $blobId has no parseable Last-Modified; using current time for maintenance")
+        return Instant.now()
     }
 
     private fun handleWebDavException(e: WebDavException, blobId: BlobId): Nothing {

@@ -4,6 +4,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,10 +32,13 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectResponse
 import software.amazon.awssdk.services.s3.model.S3Exception
+import software.amazon.awssdk.services.s3.model.S3Object
 import java.time.Instant
 
 /**
@@ -263,6 +267,31 @@ class S3BlobStorageTest {
 
             // Should not throw
             storage.deleteBlob(blobId)
+        }
+    }
+
+    @Nested
+    @DisplayName("listBlobs")
+    inner class ListBlobsTests {
+
+        @Test
+        fun `skips only the exact storage-config key, not blob ids ending in storageconfig`() = runTest {
+            val now = Instant.now()
+            val response = ListObjectsV2Response.builder()
+                .contents(
+                    // The real storage-config file at the prefix root — must be skipped.
+                    S3Object.builder().key("$testPrefix.storageconfig").size(10L).lastModified(now).build(),
+                    // A blob whose id merely ENDS in ".storageconfig" — must NOT be skipped.
+                    S3Object.builder().key("${testPrefix}p00.storageconfig").size(20L).lastModified(now).build(),
+                    S3Object.builder().key("${testPrefix}pdeadbeef").size(30L).lastModified(now).build(),
+                )
+                .isTruncated(false)
+                .build()
+            every { mockClient.listObjectsV2(any<ListObjectsV2Request>()) } returns response
+
+            val ids = storage.listBlobs("").toList().map { it.blobId.value }
+
+            assertEquals(listOf("p00.storageconfig", "pdeadbeef"), ids)
         }
     }
 

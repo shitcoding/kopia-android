@@ -302,9 +302,11 @@ class S3BlobStorage private constructor(
             for (obj in response.contents()) {
                 val key = obj.key()
                 val blobIdStr = key.removePrefix(options.prefix)
-                // Skip the storage config file and any directory-marker / prefix-equal key whose
-                // stripped id would be empty (BlobId rejects an empty value).
-                if (key.endsWith(CONFIG_NAME) || blobIdStr.isEmpty()) {
+                // Skip the storage config file (its stripped id is exactly CONFIG_NAME — an
+                // endsWith() check would also drop a legitimate blob whose id happens to end in
+                // ".storageconfig") and any directory-marker / prefix-equal key whose stripped id
+                // would be empty (BlobId rejects an empty value).
+                if (blobIdStr == CONFIG_NAME || blobIdStr.isEmpty()) {
                     continue
                 }
                 emit(
@@ -333,7 +335,11 @@ class S3BlobStorage private constructor(
             throw UnsupportedPutOptionException("setModTime")
         }
 
-        // Check if blob exists when dontOverwrite is set
+        // Honor dontOverwrite with a HEAD-then-PUT existence check. This is technically racy, but
+        // deliberately not upgraded to a conditional If-None-Match:* PUT: a same-blob-id write is the
+        // same writer retrying (identical bytes, so a lost race is harmless), no production path sets
+        // dontOverwrite, and If-None-Match:* is a recent S3 feature that older S3-compatible servers
+        // reject. (Go's S3 backend does not support DoNotRecreate at all.)
         if (options.dontOverwrite) {
             val exists = getBlobMetadata(blobId) != null
             if (exists) {
