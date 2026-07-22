@@ -279,7 +279,9 @@ class S3BlobStorage private constructor(
         do {
             val requestBuilder = ListObjectsV2Request.builder()
                 .bucket(options.bucketName)
-                .prefix(getObjectKey(BlobId(prefix)))
+                // Build the S3 key prefix directly (options.prefix + the blob-id prefix). Must NOT wrap
+                // in BlobId(prefix): a list-all uses an empty prefix, and BlobId rejects an empty value.
+                .prefix(options.prefix + prefix)
 
             if (continuationToken != null) {
                 requestBuilder.continuationToken(continuationToken)
@@ -288,14 +290,13 @@ class S3BlobStorage private constructor(
             val response = client.listObjectsV2(requestBuilder.build())
 
             for (obj in response.contents()) {
-                // Skip the storage config file
                 val key = obj.key()
-                if (key.endsWith(CONFIG_NAME)) {
+                val blobIdStr = key.removePrefix(options.prefix)
+                // Skip the storage config file and any directory-marker / prefix-equal key whose
+                // stripped id would be empty (BlobId rejects an empty value).
+                if (key.endsWith(CONFIG_NAME) || blobIdStr.isEmpty()) {
                     continue
                 }
-
-                // Remove prefix to get blob ID
-                val blobIdStr = key.removePrefix(options.prefix)
                 emit(
                     BlobMetadata(
                         blobId = BlobId(blobIdStr),

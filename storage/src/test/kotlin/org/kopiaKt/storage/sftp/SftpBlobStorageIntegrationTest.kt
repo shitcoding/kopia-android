@@ -61,7 +61,7 @@ class SftpBlobStorageIntegrationTest {
     private val testPrefix = UUID.randomUUID().toString().take(8)
 
     private fun sftpOptions(
-        path: String = "/home/$USERNAME/upload/$testPrefix",
+        path: String = "/upload/$testPrefix",
         password: String = PASSWORD,
         directoryShards: List<Int>? = null,
     ) = SftpOptions(
@@ -263,7 +263,7 @@ class SftpBlobStorageIntegrationTest {
     @Order(13)
     @DisplayName("create with isCreate=true creates remote directory")
     fun create_withIsCreate_createsRemoteDirectory() = runTest {
-        val uniquePath = "/home/$USERNAME/upload/test-${UUID.randomUUID().toString().take(8)}"
+        val uniquePath = "/upload/test-${UUID.randomUUID().toString().take(8)}"
         val s = SftpBlobStorage.create(
             sftpOptions(path = uniquePath),
             isCreate = true,
@@ -296,7 +296,7 @@ class SftpBlobStorageIntegrationTest {
         // and stores blobs UNSHARDED at the repository root. create(isCreate=false) MUST read that
         // .shards and honor it; otherwise it assumes [1,3] sharding, computes x/n0_/… and finds
         // nothing — silently opening an EMPTY view of a real repo (BlobNotFoundException per blob).
-        val flatPath = "/home/$USERNAME/upload/flat-${UUID.randomUUID().toString().take(8)}"
+        val flatPath = "/upload/flat-${UUID.randomUUID().toString().take(8)}"
         // >20 chars, so it WOULD be sharded under the default [1,3]; must be found at the root instead.
         val blobId = "xn0_abcdef0123456789abcdef0123"
         val payload = "flat-layout blob content".toByteArray()
@@ -322,7 +322,7 @@ class SftpBlobStorageIntegrationTest {
         // A legacy repo has NO .shards file. Go lays such a repo out with [3,3] on open, so a blob
         // id "abc..." lives at abc/def/…. Kotlin must fall back to [3,3] (not [1,3], which would look
         // under a/bcd/… and read the repo empty). Guards the dead-[3,3]-fallback regression.
-        val legacyPath = "/home/$USERNAME/upload/legacy-${UUID.randomUUID().toString().take(8)}"
+        val legacyPath = "/upload/legacy-${UUID.randomUUID().toString().take(8)}"
         val blobId = "abcdefghij0123456789klmno" // 25 chars → sharded under [3,3] as abc/def/rest
         val payload = "legacy [3,3] blob".toByteArray()
 
@@ -345,7 +345,7 @@ class SftpBlobStorageIntegrationTest {
     @DisplayName("throws when opening a repo whose .shards is present but unparseable")
     fun open_corruptShards_throws() = runTest {
         // A present-but-corrupt .shards must fail loud, not silently fall back to a guessed layout.
-        val corruptPath = "/home/$USERNAME/upload/corrupt-${UUID.randomUUID().toString().take(8)}"
+        val corruptPath = "/upload/corrupt-${UUID.randomUUID().toString().take(8)}"
         withRawSftp { raw ->
             raw.mkdirs(corruptPath)
             writeRemoteFile(raw, "$corruptPath/.shards", "this is not valid json {".toByteArray())
