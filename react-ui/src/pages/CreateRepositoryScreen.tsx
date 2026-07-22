@@ -16,6 +16,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CleartextWarning } from "@/components/CleartextWarning";
+import { isCleartextUrl } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { useAlgorithms, useCreateRepository, useTestConnection } from "@/hooks/useBackupApi";
 import type { ConnectionConfig, CreateRepositoryRequest, StorageType } from "@/types/kopia";
@@ -211,6 +213,7 @@ const CreateRepositoryScreen = () => {
               <div className="space-y-3">
                 <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-bucket-input" aria-label="S3 bucket" />
                 <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-endpoint-input" aria-label="S3 endpoint" />
+                {isCleartextUrl(s3Endpoint) && <CleartextWarning testId="create-s3-cleartext-warning" />}
                 <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-region-input" aria-label="S3 region" />
                 <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-access-key-input" aria-label="Access key ID" />
                 <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-secret-key-input" aria-label="Secret access key" />
@@ -220,6 +223,7 @@ const CreateRepositoryScreen = () => {
             {storageType === "webdav" && (
               <div className="space-y-3">
                 <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-url-input" aria-label="WebDAV URL" />
+                {isCleartextUrl(webdavUrl) && <CleartextWarning testId="create-webdav-cleartext-warning" />}
                 <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-username-input" aria-label="WebDAV username" />
                 <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-password-input" aria-label="WebDAV password" />
               </div>

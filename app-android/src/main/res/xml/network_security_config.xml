@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext HTTP traffic for user-specified storage backends
-         (local NAS, self-hosted WebDAV/S3/SFTP servers, etc.) -->
+    <!-- Cleartext HTTP is permitted app-wide because storage backends are arbitrary
+         user-specified hosts (a home NAS or self-hosted WebDAV/S3 on a LAN often has no TLS),
+         and Android's network-security-config can only scope cleartext by domain — not by the
+         runtime-entered endpoint. Restricting it here would break those legitimate self-hosted
+         setups. The user-facing control is instead at the app layer: the connect/create UI defaults
+         to https and shows an explicit cleartext warning when a cleartext (http:) endpoint is entered.
+         See the "Cleartext HTTP and TLS posture" ADR (the internal decision records). -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />

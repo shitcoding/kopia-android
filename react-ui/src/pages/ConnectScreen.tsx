@@ -15,6 +15,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CleartextWarning } from "@/components/CleartextWarning";
+import { isCleartextUrl } from "@/lib/format";
 
 type UIStorageType = "local" | "s3" | "webdav" | "sftp";
 
@@ -345,6 +347,7 @@ const ConnectScreen = () => {
               aria-label="S3 endpoint"
               data-testid="s3-endpoint-input"
             />
+            {isCleartextUrl(s3Endpoint) && <CleartextWarning testId="s3-cleartext-warning" />}
             <input
               type="text"
               placeholder="Region"
@@ -411,6 +414,7 @@ const ConnectScreen = () => {
               aria-label="WebDAV URL"
               data-testid="webdav-url-input"
             />
+            {isCleartextUrl(webdavUrl) && <CleartextWarning testId="webdav-cleartext-warning" />}
             <input
               type="text"
               placeholder="Username"

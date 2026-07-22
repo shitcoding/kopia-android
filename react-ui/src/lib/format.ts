@@ -75,3 +75,15 @@ export function parseSourceId(id: string): { userName: string; host: string; pat
   }
   return { userName: id.slice(0, at), host: id.slice(at + 1, colon), path: id.slice(colon + 1) };
 }
+
+/**
+ * True when a storage endpoint/URL will be contacted over plaintext HTTP (http://), meaning
+ * credentials and data travel unencrypted. A scheme-less or empty value is treated as secure: the
+ * S3 backend defaults to https for a bare host, and WebDAV requires an explicit scheme. Used to warn
+ * the user before connecting to a cleartext backend (see the cleartext/TLS posture ADR).
+ */
+export function isCleartextUrl(value: string): boolean {
+  // Match the "http:" scheme prefix, not just "http://": OkHttp's lenient parser also treats
+  // http:/host (single slash) and http:\host as cleartext. "https:" does not start with "http:".
+  return value.trim().toLowerCase().startsWith("http:");
+}
