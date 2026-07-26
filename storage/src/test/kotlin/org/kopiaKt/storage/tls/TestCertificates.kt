@@ -1,0 +1,53 @@
+package org.kopiaKt.storage.tls
+
+/**
+ * Throwaway self-signed certificates used by the TLS-trust tests (private keys were discarded at
+ * generation, so these are inert fixtures — not secrets).
+ */
+object TestCertificates {
+
+    /** Self-signed test certificate, CN=kopia-kt-test-ca. */
+    const val TEST_CERT_PEM = """-----BEGIN CERTIFICATE-----
+MIIDGTCCAgGgAwIBAgIUJGtkwak769M67DpIK/p6g6IUMrgwDQYJKoZIhvcNAQEL
+BQAwGzEZMBcGA1UEAwwQa29waWEta3QtdGVzdC1jYTAgFw0yNjA3MjYxODAwMDda
+GA8yMTI2MDcwMjE4MDAwN1owGzEZMBcGA1UEAwwQa29waWEta3QtdGVzdC1jYTCC
+ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJIs+39PdIgtW4wKSXpdk83t
+xOcGpq0XMtzSSJBc5/jGOzpPh9pzruONDXbCIuxYytoWlNu+Yl08EmHk04NXoBX7
+zCJ0St8jpQdPUwQw7Vprv0SUBDJ98zl5WeeD7NdT7LQ1qeCu1A8LZ8rqhQhhNVua
+/17uBgvEKOMGP3bOlZAP1VOIaKtoEOw9Ho6Wx3WeOy+gzEfUtofUEVUqcHxBrMbc
+H/e0TjqcmD7ipc2AMqdOX+Tddv+N5cKxcbuQ/bifnu98zkuobrd3Ov9dTpG27AaV
++NKNlkdsXNMY15NGoTNL/YLFH3y91syQ1pSJDJ+hCU5API4QQ1u7v/DwQQ0FKIcC
+AwEAAaNTMFEwHQYDVR0OBBYEFLvaj/11phof1o+ieYhFH1jiw59rMB8GA1UdIwQY
+MBaAFLvaj/11phof1o+ieYhFH1jiw59rMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZI
+hvcNAQELBQADggEBAAHsL+3+EHHyLJibCBbLKL18Dlgkp5zPzOtctquW7kf3Bz7N
+mfPP2RMTNdvsiIlQHdm3waL6EW+NBLuuyinIoBLegBOo0FZ2gm/loDK6889+IEtF
+O/W7Rhpd6Viwg1/HXkBe+ELJEGgPII/SYIR2pGAfSSug3qK7Wq0KucibO54YNLO/
+pyOWmOWJWagdemiBmKPNpaKNaF/Ese3axpVNvGYmrwRt19AFvxXyQaZiDi0ruDuu
++hLmqNrh4R4WpyEqCcaC0lVlBTaA8yOHzrcjhuMoZt/0uiETChP/sCIoUjPXvz8O
+nN3HtawHEGYZR61ZSlPFsnVQiEnTFEHQxW8xX1Y=
+-----END CERTIFICATE-----"""
+
+    /** SHA-256 of [TEST_CERT_PEM]'s DER encoding (lowercase hex). */
+    const val TEST_CERT_SHA256 = "5792c912186334f2a002151d85d4ba8e0f4bd9f1ecdee93cc78490981e21edeb"
+
+    /** A DIFFERENT self-signed test certificate, CN=kopia-kt-other. */
+    const val OTHER_CERT_PEM = """-----BEGIN CERTIFICATE-----
+MIIDFTCCAf2gAwIBAgIUGsoIWfczLK9sBgdCn3XAjIMuAHswDQYJKoZIhvcNAQEL
+BQAwGTEXMBUGA1UEAwwOa29waWEta3Qtb3RoZXIwIBcNMjYwNzI2MTgwMDI4WhgP
+MjEyNjA3MDIxODAwMjhaMBkxFzAVBgNVBAMMDmtvcGlhLWt0LW90aGVyMIIBIjAN
+BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoUAg5PHrLO2Rf3d5AdbBHtruLv3h
+YallQK/Uxvczsc/HNOGfrDjSLV9JujvEtELou2HjtndU4DZDV4pxFzhz6j13iN1O
+VlyLVpNj6e+ezrOOAQ/QXL045nAR64OjIAP0yCsOYqKPwJMVyYQ0hRsD2OVyqMYR
+KF26aakssz8YYizCciQ0iQU5vvt/exO7mbWaaJlwWMIbCMfCUNc2ttwmRZwlZOGF
+LIHgvFIv4zZBsV4/ljfQ4ZHQGLNSN95YZW1gWgxDF3qPGC+xsbojRNcz9BmSi7eM
+FAMuJKox3SpkoV89D0rUGKTnwSLu4ekBl2zUkmwwNR9oNoj3Pp9n4mqkAQIDAQAB
+o1MwUTAdBgNVHQ4EFgQUa/1kBe/hTFxNatkq0gcGdz58GJUwHwYDVR0jBBgwFoAU
+a/1kBe/hTFxNatkq0gcGdz58GJUwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+AQsFAAOCAQEAn+jUcy0QHrCCxbWEhDKxWwUktyGAKwGPHa9FffjIKEdku4FNSPvj
+bRgKZz/q+JdO2ZfB6srIfF9PHP3jzMmU14EPtJdIOo9/2cBlyLoMzgMfBiOzHkT/
+TSb2z2yeyOwKZCSk2gV9+f6Hs87MDA4GX8G0q8cfE66+fMte0ot667RXNcfT1QS0
+2u4UAUtJN1/XbPlWJPwIZtkyJaD/qXHL1VUoNYG9zlK9q30hPgaizd6hjCafbrLZ
+/ZyxDtUtEarNdZ1FllOyILDcyuKtIHtH32N3IPw4n4YR+utceshb09F8/bEmhnCb
+SSQac8qsiRZGhWPiRFrI92E3lmC7a1vyGQ==
+-----END CERTIFICATE-----"""
+}

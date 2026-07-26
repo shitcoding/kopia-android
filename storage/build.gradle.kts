@@ -44,6 +44,9 @@ dependencies {
     // Testcontainers (Docker-based integration tests)
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.junit5)
+    // Real TLS handshake tests for certificate pinning / custom root CA (no Docker needed)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.okhttp.tls)
 }
 
 tasks.test {

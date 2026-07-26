@@ -21,6 +21,7 @@ import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import org.kopiaKt.storage.tls.TestCertificates
 import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.time.Duration
@@ -806,13 +807,42 @@ class WebDavBlobStorageTest {
     }
 
     @Nested
-    @DisplayName("unsupported options")
-    inner class UnsupportedOptionsTests {
-        // Cert pinning is not implemented; the backend fails fast rather than silently ignoring the
-        // fingerprint (which would leave the caller believing the server cert is pinned when any
-        // CA-valid cert is accepted).
+    @DisplayName("certificate pinning options")
+    inner class CertificatePinningOptionsTests {
+        // Pinning IS supported now (OkHttpWebDavClient installs a fingerprint trust manager), so a
+        // well-formed fingerprint must be accepted — rejecting it previously left cleartext http as
+        // the only working option for a self-signed self-hosted WebDAV server.
         @Test
-        fun `rejects trustedServerCertificateFingerprint`() {
+        fun `accepts a well-formed trustedServerCertificateFingerprint`() {
+            WebDavBlobStorage.createWithClient(
+                mockClient,
+                WebDavOptions(
+                    url = baseUrl,
+                    trustedServerCertificateFingerprint = TestCertificates.TEST_CERT_SHA256,
+                ),
+            )
+        }
+
+        @Test
+        fun `rejects a fingerprint combined with a cleartext http URL`() {
+            // A pin over http is silently useless — there is no TLS handshake to pin — so the user
+            // would believe the connection is protected while credentials go out in the clear.
+            // Fail closed rather than ignore the trust material.
+            assertThrows<IllegalArgumentException> {
+                WebDavBlobStorage.createWithClient(
+                    mockClient,
+                    WebDavOptions(
+                        url = "http://nas.local/dav/",
+                        trustedServerCertificateFingerprint = TestCertificates.TEST_CERT_SHA256,
+                    ),
+                )
+            }
+        }
+
+        @Test
+        fun `rejects a malformed trustedServerCertificateFingerprint`() {
+            // A malformed pin must fail loudly at connect, not silently never match (which would look
+            // like an unexplained network error) or be treated as "no pin".
             assertThrows<IllegalArgumentException> {
                 WebDavBlobStorage.createWithClient(
                     mockClient,

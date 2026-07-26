@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import org.kopiaKt.storage.tls.TlsTrust
 import java.io.BufferedInputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -30,11 +31,28 @@ class OkHttpWebDavClient(
     connectTimeoutSeconds: Long = 30,
     readTimeoutSeconds: Long = 60,
     writeTimeoutSeconds: Long = 60,
+    /**
+     * SHA-256 fingerprint of the one server certificate to trust (Go's
+     * `TrustedServerCertificateFingerprint`). Empty = use the platform trust store.
+     */
+    trustedServerCertificateFingerprint: String = "",
 ) {
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(connectTimeoutSeconds, TimeUnit.SECONDS)
         .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
         .writeTimeout(writeTimeoutSeconds, TimeUnit.SECONDS)
+        .apply {
+            if (trustedServerCertificateFingerprint.isNotEmpty()) {
+                val trustManager = TlsTrust.trustManagerForFingerprint(trustedServerCertificateFingerprint)
+                sslSocketFactory(TlsTrust.socketFactory(trustManager), trustManager)
+                // The pinned certificate IS the server's identity, so hostname matching is both
+                // redundant and actively harmful here — a self-signed cert for a home NAS usually has
+                // a CN that doesn't match the URL host. This mirrors Go, whose pinned tls.Config sets
+                // InsecureSkipVerify (disabling hostname checks) and verifies the fingerprint instead.
+                // Only reachable when a fingerprint is pinned; the default path keeps full verification.
+                hostnameVerifier { _, _ -> true }
+            }
+        }
         .build()
 
     private val authHeader: String? =

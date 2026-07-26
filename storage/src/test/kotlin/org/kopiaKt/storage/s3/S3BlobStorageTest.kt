@@ -21,6 +21,7 @@ import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import org.kopiaKt.storage.tls.TestCertificates
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.sync.RequestBody
@@ -405,10 +406,11 @@ class S3BlobStorageTest {
     @DisplayName("unsupported options")
     inner class UnsupportedOptionsTests {
         // These options were silently ignored; the backend now fails fast so a caller can't believe
-        // they took effect (a security downgrade for rootCa, which the user would think pins/uses a
-        // custom CA).
+        // they took effect.
         @Test
-        fun `rejects doNotVerifyTls`() {
+        fun `rejects doNotVerifyTls even though rootCa is supported`() {
+            // Deliberately stricter than Go: rootCa covers private-CA setups, while a reachable
+            // trust-anything switch would be an unbounded MITM downgrade. Must stay rejected.
             assertThrows<IllegalArgumentException> {
                 S3BlobStorage.createWithClient(
                     mockClient,
@@ -418,7 +420,47 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `rejects a custom rootCa`() {
+        fun `accepts a custom rootCa (private-CA support)`() {
+            // rootCa is now honored (wired into the SDK's TLS trust managers), so it must NOT be
+            // rejected — that rejection previously left cleartext http as the only working option
+            // for a self-hosted S3 behind a private CA.
+            S3BlobStorage.createWithClient(
+                mockClient,
+                S3Options(bucketName = testBucket, rootCa = TestCertificates.TEST_CERT_PEM.toByteArray()),
+            )
+        }
+
+        @Test
+        fun `rejects a rootCa combined with a cleartext endpoint`() {
+            // A custom CA over http is silently useless (no TLS handshake to validate), so the user
+            // would believe the connection is protected. Fail closed for both ways to select
+            // cleartext: an explicit http:// endpoint, and the doNotUseTls flag.
+            assertThrows<IllegalArgumentException> {
+                S3BlobStorage.createWithClient(
+                    mockClient,
+                    S3Options(
+                        bucketName = testBucket,
+                        endpoint = "http://minio.local:9000",
+                        rootCa = TestCertificates.TEST_CERT_PEM.toByteArray(),
+                    ),
+                )
+            }
+            assertThrows<IllegalArgumentException> {
+                S3BlobStorage.createWithClient(
+                    mockClient,
+                    S3Options(
+                        bucketName = testBucket,
+                        endpoint = "minio.local:9000",
+                        doNotUseTls = true,
+                        rootCa = TestCertificates.TEST_CERT_PEM.toByteArray(),
+                    ),
+                )
+            }
+        }
+
+        @Test
+        fun `rejects a malformed rootCa`() {
+            // Fail fast at connect with a clear message rather than as an opaque TLS error later.
             assertThrows<IllegalArgumentException> {
                 S3BlobStorage.createWithClient(
                     mockClient,

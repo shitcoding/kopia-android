@@ -5,11 +5,21 @@
          and Android's network-security-config can only scope cleartext by domain — not by the
          runtime-entered endpoint. Restricting it here would break those legitimate self-hosted
          setups. The user-facing control is instead at the app layer: the connect/create UI defaults
-         to https and shows an explicit cleartext warning when a cleartext (http:) endpoint is entered.
-         See the "Cleartext HTTP and TLS posture" ADR (the internal decision records). -->
+         to https, warns on a cleartext (http:) endpoint, and the connect layer requires an explicit
+         per-connection opt-in. See the "Cleartext HTTP and TLS posture" ADR (the internal decision records). -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <!-- User-installed CAs are trusted so a self-hoster who runs their storage backend
+                 behind a private/self-signed CA can install it once on the device and then use
+                 https instead of cleartext. Without this, API 24+ ignores user CAs and the ONLY
+                 working configuration for that (common) deployment is plain http — i.e. omitting
+                 this makes the app less secure in practice, not more. Installing a CA is a
+                 deliberate, warned device-level action by the device owner, repository blobs are
+                 client-side encrypted regardless, and per-connection certificate pinning
+                 (WebDAV fingerprint / S3 rootCa) is available for users who want to trust exactly
+                 one certificate instead. -->
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

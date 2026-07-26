@@ -18,6 +18,7 @@ import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import org.kopiaKt.storage.tls.TlsTrust
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
@@ -108,22 +109,43 @@ class S3BlobStorage private constructor(
         }
 
         /**
-         * Rejects options this backend silently used to ignore. Failing closed is safer than
-         * pretending they took effect: a caller that sets `rootCa` or (for WebDAV) a cert
-         * fingerprint would otherwise believe the connection is pinned/using a custom CA when it is
-         * not — a security downgrade masquerading as configuration. Implement one of these here (and
-         * drop its guard) if the backend ever gains real support.
+         * Rejects options this backend would otherwise silently ignore. Failing closed is safer than
+         * pretending they took effect: a caller that sets one of these would believe the connection is
+         * hardened/configured when it is not.
+         *
+         * `doNotVerifyTls` stays rejected **by design**, not as a gap: `rootCa` (below) and the WebDAV
+         * certificate pin cover every legitimate self-signed/private-CA setup, whereas a reachable
+         * trust-anything switch is an unbounded MITM downgrade. Being stricter than Go here is
+         * deliberate. `rootCa` IS now supported.
          */
         private fun requireSupportedOptions(options: S3Options) {
             require(!options.doNotVerifyTls) {
-                "doNotVerifyTls is not supported by the S3 backend (TLS verification cannot be disabled)"
-            }
-            require(options.rootCa == null) {
-                "A custom rootCa is not supported by the S3 backend"
+                "doNotVerifyTls is not supported by the S3 backend (TLS verification cannot be disabled); " +
+                    "use rootCa to trust a private CA instead"
             }
             require(options.roleArn.isEmpty()) {
                 "AssumeRole (roleArn) is not supported by the S3 backend"
             }
+            // Parse eagerly so a malformed CA fails at connect with a clear message instead of as an
+            // opaque TLS error on the first request (mirrors the WebDAV fingerprint check).
+            options.rootCa?.let {
+                TlsTrust.trustManagerForRootCa(it)
+                // Fail closed instead of silently ignoring the CA: over http there is no TLS
+                // handshake to validate, so the user would believe the connection is protected.
+                require(!usesCleartextEndpoint(options)) {
+                    "rootCa requires an https endpoint (a custom CA has no effect over cleartext http)"
+                }
+            }
+        }
+
+        /**
+         * True when this configuration will contact the endpoint over plaintext http — either an
+         * explicit `http://` endpoint or the `doNotUseTls` flag, which selects http for a scheme-less
+         * endpoint. A scheme-less endpoint without that flag resolves to https.
+         */
+        private fun usesCleartextEndpoint(options: S3Options): Boolean {
+            if (options.doNotUseTls) return true
+            return options.endpoint.trim().startsWith("http://", ignoreCase = true)
         }
 
         private fun createClient(options: S3Options): S3Client {
@@ -162,11 +184,19 @@ class S3BlobStorage private constructor(
             }
 
             // Configure HTTP client (UrlConnection for Android compatibility)
-            val httpClient = UrlConnectionHttpClient.builder()
+            val httpClientBuilder = UrlConnectionHttpClient.builder()
                 .socketTimeout(Duration.ofMinutes(5))
                 .connectionTimeout(Duration.ofSeconds(30))
-                .build()
-            builder.httpClient(httpClient)
+
+            // A custom root CA lets a self-hosted S3 (MinIO behind a private CA) be reached over https
+            // instead of forcing the user onto cleartext. Validation stays ON — only the trust anchor
+            // changes, and it replaces the system store rather than extending it.
+            options.rootCa?.let { pem ->
+                val trustManager = TlsTrust.trustManagerForRootCa(pem)
+                httpClientBuilder.tlsTrustManagersProvider { arrayOf(trustManager) }
+            }
+
+            builder.httpClient(httpClientBuilder.build())
 
             return builder.build()
         }

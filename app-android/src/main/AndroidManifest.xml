@@ -18,7 +18,6 @@
         android:supportsRtl="true"
         android:requestLegacyExternalStorage="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.KopiaKt">
 
         <activity

@@ -14,6 +14,7 @@ import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
+import org.kopiaKt.storage.tls.TlsTrust
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URI
@@ -103,22 +104,29 @@ class WebDavBlobStorage private constructor(
         }
 
         /**
-         * Rejects `trustedServerCertificateFingerprint`, which this backend does not implement. The
-         * OkHttp client uses the platform trust store, so honouring a pin would need a custom
-         * CertificatePinner/TrustManager. Failing closed is safer than silently ignoring it: a caller
-         * who set a fingerprint would otherwise believe the server cert is pinned when any CA-valid
-         * cert is in fact accepted. Implement pinning here (and drop this guard) to support it.
+         * Validates the options this backend must not silently ignore.
+         *
+         * `trustedServerCertificateFingerprint` IS supported (see [OkHttpWebDavClient]); it is only
+         * checked here for well-formedness so a malformed pin fails at connect time with a clear
+         * message instead of as an opaque TLS handshake error.
          */
         private fun requireSupportedOptions(options: WebDavOptions) {
-            require(options.trustedServerCertificateFingerprint.isEmpty()) {
-                "trustedServerCertificateFingerprint (certificate pinning) is not supported by the " +
-                    "WebDAV backend"
+            if (options.trustedServerCertificateFingerprint.isNotEmpty()) {
+                TlsTrust.normalizeSha256Fingerprint(options.trustedServerCertificateFingerprint)
+                // Fail closed instead of silently ignoring the pin: over http there is no TLS
+                // handshake to pin, so the user would believe the connection is protected while
+                // credentials travel in the clear.
+                require(options.url.trim().startsWith("https://", ignoreCase = true)) {
+                    "trustedServerCertificateFingerprint requires an https:// URL " +
+                        "(a certificate pin has no effect over cleartext http)"
+                }
             }
         }
 
         private fun createClient(options: WebDavOptions): OkHttpWebDavClient = OkHttpWebDavClient(
             username = options.username,
             password = options.password,
+            trustedServerCertificateFingerprint = options.trustedServerCertificateFingerprint,
         )
 
         private suspend fun loadOrCreateShardingParams(
