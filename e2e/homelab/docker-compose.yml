@@ -1,0 +1,131 @@
+# Private-network home-server test profile for the remote storage backends (task-23.8 AC #2).
+#
+# Everything here is namespaced `kopia-e2e*` and removable with `docker compose down -v`. It is meant
+# for a LAN host, NOT for internet exposure: ports bind to an explicit address (HOST_BIND, validated
+# by deploy.sh), never 0.0.0.0, because Docker's published ports bypass ufw.
+#
+# What this profile exists to exercise — the paths Docker/MinIO-on-localhost cannot cover:
+#   * SFTP with a REAL, stable host key   -> the secure knownHostsData / hostKeyFingerprint path
+#                                            (the CI flows use the insecure opt-in instead)
+#   * WebDAV over HTTPS, private CA       -> trustedServerCertificateFingerprint (cert pinning)
+#   * MinIO (S3) over HTTPS, private CA   -> S3 rootCa (custom trust anchor)
+#
+# Deliberately NOT reboot-persistent: no restart policy, because this is a temporary manual fixture
+# that may be running on a host with other duties. A reboot must leave that host as it was.
+name: kopia-e2e
+
+# Modest caps so a runaway test can never starve the host's real workloads, and bounded logs so a
+# chatty container cannot fill the disk.
+x-limits: &limits
+  cpus: 1.0
+  mem_limit: 512m
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+networks:
+  default:
+    name: kopia-e2e_net
+    ipam:
+      config:
+        # Pinned explicitly rather than left to Docker's default pool, so it can be chosen to miss
+        # whatever the target host already uses. Check the host first:
+        #   docker network ls -q | xargs -r docker network inspect \
+        #     -f '{{.Name}} {{range .IPAM.Config}}{{.Subnet}}{{end}}'
+        # and mind any VPN/overlay ranges (WireGuard, tailscale's 100.64/10, etc.).
+        - subnet: "${KOPIA_E2E_SUBNET:-172.28.0.0/24}"
+
+volumes:
+  sftp_data:
+  sftp_hostkeys:
+  webdav_data:
+  minio_data:
+
+services:
+  # --- SFTP: the secure host-key path -----------------------------------------------------------
+  sftp:
+    <<: *limits
+    image: atmoz/sftp:alpine
+    container_name: kopia-e2e-sftp
+    ports:
+      - "${HOST_BIND:?HOST_BIND must be set (deploy.sh writes it)}:2222:22"
+    volumes:
+      - sftp_data:/home/kopia/upload
+      # Host keys live in a volume and are generated once, so the fingerprint is STABLE across
+      # restarts — a pinned known_hosts entry would be worthless otherwise.
+      - sftp_hostkeys:/hostkeys
+      - ./scripts/sftp-install-hostkeys.sh:/etc/sftp.d/10-install-hostkeys.sh:ro
+      # The upload dir is a named volume, so Docker creates it root-owned; hand it to the sftp user.
+      - ./scripts/sftp-fix-upload-owner.sh:/etc/sftp.d/20-fix-upload-owner.sh:ro
+    environment:
+      SFTP_USER: kopia
+    command: "kopia:${SFTP_PASSWORD:?SFTP_PASSWORD must be set}:::upload"
+
+  # --- WebDAV behind a TLS terminator: the certificate-pinning path -----------------------------
+  # bytemark/webdav is plain HTTP (the same server the CI integration tests use, so a failure points
+  # at our client rather than an unfamiliar server); nginx adds the private-CA TLS this profile is for.
+  webdav:
+    <<: *limits
+    image: bytemark/webdav:2.4
+    container_name: kopia-e2e-webdav
+    environment:
+      AUTH_TYPE: Basic
+      USERNAME: "${WEBDAV_USERNAME:?WEBDAV_USERNAME must be set}"
+      PASSWORD: "${WEBDAV_PASSWORD:?WEBDAV_PASSWORD must be set}"
+    volumes:
+      - webdav_data:/var/lib/dav
+    expose:
+      - "80"
+
+  webdav-tls:
+    <<: *limits
+    image: nginx:1.27-alpine
+    container_name: kopia-e2e-webdav-tls
+    depends_on:
+      - webdav
+    ports:
+      - "${HOST_BIND:?HOST_BIND must be set}:8443:443"
+    volumes:
+      - ./nginx/webdav-tls.conf:/etc/nginx/conf.d/default.conf:ro
+      # Mount only the leaf pair — the CA private key is never copied to this host at all.
+      - ./certs/server.crt:/etc/nginx/certs/server.crt:ro
+      - ./certs/server.key:/etc/nginx/certs/server.key:ro
+
+  # --- MinIO over TLS: the S3 custom-root-CA path -----------------------------------------------
+  minio:
+    <<: *limits
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: kopia-e2e-minio
+    ports:
+      - "${HOST_BIND:?HOST_BIND must be set}:9000:9000"
+      - "${HOST_BIND:?HOST_BIND must be set}:9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}"
+    volumes:
+      - minio_data:/data
+      # MinIO serves HTTPS as soon as it finds public.crt/private.key here.
+      - ./certs/minio/public.crt:/root/.minio/certs/public.crt:ro
+      - ./certs/minio/private.key:/root/.minio/certs/private.key:ro
+    command: server /data --console-address ":9001"
+
+  # One-shot: create the test bucket, then exit. Uses the official mc image rather than assuming the
+  # server image ships a client, and waits for MinIO to be ready so a failure is loud, not silent.
+  createbucket:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: kopia-e2e-createbucket
+    depends_on:
+      - minio
+    volumes:
+      - ./certs/ca.crt:/root/.mc/certs/CAs/kopia-e2e-ca.crt:ro
+    entrypoint: >
+      sh -c "
+      for i in $$(seq 1 30); do
+        mc alias set local https://minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' && break;
+        echo 'waiting for minio...'; sleep 2;
+      done &&
+      mc mb --ignore-existing local/${S3_BUCKET:-kopia-e2e} &&
+      echo 'bucket ready: ${S3_BUCKET:-kopia-e2e}'
+      "

@@ -1,0 +1,4 @@
+# Generated per-host trust material — the CA private key must never be committed.
+certs/
+.env
+.env.local
