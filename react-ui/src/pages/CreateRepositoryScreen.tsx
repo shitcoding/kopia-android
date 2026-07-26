@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -45,6 +45,9 @@ const CreateRepositoryScreen = () => {
   const [s3AccessKey, setS3AccessKey] = useState("");
   const [s3SecretKey, setS3SecretKey] = useState("");
   const [webdavUrl, setWebdavUrl] = useState("");
+  const [webdavCertFingerprint, setWebdavCertFingerprint] = useState("");
+  const [s3RootCaPem, setS3RootCaPem] = useState("");
+  const [allowCleartextHttp, setAllowCleartextHttp] = useState(false);
   const [webdavUsername, setWebdavUsername] = useState("");
   const [webdavPassword, setWebdavPassword] = useState("");
   const [sftpHost, setSftpHost] = useState("");
@@ -68,6 +71,19 @@ const CreateRepositoryScreen = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [testPassed, setTestPassed] = useState(false);
 
+  // The endpoint that decides whether this connection is cleartext, per storage type.
+  const cleartextEndpoint =
+    storageType === "s3" ? s3Endpoint : storageType === "webdav" ? webdavUrl : "";
+  const isCleartext = isCleartextUrl(cleartextEndpoint);
+
+  // The acknowledgment is about ONE endpoint, and a passed connection test is about ONE config.
+  // Drop both whenever the storage type or the endpoint changes, so neither a stale tick nor a stale
+  // "tested OK" can carry the user past a target they never acknowledged.
+  useEffect(() => {
+    setAllowCleartextHttp(false);
+    setTestPassed(false);
+  }, [storageType, cleartextEndpoint]);
+
   const { data: algorithms } = useAlgorithms();
   const createRepo = useCreateRepository();
   const testConnection = useTestConnection();
@@ -88,8 +104,8 @@ const CreateRepositoryScreen = () => {
     };
     switch (storageType) {
       case "local": config.local = { path: localPath }; break;
-      case "s3": config.s3 = { bucket: s3Bucket, endpoint: s3Endpoint, region: s3Region, accessKeyId: s3AccessKey, secretAccessKey: s3SecretKey }; break;
-      case "webdav": config.webdav = { url: webdavUrl, username: webdavUsername, password: webdavPassword }; break;
+      case "s3": config.s3 = { bucket: s3Bucket, endpoint: s3Endpoint, region: s3Region, accessKeyId: s3AccessKey, secretAccessKey: s3SecretKey, rootCaPem: isCleartext ? "" : s3RootCaPem, allowCleartextHttp }; break;
+      case "webdav": config.webdav = { url: webdavUrl, username: webdavUsername, password: webdavPassword, trustedServerCertificateFingerprint: isCleartext ? "" : webdavCertFingerprint, allowCleartextHttp }; break;
       case "sftp": config.sftp = { host: sftpHost, port: parseInt(sftpPort, 10) || 22, username: sftpUsername, path: sftpPath, password: sftpPassword, knownHostsData: sftpKnownHosts, hostKeyFingerprint: sftpFingerprint, insecureSkipHostKeyVerification: sftpInsecure }; break;
     }
     return config;
@@ -213,7 +229,17 @@ const CreateRepositoryScreen = () => {
               <div className="space-y-3">
                 <input type="text" placeholder="Bucket" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-bucket-input" aria-label="S3 bucket" />
                 <input type="text" placeholder="Endpoint" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-endpoint-input" aria-label="S3 endpoint" />
-                {isCleartextUrl(s3Endpoint) && <CleartextWarning testId="create-s3-cleartext-warning" />}
+                {isCleartextUrl(s3Endpoint) && (
+                  <CleartextWarning
+                    testId="create-s3-cleartext-warning"
+                    checkboxTestId="create-s3-cleartext-ack-checkbox"
+                    acknowledged={allowCleartextHttp}
+                    onAcknowledgedChange={setAllowCleartextHttp}
+                  />
+                )}
+                {!isCleartextUrl(s3Endpoint) && (
+                  <textarea placeholder="Root CA certificate, PEM (optional — for a private CA)" value={s3RootCaPem} onChange={(e) => setS3RootCaPem(e.target.value)} className="input-md3 min-h-[60px] font-mono text-xs" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-root-ca-input" aria-label="S3 root CA certificate" />
+                )}
                 <input type="text" placeholder="Region" value={s3Region} onChange={(e) => setS3Region(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-region-input" aria-label="S3 region" />
                 <input type="text" placeholder="Access Key ID" value={s3AccessKey} onChange={(e) => setS3AccessKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-access-key-input" aria-label="Access key ID" />
                 <input type="password" placeholder="Secret Access Key" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-s3-secret-key-input" aria-label="Secret access key" />
@@ -223,7 +249,17 @@ const CreateRepositoryScreen = () => {
             {storageType === "webdav" && (
               <div className="space-y-3">
                 <input type="url" placeholder="WebDAV URL" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-url-input" aria-label="WebDAV URL" />
-                {isCleartextUrl(webdavUrl) && <CleartextWarning testId="create-webdav-cleartext-warning" />}
+                {isCleartextUrl(webdavUrl) && (
+                  <CleartextWarning
+                    testId="create-webdav-cleartext-warning"
+                    checkboxTestId="create-webdav-cleartext-ack-checkbox"
+                    acknowledged={allowCleartextHttp}
+                    onAcknowledgedChange={setAllowCleartextHttp}
+                  />
+                )}
+                {!isCleartextUrl(webdavUrl) && (
+                  <input type="text" placeholder="Server certificate SHA-256 (optional — for a self-signed cert)" value={webdavCertFingerprint} onChange={(e) => setWebdavCertFingerprint(e.target.value)} className="input-md3 font-mono text-xs" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-cert-fingerprint-input" aria-label="WebDAV server certificate fingerprint" />
+                )}
                 <input type="text" placeholder="Username" value={webdavUsername} onChange={(e) => setWebdavUsername(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-username-input" aria-label="WebDAV username" />
                 <input type="password" placeholder="Password" value={webdavPassword} onChange={(e) => setWebdavPassword(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-webdav-password-input" aria-label="WebDAV password" />
               </div>

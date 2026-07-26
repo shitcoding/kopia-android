@@ -48,7 +48,21 @@ const ConnectScreen = () => {
   const [sftpKnownHosts, setSftpKnownHosts] = useState("");
   const [sftpFingerprint, setSftpFingerprint] = useState("");
   const [sftpInsecure, setSftpInsecure] = useState(false);
+  const [webdavCertFingerprint, setWebdavCertFingerprint] = useState("");
+  const [s3RootCaPem, setS3RootCaPem] = useState("");
+  const [allowCleartextHttp, setAllowCleartextHttp] = useState(false);
   const [password, setPassword] = useState("");
+
+  // The endpoint that decides whether this connection is cleartext, per storage type.
+  const cleartextEndpoint =
+    storageType === "s3" ? s3Endpoint : storageType === "webdav" ? webdavUrl : "";
+  const isCleartext = isCleartextUrl(cleartextEndpoint);
+
+  // The acknowledgment is about ONE endpoint. Drop it whenever the storage type or the endpoint
+  // changes, so a box ticked for a previous target can never carry over to a new connection.
+  useEffect(() => {
+    setAllowCleartextHttp(false);
+  }, [storageType, cleartextEndpoint]);
 
   // Subscribe to folder picker results
   useEffect(() => {
@@ -132,6 +146,10 @@ const ConnectScreen = () => {
           region: s3Region,
           accessKeyId: s3AccessKey,
           secretAccessKey: s3SecretKey,
+          // Trust material is meaningless over cleartext; omit it rather than sending a value the
+          // storage layer will reject.
+          rootCaPem: isCleartext ? "" : s3RootCaPem,
+          allowCleartextHttp,
         };
         break;
       case "webdav":
@@ -139,6 +157,8 @@ const ConnectScreen = () => {
           url: webdavUrl,
           username: webdavUsername,
           password: webdavPassword,
+          trustedServerCertificateFingerprint: isCleartext ? "" : webdavCertFingerprint,
+          allowCleartextHttp,
         };
         break;
       case "sftp":
@@ -180,6 +200,11 @@ const ConnectScreen = () => {
         if (!sftpHost.trim()) return "SFTP host is required";
         if (!sftpUsername.trim()) return "SFTP username is required";
         break;
+    }
+
+    // Cleartext http must be acknowledged explicitly — the native connect layer refuses it otherwise.
+    if (isCleartext && !allowCleartextHttp) {
+      return "This endpoint uses plaintext HTTP. Use https, or confirm you accept sending credentials unencrypted.";
     }
 
     return null;
@@ -347,7 +372,31 @@ const ConnectScreen = () => {
               aria-label="S3 endpoint"
               data-testid="s3-endpoint-input"
             />
-            {isCleartextUrl(s3Endpoint) && <CleartextWarning testId="s3-cleartext-warning" />}
+            {isCleartextUrl(s3Endpoint) && (
+              <CleartextWarning
+                testId="s3-cleartext-warning"
+                checkboxTestId="s3-cleartext-ack-checkbox"
+                acknowledged={allowCleartextHttp}
+                onAcknowledgedChange={setAllowCleartextHttp}
+                disabled={isConnecting}
+              />
+            )}
+            {!isCleartextUrl(s3Endpoint) && (
+              <textarea
+                placeholder="Root CA certificate, PEM (optional — for a private CA)"
+                value={s3RootCaPem}
+                onChange={(e) => setS3RootCaPem(e.target.value)}
+                className="input-md3 min-h-[60px] font-mono text-xs"
+                disabled={isConnecting}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                id="s3-root-ca-input"
+                aria-label="S3 root CA certificate"
+                data-testid="s3-root-ca-input"
+              />
+            )}
             <input
               type="text"
               placeholder="Region"
@@ -414,7 +463,32 @@ const ConnectScreen = () => {
               aria-label="WebDAV URL"
               data-testid="webdav-url-input"
             />
-            {isCleartextUrl(webdavUrl) && <CleartextWarning testId="webdav-cleartext-warning" />}
+            {isCleartextUrl(webdavUrl) && (
+              <CleartextWarning
+                testId="webdav-cleartext-warning"
+                checkboxTestId="webdav-cleartext-ack-checkbox"
+                acknowledged={allowCleartextHttp}
+                onAcknowledgedChange={setAllowCleartextHttp}
+                disabled={isConnecting}
+              />
+            )}
+            {!isCleartextUrl(webdavUrl) && (
+              <input
+                type="text"
+                placeholder="Server certificate SHA-256 (optional — for a self-signed cert)"
+                value={webdavCertFingerprint}
+                onChange={(e) => setWebdavCertFingerprint(e.target.value)}
+                className="input-md3 font-mono text-xs"
+                disabled={isConnecting}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                id="webdav-cert-fingerprint-input"
+                aria-label="WebDAV server certificate fingerprint"
+                data-testid="webdav-cert-fingerprint-input"
+              />
+            )}
             <input
               type="text"
               placeholder="Username"

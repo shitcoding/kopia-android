@@ -28,12 +28,20 @@ sealed interface ConnectionConfig {
         val region: String,
         val accessKeyId: String,
         val secretAccessKey: String = "",
+        /** PEM-encoded root CA to trust instead of the system store (private/self-signed servers). */
+        val rootCaPem: String = "",
+        /** Explicit acknowledgment that credentials may travel over plaintext http. */
+        val allowCleartextHttp: Boolean = false,
     ) : ConnectionConfig
 
     data class WebDAV(
         val url: String,
         val username: String,
         val password: String = "",
+        /** SHA-256 fingerprint of the one server certificate to trust (self-signed servers). */
+        val trustedServerCertificateFingerprint: String = "",
+        /** Explicit acknowledgment that credentials may travel over plaintext http. */
+        val allowCleartextHttp: Boolean = false,
     ) : ConnectionConfig
 
     data class SFTP(

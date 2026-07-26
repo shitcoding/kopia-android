@@ -22,12 +22,20 @@ export interface S3Config {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
+  /** PEM-encoded root CA to trust instead of the system store (private/self-signed servers). */
+  rootCaPem?: string;
+  /** Explicit acknowledgment that credentials may travel over plaintext http. */
+  allowCleartextHttp?: boolean;
 }
 
 export interface WebDavConfig {
   url: string;
   username: string;
   password: string;
+  /** SHA-256 fingerprint of the one server certificate to trust (self-signed servers). */
+  trustedServerCertificateFingerprint?: string;
+  /** Explicit acknowledgment that credentials may travel over plaintext http. */
+  allowCleartextHttp?: boolean;
 }
 
 export interface SftpConfig {

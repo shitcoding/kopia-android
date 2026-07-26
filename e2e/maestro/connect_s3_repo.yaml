@@ -58,6 +58,13 @@ androidWebViewHierarchy: devtools
 - inputText: "http://10.0.2.2:9000"
 - hideKeyboard
 
+# Cleartext http requires an explicit per-connection acknowledgment (task-23.2):
+# the connect layer refuses an unacknowledged http:// endpoint. Ticked AFTER the
+# endpoint is typed, since editing the endpoint resets the acknowledgment.
+- tapOn:
+    id: "s3-cleartext-ack-checkbox"
+- waitForAnimationToEnd
+
 # Region field defaults to "us-east-1" which is what we want -- leave it
 
 - tapOn:

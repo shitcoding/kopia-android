@@ -170,34 +170,9 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             FilesystemBlobStorage.create(Path(config.path), create = isCreate)
         }
 
-        is ConnectionConfig.S3 -> {
-            // Remote backends are wrapped in RetryingBlobStorage so transient network / 5xx / 429
-            // failures are retried with exponential backoff (local backends are not — their errors
-            // are typically permanent, so retrying would only add latency).
-            RetryingBlobStorage(
-                S3BlobStorage.create(
-                    S3Options(
-                        bucketName = config.bucket,
-                        endpoint = config.endpoint,
-                        region = config.region,
-                        accessKeyId = config.accessKeyId,
-                        secretAccessKey = config.secretAccessKey,
-                    ),
-                ),
-            )
-        }
+        is ConnectionConfig.S3 -> createS3Storage(config)
 
-        is ConnectionConfig.WebDAV -> {
-            RetryingBlobStorage(
-                WebDavBlobStorage.create(
-                    WebDavOptions(
-                        url = config.url,
-                        username = config.username,
-                        password = config.password,
-                    ),
-                ),
-            )
-        }
+        is ConnectionConfig.WebDAV -> createWebDavStorage(config)
 
         is ConnectionConfig.SFTP -> {
             // Release builds must never trust an arbitrary host key. The insecure opt-in is a
@@ -232,6 +207,43 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 ),
             )
         }
+    }
+
+    /**
+     * Remote backends are wrapped in [RetryingBlobStorage] so transient network / 5xx / 429 failures
+     * are retried with exponential backoff (local backends are not — their errors are typically
+     * permanent, so retrying would only add latency).
+     */
+    private suspend fun createS3Storage(config: ConnectionConfig.S3): BlobStorage {
+        // Cleartext http must be an explicit, per-connection decision — a persisted or imported
+        // config could otherwise silently send credentials in the clear.
+        requireCleartextAllowed(config.endpoint, config.allowCleartextHttp)
+        return RetryingBlobStorage(
+            S3BlobStorage.create(
+                S3Options(
+                    bucketName = config.bucket,
+                    endpoint = config.endpoint,
+                    region = config.region,
+                    accessKeyId = config.accessKeyId,
+                    secretAccessKey = config.secretAccessKey,
+                    rootCa = config.rootCaPem.takeIf { it.isNotBlank() }?.toByteArray(),
+                ),
+            ),
+        )
+    }
+
+    private suspend fun createWebDavStorage(config: ConnectionConfig.WebDAV): BlobStorage {
+        requireCleartextAllowed(config.url, config.allowCleartextHttp)
+        return RetryingBlobStorage(
+            WebDavBlobStorage.create(
+                WebDavOptions(
+                    url = config.url,
+                    username = config.username,
+                    password = config.password,
+                    trustedServerCertificateFingerprint = config.trustedServerCertificateFingerprint,
+                ),
+            ),
+        )
     }
 
     private fun getDisplayName(config: ConnectionConfig): String = when (config) {
@@ -280,5 +292,31 @@ internal fun requireInsecureHostKeyAllowed(
 ) {
     require(isDebugBuild || !insecureSkipHostKeyVerification) {
         "insecureSkipHostKeyVerification is not permitted in release builds"
+    }
+}
+
+/**
+ * Enforces the cleartext-HTTP policy at the connect/factory layer: contacting a storage backend over
+ * plaintext http sends its credentials (WebDAV Basic auth) and metadata in the clear, so it requires an
+ * explicit per-connection acknowledgment.
+ *
+ * Gated here rather than only in the UI because a persisted or imported [ConnectionConfig] can carry
+ * any values — the same reasoning as [requireInsecureHostKeyAllowed]. Unlike that gate this IS allowed
+ * in release builds once acknowledged: a self-hosted LAN backend with no TLS is a legitimate use case
+ * for a self-hostable backup app; it just must not happen silently. Android cannot enforce this at the
+ * OS layer because a network-security-config can only scope cleartext by build-time domain, never by a
+ * runtime-entered endpoint.
+ *
+ * Matches the `http:` scheme prefix (not just `http://`) so it agrees with the UI's `isCleartextUrl()`
+ * helper and with OkHttp's lenient parsing of forms like `http:/host`. A scheme-less endpoint is not
+ * cleartext: the S3 backend defaults those to https.
+ *
+ * @throws IllegalArgumentException if [endpoint] is cleartext and [allowCleartextHttp] is not set.
+ */
+internal fun requireCleartextAllowed(endpoint: String, allowCleartextHttp: Boolean) {
+    val isCleartext = endpoint.trim().startsWith("http:", ignoreCase = true)
+    require(!isCleartext || allowCleartextHttp) {
+        "Refusing to connect to the cleartext endpoint \"$endpoint\": credentials and metadata would " +
+            "be sent unencrypted. Use https, or explicitly acknowledge cleartext for this connection."
     }
 }

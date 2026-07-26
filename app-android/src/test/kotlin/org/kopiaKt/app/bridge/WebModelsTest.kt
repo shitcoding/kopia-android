@@ -45,6 +45,42 @@ class WebModelsTest {
     }
 
     @Test
+    fun `cleartext acknowledgment defaults to FALSE when absent from the JSON`() {
+        // Security-critical default: a config that omits allowCleartextHttp (an older client, a
+        // hand-written payload, a persisted config) must decode as NOT acknowledged so the
+        // connect-layer gate refuses a cleartext endpoint instead of silently allowing it.
+        val s3 = json.decodeFromString<WebConnectionConfig>(
+            """{"storageType":"S3","s3":{"bucket":"b","endpoint":"http://minio:9000",""" +
+                """"region":"r","accessKeyId":"k"}}""",
+        ).toDomain() as ConnectionConfig.S3
+        assertFalse(s3.allowCleartextHttp)
+        assertEquals("", s3.rootCaPem)
+
+        val webdav = json.decodeFromString<WebConnectionConfig>(
+            """{"storageType":"WEBDAV","webdav":{"url":"http://nas/dav","username":"u"}}""",
+        ).toDomain() as ConnectionConfig.WebDAV
+        assertFalse(webdav.allowCleartextHttp)
+        assertEquals("", webdav.trustedServerCertificateFingerprint)
+    }
+
+    @Test
+    fun `cleartext acknowledgment and TLS trust material round-trip from the JSON`() {
+        val s3 = json.decodeFromString<WebConnectionConfig>(
+            """{"storageType":"S3","s3":{"bucket":"b","endpoint":"http://minio:9000","region":"r",""" +
+                """"accessKeyId":"k","allowCleartextHttp":true,"rootCaPem":"PEM"}}""",
+        ).toDomain() as ConnectionConfig.S3
+        assertTrue(s3.allowCleartextHttp)
+        assertEquals("PEM", s3.rootCaPem)
+
+        val webdav = json.decodeFromString<WebConnectionConfig>(
+            """{"storageType":"WEBDAV","webdav":{"url":"https://nas/dav","username":"u",""" +
+                """"trustedServerCertificateFingerprint":"ab12","allowCleartextHttp":true}}""",
+        ).toDomain() as ConnectionConfig.WebDAV
+        assertTrue(webdav.allowCleartextHttp)
+        assertEquals("ab12", webdav.trustedServerCertificateFingerprint)
+    }
+
+    @Test
     fun `WebS3Config includes secretAccessKey`() {
         val jsonStr = """{"bucket":"b","endpoint":"e","region":"r","accessKeyId":"ak","secretAccessKey":"secret123"}"""
         val config = json.decodeFromString<WebS3Config>(jsonStr)

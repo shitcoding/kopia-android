@@ -379,6 +379,24 @@ class KopiaWebBridge private constructor(
                         }
                         json.encodeToString(WebResult.success("OK"))
                     }
+                    // Remote backends are not actually contacted here, but the cleartext policy must
+                    // still apply: otherwise Test Connection reports "OK" for an unacknowledged http://
+                    // endpoint that the connect layer will refuse, and the create wizard would wave the
+                    // user past a configuration that leaks credentials.
+                    is org.kopiaKt.app.domain.model.ConnectionConfig.S3 -> {
+                        org.kopiaKt.app.data.repository.requireCleartextAllowed(
+                            domainConfig.endpoint,
+                            domainConfig.allowCleartextHttp,
+                        )
+                        json.encodeToString(WebResult.success("OK"))
+                    }
+                    is org.kopiaKt.app.domain.model.ConnectionConfig.WebDAV -> {
+                        org.kopiaKt.app.data.repository.requireCleartextAllowed(
+                            domainConfig.url,
+                            domainConfig.allowCleartextHttp,
+                        )
+                        json.encodeToString(WebResult.success("OK"))
+                    }
                     else -> json.encodeToString(WebResult.success("OK"))
                 }
             } catch (e: Exception) {

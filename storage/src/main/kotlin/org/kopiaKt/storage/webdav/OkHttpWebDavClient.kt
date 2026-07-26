@@ -41,6 +41,10 @@ class OkHttpWebDavClient(
         .connectTimeout(connectTimeoutSeconds, TimeUnit.SECONDS)
         .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
         .writeTimeout(writeTimeoutSeconds, TimeUnit.SECONDS)
+        // Never let an https connection be redirected down to cleartext http. Otherwise a
+        // misconfigured or hostile server could 30x an acknowledged-as-secure connection onto http and
+        // move request metadata into the clear, behind the back of the connect-layer cleartext gate.
+        .followSslRedirects(false)
         .apply {
             if (trustedServerCertificateFingerprint.isNotEmpty()) {
                 val trustManager = TlsTrust.trustManagerForFingerprint(trustedServerCertificateFingerprint)

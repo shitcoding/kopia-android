@@ -145,7 +145,9 @@ class S3BlobStorage private constructor(
          */
         private fun usesCleartextEndpoint(options: S3Options): Boolean {
             if (options.doNotUseTls) return true
-            return options.endpoint.trim().startsWith("http://", ignoreCase = true)
+            // Match the "http:" scheme prefix, not just "http://", so this agrees with the app's
+            // connect-layer gate and the UI helper rather than having two definitions of cleartext.
+            return options.endpoint.trim().startsWith("http:", ignoreCase = true)
         }
 
         private fun createClient(options: S3Options): S3Client {

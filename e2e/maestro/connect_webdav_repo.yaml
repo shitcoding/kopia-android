@@ -45,6 +45,13 @@ androidWebViewHierarchy: devtools
 - inputText: "http://10.0.2.2:8080/"
 - hideKeyboard
 
+# Cleartext http requires an explicit per-connection acknowledgment (task-23.2):
+# the connect layer refuses an unacknowledged http:// endpoint. Ticked AFTER the
+# endpoint is typed, since editing the endpoint resets the acknowledgment.
+- tapOn:
+    id: "webdav-cleartext-ack-checkbox"
+- waitForAnimationToEnd
+
 - tapOn:
     id: "webdav-username-input"
 - waitForAnimationToEnd

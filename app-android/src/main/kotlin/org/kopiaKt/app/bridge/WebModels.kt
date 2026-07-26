@@ -75,11 +75,17 @@ data class WebConnectionConfig(
             region = s3?.region ?: "",
             accessKeyId = s3?.accessKeyId ?: "",
             secretAccessKey = s3?.secretAccessKey ?: "",
+            rootCaPem = s3?.rootCaPem ?: "",
+            // Absent in the JSON must mean NOT acknowledged — the connect-layer gate then refuses a
+            // cleartext endpoint rather than silently allowing it.
+            allowCleartextHttp = s3?.allowCleartextHttp ?: false,
         )
         "WEBDAV" -> ConnectionConfig.WebDAV(
             url = webdav?.url ?: "",
             username = webdav?.username ?: "",
             password = webdav?.password ?: "",
+            trustedServerCertificateFingerprint = webdav?.trustedServerCertificateFingerprint ?: "",
+            allowCleartextHttp = webdav?.allowCleartextHttp ?: false,
         )
         "SFTP" -> ConnectionConfig.SFTP(
             host = sftp?.host ?: "",
@@ -109,6 +115,10 @@ data class WebS3Config(
     val region: String,
     val accessKeyId: String,
     val secretAccessKey: String = "",
+    /** PEM-encoded root CA to trust instead of the system store (private/self-signed servers). */
+    val rootCaPem: String = "",
+    /** Explicit acknowledgment that credentials may travel over plaintext http. Defaults to false. */
+    val allowCleartextHttp: Boolean = false,
 )
 
 @Serializable
@@ -116,6 +126,10 @@ data class WebWebDavConfig(
     val url: String,
     val username: String,
     val password: String = "",
+    /** SHA-256 fingerprint of the one server certificate to trust (self-signed servers). */
+    val trustedServerCertificateFingerprint: String = "",
+    /** Explicit acknowledgment that credentials may travel over plaintext http. Defaults to false. */
+    val allowCleartextHttp: Boolean = false,
 )
 
 @Serializable
@@ -305,6 +319,11 @@ fun ConnectionConfig.toWeb(): WebConnectionConfig = when (this) {
             region = region,
             accessKeyId = accessKeyId,
             secretAccessKey = secretAccessKey,
+            // Echo the TLS/cleartext settings back too — dropping them would silently downgrade a
+            // config that JS round-trips (a reconnect would lose the pinned CA, or lose the
+            // acknowledgment and be refused by the connect gate). Neither field is a secret.
+            rootCaPem = rootCaPem,
+            allowCleartextHttp = allowCleartextHttp,
         ),
     )
     is ConnectionConfig.WebDAV -> WebConnectionConfig(
@@ -313,6 +332,8 @@ fun ConnectionConfig.toWeb(): WebConnectionConfig = when (this) {
             url = url,
             username = username,
             password = password,
+            trustedServerCertificateFingerprint = trustedServerCertificateFingerprint,
+            allowCleartextHttp = allowCleartextHttp,
         ),
     )
     is ConnectionConfig.SFTP -> WebConnectionConfig(
