@@ -129,6 +129,34 @@ class WebDavCertificatePinningTest {
     }
 
     @Test
+    fun `connects when the pinned certificate's name does not match the host`() {
+        // The case the feature exists for: a home NAS whose self-signed certificate was issued for some
+        // other name. When a fingerprint is pinned, that certificate IS the identity, so hostname
+        // matching is deliberately disabled (as in Go, whose pinned config sets InsecureSkipVerify).
+        // Without this test, "restoring" strict hostname verification would ship green and silently
+        // break exactly those users.
+        val wrongNameCertificate = HeldCertificate.Builder()
+            .commonName("kopia-kt-wrong-name")
+            .addSubjectAlternativeName("not-the-host.invalid")
+            .build()
+        val certificates = HandshakeCertificates.Builder()
+            .heldCertificate(wrongNameCertificate)
+            .build()
+        server = MockWebServer()
+        server.useHttps(certificates.sslSocketFactory(), false)
+        server.enqueue(MockResponse().setResponseCode(200).setBody("hello"))
+        server.start()
+
+        val client = OkHttpWebDavClient(
+            trustedServerCertificateFingerprint = sha256Hex(wrongNameCertificate.certificate.encoded),
+        )
+
+        val body = client.get(server.url("/file.f").toString()).use { it.readBytes().decodeToString() }
+
+        assertEquals("hello", body)
+    }
+
+    @Test
     fun `refuses a self-signed server when no fingerprint is pinned`() {
         // Sanity check that the pinning path is what makes the self-signed server reachable at all —
         // without it the platform trust store correctly rejects the certificate.

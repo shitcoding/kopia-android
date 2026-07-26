@@ -383,25 +383,48 @@ class KopiaWebBridge private constructor(
                     // still apply: otherwise Test Connection reports "OK" for an unacknowledged http://
                     // endpoint that the connect layer will refuse, and the create wizard would wave the
                     // user past a configuration that leaks credentials.
-                    is org.kopiaKt.app.domain.model.ConnectionConfig.S3 -> {
-                        org.kopiaKt.app.data.repository.requireCleartextAllowed(
-                            domainConfig.endpoint,
-                            domainConfig.allowCleartextHttp,
-                        )
+                    else -> {
+                        validateRemoteConfig(domainConfig)
                         json.encodeToString(WebResult.success("OK"))
                     }
-                    is org.kopiaKt.app.domain.model.ConnectionConfig.WebDAV -> {
-                        org.kopiaKt.app.data.repository.requireCleartextAllowed(
-                            domainConfig.url,
-                            domainConfig.allowCleartextHttp,
-                        )
-                        json.encodeToString(WebResult.success("OK"))
-                    }
-                    else -> json.encodeToString(WebResult.success("OK"))
                 }
             } catch (e: Exception) {
                 json.encodeToString(WebResult.error<String>(e.message ?: "Invalid configuration"))
             }
+        }
+    }
+
+    /**
+     * Applies the config-level policies a remote backend must satisfy before Test Connection may report
+     * success. Remote backends are not actually contacted here, so without this the test would report
+     * "OK" for a configuration the connect layer then refuses — waving the create wizard past a
+     * credential-leaking or malformed setup.
+     *
+     * Checks the cleartext acknowledgment (the same gate the connect layer enforces) and the
+     * well-formedness of any TLS trust material, so a malformed CA or pin is reported here rather than
+     * only surfacing later at connect/create. Non-remote configs are unaffected.
+     */
+    private fun validateRemoteConfig(config: org.kopiaKt.app.domain.model.ConnectionConfig) {
+        when (config) {
+            is org.kopiaKt.app.domain.model.ConnectionConfig.S3 -> {
+                org.kopiaKt.app.data.repository.requireCleartextAllowed(
+                    config.endpoint,
+                    config.allowCleartextHttp,
+                )
+                config.rootCaPem.takeIf { it.isNotBlank() }?.let {
+                    org.kopiaKt.storage.tls.TlsTrust.trustManagerForRootCa(it.toByteArray())
+                }
+            }
+            is org.kopiaKt.app.domain.model.ConnectionConfig.WebDAV -> {
+                org.kopiaKt.app.data.repository.requireCleartextAllowed(
+                    config.url,
+                    config.allowCleartextHttp,
+                )
+                config.trustedServerCertificateFingerprint.takeIf { it.isNotBlank() }?.let {
+                    org.kopiaKt.storage.tls.TlsTrust.normalizeSha256Fingerprint(it)
+                }
+            }
+            else -> Unit
         }
     }
 

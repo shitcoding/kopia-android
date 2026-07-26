@@ -168,8 +168,12 @@ class S3BlobStorage private constructor(
             // Configure endpoint for S3-compatible services
             if (options.endpoint.isNotEmpty()) {
                 val scheme = if (options.doNotUseTls) "http" else "https"
-                val endpoint = if (options.endpoint.startsWith("http://") ||
-                    options.endpoint.startsWith("https://")
+                // Case-insensitive, and matching the bare "http:"/"https:" scheme prefix, so this agrees
+                // with the cleartext predicates elsewhere. A case-sensitive "//"-strict check would
+                // prefix an already-schemed endpoint ("HTTP://host") into "https://HTTP://host" and fail
+                // with a baffling URI error instead of connecting or reporting the real problem.
+                val endpoint = if (options.endpoint.startsWith("http:", ignoreCase = true) ||
+                    options.endpoint.startsWith("https:", ignoreCase = true)
                 ) {
                     options.endpoint
                 } else {

@@ -1,5 +1,6 @@
 package org.kopiaKt.storage.tls
 
+import okhttp3.tls.HeldCertificate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
@@ -127,6 +128,24 @@ class TlsTrustTest {
             // "any publicly-trusted cert", which is not what asking for a custom root CA means.
             val tm = TlsTrust.trustManagerForRootCa(TEST_CERT_PEM.toByteArray())
             assertEquals(1, tm.acceptedIssuers.size)
+        }
+
+        @Test
+        fun `ACCEPTS a server certificate issued by the supplied CA`() {
+            // Every other rootCa test asserts a rejection, so a trust manager that rejected
+            // EVERYTHING (a broken TrustManagerFactory init) would ship green with the feature
+            // silently dead. This is the positive lock.
+            val ca = HeldCertificate.Builder()
+                .commonName("kopia-kt-accept-ca")
+                .certificateAuthority(0)
+                .build()
+            val leaf = HeldCertificate.Builder()
+                .commonName("kopia-kt-accept-leaf")
+                .signedBy(ca)
+                .build()
+
+            val tm = TlsTrust.trustManagerForRootCa(ca.certificatePem().toByteArray())
+            tm.checkServerTrusted(arrayOf(leaf.certificate, ca.certificate), "RSA") // must not throw
         }
 
         @Test

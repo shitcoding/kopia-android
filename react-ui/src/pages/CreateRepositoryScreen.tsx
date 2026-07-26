@@ -76,13 +76,24 @@ const CreateRepositoryScreen = () => {
     storageType === "s3" ? s3Endpoint : storageType === "webdav" ? webdavUrl : "";
   const isCleartext = isCleartextUrl(cleartextEndpoint);
 
-  // The acknowledgment is about ONE endpoint, and a passed connection test is about ONE config.
-  // Drop both whenever the storage type or the endpoint changes, so neither a stale tick nor a stale
-  // "tested OK" can carry the user past a target they never acknowledged.
+  // The acknowledgment is about ONE endpoint: drop it whenever the storage type or the endpoint
+  // changes, so a tick can never carry over to a target the user never acknowledged.
   useEffect(() => {
     setAllowCleartextHttp(false);
-    setTestPassed(false);
   }, [storageType, cleartextEndpoint]);
+
+  // A passed connection test is about ONE config, so ANY field that feeds buildConfig() invalidates
+  // it — otherwise "Connection OK" and an enabled Next survive an edit to the bucket, credentials or
+  // trust material, and the user is walked to a create the native layer then rejects.
+  useEffect(() => {
+    setTestPassed(false);
+  }, [
+    storageType, localPath,
+    s3Bucket, s3Endpoint, s3Region, s3AccessKey, s3SecretKey, s3RootCaPem,
+    webdavUrl, webdavUsername, webdavPassword, webdavCertFingerprint,
+    sftpHost, sftpPort, sftpUsername, sftpPath, sftpPassword, sftpKnownHosts, sftpFingerprint,
+    sftpInsecure, allowCleartextHttp,
+  ]);
 
   const { data: algorithms } = useAlgorithms();
   const createRepo = useCreateRepository();

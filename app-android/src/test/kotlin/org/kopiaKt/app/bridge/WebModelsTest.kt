@@ -64,6 +64,34 @@ class WebModelsTest {
     }
 
     @Test
+    fun `toWeb echoes the TLS trust material and cleartext acknowledgment back to JS`() {
+        // This regressed once already: toWeb() silently dropped the new fields, so a config JS
+        // round-trips would lose the pinned CA or the acknowledgment (and then be refused by the
+        // connect gate). Neither field is a secret, so echoing them is correct.
+        val s3 = ConnectionConfig.S3(
+            bucket = "b",
+            endpoint = "https://s3.example.com",
+            region = "r",
+            accessKeyId = "k",
+            secretAccessKey = "s",
+            rootCaPem = "PEM",
+            allowCleartextHttp = true,
+        ).toWeb()
+        assertEquals("PEM", s3.s3?.rootCaPem)
+        assertTrue(s3.s3?.allowCleartextHttp == true)
+
+        val webdav = ConnectionConfig.WebDAV(
+            url = "https://nas/dav",
+            username = "u",
+            password = "p",
+            trustedServerCertificateFingerprint = "ab12",
+            allowCleartextHttp = true,
+        ).toWeb()
+        assertEquals("ab12", webdav.webdav?.trustedServerCertificateFingerprint)
+        assertTrue(webdav.webdav?.allowCleartextHttp == true)
+    }
+
+    @Test
     fun `cleartext acknowledgment and TLS trust material round-trip from the JSON`() {
         val s3 = json.decodeFromString<WebConnectionConfig>(
             """{"storageType":"S3","s3":{"bucket":"b","endpoint":"http://minio:9000","region":"r",""" +
