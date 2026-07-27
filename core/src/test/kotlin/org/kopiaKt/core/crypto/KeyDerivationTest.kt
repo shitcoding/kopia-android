@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.testvectors.HkdfTestCase
 import org.kopiaKt.core.testvectors.Pbkdf2TestCase
 import org.kopiaKt.core.testvectors.ScryptTestCase
@@ -324,6 +325,62 @@ class KeyDerivationTest {
             val factory = DefaultKeyDerivationFactory()
             val kdf = factory.createHkdf()
             assertNotNull(kdf)
+        }
+    }
+
+    @Nested
+    @DisplayName("Algorithm parameter bounds")
+    inner class AlgorithmBoundsTests {
+
+        private val salt = ByteArray(32) { it.toByte() }
+
+        private fun derive(algorithm: String) = deriveKeyFromPassword(
+            password = "password",
+            salt = salt,
+            keyLength = 32,
+            algorithm = algorithm,
+        )
+
+        @Test
+        fun `accepts the Kopia default scrypt parameters`() {
+            assertEquals(32, derive("scrypt-65536-8-1").size)
+        }
+
+        @Test
+        fun `accepts the reduced scrypt parameters used by debug builds`() {
+            assertEquals(32, derive("scrypt-1024-8-1").size)
+        }
+
+        @Test
+        fun `accepts the Kopia default pbkdf2 iteration count`() {
+            assertEquals(32, derive("pbkdf2-sha256-600000").size)
+        }
+
+        @Test
+        fun `rejects a scrypt cost parameter that would exhaust memory`() {
+            // 128 * r * N = 128 * 8 * 2^30 = 1 TiB of scratch memory.
+            assertThrows<IllegalArgumentException> { derive("scrypt-1073741824-8-1") }
+        }
+
+        @Test
+        fun `rejects a scrypt block size that would exhaust memory`() {
+            // 128 * r * N = 128 * 2000000 * 65536; unguarded this kills the JVM.
+            assertThrows<IllegalArgumentException> { derive("scrypt-65536-2000000-1") }
+        }
+
+        @Test
+        fun `rejects an excessive scrypt parallelization factor`() {
+            assertThrows<IllegalArgumentException> { derive("scrypt-1024-8-1000") }
+        }
+
+        @Test
+        fun `rejects an excessive pbkdf2 iteration count`() {
+            assertThrows<IllegalArgumentException> { derive("pbkdf2-sha256-10000000") }
+        }
+
+        @Test
+        fun `rejects an unknown algorithm`() {
+            assertThrows<IllegalArgumentException> { derive("argon2id-1-2-3") }
         }
     }
 }

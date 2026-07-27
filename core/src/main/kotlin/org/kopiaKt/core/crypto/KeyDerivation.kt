@@ -194,17 +194,40 @@ fun deriveKeyFromPassword(
             val parts = algorithm.removePrefix("scrypt-").split("-")
             require(parts.size == 3) { "Invalid scrypt algorithm format: $algorithm" }
 
-            val n = parts[0].toInt()
-            val r = parts[1].toInt()
-            val p = parts[2].toInt()
+            val n = requireNotNull(parts[0].toIntOrNull()) { "Invalid scrypt N: $algorithm" }
+            val r = requireNotNull(parts[1].toIntOrNull()) { "Invalid scrypt r: $algorithm" }
+            val p = requireNotNull(parts[2].toIntOrNull()) { "Invalid scrypt p: $algorithm" }
+
+            // The algorithm string comes from the UNAUTHENTICATED plaintext format blob, so it is
+            // attacker-controlled before any password check. Bound the work it can request:
+            // scrypt allocates 128 * r * N bytes, and repeats the whole thing p times.
+            require(n > 0 && r > 0 && p > 0) { "Scrypt parameters must be positive: $algorithm" }
+            require(r.toLong() * n <= MAX_SCRYPT_BLOCKS) { "Scrypt memory cost too high: $algorithm" }
+            require(p <= MAX_SCRYPT_PARALLELISM) { "Scrypt parallelization factor too high: $algorithm" }
 
             ScryptKeyDerivation().derive(passwordBytes, salt, n, r, p, keyLength)
         }
         algorithm.startsWith("pbkdf2-sha256-") -> {
             // Parse PBKDF2 iterations from algorithm string: "pbkdf2-sha256-iterations"
-            val iterations = algorithm.removePrefix("pbkdf2-sha256-").toInt()
+            val iterations = requireNotNull(algorithm.removePrefix("pbkdf2-sha256-").toIntOrNull()) {
+                "Invalid pbkdf2 iteration count: $algorithm"
+            }
+            require(iterations in 1..MAX_PBKDF2_ITERATIONS) { "Pbkdf2 iteration count out of range: $algorithm" }
+
             Pbkdf2KeyDerivation().derive(passwordBytes, salt, iterations, keyLength)
         }
         else -> throw IllegalArgumentException("Unknown key derivation algorithm: $algorithm")
     }
 }
+
+/**
+ * Upper bound on scrypt's `r * N` product, i.e. 128 MiB of scratch memory (`128 * r * N`).
+ * Kopia's default (N=65536, r=8) needs 64 MiB; debug builds (N=1024, r=8) need 1 MiB.
+ */
+private const val MAX_SCRYPT_BLOCKS = 1L shl 20
+
+/** Upper bound on scrypt's parallelization factor. Kopia always uses 1. */
+private const val MAX_SCRYPT_PARALLELISM = 16
+
+/** Upper bound on the PBKDF2 iteration count. Kopia uses 600,000. */
+private const val MAX_PBKDF2_ITERATIONS = 5_000_000
