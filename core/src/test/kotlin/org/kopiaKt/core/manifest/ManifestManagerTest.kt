@@ -417,6 +417,34 @@ class ManifestManagerTest {
     }
 
     @Test
+    fun `compact tombstones the manifest contents it supersedes`() = runBlocking {
+        repeat(5) { batch ->
+            manifestManager.put(
+                mapOf("type" to "supersede-test", "batch" to "$batch"),
+                TestPayload("item_$batch", batch),
+            )
+            manifestManager.flush()
+            contentManager.flush()
+        }
+
+        val liveBefore = liveManifestContentIds()
+        assertTrue(liveBefore.size > 1, "Should have multiple manifest content blocks before compact")
+
+        manifestManager.compact()
+        manifestManager.flush()
+        contentManager.flush()
+
+        // Snapshot GC always keeps 'm' content, so a compaction that does not delete the blocks it
+        // replaced leaves them in the repository forever.
+        val liveAfter = liveManifestContentIds()
+        assertEquals(1, liveAfter.size, "compaction should leave exactly one live manifest content")
+        assertTrue(liveBefore.none { it in liveAfter }, "every superseded block should be tombstoned")
+
+        // ...and the manifests themselves must still be readable.
+        assertEquals(5, manifestManager.find(mapOf("type" to "supersede-test")).size)
+    }
+
+    @Test
     fun `compact removes deleted manifests permanently`() = runBlocking {
         // Create manifests
         val keepId = manifestManager.put(mapOf("type" to "keep"), TestPayload("keep", 1))
@@ -503,4 +531,14 @@ class ManifestManagerTest {
     // === Helper Functions ===
 
     private suspend fun countManifestContents(): Int = manifestManager.getCommittedContentCount()
+
+    /** Manifest ('m'-prefixed) content blocks that are present and not tombstoned. */
+    private suspend fun liveManifestContentIds(): Set<String> {
+        val ids = mutableSetOf<String>()
+        contentManager.iterateContentInfos(includeDeleted = false) { info ->
+            val id = info.contentId.toString()
+            if (id.startsWith("m")) ids.add(id)
+        }
+        return ids
+    }
 }

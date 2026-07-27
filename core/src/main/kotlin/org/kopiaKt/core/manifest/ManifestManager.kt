@@ -345,14 +345,28 @@ class ManifestManager(
     private suspend fun compactInternal() {
         if (committedContentIds.size <= 1) return
 
+        // A compacted block records a deletion by ABSENCE: tombstone entries never reach
+        // committedEntries (flush drops them, loadCommittedManifests strips them after merging), so the
+        // container written below simply omits deleted manifests. That is only sound if EVERY block it
+        // supersedes actually goes away. If one survives, the next refresh merges its stale LIVE entry
+        // back over the absence and the deleted manifest returns from the dead — undoing a snapshot
+        // deletion and re-protecting its content from GC. Compaction is only an optimization, so when
+        // any superseded block cannot be tombstoned, decline the whole compaction and leave the old
+        // accumulate-forever state, which is safe.
+        if (!canTombstoneAll(committedContentIds)) {
+            logger.log(
+                Level.WARNING,
+                "Skipping manifest compaction: a superseded content block cannot be tombstoned by the " +
+                    "V1 index writer, and a partial compaction would resurrect deleted manifests",
+            )
+            return
+        }
+
         // Collect all non-deleted entries
         val entriesToKeep = committedEntries.filterValues { !it.deleted }
 
         if (entriesToKeep.isEmpty()) {
-            // Delete all manifest contents
-            for (contentId in committedContentIds) {
-                // Note: ContentManager doesn't have delete, so we just track
-            }
+            deleteSupersededContent(committedContentIds.toList())
             committedContentIds.clear()
             committedEntries.clear()
             return
@@ -373,15 +387,45 @@ class ManifestManager(
             compression = CompressionAlgorithm.NONE,
         )
 
-        // Note: In Go, old content IDs are deleted. Since ContentManager doesn't
-        // have delete, we just update our tracking. The old content will eventually
-        // be garbage collected by maintenance operations.
+        // Delete the blocks this one supersedes, as Go does. Snapshot GC classifies 'm' content as
+        // system content and always keeps it, so without this they accumulate forever, growing the
+        // repository and the cost of every refresh. The new block is written FIRST and both the write
+        // and the tombstones land in the same flush, so a crash cannot leave the manifests unreadable.
+        deleteSupersededContent(committedContentIds.filter { it != newContentId })
+
         committedContentIds.clear()
         committedContentIds.add(newContentId)
 
         // Update committed entries to only keep non-deleted
         committedEntries.clear()
         committedEntries.putAll(entriesToKeep.mapKeys { it.key })
+    }
+
+    /**
+     * Whether every one of [contentIds] could be tombstoned by the index writer.
+     *
+     * `deleteContent` only QUEUES a tombstone cloned from the current entry; `PackIndexV1.build` then
+     * refuses entries carrying a non-zero compression header or encryption key id — and it refuses
+     * them at FLUSH, far from here, taking down the whole flush rather than just this cleanup. Content
+     * written by this implementation is always content-level uncompressed (production sets
+     * defaultCompression = NONE and this class passes NONE explicitly), so this is always true for a
+     * Kotlin-only repository; Go DOES write manifest content with zstd, so a shared repository can
+     * contain blocks that fail the test.
+     */
+    private suspend fun canTombstoneAll(contentIds: Collection<ContentId>): Boolean = contentIds.all { id ->
+        val info = contentManager.getContentInfo(id)
+        info == null || info.compressionHeaderId == 0 && info.encryptionKeyId.toInt() == 0
+    }
+
+    /**
+     * Tombstones manifest content blocks that a compaction has superseded. Callers MUST have checked
+     * [canTombstoneAll] first — a partial tombstoning resurrects deleted manifests (see
+     * [compactInternal]).
+     */
+    private suspend fun deleteSupersededContent(contentIds: List<ContentId>) {
+        for (contentId in contentIds) {
+            contentManager.deleteContent(contentId)
+        }
     }
 
     private suspend fun loadCommittedManifests() {
