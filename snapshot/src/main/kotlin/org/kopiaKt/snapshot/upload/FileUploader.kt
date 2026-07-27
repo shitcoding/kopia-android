@@ -1,8 +1,10 @@
 package org.kopiaKt.snapshot.upload
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.kopiaKt.core.compression.CompressionAlgorithm
+import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.`object`.ObjectWriterOptions
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.snapshot.fs.File
@@ -12,6 +14,8 @@ import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.model.EntryType
 import org.kopiaKt.snapshot.policy.CompressionPolicy
 import org.kopiaKt.snapshot.policy.SplitterPolicy
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Uploads files and directory manifests to the repository.
@@ -109,6 +113,31 @@ class FileUploader(
         )
 
         return objectId.toString()
+    }
+
+    override suspend fun loadDirManifest(objectId: String): DirManifest? = try {
+        // Same cap SnapshotGC.readDirectoryManifest applies: a corrupted previous snapshot whose
+        // directory entry points at a huge object must degrade to a re-hash, not OOM the backup.
+        val reader = writer.openObject(ObjectId.parse(objectId))
+        try {
+            val length = reader.length()
+            if (length > MAX_DIR_MANIFEST_BYTES) {
+                logger.log(Level.WARNING, "Previous directory manifest $objectId is $length bytes; re-hashing subtree")
+                null
+            } else {
+                json.decodeFromString(DirManifest.serializer(), reader.read().decodeToString())
+            }
+        } finally {
+            reader.close()
+        }
+    } catch (e: CancellationException) {
+        throw e // never swallow coroutine cancellation
+    } catch (e: Exception) {
+        // Best-effort: an unreadable previous manifest only means this subtree is re-hashed, so it
+        // must never fail the backup. Logged at FINE because it is expected on a first backup after
+        // a format change or a partially-readable repository.
+        logger.log(Level.FINE, "Could not load previous directory manifest $objectId; re-hashing subtree", e)
+        null
     }
 
     /**
@@ -237,5 +266,10 @@ class FileUploader(
 
         // Go kopia's objectIDPrefixDirectory: directory manifest content is stored with a 'k' prefix.
         private const val DIRECTORY_CONTENT_PREFIX = 'k'
+
+        private val logger = Logger.getLogger(FileUploader::class.java.name)
+
+        /** Cap on a previous directory manifest, mirroring SnapshotGC.readDirectoryManifest. */
+        private const val MAX_DIR_MANIFEST_BYTES = 128L * 1024 * 1024
     }
 }

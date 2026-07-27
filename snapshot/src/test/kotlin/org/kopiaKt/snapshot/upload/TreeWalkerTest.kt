@@ -188,6 +188,85 @@ class TreeWalkerTest {
         }
     }
 
+    @Nested
+    inner class IncrementalReuse {
+
+        @Test
+        fun `previous entries are reused below the snapshot root`(@TempDir tempDir: Path) = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.createDirectories()
+            tempDir.resolve("top.txt").writeText("top")
+            sub.resolve("nested.txt").writeText("nested")
+
+            val dir = LocalFilesystem.directory(tempDir)
+            val nested = (dir.child("sub") as org.kopiaKt.snapshot.fs.Directory).child("nested.txt") as File
+            val top = dir.child("top.txt") as File
+
+            val previousNested = DirEntry(
+                name = "nested.txt",
+                type = EntryType.FILE,
+                permissions = nested.mode,
+                fileSize = nested.size,
+                modTime = nested.modTime,
+                objectId = "previous-nested",
+            )
+            val previousRoot = DirManifest(
+                entries = listOf(
+                    DirEntry(
+                        name = "top.txt",
+                        type = EntryType.FILE,
+                        permissions = top.mode,
+                        fileSize = top.size,
+                        modTime = top.modTime,
+                        objectId = "previous-top",
+                    ),
+                    DirEntry(
+                        name = "sub",
+                        type = EntryType.DIRECTORY,
+                        permissions = 493,
+                        modTime = nested.modTime,
+                        objectId = "previous-sub-manifest",
+                    ),
+                ),
+            )
+
+            val processor = TestEntryProcessor()
+            processor.previousManifests["previous-sub-manifest"] = DirManifest(entries = listOf(previousNested))
+
+            TreeWalker(processor, NullUploadProgress()).walk(dir, previousRoot)
+
+            // Root-level reuse always worked; the nested one is the regression guard. Without the
+            // subdirectory manifest lookup, every file below the root was re-read and re-hashed.
+            assertEquals("previous-top", processor.previousEntrySeen["top.txt"])
+            assertEquals("previous-nested", processor.previousEntrySeen["sub/nested.txt"])
+        }
+
+        @Test
+        fun `an unreadable previous subdirectory manifest just disables reuse`(@TempDir tempDir: Path) = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.createDirectories()
+            sub.resolve("nested.txt").writeText("nested")
+
+            val previousRoot = DirManifest(
+                entries = listOf(
+                    DirEntry(
+                        name = "sub",
+                        type = EntryType.DIRECTORY,
+                        permissions = 493,
+                        modTime = java.time.Instant.now(),
+                        objectId = "missing-manifest",
+                    ),
+                ),
+            )
+
+            val processor = TestEntryProcessor() // knows no manifests -> loadDirManifest returns null
+            TreeWalker(processor, NullUploadProgress()).walk(LocalFilesystem.directory(tempDir), previousRoot)
+
+            assertEquals(null, processor.previousEntrySeen["sub/nested.txt"])
+            assertEquals(1, processor.fileCount.get())
+        }
+    }
+
     /**
      * Test implementation of EntryProcessor that tracks calls.
      */
@@ -196,13 +275,22 @@ class TreeWalkerTest {
         val symlinkCount = AtomicInteger(0)
         val dirManifestCount = AtomicInteger(0)
 
+        /** Previous manifests this processor will hand back, keyed by directory objectId. */
+        val previousManifests = mutableMapOf<String, DirManifest>()
+
+        /** Relative path -> the previousEntry the walker supplied for it. Written from parallel workers. */
+        val previousEntrySeen = java.util.concurrent.ConcurrentHashMap<String, String>()
+
         private var nextObjectId = AtomicInteger(1)
+
+        override suspend fun loadDirManifest(objectId: String): DirManifest? = previousManifests[objectId]
 
         override suspend fun processFile(
             file: File,
             relativePath: String,
             previousEntry: DirEntry?,
         ): DirEntry {
+            previousEntry?.objectId?.let { previousEntrySeen[relativePath] = it }
             fileCount.incrementAndGet()
             return DirEntry(
                 name = file.name,

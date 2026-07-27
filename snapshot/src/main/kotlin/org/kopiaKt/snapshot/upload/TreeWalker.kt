@@ -60,6 +60,17 @@ interface EntryProcessor {
      * @return The objectId of the uploaded manifest
      */
     suspend fun uploadDirectoryManifest(manifest: DirManifest): String
+
+    /**
+     * Loads a previously-written directory manifest so its entries can be reused.
+     *
+     * Returning null simply disables reuse for that subtree, so a failure here costs time, never
+     * correctness.
+     *
+     * @param objectId The objectId of a directory manifest from the previous snapshot
+     * @return The manifest, or null if it cannot be read
+     */
+    suspend fun loadDirManifest(objectId: String): DirManifest?
 }
 
 /**
@@ -243,12 +254,15 @@ class TreeWalker(
                 }
 
                 is Directory -> {
-                    // Recurse into subdirectory
-                    val previousDirManifest = previousEntry?.objectId?.let { objId ->
-                        // In a full implementation, we'd load the previous manifest here
-                        // For now, we don't have access to repository from TreeWalker
-                        null
-                    }
+                    // Recurse into the subdirectory, carrying its previous manifest so the entries
+                    // below the root can be reused too. Without this, only root-level files ever had
+                    // a previousEntry and every file deeper in the tree was re-read and re-hashed on
+                    // every backup — over SAF that is one ContentResolver stream per file.
+                    val previousDirManifest = previousEntry
+                        ?.takeIf { it.type == ModelEntryType.DIRECTORY }
+                        ?.objectId
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { processor.loadDirManifest(it) }
                     walkDirectory(entry, entryPath, previousDirManifest)
                 }
 
