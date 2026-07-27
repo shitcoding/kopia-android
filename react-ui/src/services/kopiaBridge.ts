@@ -187,6 +187,22 @@ function callBridgeVoid(method: string, arg?: unknown): void {
   }
 }
 
+/**
+ * Tracks the bridge calls whose native result is delivered through ONE global handler with no request
+ * id. A second concurrent call cannot be made safe by replacing the handler: the first native
+ * operation is still in flight and would settle the second call's promise with the first one's result.
+ * So a call is refused while one is outstanding, which is also what the UI expects (one connect at a
+ * time). Each entry is cleared when its native result arrives.
+ */
+const inFlightSingleSlot = new Set<"connect" | "createRepository">();
+
+function beginSingleSlot(slot: "connect" | "createRepository"): void {
+  if (inFlightSingleSlot.has(slot)) {
+    throw new BridgeError(`${slot}() is already in progress`);
+  }
+  inFlightSingleSlot.add(slot);
+}
+
 class KopiaBridgeService {
   private get isAndroid(): boolean {
     return typeof window.KopiaBridge !== "undefined";
@@ -246,8 +262,13 @@ class KopiaBridgeService {
 
     // Use callback pattern to avoid blocking UI thread
     return new Promise((resolve, reject) => {
+      // One global result handler, no request id: refuse rather than let a stale native result
+      // settle this promise. See beginSingleSlot.
+      beginSingleSlot("connect");
+
       // Set up callback
       (window as any).__kopiaConnectCallback = (resultJson: string) => {
+        inFlightSingleSlot.delete("connect");
         try {
           const result = this.parse<RepositoryConnection>(resultJson);
           resolve(result);
@@ -260,7 +281,14 @@ class KopiaBridgeService {
       };
 
       // Call the bridge - it returns immediately, result comes via callback
-      window.KopiaBridge!.connect(JSON.stringify(request));
+      try {
+        window.KopiaBridge!.connect(JSON.stringify(request));
+      } catch (error) {
+        // The callback will never fire, so release the slot or no retry is ever possible.
+        inFlightSingleSlot.delete("connect");
+        delete (window as any).__kopiaConnectCallback;
+        reject(error);
+      }
     });
   }
 
@@ -389,8 +417,12 @@ export async function createRepository(request: CreateRepositoryRequest): Promis
   if (!bridge) throw new BridgeError("KopiaBridge not available");
 
   return new Promise<void>((resolve, reject) => {
+    // Same single-slot hazard as connect().
+    beginSingleSlot("createRepository");
+
     window.KopiaEvents = window.KopiaEvents || {};
     window.KopiaEvents.onRepositoryCreated = (resultJson: string) => {
+      inFlightSingleSlot.delete("createRepository");
       try {
         const result: WebResult<unknown> = JSON.parse(resultJson);
         if (result.success) {
@@ -405,7 +437,14 @@ export async function createRepository(request: CreateRepositoryRequest): Promis
       }
     };
 
-    bridge.createRepository(JSON.stringify(request));
+    try {
+      bridge.createRepository(JSON.stringify(request));
+    } catch (error) {
+      // The callback will never fire, so release the slot or no retry is ever possible.
+      inFlightSingleSlot.delete("createRepository");
+      if (window.KopiaEvents) delete window.KopiaEvents.onRepositoryCreated;
+      reject(error);
+    }
   });
 }
 

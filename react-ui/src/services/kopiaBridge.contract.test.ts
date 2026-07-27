@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getPolicy, setPolicy, getTask, BridgeError } from "@/services/kopiaBridge";
+import { getPolicy, setPolicy, getTask, createRepository, BridgeError } from "@/services/kopiaBridge";
 import { sourceId } from "@/lib/format";
 
 // Contract pins for the JS -> Kotlin bridge marshalling. The Kotlin counterpart lives in
@@ -81,3 +81,38 @@ describe("bridge contract: WebResult errors surface as BridgeError", () => {
     await expect(getTask("x")).rejects.toThrow("not yet implemented");
   });
 });
+
+describe("bridge single-slot callbacks", () => {
+  it("refuses a concurrent createRepository rather than misattributing the result", async () => {
+    stubBridge("createRepository", () => "");
+
+    const first = createRepository({} as never);
+    // One global handler with no request id: allowing a second call would let the FIRST native
+    // result settle the SECOND promise.
+    await expect(createRepository({} as never)).rejects.toBeInstanceOf(BridgeError);
+
+    (window as unknown as { KopiaEvents: { onRepositoryCreated: (s: string) => void } })
+      .KopiaEvents.onRepositoryCreated(JSON.stringify({ success: true, data: null }));
+    await expect(first).resolves.toBeUndefined();
+
+    // ...and the slot is released, so a later call works.
+    const third = createRepository({} as never);
+    (window as unknown as { KopiaEvents: { onRepositoryCreated: (s: string) => void } })
+      .KopiaEvents.onRepositoryCreated(JSON.stringify({ success: true, data: null }));
+    await expect(third).resolves.toBeUndefined();
+  });
+
+  it("releases the slot when the native call throws synchronously", async () => {
+    stubBridge("createRepository", () => {
+      throw new Error("bridge exploded");
+    });
+
+    await expect(createRepository({} as never)).rejects.toThrow("bridge exploded");
+
+    stubBridge("createRepository", () => "");
+    const retry = createRepository({} as never);
+    (window as unknown as { KopiaEvents: { onRepositoryCreated: (s: string) => void } })
+      .KopiaEvents.onRepositoryCreated(JSON.stringify({ success: true, data: null }));
+    await expect(retry).resolves.toBeUndefined();
+  });
+})

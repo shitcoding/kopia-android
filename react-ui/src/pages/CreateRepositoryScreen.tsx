@@ -22,9 +22,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAlgorithms, useCreateRepository, useTestConnection } from "@/hooks/useBackupApi";
 import type { ConnectionConfig, CreateRepositoryRequest, StorageType } from "@/types/kopia";
 
-type StorageType = "local" | "s3" | "webdav" | "sftp";
+/** Id of a storage choice in the picker; distinct from the wire-level StorageType. */
+type StorageOptionId = "local" | "s3" | "webdav" | "sftp";
 
-const STORAGE_OPTIONS: { id: StorageType; label: string; desc: string; icon: React.ElementType }[] = [
+const STORAGE_OPTIONS: { id: StorageOptionId; label: string; desc: string; icon: React.ElementType }[] = [
   { id: "local", label: "Local Filesystem", desc: "Use a local directory on this device", icon: HardDrive },
   { id: "s3", label: "Amazon S3", desc: "S3-compatible cloud storage", icon: Cloud },
   { id: "webdav", label: "WebDAV", desc: "WebDAV server (Nextcloud, etc.)", icon: Globe },
@@ -35,7 +36,7 @@ const CreateRepositoryScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
-  const [storageType, setStorageType] = useState<StorageType | null>(null);
+  const [storageType, setStorageType] = useState<StorageOptionId | null>(null);
 
   // Storage config state
   const [localPath, setLocalPath] = useState("");
@@ -104,14 +105,14 @@ const CreateRepositoryScreen = () => {
   const compressionOptions = algorithms?.compression ?? ["zstd", "lz4", "gzip", "pgzip", "deflate-default", "none"];
 
   const buildConfig = (): ConnectionConfig => {
-    const storageTypeMap: Record<string, StorageType> = {
+    const storageTypeMap: Record<StorageOptionId, StorageType> = {
       local: "LOCAL_FILESYSTEM",
       s3: "S3",
       webdav: "WEBDAV",
       sftp: "SFTP",
     };
     const config: ConnectionConfig = {
-      storageType: storageTypeMap[storageType] ?? "LOCAL_FILESYSTEM",
+      storageType: (storageType && storageTypeMap[storageType]) || "LOCAL_FILESYSTEM",
     };
     switch (storageType) {
       case "local": config.local = { path: localPath }; break;

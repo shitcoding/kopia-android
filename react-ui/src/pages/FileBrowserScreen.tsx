@@ -27,7 +27,8 @@ interface DisplayFileEntry {
   name: string;
   type: "folder" | "file" | "symlink" | "unknown";
   size: number;
-  modifiedAt?: Date;
+  /** Epoch millis, as formatDateTime expects. */
+  modifiedAt?: number;
 }
 
 type RestoreState = "idle" | "picking" | "restoring" | "done" | "error";
@@ -78,7 +79,7 @@ const FileBrowserScreen = () => {
     name: entry.name,
     type: mapFileType(entry.type),
     size: entry.size,
-    modifiedAt: entry.modTimeEpochMs ? new Date(entry.modTimeEpochMs) : undefined,
+    modifiedAt: entry.modTimeEpochMs ?? undefined,
   })) ?? [];
 
   const isEmpty = !isLoading && !isError && files.length === 0;
