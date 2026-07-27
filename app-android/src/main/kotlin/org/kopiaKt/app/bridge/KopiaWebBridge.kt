@@ -138,6 +138,9 @@ class KopiaWebBridge private constructor(
 
     private val webViewRef = AtomicReference<WebView?>()
 
+    /** Guards the single system folder picker against overlapping requests from either screen. */
+    private val pickerInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+
     // Shared with the bridge contract tests via WebModels.bridgeJson so the test pins can't drift.
     private val json = bridgeJson
     private var restoreJob: Job? = null
@@ -733,6 +736,12 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun pickRestoreDestination() {
         val act = activity ?: return
+        // One system picker at a time; a second request would leak the first registration and race
+        // two results onto one event.
+        if (!pickerInFlight.compareAndSet(false, true)) {
+            android.util.Log.w(TAG, "ignoring pickRestoreDestination: a folder picker is already open")
+            return
+        }
         val key = "kopia_pick_${UUID.randomUUID()}"
         act.runOnUiThread {
             var launcher: androidx.activity.result.ActivityResultLauncher<Uri?>? = null
@@ -741,6 +750,7 @@ class KopiaWebBridge private constructor(
                 ActivityResultContracts.OpenDocumentTree(),
             ) { uri ->
                 launcher?.unregister()
+                pickerInFlight.set(false)
                 val result = if (uri == null) {
                     WebSafPickResult(uri = null, displayName = null)
                 } else {
@@ -751,7 +761,95 @@ class KopiaWebBridge private constructor(
                 }
                 pushDestinationPicked(result)
             }
-            launcher.launch(null)
+            try {
+                launcher.launch(null)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "failed to open the restore destination picker", e)
+                launcher.unregister()
+                pickerInFlight.set(false)
+                pushDestinationPicked(WebSafPickResult(error = e.message ?: "Picker unavailable"))
+            }
+        }
+    }
+
+    /**
+     * Launch the SAF folder picker to choose a folder to BACK UP, and persist the read grant before
+     * handing the URI back. Result is pushed to JavaScript via `KopiaEvents.onBackupSourcePicked`.
+     *
+     * Deliberately separate from [pickRestoreDestination]: that event is shared by every screen that
+     * picks a restore destination, and a backup source additionally needs a *persisted* grant. A
+     * plain pick grants access only for this process lifetime, so the source would back up once and
+     * then throw `SecurityException` after the app is next killed — and the grant cannot be taken
+     * retroactively, only at pick time.
+     *
+     * @return JSON-encoded WebResult<Unit> — an error if a picker is already open.
+     */
+    @JavascriptInterface
+    fun pickBackupSource(): String {
+        var acquired = false
+        return try {
+            val act = activity ?: error("Activity not available")
+            // The system picker is a single modal activity; a second request would leak the first
+            // launcher's registration and race two results onto one event.
+            if (!pickerInFlight.compareAndSet(false, true)) {
+                json.encodeToString(WebResult.error<Unit>("A folder picker is already open"))
+            } else {
+                acquired = true
+                launchBackupSourcePicker(act)
+                json.encodeToString(WebResult.success(Unit))
+            }
+        } catch (e: Exception) {
+            // Only ours to release -- clearing unconditionally would un-guard someone else's pick.
+            if (acquired) {
+                pickerInFlight.set(false)
+            }
+            json.encodeToString(WebResult.error<Unit>(e.message ?: "Failed to open the folder picker"))
+        }
+    }
+
+    private fun launchBackupSourcePicker(act: ComponentActivity) {
+        val key = "kopia_source_pick_${UUID.randomUUID()}"
+        act.runOnUiThread {
+            var launcher: androidx.activity.result.ActivityResultLauncher<Uri?>? = null
+            launcher = act.activityResultRegistry.register(
+                key,
+                ActivityResultContracts.OpenDocumentTree(),
+            ) { uri ->
+                launcher?.unregister()
+                pickerInFlight.set(false)
+                pushBackupSourcePicked(persistPickedSource(uri))
+            }
+            try {
+                launcher.launch(null)
+            } catch (e: Exception) {
+                launcher.unregister()
+                pickerInFlight.set(false)
+                pushBackupSourcePicked(
+                    WebSafPickResult(uri = null, displayName = null, error = e.message ?: "Picker unavailable"),
+                )
+            }
+        }
+    }
+
+    /**
+     * Takes the persistable read grant for a freshly picked tree. Read only: a backup source is
+     * never written to, and asking for a grant the picker did not hand out throws.
+     */
+    private fun persistPickedSource(uri: Uri?): WebSafPickResult {
+        if (uri == null) {
+            return WebSafPickResult(uri = null, displayName = null)
+        }
+        return try {
+            context?.contentResolver?.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            WebSafPickResult(uri = uri.toString(), displayName = uri.lastPathSegment)
+        } catch (e: SecurityException) {
+            // Surfacing this beats returning a URI that backs up once and fails forever after.
+            android.util.Log.e(TAG, "failed to persist the source grant", e)
+            WebSafPickResult(
+                uri = null,
+                displayName = null,
+                error = "Could not keep access to that folder; pick it again",
+            )
         }
     }
 
@@ -870,6 +968,17 @@ class KopiaWebBridge private constructor(
         webViewRef.get()?.post {
             webViewRef.get()?.evaluateJavascript(
                 "window.KopiaEvents?.onDestinationPicked?.($jsonStr);",
+                null,
+            )
+        }
+    }
+
+    /** Push the backup-source pick result to JavaScript (its own event — see [pickBackupSource]). */
+    private fun pushBackupSourcePicked(result: WebSafPickResult) {
+        val jsonStr = json.encodeToString(result)
+        webViewRef.get()?.post {
+            webViewRef.get()?.evaluateJavascript(
+                "window.KopiaEvents?.onBackupSourcePicked?.($jsonStr);",
                 null,
             )
         }

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FolderOpen, Loader2, Settings } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateSource } from "@/hooks/useBackupApi";
+import { onBackupSourcePicked, pickBackupSource } from "@/services/kopiaBridge";
 import type { WebPolicy } from "@/types/kopia";
 
 // Values are the case-sensitive Kotlin/Go compressor wire IDs; labels are display-only.
@@ -35,21 +36,37 @@ const AddSourceScreen = () => {
   // Step 3
   const [startImmediately, setStartImmediately] = useState(true);
 
+  // Subscribed for the screen's lifetime, not per tap, so the handler is released on unmount.
+  useEffect(
+    () =>
+      onBackupSourcePicked((result) => {
+        if (result?.uri) {
+          setSelectedPath(result.uri);
+        } else if (result?.error) {
+          toast({ title: "Could not use that folder", description: result.error, variant: "destructive" });
+        }
+      }),
+    [toast]
+  );
+
   const handlePickFolder = () => {
-    if (!window.KopiaEvents) {
-      (window as any).KopiaEvents = {};
-    }
-    // The native picker pushes a SafPickResult object ({ uri, displayName }), not a bare path
-    // string; read result.uri (the value we submit to createSource) and ignore a cancelled pick.
-    window.KopiaEvents!.onDestinationPicked = (result) => {
-      if (result?.uri) setSelectedPath(result.uri);
-    };
-    const bridge = window.KopiaBridge as any;
-    if (bridge?.pickRestoreDestination) {
-      bridge.pickRestoreDestination();
-    } else {
+    // pickBackupSource, NOT the restore picker: only this one persists the read grant, and the grant
+    // cannot be taken later, so a source picked through the restore picker backs up once and then
+    // fails with SecurityException after the app is next killed. Its own event too — several screens
+    // subscribe to onDestinationPicked.
+    if (!window.KopiaBridge?.pickBackupSource) {
       // Mock fallback for development
       setSelectedPath("/storage/emulated/0/Documents");
+      return;
+    }
+    try {
+      pickBackupSource();
+    } catch (e) {
+      toast({
+        title: "Could not open the folder picker",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
     }
   };
 

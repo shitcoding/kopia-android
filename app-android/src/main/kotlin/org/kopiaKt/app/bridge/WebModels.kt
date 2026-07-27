@@ -271,6 +271,8 @@ data class WebRestoreProgress(
 data class WebSafPickResult(
     val uri: String? = null,
     val displayName: String? = null,
+    /** Set when the pick itself failed, as opposed to the user cancelling (both leave [uri] null). */
+    val error: String? = null,
 )
 
 @Serializable

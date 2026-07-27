@@ -4,6 +4,7 @@
  * When running in browser (development), mock responses are returned.
  */
 
+import { toast } from "@/hooks/use-toast";
 import type {
   ConnectionConfig,
   ConnectRequest,
@@ -54,6 +55,7 @@ declare global {
       startRestore(json: string): void;
       cancelRestore(): void;
       pickRestoreDestination(): void;
+      pickBackupSource(): string;
       persistUriPermission(json: string): string;
       hasStoragePermission(): string;
       openStoragePermissionSettings(): void;
@@ -88,6 +90,7 @@ declare global {
     KopiaEvents?: {
       onRestoreProgress?: (progress: RestoreProgress) => void;
       onDestinationPicked?: (result: SafPickResult) => void;
+      onBackupSourcePicked?: (result: SafPickResult) => void;
       onSystemThemeChanged?: (theme: string) => void;
       onRepositoryCreated?: (resultJson: string) => void;
       onBackupProgress?: (sourceId: string, counters: string) => void;
@@ -332,6 +335,16 @@ class KopiaBridgeService {
     window.KopiaBridge!.pickRestoreDestination();
   }
 
+  /**
+   * Picks a folder to BACK UP. Separate from pickRestoreDestination because native also persists
+   * the read grant here — a plain pick only lasts for this process, so the source would back up once
+   * and then fail forever, and the grant cannot be taken retroactively.
+   */
+  pickBackupSource(): void {
+    if (!this.isAndroid) return;
+    this.parse<void>(window.KopiaBridge!.pickBackupSource());
+  }
+
   async persistUriPermission(request: PersistUriRequest): Promise<void> {
     if (!this.isAndroid) return;
     this.parse<void>(window.KopiaBridge!.persistUriPermission(JSON.stringify(request)));
@@ -349,9 +362,25 @@ class KopiaBridgeService {
   onDestinationPicked(callback: (result: SafPickResult) => void): () => void {
     if (!this.isAndroid) return () => {};
     window.KopiaEvents = window.KopiaEvents || {};
-    window.KopiaEvents.onDestinationPicked = callback;
+    // Surface a failed pick here rather than in each subscriber: a folder picker that cannot open
+    // otherwise looks like a dead button, and none of the four screens that subscribe read `error`.
+    window.KopiaEvents.onDestinationPicked = (result) => {
+      if (result?.error) {
+        toast({ title: "Could not open the folder picker", description: result.error, variant: "destructive" });
+      }
+      callback(result);
+    };
     return () => {
       if (window.KopiaEvents) delete window.KopiaEvents.onDestinationPicked;
+    };
+  }
+
+  onBackupSourcePicked(callback: (result: SafPickResult) => void): () => void {
+    if (!this.isAndroid) return () => {};
+    window.KopiaEvents = window.KopiaEvents || {};
+    window.KopiaEvents.onBackupSourcePicked = callback;
+    return () => {
+      if (window.KopiaEvents) delete window.KopiaEvents.onBackupSourcePicked;
     };
   }
 
@@ -474,6 +503,18 @@ export async function startBackup(sourceId: string): Promise<void> {
 
 export async function pauseSource(sourceId: string): Promise<void> {
   callBridge<void>("pauseSource", sourceId);
+}
+
+/**
+ * Opens the folder picker for a NEW BACKUP SOURCE and persists the read grant. Throws if a picker is
+ * already open. The chosen folder arrives on the onBackupSourcePicked event.
+ */
+export function pickBackupSource(): void {
+  kopiaBridge.pickBackupSource();
+}
+
+export function onBackupSourcePicked(callback: (result: SafPickResult) => void): () => void {
+  return kopiaBridge.onBackupSourcePicked(callback);
 }
 
 export async function resumeSource(sourceId: string): Promise<void> {

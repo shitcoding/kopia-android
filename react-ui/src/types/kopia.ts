@@ -193,6 +193,8 @@ export interface RestoreProgress {
 export interface SafPickResult {
   uri?: string;
   displayName?: string;
+  /** Set when the pick failed, as opposed to the user cancelling (both leave `uri` unset). */
+  error?: string;
 }
 
 // ===== Upload / Source / Task Types =====
