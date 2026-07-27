@@ -362,7 +362,7 @@ class SnapshotRepositoryImpl @Inject constructor(
                     source = source,
                     snapshotCount = snapshots.size,
                     latestSnapshotTime = latest.startTime,
-                    totalFileCount = latest.stats?.totalFileCount ?: 0,
+                    totalFileCount = latest.displayFileCount(),
                     // Use deduplicated storage size (matches Kopia GUI)
                     totalFileSize = latest.storageStats?.runningTotal?.objectBytes ?: latest.stats?.totalFileSize ?: 0,
                 )
@@ -440,8 +440,8 @@ class SnapshotRepositoryImpl @Inject constructor(
         stats = stats?.let {
             SnapshotStats(
                 totalFileSize = it.totalFileSize,
-                totalFileCount = it.totalFileCount,
-                totalDirectoryCount = it.totalDirectoryCount,
+                totalFileCount = displayFileCount(),
+                totalDirectoryCount = displayDirectoryCount(),
             )
         },
         isIncomplete = incompleteReason != null,
@@ -461,4 +461,23 @@ class SnapshotRepositoryImpl @Inject constructor(
         permissions = mode,
         objectId = null,
     )
+}
+
+/**
+ * Number of files in the snapshot, as a user means it.
+ *
+ * The root directory summary holds the RECURSIVE count, which is what the Kopia GUI shows. Go's
+ * `stats.fileCount` counts files HASHED during that run, so on an incremental snapshot — where most
+ * files are served from cache — it reports a handful of changed files: a tree of 11 files displayed
+ * as "1 files". The summary is absent only on snapshots written without one, hence the fallback.
+ */
+internal fun SnapshotManifest.displayFileCount(): Int {
+    val summary = rootEntry?.dirSummary
+    return summary?.totalFileCount?.toInt() ?: stats?.totalFileCount ?: 0
+}
+
+/** Directory count in the snapshot; see [displayFileCount] for why the summary is preferred. */
+internal fun SnapshotManifest.displayDirectoryCount(): Int {
+    val summary = rootEntry?.dirSummary
+    return summary?.totalDirCount?.toInt() ?: stats?.totalDirectoryCount ?: 0
 }
