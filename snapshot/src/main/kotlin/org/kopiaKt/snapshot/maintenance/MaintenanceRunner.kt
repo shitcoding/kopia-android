@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.maintenance
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.kopiaKt.core.manifest.ManifestId
@@ -182,6 +183,8 @@ class MaintenanceRunner(
                 startTime = startTime,
                 endTime = Instant.now(),
             )
+        } catch (e: CancellationException) {
+            throw e // a cancelled maintenance run is not a failed one
         } catch (e: Exception) {
             return MaintenanceResult(
                 mode = options.mode,
@@ -318,7 +321,11 @@ class MaintenanceRunner(
         return manifests.mapNotNull { metadata ->
             try {
                 repository.getManifest(metadata.id, SnapshotManifest.serializer()).first
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
+                // Dropping an unreadable manifest shrinks the candidate set, so retention can only
+                // under-delete from a partial view, never over-delete.
                 null
             }
         }

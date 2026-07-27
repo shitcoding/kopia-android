@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.upload
 
+import kotlinx.coroutines.CancellationException
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.snapshot.model.ManifestLabels
@@ -62,6 +63,8 @@ object SnapshotManager {
             try {
                 val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
                 manifest.copy(id = metadata.id.value)
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
                 null
             }

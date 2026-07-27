@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.restore
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
@@ -198,6 +199,8 @@ class SnapshotRestorer(
                 }
 
                 copyEntryInternal(entry, targetPath)
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
                 if (ignoreErrors) {
                     progress.errorIgnored()

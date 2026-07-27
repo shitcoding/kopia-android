@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.upload
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -169,6 +170,8 @@ class TreeWalker(
                 }
                 jobs.awaitAll()
             }
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
         } catch (e: CancelledException) {
             throw e
         } catch (e: FatalErrorException) {
@@ -193,6 +196,28 @@ class TreeWalker(
             objectId = objectId,
             dirSummary = manifest.summary,
         )
+    }
+
+    /**
+     * Hashes and uploads a single file, reporting progress around it.
+     */
+    private suspend fun processFileEntry(
+        entry: File,
+        entryPath: String,
+        previousEntry: DirEntry?,
+    ): DirEntry? = semaphore.withPermit {
+        progress.hashingFile(entryPath)
+        try {
+            val result = processor.processFile(entry, entryPath, previousEntry)
+            progress.finishedHashingFile(entryPath, entry.size)
+            progress.finishedFile(entryPath, null)
+            result
+        } catch (e: CancellationException) {
+            throw e // a cancelled file is not a failed file
+        } catch (e: Exception) {
+            progress.finishedFile(entryPath, e)
+            throw e
+        }
     }
 
     /**
@@ -227,20 +252,7 @@ class TreeWalker(
                     walkDirectory(entry, entryPath, previousDirManifest)
                 }
 
-                is File -> {
-                    semaphore.withPermit {
-                        progress.hashingFile(entryPath)
-                        try {
-                            val result = processor.processFile(entry, entryPath, previousEntry)
-                            progress.finishedHashingFile(entryPath, entry.size)
-                            progress.finishedFile(entryPath, null)
-                            result
-                        } catch (e: Exception) {
-                            progress.finishedFile(entryPath, e)
-                            throw e
-                        }
-                    }
-                }
+                is File -> processFileEntry(entry, entryPath, previousEntry)
 
                 is Symlink -> {
                     processor.processSymlink(entry, entryPath, previousEntry)
@@ -253,6 +265,8 @@ class TreeWalker(
             }
 
             dirEntry?.let { builder.addEntry(it) }
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
         } catch (e: CancelledException) {
             throw e
         } catch (e: FatalErrorException) {

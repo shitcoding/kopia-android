@@ -1,5 +1,6 @@
 package org.kopiaKt.snapshot.upload
 
+import kotlinx.coroutines.CancellationException
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.RepositoryWriter
@@ -243,6 +244,8 @@ class SnapshotUploader(
         return try {
             val (manifest, _) = writer.getManifest(mostRecent.id, SnapshotManifest.serializer())
             manifest
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
         } catch (e: Exception) {
             // If we can't load it, proceed without caching
             null
@@ -261,6 +264,8 @@ class SnapshotUploader(
                 DirManifest.serializer(),
                 data.toString(Charsets.UTF_8),
             )
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
         } catch (e: Exception) {
             // If we can't load it, proceed without manifest caching
             null

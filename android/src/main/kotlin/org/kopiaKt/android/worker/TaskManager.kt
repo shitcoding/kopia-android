@@ -123,6 +123,7 @@ class TaskManager(
                 entry.complete(TaskStatus.SUCCESS)
             } catch (e: CancellationException) {
                 entry.complete(TaskStatus.CANCELED)
+                throw e // record the status, then let the job settle as cancelled
             } catch (e: Exception) {
                 entry.fail(e.message ?: "Unknown error")
             }

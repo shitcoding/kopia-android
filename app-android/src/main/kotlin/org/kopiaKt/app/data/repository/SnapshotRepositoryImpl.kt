@@ -3,6 +3,7 @@ package org.kopiaKt.app.data.repository
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -302,6 +303,10 @@ class SnapshotRepositoryImpl @Inject constructor(
             }
             // Close the channel to signal completion
             close()
+        } catch (e: CancellationException) {
+            // A cancelled restore is not a failed restore, and the channel is already gone —
+            // emitting FAILED here would both mislead the UI and throw from send().
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SnapshotRepo", "Restore failed", e)
             send(

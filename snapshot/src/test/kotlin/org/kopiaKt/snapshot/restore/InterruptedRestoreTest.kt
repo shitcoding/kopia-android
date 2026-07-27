@@ -210,4 +210,26 @@ class InterruptedRestoreTest {
             assertThat(file.readBytes()).isEqualTo(fileContents[i - 1])
         }
     }
+
+    @Test
+    fun `coroutine cancellation must not be swallowed as an ignored restore error`() = runBlocking {
+        val fileContent = ByteArray(1000) { it.toByte() }
+        val files = (1..20).map { i -> SlowMockFile("file$i.txt", fileContent, delayMs = 30) }
+        val rootDir = MockDirectory(name = "", entries = files)
+
+        val restorer = SnapshotRestorer(
+            output,
+            options = RestoreOptions(parallel = 1, ignoreErrors = true),
+            progress = progress,
+        )
+        val job = async { restorer.restore(rootDir) }
+        delay(100)
+        job.cancel()
+        job.join()
+
+        // With ignoreErrors=true, a swallowed CancellationException makes every remaining entry
+        // fail-and-be-ignored, so the restore burns through the whole tree and reports success.
+        assertThat(progress.snapshot().ignoredErrorCount).isEqualTo(0)
+        assertThat(progress.snapshot().restoredFileCount).isLessThan(20)
+    }
 }
