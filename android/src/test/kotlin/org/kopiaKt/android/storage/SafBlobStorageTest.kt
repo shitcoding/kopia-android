@@ -10,6 +10,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -383,6 +384,69 @@ class SafBlobStorageTest {
 
             assertThat(outputStream.toByteArray()).isEqualTo(data)
             verify { mockTempFile.renameTo("new.f") }
+        }
+
+        @Test
+        fun `keeps the existing blob when the replacement fails to write`() = runTest {
+            val blobId = BlobId("existing")
+
+            val mockExisting = mockk<DocumentFile> {
+                every { delete() } returns true
+            }
+            every { mockRootDocument.findFile("existing.f") } returns mockExisting
+
+            val mockTempFile = mockk<DocumentFile> {
+                every { uri } returns Uri.parse("$testUri/existing.f.tmp.123")
+                every { delete() } returns true
+            }
+            every { mockRootDocument.createFile("application/octet-stream", any()) } returns mockTempFile
+
+            // The write of the replacement fails partway.
+            every { mockContentResolver.openOutputStream(mockTempFile.uri) } throws IOException("device full")
+
+            assertThrows<IOException> { storage.putBlob(blobId, "new content".toByteArray()) }
+
+            // Deleting the old blob before the new bytes are safe destroys it on any failure — and
+            // losing kopia.repository this way leaves the repository unopenable.
+            verify(exactly = 0) { mockExisting.delete() }
+        }
+
+        @Test
+        fun `replaces the existing blob only after the replacement is written`() = runTest {
+            val blobId = BlobId("existing")
+            val data = "new content".toByteArray()
+
+            val mockExisting = mockk<DocumentFile> {
+                every { delete() } returns true
+            }
+            every { mockRootDocument.findFile("existing.f") } returns mockExisting
+
+            val mockTempFile = mockk<DocumentFile> {
+                every { uri } returns Uri.parse("$testUri/existing.f.tmp.123")
+                every { renameTo("existing.f") } returns true
+                every { delete() } returns true
+            }
+            every { mockRootDocument.createFile("application/octet-stream", any()) } returns mockTempFile
+
+            // Records when delete() happened relative to the bytes actually being written.
+            var bytesWrittenAtDelete = -1
+            val outputStream = ByteArrayOutputStream()
+            every { mockContentResolver.openOutputStream(mockTempFile.uri) } returns outputStream
+            every { mockExisting.delete() } answers {
+                bytesWrittenAtDelete = outputStream.size()
+                true
+            }
+
+            storage.putBlob(blobId, data)
+
+            assertThat(outputStream.toByteArray()).isEqualTo(data)
+            // The old blob must survive until the replacement is fully written, not merely until the
+            // output stream is opened.
+            assertThat(bytesWrittenAtDelete).isEqualTo(data.size)
+            verifyOrder {
+                mockExisting.delete()
+                mockTempFile.renameTo("existing.f")
+            }
         }
 
         @Test

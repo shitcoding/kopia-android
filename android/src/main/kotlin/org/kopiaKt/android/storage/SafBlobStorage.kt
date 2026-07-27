@@ -182,12 +182,9 @@ class SafBlobStorage private constructor(
         val (shardDir, fileName) = getBlobPathComponents(blobId)
         val targetDir = getOrCreateShardDir(shardDir)
 
-        // Delete existing file if present
-        existingFile?.delete()
-
         if (this@SafBlobStorage.options.atomicWrites) {
             // Atomic write: create temp file, write, then rename
-            val tempFileName = "$fileName.tmp.${System.nanoTime()}"
+            val tempFileName = "$fileName$TEMP_BLOB_INFIX${System.nanoTime()}"
             val tempFile = targetDir.createFile("application/octet-stream", tempFileName)
                 ?: throw IOException("Could not create temp file: $tempFileName")
 
@@ -196,6 +193,12 @@ class SafBlobStorage private constructor(
                 context.contentResolver.openOutputStream(tempFile.uri)?.use { stream ->
                     stream.write(data)
                 } ?: throw IOException("Could not write to temp file: $tempFileName")
+
+                // Replace the old blob only once the new bytes are safely written. SAF has no
+                // atomic replace, so a delete-then-rename window cannot be removed entirely — but
+                // deleting up front left the window open for the whole write, and a kill inside it
+                // destroyed the blob (losing kopia.repository makes the repository unopenable).
+                existingFile?.delete()
 
                 // Rename to final name
                 val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
@@ -216,7 +219,11 @@ class SafBlobStorage private constructor(
                 throw e
             }
         } else {
-            // Direct write (non-atomic)
+            // Direct write (non-atomic): the replacement must be removed first because the new file
+            // is created under the final name. This path is inherently non-atomic; atomicWrites is
+            // the option that bounds the window.
+            existingFile?.delete()
+
             val finalFileName = "$fileName$COMPLETE_BLOB_SUFFIX"
             val blobFile = targetDir.createFile("application/octet-stream", finalFileName)
                 ?: throw IOException("Could not create blob file: $finalFileName")
@@ -532,6 +539,9 @@ class SafBlobStorage private constructor(
          * This matches the WebDAV implementation.
          */
         private const val COMPLETE_BLOB_SUFFIX = ".f"
+
+        /** Infix marking an in-progress atomic write. Such files are never valid blobs. */
+        internal const val TEMP_BLOB_INFIX = ".tmp."
 
         /**
          * Creates SAF blob storage from a granted tree URI.
