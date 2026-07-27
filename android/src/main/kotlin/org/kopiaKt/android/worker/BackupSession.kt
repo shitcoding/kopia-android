@@ -180,8 +180,15 @@ class BackupSession(
             path = config.sourcePath,
         )
 
-        // Create repository connection JSON for checkpoint (simplified - just store path info)
-        val repoConnectionJson = "{\"path\":\"${config.sourcePath}\"}"
+        // Create repository connection JSON for checkpoint (simplified - just store path info).
+        // Built by the serializer, not string interpolation: a source path containing a quote or a
+        // backslash would otherwise write invalid JSON into the checkpoint.
+        val repoConnectionJson = kotlinx.serialization.json.Json.encodeToString(
+            kotlinx.serialization.json.JsonObject.serializer(),
+            kotlinx.serialization.json.JsonObject(
+                mapOf("path" to kotlinx.serialization.json.JsonPrimitive(config.sourcePath)),
+            ),
+        )
 
         var checkpointJob: Job? = null
         var result: BackupSessionResult

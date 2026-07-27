@@ -80,6 +80,16 @@ class SnapshotRestorer(
     }
 
     /**
+     * True when [cancel] was called on the run that produced the last [restore] result.
+     *
+     * A cooperatively cancelled restore returns its stats normally rather than throwing, so callers
+     * MUST check this before reporting success — otherwise a partial restore is announced as
+     * complete.
+     */
+    val isCancelled: Boolean
+        get() = cancelled.get()
+
+    /**
      * Restores a snapshot entry tree to the output.
      *
      * @param rootEntry The root entry (usually from snapshotRoot())

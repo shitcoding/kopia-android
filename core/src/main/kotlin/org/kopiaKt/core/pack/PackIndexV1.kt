@@ -494,7 +494,13 @@ private class PackIndexV1Impl(
             contentId = contentId,
             packBlobId = BlobId(parsed.packBlobId),
             timestampSeconds = parsed.timestampSeconds,
-            originalLength = parsed.packedLength - perContentOverhead,
+            // UInt subtraction wraps: a corrupt entry whose packedLength is below the per-content
+            // overhead would otherwise report an originalLength near 4 GiB.
+            originalLength = if (parsed.packedLength >= perContentOverhead) {
+                parsed.packedLength - perContentOverhead
+            } else {
+                0u
+            },
             packedLength = parsed.packedLength,
             packOffset = parsed.packOffset,
             compressionHeaderId = 0, // V1 doesn't support compression
@@ -549,7 +555,13 @@ private class PackIndexV1Impl(
                     contentId = contentId,
                     packBlobId = BlobId(parsed.packBlobId),
                     timestampSeconds = parsed.timestampSeconds,
-                    originalLength = parsed.packedLength - perContentOverhead,
+                    // UInt subtraction wraps: a corrupt entry whose packedLength is below the per-content
+                    // overhead would otherwise report an originalLength near 4 GiB.
+                    originalLength = if (parsed.packedLength >= perContentOverhead) {
+                        parsed.packedLength - perContentOverhead
+                    } else {
+                        0u
+                    },
                     packedLength = parsed.packedLength,
                     packOffset = parsed.packOffset,
                     compressionHeaderId = 0,

@@ -291,7 +291,9 @@ class SnapshotRepositoryImpl @Inject constructor(
 
                 send(
                     RestoreProgress(
-                        state = RestoreState.COMPLETED,
+                        // A cooperatively cancelled restore returns normally with partial stats;
+                        // reporting COMPLETED would claim a full restore that never happened.
+                        state = if (restorer.isCancelled) RestoreState.CANCELLED else RestoreState.COMPLETED,
                         totalFiles = stats.enqueuedFileCount.toLong(),
                         restoredFiles = stats.restoredFileCount.toLong(),
                         totalBytes = stats.enqueuedTotalFileSize,
