@@ -24,7 +24,12 @@ class KopiaWorkerFactory @Inject constructor(
     private val repositoryManager: KopiaRepositoryManager,
 ) : WorkerFactory() {
 
-    init {
+    /**
+     * Publishes the repository hook [BackupWorker] reads. Explicit rather than a constructor
+     * side-effect: the hook never being installed is exactly what made every backup fail with
+     * "Repository not configured", and hiding the wiring in `init` is why nothing noticed.
+     */
+    fun install() {
         BackupWorker.repositoryProvider = { _ -> repositoryManager.getRepository() }
     }
 
@@ -52,5 +57,5 @@ object HiltWorkerModule {
     @Singleton
     fun provideWorkerFactory(
         repositoryManager: KopiaRepositoryManager,
-    ): WorkerFactory = KopiaWorkerFactory(repositoryManager)
+    ): KopiaWorkerFactory = KopiaWorkerFactory(repositoryManager)
 }

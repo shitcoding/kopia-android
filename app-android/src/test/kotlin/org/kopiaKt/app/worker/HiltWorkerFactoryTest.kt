@@ -124,15 +124,24 @@ class HiltWorkerFactoryTest {
         }
 
         @Test
-        fun `factory wires repository provider on construction`() {
+        fun `constructing the factory does not wire the repository provider`() {
+            BackupWorker.repositoryProvider = null
+
+            KopiaWorkerFactory(mockk(relaxed = true))
+
+            // Wiring is explicit (install()), not a constructor side-effect.
+            assertThat(BackupWorker.repositoryProvider).isNull()
+        }
+
+        @Test
+        fun `install wires the repository provider`() {
             val mockRepo: DirectRepository = mockk(relaxed = true)
             val manager: KopiaRepositoryManager = mockk(relaxed = true) {
                 every { getRepository() } returns mockRepo
             }
 
-            KopiaWorkerFactory(manager)
+            KopiaWorkerFactory(manager).install()
 
-            // Factory init should have set BackupWorker.repositoryProvider
             assertThat(BackupWorker.repositoryProvider).isNotNull()
             val result = BackupWorker.repositoryProvider?.invoke(mockk())
             assertThat(result).isSameInstanceAs(mockRepo)
