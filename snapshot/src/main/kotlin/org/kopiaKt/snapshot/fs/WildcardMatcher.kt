@@ -203,6 +203,9 @@ class WildcardMatcher private constructor(
          * @param options Matching options
          * @return The compiled matcher
          */
+        /** Characters that must be escaped when a literal path is spliced into a pattern. */
+        private val GLOB_METACHARACTERS = setOf('\\', '*', '?', '[', ']')
+
         fun parse(pattern: String, options: Options = Options()): WildcardMatcher {
             var p = pattern.trim()
 
@@ -230,6 +233,20 @@ class WildcardMatcher private constructor(
             // If pattern has no / (except leading), match basename only
             // Exception: ** patterns should match full path
             val matchBasename = !hasSlash && !p.startsWith("**")
+
+            // A path-anchored pattern is anchored to the directory that DECLARED it, not to the
+            // snapshot root. Patterns loaded from a nested .kopiaignore therefore carry that
+            // directory as baseDir, since paths are matched relative to the snapshot root.
+            // Basename patterns are unaffected: they already match at any depth, and the context
+            // holding them is only consulted for entries beneath that directory anyway.
+            if (!matchBasename && options.baseDir.isNotEmpty()) {
+                // The base directory is a literal path, not a pattern: escape the glob
+                // metacharacters so a directory named e.g. `logs[2024]` still anchors correctly.
+                val literalBase = options.baseDir.trimEnd('/')
+                    .map { ch -> if (ch in GLOB_METACHARACTERS) "\\$ch" else "$ch" }
+                    .joinToString("")
+                p = "$literalBase/$p"
+            }
 
             val tokens = tokenize(p, options)
             return WildcardMatcher(pattern, tokens, negated, dirOnly, matchBasename, options)

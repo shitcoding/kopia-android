@@ -208,7 +208,8 @@ class IgnoreContext(
                 val patterns = loadIgnoreFile(dir, ignoreFileName)
                 if (patterns.isNotEmpty()) {
                     additionalMatchers.addAll(
-                        WildcardMatcher.parseAll(patterns),
+                        // Anchor this file's path-anchored rules to the directory that declared it.
+                        WildcardMatcher.parseAll(patterns, WildcardMatcher.Options(baseDir = dirPath)),
                     )
                 }
             }

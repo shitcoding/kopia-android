@@ -318,6 +318,75 @@ class IgnoreFSTest {
     }
 
     @Nested
+    inner class NestedIgnoreFileAnchoring {
+
+        @Test
+        fun `a path-anchored rule in a nested ignore file is relative to that directory`() = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.resolve("foo").createDirectories()
+            sub.resolve(".kopiaignore").writeText("foo/bar.txt\n")
+            sub.resolve("foo/bar.txt").writeText("drop")
+            sub.resolve("foo/keep.txt").writeText("keep")
+
+            val policy = FilesPolicy(dotIgnoreFiles = listOf(".kopiaignore"))
+            val filtered = IgnoreFS.wrap(LocalFilesystem.directory(tempDir), policy)
+
+            val foo = (filtered.child("sub") as Directory).child("foo") as Directory
+            assertEquals(listOf("keep.txt"), foo.readEntries().map { it.name })
+        }
+
+        @Test
+        fun `a rule anchored with a leading slash resolves against its own directory`() = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.createDirectories()
+            sub.resolve(".kopiaignore").writeText("/drop.txt\n")
+            sub.resolve("drop.txt").writeText("drop")
+            sub.resolve("keep.txt").writeText("keep")
+
+            val policy = FilesPolicy(dotIgnoreFiles = listOf(".kopiaignore"))
+            val filtered = IgnoreFS.wrap(LocalFilesystem.directory(tempDir), policy)
+
+            val entries = (filtered.child("sub") as Directory).readEntries()
+                .map { it.name }
+                .filter { it != ".kopiaignore" }
+            assertEquals(listOf("keep.txt"), entries)
+        }
+
+        @Test
+        fun `a nested rule does not apply to an identically named path elsewhere`() = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.resolve("foo").createDirectories()
+            sub.resolve(".kopiaignore").writeText("foo/bar.txt\n")
+            sub.resolve("foo/bar.txt").writeText("drop")
+
+            // Same relative shape, but outside the directory that owns the rule.
+            tempDir.resolve("foo").createDirectories()
+            tempDir.resolve("foo/bar.txt").writeText("keep")
+
+            val policy = FilesPolicy(dotIgnoreFiles = listOf(".kopiaignore"))
+            val filtered = IgnoreFS.wrap(LocalFilesystem.directory(tempDir), policy)
+
+            val topFoo = filtered.child("foo") as Directory
+            assertEquals(listOf("bar.txt"), topFoo.readEntries().map { it.name })
+        }
+
+        @Test
+        fun `a basename rule in a nested ignore file still matches at any depth below it`() = runBlocking {
+            val sub = tempDir.resolve("sub")
+            sub.resolve("deep").createDirectories()
+            sub.resolve(".kopiaignore").writeText("*.log\n")
+            sub.resolve("deep/a.log").writeText("drop")
+            sub.resolve("deep/a.txt").writeText("keep")
+
+            val policy = FilesPolicy(dotIgnoreFiles = listOf(".kopiaignore"))
+            val filtered = IgnoreFS.wrap(LocalFilesystem.directory(tempDir), policy)
+
+            val deep = (filtered.child("sub") as Directory).child("deep") as Directory
+            assertEquals(listOf("a.txt"), deep.readEntries().map { it.name })
+        }
+    }
+
+    @Nested
     inner class EdgeCases {
         @Test
         fun `empty directory works correctly`() = runBlocking {
