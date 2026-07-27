@@ -100,7 +100,9 @@ const CreateRepositoryScreen = () => {
   const createRepo = useCreateRepository();
   const testConnection = useTestConnection();
 
-  const encryptionOptions = algorithms?.encryption ?? ["AES256-GCM-HMAC-SHA256", "CHACHA20-POLY1305-HMAC-SHA256", "NONE"];
+  // Fallbacks must match KopiaWebBridge.getSupportedAlgorithms — offering an algorithm the core
+  // does not implement (ChaCha20-Poly1305) fails only at repository creation, after the password.
+  const encryptionOptions = algorithms?.encryption ?? ["AES256-GCM-HMAC-SHA256", "NONE"];
   const hashingOptions = algorithms?.hashing ?? ["BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"];
   const compressionOptions = algorithms?.compression ?? ["zstd", "lz4", "gzip", "pgzip", "deflate-default", "none"];
 

@@ -12,16 +12,67 @@ I use Kopia on desktop to back up my machines. When I needed to access and resto
 
 KopiaKt can open and read repositories created by the original Go implementation. Connect to your existing Kopia repository from your phone, browse snapshots, and restore files directly to the device.
 
+## Status
+
+KopiaKt is **usable for read and restore, and is not yet a backup client**. Concretely:
+
+| Capability | State |
+|---|---|
+| Connect to an existing Kopia repository | Works |
+| Browse snapshots and directory trees | Works |
+| Restore files and directories to the device | Works |
+| Create a new (empty) repository | Works |
+| Edit retention / scheduling / compression policies | Works |
+| **Run a backup from the phone** | **Not wired up** — the app's backup action returns "not yet implemented" |
+| Repository maintenance / garbage collection | Implemented in the library, not exposed in the app |
+
+The snapshot-writing code exists and is exercised by the cross-compatibility tests (Kotlin writes
+into a Go-created repository and Go reads the result), but nothing in the Android UI triggers it yet.
+Treat this as a companion to a desktop Kopia install, not a replacement for it.
+
+## Usage
+
+1. **Connect.** On the welcome screen choose *Connect to Repository*, pick the storage type, and fill
+   in its details — an S3 bucket and endpoint, a WebDAV URL, an SFTP host and path, or a local
+   directory. Failures are reported specifically (bad credentials, untrusted host key, unreachable
+   endpoint) rather than as a generic error. *Create New Repository* additionally offers a
+   *Test Connection* step before the repository is written.
+2. **Trust material, if needed.** For SFTP, paste a `known_hosts` line or a host-key fingerprint —
+   connections without either are refused. For a self-signed HTTPS server, supply the certificate
+   fingerprint (WebDAV) or root CA (S3). If you must use `http://`, you have to tick the cleartext
+   acknowledgement explicitly.
+3. **Unlock.** Enter the repository password. It is derived with scrypt and can be stored in
+   Android's encrypted preferences so you do not retype it.
+4. **Browse.** Snapshots are grouped by source. Open one to walk its directory tree.
+5. **Restore.** Select files or directories, choose a destination folder through the system picker,
+   and confirm. Progress is reported per file, and the restore can be cancelled.
+
 ## Features
 
-- Byte-level Kopia repository-format compatibility for **read and restore** (see [Compatibility](#compatibility) for exactly what is tested; writing/creating snapshots is still in progress)
-- Connect to existing repositories over S3, WebDAV, SFTP, local filesystem, or Android SAF
-- Browse snapshot directory trees
-- Restore files and directories to device storage
-- AES-256-GCM encryption with HKDF key derivation
-- Content hashing: BLAKE2B, BLAKE3, HMAC-SHA256
-- Decompression: Zstd, LZ4, Gzip, Deflate, PGZIP
-- Pack index V1 and V2 support
+- Byte-level Kopia repository-format compatibility for **read and restore** — see [Compatibility](#compatibility)
+- Connect over S3, WebDAV, SFTP, local filesystem, or Android SAF
+- Browse snapshot directory trees; restore files and directories to device storage
+- AES-256-GCM-HMAC-SHA256 content encryption; scrypt (or PBKDF2) password derivation, HKDF for content keys
+- Content hashing: BLAKE2B-256-128, BLAKE2B-256-256, BLAKE3-256, HMAC-SHA256, HMAC-SHA256-128
+- Compression: Zstd, LZ4, Gzip, Deflate, PGZIP
+- Pack index: reads V1 and V2, writes V1
+- Index blob naming compatible with Kopia's epoch mode (repository format versions 2 and 3)
+
+### Security posture
+
+Because this is a backup tool holding credentials, a few defaults are deliberately stricter than the
+Go implementation:
+
+- **SFTP host-key verification fails closed.** A connection with no `known_hosts`, pinned
+  fingerprint, or explicit opt-in is refused rather than trusted. The insecure opt-in is rejected
+  outright in release builds.
+- **Self-signed / private-CA HTTPS is supported** via a pinned certificate fingerprint (WebDAV) or a
+  custom root CA (S3). Pinning matches the **leaf certificate only** — Kopia's Go implementation
+  accepts a match against any certificate in the presented chain, which a hostile server can satisfy
+  by appending the victim's (public) pinned certificate.
+- **`doNotVerifyTls` is not supported**, by design.
+- **Cleartext HTTP requires an explicit per-connection acknowledgement** before credentials are sent,
+  and TLS trust material combined with an `http://` endpoint is rejected rather than silently ignored.
 
 ## Architecture
 
@@ -29,19 +80,24 @@ KopiaKt can open and read repositories created by the original Go implementation
 .
 ├── core/         # Repository format: blob, content, encryption, compression, pack, index
 ├── snapshot/     # Snapshots: upload, restore, policy, maintenance
-├── storage/      # Storage backends: S3, WebDAV, SFTP, filesystem
+├── storage/      # Storage backends: S3, WebDAV, SFTP, filesystem, TLS trust
 ├── android/      # Android platform: workers, notifications, SAF storage
-├── app-android/  # Android app (WebView + React UI)
+├── app-android/  # Android app (WebView + JavaScript bridge)
 ├── react-ui/     # React frontend served via WebView
-└── e2e/          # Maestro E2E tests
+├── e2e/          # Maestro UI flows + JVM cross-compatibility tests
+├── sync-tools/   # Go helpers for tracking upstream Kopia
+└── testvectors/  # Fixtures generated by Go Kopia
 ```
 
-The app uses a React frontend rendered in a WebView, communicating with the Kotlin backend through a JavaScript bridge.
+The app renders a React frontend in a WebView and talks to the Kotlin backend over a JavaScript
+bridge. The WebView is served from a virtual HTTPS origin via `WebViewAssetLoader` with file and
+universal access disabled, navigation confined to the bundled document, and a strict CSP.
 
 ## Requirements
 
 - Android 8.0+ (API 26)
 - JDK 21 (the `core`/`snapshot`/`storage` modules use a JDK 21 toolchain; Gradle can provision it)
+- Node.js — the React UI is built during the Android build and is not committed
 
 ## Build
 
@@ -56,6 +112,15 @@ The app uses a React frontend rendered in a WebView, communicating with the Kotl
 # Unit tests
 ./gradlew test
 
+# Lint gate
+./gradlew detekt ktlintCheck
+
+# Storage backend integration tests (Testcontainers; needs Docker)
+./gradlew :storage:integrationTest
+
+# JVM cross-compatibility against the real Go binary (needs `kopia` on PATH or $KOPIA_BINARY)
+./gradlew :e2e:test -Pe2e
+
 # E2E tests (Maestro UI flows; require a running AVD)
 bash e2e/maestro/scripts/manage_avds.sh create 1
 bash e2e/maestro/scripts/manage_avds.sh start 1
@@ -66,23 +131,46 @@ bash e2e/maestro/scripts/run_e2e.sh emulator-5554
 #   bash e2e/maestro/scripts/start_storage_backends.sh && bash e2e/maestro/scripts/seed_storage_backends.sh
 ```
 
+Suites that need external credentials or a LAN host (`e2e/b2/`, `e2e/homelab/`) skip themselves
+unless configured; see the README in each directory.
+
 ## Storage Backends
 
 | Backend | Status | Notes |
 |---------|--------|-------|
-| S3 | Working | MinIO, AWS, any S3-compatible |
-| WebDAV | Working | Custom OkHttp-based client |
-| SFTP | Working | sshj + BouncyCastle |
+| S3 | Working | MinIO, AWS, Backblaze B2, any S3-compatible; optional custom root CA |
+| WebDAV | Working | Custom OkHttp-based client; optional certificate-fingerprint pinning |
+| SFTP | Working | sshj + BouncyCastle; host-key verification fails closed |
 | Filesystem | Working | Direct file I/O |
 | SAF | Working | Android scoped storage |
 
 ## Compatibility
 
-Tested against repositories and test vectors generated by Go Kopia to ensure byte-level compatibility for:
-- Encryption (AES-256-GCM key derivation and ciphertext)
-- Hashing (BLAKE2B-256-128, HMAC-SHA256)
-- Compression (Zstd, LZ4, Gzip decompression of Go-created content)
-- Pack index format (V1 and V2 parsing)
+Verified against repositories, fixtures, and test vectors produced by the Go implementation:
+
+- **Encryption** — AES-256-GCM-HMAC-SHA256 ciphertext and key derivation
+- **Hashing** — BLAKE2B-256-128, BLAKE3-256, HMAC-SHA256 (Go-generated vectors)
+- **Compression** — Zstd, LZ4, Gzip, Deflate and PGZIP content written by Go
+- **Pack format** — pack blobs and their embedded (encrypted) local index; pack index V1 and V2 parsing
+- **Index blobs** — epoch-mode blob naming, so Go sees index blobs written by Kotlin
+- **Round trip** — Kotlin writing into a Go-created repository, and Go reading the result
+
+Content encryption uses a random nonce, so byte-identical output is not achievable in either
+direction (the same is true of Go). The contract that is tested is **mutual readability**, not
+identical bytes.
+
+Known gaps:
+
+- **S2 compression is not supported.** It is a Go-specific algorithm; content compressed with it
+  cannot be read. Kopia does not use S2 by default.
+- **ChaCha20-Poly1305 is not implemented**; only AES-256-GCM-HMAC-SHA256 and `NONE` are offered.
+- Epoch index **advancement and compaction** are not implemented. Go's maintenance handles them on a
+  shared repository; a Kotlin-only repository accumulates uncompacted index blobs, which costs
+  listing time but not correctness.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Security issues: [`SECURITY.md`](SECURITY.md).
 
 ## License
 
