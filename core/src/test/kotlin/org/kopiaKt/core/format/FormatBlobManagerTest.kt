@@ -9,7 +9,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.InMemoryBlobStorage
+import java.io.IOException
 
 class FormatBlobManagerTest {
 
@@ -263,6 +265,53 @@ class FormatBlobManagerTest {
             runBlocking { manager.openRepository(password) }
         }
         Unit
+    }
+
+    // === Existence-probe classification (a misread here destroys an existing repository) ===
+
+    @Test
+    fun `readFormatBlob propagates a read failure instead of reporting the blob missing`() = runBlocking {
+        val failing = FailingReadBlobStorage(storage, IOException("connection reset"))
+
+        assertThrows<IOException> {
+            runBlocking { FormatBlobManager(failing).readFormatBlob() }
+        }
+        Unit
+    }
+
+    @Test
+    fun `createRepository refuses to overwrite when the existence probe fails`() = runBlocking {
+        // An existing repository the user is about to point "create" at.
+        val original = manager.createRepository("original-password", createTestConfig())
+        val originalBytes = storage.getBlob(BlobId("kopia.repository"), 0, -1)
+
+        // The probe read fails transiently (flaky network, throttling, a 500).
+        val failing = FailingReadBlobStorage(storage, IOException("connection reset"))
+
+        assertThrows<IOException> {
+            runBlocking { FormatBlobManager(failing).createRepository("new-password", createTestConfig()) }
+        }
+
+        // The original format blob must be untouched: rewriting it with a fresh uniqueID and
+        // master key makes every existing blob in the repository permanently undecryptable.
+        assertArrayEquals(originalBytes, storage.getBlob(BlobId("kopia.repository"), 0, -1))
+        val reopened = manager.openRepository("original-password")
+        assertArrayEquals(original.formatJson.uniqueID, reopened.formatJson.uniqueID)
+    }
+
+    @Test
+    fun `createRepository still succeeds when the format blob is genuinely absent`() = runBlocking {
+        val result = manager.createRepository("test-password", createTestConfig())
+        assertTrue(storage.contains(BlobId("kopia.repository")))
+        assertNotNull(result.formatJson)
+    }
+
+    /** Delegates everything to [delegate] but fails every [getBlob] with [error]. */
+    private class FailingReadBlobStorage(
+        private val delegate: InMemoryBlobStorage,
+        private val error: Exception,
+    ) : BlobStorage by delegate {
+        override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = throw error
     }
 
     // === Helper Functions ===

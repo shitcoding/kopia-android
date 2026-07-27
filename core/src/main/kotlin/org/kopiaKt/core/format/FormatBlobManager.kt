@@ -1,6 +1,7 @@
 package org.kopiaKt.core.format
 
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.format.KopiaRepositoryJson.Companion.toJson
 
@@ -25,9 +26,14 @@ class FormatBlobManager(
     suspend fun readFormatBlob(): KopiaRepositoryJson {
         val blobId = BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID)
 
+        // ONLY a genuinely absent blob may become FormatBlobNotFoundException: createRepository uses
+        // that exception as its "no repository here" probe, so classifying a transient read failure
+        // (network error, throttling, expired credentials) as "not found" would let create overwrite
+        // an existing kopia.repository with a fresh uniqueID and master key, permanently orphaning
+        // every blob in that repository. Everything else must propagate.
         val data = try {
             storage.getBlob(blobId, 0, -1)
-        } catch (e: Exception) {
+        } catch (e: BlobNotFoundException) {
             throw FormatBlobNotFoundException("Format blob not found: ${e.message}", e)
         }
 
