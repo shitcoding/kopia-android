@@ -19,6 +19,7 @@ import org.kopiaKt.core.hashing.DefaultContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.splitter.DefaultSplitterFactory
 import org.kopiaKt.core.splitter.SplitterAlgorithms
+import java.io.ByteArrayOutputStream
 
 /**
  * Tests for ObjectManager - the component that handles large files via indirect blocks.
@@ -122,6 +123,39 @@ class ObjectManagerTest {
 
         val readData = objectManager.readObject(objectId)
         assertArrayEquals(data, readData)
+    }
+
+    @Test
+    fun `streaming an indirect object retains only one chunk at a time`() = runBlocking {
+        val chunkSize = SplitterAlgorithms.SIZE_128K
+        val data = ByteArray(chunkSize * 8) { (it % 256).toByte() }
+
+        val objectId = objectManager.writeObject(data)
+        contentManager.flush()
+        assertEquals(1, objectId.indirection)
+
+        val reader = openObject(contentManager, DefaultCompressorFactory(), objectId)
+        try {
+            reader as IndirectObjectReader
+            assertTrue(reader.getSeekTable().size > 1, "expected a multi-chunk object")
+
+            // Stream the whole object the way a restore does.
+            var offset = 0L
+            val out = ByteArrayOutputStream()
+            while (offset < reader.length()) {
+                val block = reader.read(offset, 32 * 1024)
+                if (block.isEmpty()) break
+                out.write(block)
+                offset += block.size
+
+                // Caching every chunk retained the entire decompressed object until close().
+                assertEquals(1, reader.cachedChunkCount, "reader must retain at most one chunk")
+            }
+
+            assertArrayEquals(data, out.toByteArray())
+        } finally {
+            reader.close()
+        }
     }
 
     @Test

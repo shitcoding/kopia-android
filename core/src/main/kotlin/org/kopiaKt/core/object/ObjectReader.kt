@@ -111,8 +111,16 @@ internal class IndirectObjectReader(
     private var seekTable: List<IndirectObjectEntry>? = null
     private var totalLength: Long = -1L
 
-    // Cache for loaded chunks
-    private val chunkCache = mutableMapOf<Int, ByteArray>()
+    // Single-chunk cache. Reads are overwhelmingly sequential (restore and file browsing stream the
+    // whole object through one reader), and a `read()` that spans a chunk boundary revisits only the
+    // chunk it is currently in — so one slot serves every real access pattern. Caching every chunk
+    // instead made the reader retain the ENTIRE decompressed object until close(), which OOM-kills
+    // the app when restoring a file larger than the heap.
+    private var cachedChunkIndex: Int = -1
+    private var cachedChunk: ByteArray? = null
+
+    /** Number of chunks currently retained. Bounded by design; asserted by tests. */
+    internal val cachedChunkCount: Int get() = if (cachedChunk == null) 0 else 1
 
     override suspend fun read(offset: Long, length: Int): ByteArray {
         ensureSeekTableLoaded()
@@ -166,7 +174,8 @@ internal class IndirectObjectReader(
 
     override fun close() {
         seekTable = null
-        chunkCache.clear()
+        cachedChunkIndex = -1
+        cachedChunk = null
     }
 
     /**
@@ -245,13 +254,14 @@ internal class IndirectObjectReader(
      * Loads a chunk by index, caching the result.
      */
     private suspend fun loadChunk(index: Int, entry: IndirectObjectEntry): ByteArray {
-        chunkCache[index]?.let { return it }
+        cachedChunk?.let { if (cachedChunkIndex == index) return it }
 
         val chunkObjectId = entry.objectId.toObjectId()
         val reader = openObject(chunkObjectId)
         try {
             val data = reader.read()
-            chunkCache[index] = data
+            cachedChunkIndex = index
+            cachedChunk = data
             return data
         } finally {
             reader.close()
