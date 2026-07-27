@@ -10,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.kopiaKt.snapshot.policy.FilesPolicy
+import org.kopiaKt.snapshot.testutil.MockDirectory
+import org.kopiaKt.snapshot.testutil.MockFile
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -249,6 +251,40 @@ class IgnoreFSTest {
 
             assertEquals(1, entries.size)
             assertEquals("keep.txt", entries[0].name)
+        }
+
+        @Test
+        fun `oneFileSystem excludes entries on a different device`() = runBlocking {
+            val root = MockDirectory(
+                name = "",
+                entries = listOf(
+                    MockFile("same.txt", ByteArray(1), device = DeviceInfo(dev = 42)),
+                    MockFile("other.txt", ByteArray(1), device = DeviceInfo(dev = 99)),
+                ),
+                device = DeviceInfo(dev = 42),
+            )
+
+            val policy = FilesPolicy(oneFileSystem = true)
+            val entries = IgnoreFS.wrap(root, policy).readEntries()
+
+            assertEquals(listOf("same.txt"), entries.map { it.name })
+        }
+
+        @Test
+        fun `oneFileSystem off keeps entries on a different device`() = runBlocking {
+            val root = MockDirectory(
+                name = "",
+                entries = listOf(
+                    MockFile("same.txt", ByteArray(1), device = DeviceInfo(dev = 42)),
+                    MockFile("other.txt", ByteArray(1), device = DeviceInfo(dev = 99)),
+                ),
+                device = DeviceInfo(dev = 42),
+            )
+
+            val policy = FilesPolicy(oneFileSystem = false)
+            val entries = IgnoreFS.wrap(root, policy).readEntries()
+
+            assertEquals(listOf("same.txt", "other.txt"), entries.map { it.name })
         }
     }
 

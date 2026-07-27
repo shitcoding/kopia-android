@@ -34,7 +34,8 @@ internal class MockFile(
     private val content: ByteArray,
     modTime: Instant = Instant.now(),
     mode: Int = 420,
-) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode),
+    device: DeviceInfo = DeviceInfo.EMPTY,
+) : MockEntry(name, EntryType.FILE, content.size.toLong(), modTime, mode, device = device),
     File {
     override suspend fun open(): InputStream = content.inputStream()
 }
@@ -65,7 +66,8 @@ internal class MockDirectory(
     private val entries: List<Entry>,
     modTime: Instant = Instant.now(),
     mode: Int = 493, // 0o755
-) : MockEntry(name, EntryType.DIRECTORY, 0, modTime, mode),
+    device: DeviceInfo = DeviceInfo.EMPTY,
+) : MockEntry(name, EntryType.DIRECTORY, 0, modTime, mode, device = device),
     Directory {
     override suspend fun child(name: String): Entry? = entries.find { it.name == name }
     override suspend fun iterate(): DirectoryIterator = MockIterator(entries)

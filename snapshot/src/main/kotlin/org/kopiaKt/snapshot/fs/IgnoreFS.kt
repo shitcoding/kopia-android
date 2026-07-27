@@ -68,7 +68,7 @@ class IgnoreFS internal constructor(
         fun wrap(dir: Directory, policy: FilesPolicy): Directory {
             // Load patterns from root directory's dotIgnoreFiles
             val rootPatterns = loadIgnoreFiles(dir, policy.dotIgnoreFiles)
-            val context = IgnoreContext.create(policy, rootPatterns)
+            val context = IgnoreContext.create(policy, rootPatterns, dir.device)
             return IgnoreFS(dir, context, "")
         }
 
@@ -257,16 +257,23 @@ class IgnoreContext(
          *
          * @param policy The files policy containing ignore rules
          * @param additionalMatchers Additional matchers (e.g., from root dotIgnoreFiles)
+         * @param rootDevice Device of the snapshot root; required for [FilesPolicy.oneFileSystem]
+         *                   to detect a filesystem boundary at all
          */
-        fun create(policy: FilesPolicy, additionalMatchers: List<WildcardMatcher> = emptyList()): IgnoreContext {
+        fun create(
+            policy: FilesPolicy,
+            additionalMatchers: List<WildcardMatcher> = emptyList(),
+            rootDevice: DeviceInfo = DeviceInfo.EMPTY,
+        ): IgnoreContext {
             val matchers = WildcardMatcher.parseAll(policy.ignoreRules) + additionalMatchers
+            val oneFileSystem = policy.oneFileSystem ?: false
 
             return IgnoreContext(
                 matchers = matchers,
                 dotIgnoreFiles = policy.dotIgnoreFiles,
                 maxFileSize = policy.maxFileSize,
-                oneFileSystem = policy.oneFileSystem ?: false,
-                rootDevice = DeviceInfo.EMPTY,
+                oneFileSystem = oneFileSystem,
+                rootDevice = if (oneFileSystem) rootDevice else DeviceInfo.EMPTY,
                 noParentIgnoreRules = policy.noParentIgnoreRules,
                 noParentDotIgnoreFiles = policy.noParentDotIgnoreFiles,
             )
