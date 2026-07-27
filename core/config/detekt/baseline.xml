@@ -4,7 +4,6 @@
   <CurrentIssues>
     <ID>ComplexCondition:ObjectId.kt$ObjectId$this === Empty || (contentId == ContentId.Empty &amp;&amp; indirection == 0 &amp;&amp; !isCompressed)</ID>
     <ID>CyclomaticComplexMethod:DefaultCompressorFactory.kt$DefaultCompressorFactory$override fun create(algorithm: CompressionAlgorithm): Compressor</ID>
-    <ID>CyclomaticComplexMethod:MergedIndex.kt$MergedIndex$fun iterate( startId: ContentId? = null, endId: ContentId? = null, ): Sequence&lt;ContentInfo&gt;</ID>
     <ID>CyclomaticComplexMethod:PackIndexV2.kt$PackIndexV2$fun build(entries: List&lt;ContentInfo&gt;): ByteArray</ID>
     <ID>CyclomaticComplexMethod:RepositoryConfig.kt$RepositoryConfig$override fun equals(other: Any?): Boolean</ID>
     <ID>ExpressionBodySyntax:ContentManager.kt$ContentManager$return currentInfoUnlocked(contentId)?.deleted == false</ID>
@@ -29,10 +28,8 @@
     <ID>MagicNumber:EpochParameters.kt$EpochParameters$10L</ID>
     <ID>MagicNumber:GzipCompressor.kt$DeflateCompressor$16</ID>
     <ID>MagicNumber:GzipCompressor.kt$GzipCompressor$16</ID>
-    <ID>MagicNumber:IndexBlobBuilder.kt$IndexBlobBuilder.Companion$32</ID>
     <ID>MagicNumber:IndexBlobEncryption.kt$16</ID>
     <ID>MagicNumber:IndexBlobEncryption.kt$32</ID>
-    <ID>MagicNumber:IndexBlobReader.kt$IndexBlobReader.Companion$0xFF</ID>
     <ID>MagicNumber:KeyDerivation.kt$3</ID>
     <ID>MagicNumber:KeyDerivation.kt$Pbkdf2KeyDerivation$8</ID>
     <ID>MagicNumber:KopiaRepositoryJson.kt$KopiaRepositoryJson.Companion$32</ID>
@@ -92,7 +89,6 @@
     <ID>MaxLineLength:GoKopiaRepositoryIntegrationTest.kt$TestFilesystemBlobStorage$override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions): Unit</ID>
     <ID>MaxLineLength:GzipCompressor.kt$DeflateCompressor.Companion$fun bestCompression()</ID>
     <ID>MaxLineLength:GzipCompressor.kt$GzipCompressor.Companion$fun pgzipBestCompression()</ID>
-    <ID>MaxLineLength:IndexBlobReader.kt$fun</ID>
     <ID>MaxLineLength:IndirectObject.kt$IndirectObject.Companion$fun</ID>
     <ID>MaxLineLength:Lz4Compressor.kt$Lz4Compressor$"Invalid LZ4 header: expected 0x${CompressionAlgorithm.LZ4_DEFAULT.headerId.toString(16)}, got 0x${headerId.toString(16)}"</ID>
     <ID>MaxLineLength:ManifestManager.kt$ManifestManager$internal</ID>
@@ -139,12 +135,7 @@
     <ID>ThrowsCount:ContentId.kt$ContentId.Companion$fun fromHash(prefix: Char?, hash: ByteArray): ContentId</ID>
     <ID>ThrowsCount:ContentId.kt$ContentId.Companion$fun parse(s: String): ContentId</ID>
     <ID>TooGenericExceptionThrown:DirectRepositoryTest.kt$DirectRepositoryTest.WriteSessions$throw RuntimeException("Simulated failure")</ID>
-    <ID>TooGenericExceptionThrown:MergedIndexTest.kt$MergedIndexTest.CloseTrackingIndex$throw RuntimeException("Close failed")</ID>
     <ID>TooManyFunctions:DirectRepositoryImpl.kt$DirectRepositoryImpl : DirectRepositoryWriter</ID>
-    <ID>UnderscoresInNumericLiterals:CorruptedIndexBlobTest.kt$CorruptedIndexBlobTest$1700000000L</ID>
-    <ID>UnderscoresInNumericLiterals:IndexBlobBuilderTest.kt$IndexBlobBuilderTest$1700000000L</ID>
-    <ID>UnderscoresInNumericLiterals:IndexBlobReaderTest.kt$IndexBlobReaderTest$1700000000L</ID>
-    <ID>UnderscoresInNumericLiterals:MergedIndexTest.kt$MergedIndexTest$1700000000L</ID>
     <ID>UnderscoresInNumericLiterals:PackBlobBuilderTest.kt$PackBlobBuilderTest.TimestampTests$1700000000L</ID>
     <ID>UnderscoresInNumericLiterals:PackBlobReaderTest.kt$PackBlobReaderTest.RoundTripTests$1700000000L</ID>
     <ID>UnderscoresInNumericLiterals:PackIndexFuzzTest.kt$PackIndexFuzzTest.BoundsCheckTests$1000000</ID>
@@ -234,8 +225,6 @@
     <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("id too short: '$s'")</ID>
     <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("invalid content prefix: '$firstChar'")</ID>
     <ID>UseRequire:ContentId.kt$ContentId.Companion$throw IllegalArgumentException("invalid prefix '$prefix', must be between '$MIN_PREFIX' and '$MAX_PREFIX'")</ID>
-    <ID>UseRequire:IndexBlobReader.kt$IndexBlobReader.Companion$throw IllegalArgumentException("Index blob data is empty")</ID>
-    <ID>UseRequire:IndexBlobReader.kt$IndexBlobReader.Companion$throw IllegalArgumentException("Index data is empty")</ID>
     <ID>UseRequire:ObjectId.kt$ObjectId.Companion$throw IllegalArgumentException( "malformed object ID - compression and indirection are mutually exclusive", )</ID>
     <ID>UseRequire:ObjectId.kt$ObjectId.Companion$throw IllegalArgumentException("too many indirection levels: $indirection")</ID>
     <ID>UseRequire:PackIndex.kt$PackIndexFactory$throw IllegalArgumentException("Index data is empty")</ID>
