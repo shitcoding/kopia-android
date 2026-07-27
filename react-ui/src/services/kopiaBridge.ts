@@ -355,59 +355,8 @@ export const kopiaBridge = new KopiaBridgeService();
 
 // ---------- Standalone functions for React Query hooks ----------
 
-function groupSnapshotsBySource(snapshots: SnapshotInfo[]): SourceWithStats[] {
-  const groups = new Map<string, SnapshotInfo[]>();
-  for (const snap of snapshots) {
-    const key = `${snap.source.userName}@${snap.source.host}:${snap.source.path}`;
-    const existing = groups.get(key) || [];
-    existing.push(snap);
-    groups.set(key, existing);
-  }
-  return Array.from(groups.values())
-    .map((snaps) => {
-      const latest = snaps.reduce((a, b) =>
-        a.startTimeEpochMs > b.startTimeEpochMs ? a : b
-      );
-      return {
-        source: latest.source,
-        snapshotCount: snaps.length,
-        latestSnapshotTime: latest.startTimeEpochMs,
-        totalFileCount: latest.stats?.totalFileCount ?? 0,
-        totalFileSize: latest.stats?.totalFileSize ?? 0,
-      };
-    })
-    .sort((a, b) => b.latestSnapshotTime - a.latestSnapshotTime);
-}
-
 export async function listSourcesWithStats(): Promise<SourceWithStats[]> {
-  // Temporary: strict bridge mode for debugging; do not silently fallback.
-  const STRICT_BRIDGE_DEBUG = true;
-
-  console.log("[kopiaBridge] listSourcesWithStats preflight", {
-    hasBridge: !!window.KopiaBridge,
-    methodType: typeof window.KopiaBridge?.listSourcesWithStats,
-  });
-  try {
-    console.log("[kopiaBridge] Calling listSourcesWithStats via bridge");
-    const result = callBridge<SourceWithStats[]>("listSourcesWithStats");
-    console.log("[kopiaBridge] listSourcesWithStats succeeded:", result);
-    return result;
-  } catch (error) {
-    console.error("[kopiaBridge] listSourcesWithStats bridge failure:", {
-      error,
-      hasBridge: !!window.KopiaBridge,
-      methodType: typeof window.KopiaBridge?.listSourcesWithStats,
-    });
-
-    if (STRICT_BRIDGE_DEBUG) {
-      throw error;
-    }
-
-    console.warn("[kopiaBridge] listSourcesWithStats failed, using fallback:", error);
-    // Fallback: fetch all snapshots and group client-side
-    const snapshots = await kopiaBridge.listSnapshots();
-    return groupSnapshotsBySource(snapshots);
-  }
+  return callBridge<SourceWithStats[]>("listSourcesWithStats");
 }
 
 export async function listSnapshotsWithRetention(
