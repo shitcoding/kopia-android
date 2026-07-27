@@ -12,6 +12,13 @@ I use Kopia on desktop to back up my machines. When I needed to access and resto
 
 KopiaKt can open and read repositories created by the original Go implementation. Connect to your existing Kopia repository from your phone, browse snapshots, and restore files directly to the device.
 
+## Screenshots
+
+| Connect | Snapshots | Browse | Restore |
+|---|---|---|---|
+| ![Connect to a repository](docs/screenshots/connect.png) | ![Snapshot list with retention reasons](docs/screenshots/snapshots.png) | ![Browsing a snapshot](docs/screenshots/browse.png) | ![Restoring selected files](docs/screenshots/restore.png) |
+| Local, S3, WebDAV or SFTP | Retention reasons per snapshot | Directory tree of a snapshot | Multi-select and restore |
+
 ## Status
 
 KopiaKt is **usable for read and restore, and is not yet a backup client**. Concretely:
