@@ -202,6 +202,33 @@ class RetentionComputationTest {
     }
 
     @Test
+    fun `a policy with no keep counts set keeps everything`() {
+        val now = Instant.now()
+        val snapshots = (1..5).map { i -> createSnapshot("snap$i", now.minus(i.toLong(), ChronoUnit.DAYS)) }
+
+        // Go's EffectiveKeepLatest returns MaxInt32 when every count is unset, so that an empty
+        // policy is a no-op rather than an instruction to delete the entire snapshot history.
+        val result = computeRetention(snapshots, RetentionPolicy(), now, zone)
+
+        assertThat(result.filter { it.shouldDelete }).isEmpty()
+    }
+
+    @Test
+    fun `a policy with an explicit zero keepLatest still honours time-based keeps`() {
+        val now = Instant.parse("2026-07-27T12:00:00Z")
+        val today = createSnapshot("today", now.minusSeconds(3600))
+        val yesterday = createSnapshot("yesterday", now.minus(1, ChronoUnit.DAYS))
+
+        val policy = RetentionPolicy(keepLatest = 0, keepDaily = 7)
+        val result = computeRetention(listOf(today, yesterday), policy, now, zone)
+
+        // The newest snapshot must earn its own day's daily slot. Skipping the current period left
+        // today's snapshots with no retention reason at all, i.e. marked for deletion.
+        val kept = result.filter { !it.shouldDelete }.map { it.snapshot.id }
+        assertThat(kept).containsExactly("today", "yesterday")
+    }
+
+    @Test
     fun `RetentionResult keep factory creates correct result`() {
         val snapshot = createSnapshot("test", Instant.now())
         val result = RetentionResult.keep(snapshot, listOf("latest-1", "daily-1"))

@@ -17,10 +17,9 @@ import java.time.ZoneId
  * (Dec 31 - Jan 1). These tests verify that snapshots around year, month, and
  * week boundaries are correctly bucketed and retained.
  *
- * Note: The retention algorithm skips the "current period" bucket (the bucket
- * containing the most recent snapshot). To test boundary snapshots we include
- * a recent "anchor" snapshot whose period bucket differs from the ones under test,
- * ensuring boundary snapshots are eligible for time-based retention.
+ * Each case includes a later "anchor" snapshot in its own period so the boundary snapshots are not
+ * the newest ones — the anchor claims the first slot, and the boundary snapshots must still get
+ * their own distinct buckets after it.
  */
 class RetentionYearBoundaryTest {
 
@@ -65,13 +64,13 @@ class RetentionYearBoundaryTest {
                 r.retentionReasons.any { it.startsWith("weekly-") }
             }
 
-            // Anchor -> W03 (current period, skipped)
-            // jan01 -> W01 bucket -> weekly-1 (most recent non-current, first new bucket)
+            // anchor -> W03 bucket -> weekly-1
+            // jan01 -> W01 bucket -> weekly-2 (first snapshot in that week)
             // dec31 -> W01 bucket -> same bucket as jan01, skipped
             // dec30 -> W01 bucket -> same bucket as jan01, skipped
-            // dec29 -> W52 bucket -> weekly-2 (different bucket)
-            // So two distinct weekly buckets are retained across the year boundary.
-            assertThat(weeklyKept).hasSize(2)
+            // dec29 -> W52 bucket -> weekly-3 (different bucket)
+            // Three distinct weekly buckets, and the year boundary does not merge W52 into W01.
+            assertThat(weeklyKept).hasSize(3)
 
             val keptIds = weeklyKept.map { it.snapshot.id }
             // jan01 is the first snapshot in the W01 bucket (most recent in that week)
@@ -102,11 +101,11 @@ class RetentionYearBoundaryTest {
                 r.retentionReasons.any { it.startsWith("daily-") }
             }
 
-            // anchor -> Jan 5 bucket (current period, skipped)
-            // jan01 -> Jan 1 bucket -> daily-1
-            // dec31 -> Dec 31 bucket -> daily-2
-            assertThat(dailyKept).hasSize(2)
-            assertThat(dailyKept.map { it.snapshot.id }).containsExactly("jan01", "dec31")
+            // anchor -> Jan 5 bucket -> daily-1
+            // jan01 -> Jan 1 bucket -> daily-2
+            // dec31 -> Dec 31 bucket -> daily-3
+            assertThat(dailyKept).hasSize(3)
+            assertThat(dailyKept.map { it.snapshot.id }).containsExactly("anchor", "jan01", "dec31")
 
             // Neither boundary snapshot should be deleted
             val boundaryResults = result.filter { it.snapshot.id in listOf("dec31", "jan01") }
@@ -135,11 +134,11 @@ class RetentionYearBoundaryTest {
                 r.retentionReasons.any { it.startsWith("monthly-") }
             }
 
-            // anchor -> Feb 2025 bucket (current period, skipped)
-            // jan15 -> Jan 2025 bucket -> monthly-1
-            // dec15 -> Dec 2024 bucket -> monthly-2
-            assertThat(monthlyKept).hasSize(2)
-            assertThat(monthlyKept.map { it.snapshot.id }).containsExactly("jan15", "dec15")
+            // anchor -> Feb 2025 bucket -> monthly-1
+            // jan15 -> Jan 2025 bucket -> monthly-2
+            // dec15 -> Dec 2024 bucket -> monthly-3
+            assertThat(monthlyKept).hasSize(3)
+            assertThat(monthlyKept.map { it.snapshot.id }).containsExactly("anchor", "jan15", "dec15")
 
             // Neither boundary snapshot should be deleted
             val boundaryResults = result.filter { it.snapshot.id in listOf("dec15", "jan15") }
@@ -161,18 +160,18 @@ class RetentionYearBoundaryTest {
 
             val now = Instant.parse("2026-02-01T12:00:00Z")
 
-            val policy = RetentionPolicy(keepLatest = 0, keepAnnual = 2)
+            val policy = RetentionPolicy(keepLatest = 0, keepAnnual = 3)
             val result = computeRetention(listOf(dec2024, jan2025, anchor), policy, now, zone)
 
             val annualKept = result.filter { r ->
                 r.retentionReasons.any { it.startsWith("annual-") }
             }
 
-            // anchor -> 2026 bucket (current period, skipped)
-            // jan2025 -> 2025 bucket -> annual-1
-            // dec2024 -> 2024 bucket -> annual-2
-            assertThat(annualKept).hasSize(2)
-            assertThat(annualKept.map { it.snapshot.id }).containsExactly("jan2025", "dec2024")
+            // anchor -> 2026 bucket -> annual-1
+            // jan2025 -> 2025 bucket -> annual-2
+            // dec2024 -> 2024 bucket -> annual-3
+            assertThat(annualKept).hasSize(3)
+            assertThat(annualKept.map { it.snapshot.id }).containsExactly("anchor", "jan2025", "dec2024")
 
             // Neither boundary snapshot should be deleted
             val boundaryResults = result.filter { it.snapshot.id in listOf("dec2024", "jan2025") }
@@ -202,11 +201,11 @@ class RetentionYearBoundaryTest {
                 r.retentionReasons.any { it.startsWith("daily-") }
             }
 
-            // anchor -> Mar 5 bucket (current period, skipped)
-            // feb29 -> Feb 29 bucket -> daily-1
-            // feb28 -> Feb 28 bucket -> daily-2
-            assertThat(dailyKept).hasSize(2)
-            assertThat(dailyKept.map { it.snapshot.id }).containsExactly("feb29", "feb28")
+            // anchor -> Mar 5 bucket -> daily-1
+            // feb29 -> Feb 29 bucket -> daily-2
+            // feb28 -> Feb 28 bucket -> daily-3
+            assertThat(dailyKept).hasSize(3)
+            assertThat(dailyKept.map { it.snapshot.id }).containsExactly("anchor", "feb29", "feb28")
 
             // Neither should be deleted
             val boundaryResults = result.filter { it.snapshot.id in listOf("feb28", "feb29") }

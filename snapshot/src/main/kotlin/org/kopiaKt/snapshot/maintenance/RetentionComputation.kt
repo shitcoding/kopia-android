@@ -68,14 +68,10 @@ fun computeRetention(
         .filter { it.endTime != null || it.incompleteReason == null } // Exclude incomplete
         .sortedByDescending { it.startTime }
 
-    // Find max time among complete snapshots
-    val maxTime = sortedSnapshots
-        .filter { it.incompleteReason == null }
-        .maxOfOrNull { it.startTime }
-        ?: now
-
     // Track retention for each category
-    val latestTracker = RetentionTracker(policy.keepLatest ?: 0)
+    // effectiveKeepLatest() is Go's fail-safe: a policy with NO keep counts set keeps
+    // everything rather than reading as "delete the entire snapshot history".
+    val latestTracker = RetentionTracker(policy.effectiveKeepLatest() ?: 0)
     val hourlyTracker = TimeBasedTracker(policy.keepHourly ?: 0, "hourly") { it.truncateToHour(zone) }
     val dailyTracker = TimeBasedTracker(policy.keepDaily ?: 0, "daily") { it.truncateToDay(zone) }
     val weeklyTracker = TimeBasedTracker(policy.keepWeekly ?: 0, "weekly") { it.truncateToWeek(zone) }
@@ -105,11 +101,11 @@ fun computeRetention(
             }
 
             // Check time-based retentions
-            annualTracker.tryAdd(snapshotTime, snapshot.id, maxTime)?.let { reasons.add(it) }
-            monthlyTracker.tryAdd(snapshotTime, snapshot.id, maxTime)?.let { reasons.add(it) }
-            weeklyTracker.tryAdd(snapshotTime, snapshot.id, maxTime)?.let { reasons.add(it) }
-            dailyTracker.tryAdd(snapshotTime, snapshot.id, maxTime)?.let { reasons.add(it) }
-            hourlyTracker.tryAdd(snapshotTime, snapshot.id, maxTime)?.let { reasons.add(it) }
+            annualTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
+            monthlyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
+            weeklyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
+            dailyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
+            hourlyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
         }
 
         // Check pins
@@ -178,15 +174,14 @@ private class TimeBasedTracker(
     private val buckets = mutableSetOf<Instant>()
     private var count = 0
 
-    fun tryAdd(time: Instant, id: String, maxTime: Instant): String? {
+    fun tryAdd(time: Instant, id: String): String? {
         if (maxCount <= 0) return null
         if (count >= maxCount) return null
 
+        // The newest period counts. Go grants the most recent snapshot its own period's slot; an
+        // "in progress" exclusion left today's snapshots with no retention reason — and therefore
+        // marked for deletion — whenever keepLatest was 0 and only time-based keeps were set.
         val bucket = truncate(time)
-        val maxBucket = truncate(maxTime)
-
-        // Don't count current period (it's still in progress)
-        if (bucket == maxBucket) return null
 
         if (bucket in buckets) return null
 
