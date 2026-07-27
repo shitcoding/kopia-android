@@ -9,7 +9,7 @@ import org.kopiaKt.core.repository.WriteSessionOptions
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
-import org.kopiaKt.snapshot.policy.RetentionPolicy
+import org.kopiaKt.snapshot.policy.PolicyManager
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -291,9 +291,12 @@ class MaintenanceRunner(
 
         if (snapshots.isEmpty()) return 0
 
-        // Load retention policy for this source
-        // For now, use default policy
-        val policy = RetentionPolicy.Default
+        // Use the source's EFFECTIVE policy (per-path -> per-user -> per-host -> global -> defaults),
+        // not the built-in default. Deleting by the default would ignore what the user configured in
+        // the policy editor — a user who set keepLatest=100 would get snapshots deleted per the
+        // defaults instead. A failure to resolve the policy propagates: this run deletes data, so it
+        // must not fall back to a guess.
+        val policy = PolicyManager.getEffectivePolicy(repository, source).retentionPolicy
 
         // Compute which snapshots to delete
         val toDelete = computeSnapshotsToDelete(snapshots, policy)
@@ -320,7 +323,13 @@ class MaintenanceRunner(
 
         return manifests.mapNotNull { metadata ->
             try {
+                // Patch in the REAL manifest id, as SnapshotManager.listSnapshots does. The body's own
+                // `id` field is a separate value the uploader generated before the manifest was
+                // stored, so it never matches the id putManifest assigned — deleting by it targets a
+                // manifest that does not exist, and retention silently deletes nothing while still
+                // reporting a non-zero count.
                 repository.getManifest(metadata.id, SnapshotManifest.serializer()).first
+                    .copy(id = metadata.id.value)
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {

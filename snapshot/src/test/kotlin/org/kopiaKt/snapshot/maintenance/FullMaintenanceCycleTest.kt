@@ -17,6 +17,10 @@ import org.kopiaKt.snapshot.model.EntryType
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
+import org.kopiaKt.snapshot.policy.Policy
+import org.kopiaKt.snapshot.policy.PolicyManager
+import org.kopiaKt.snapshot.policy.RetentionPolicy
+import org.kopiaKt.snapshot.upload.SnapshotManager
 import java.time.Instant
 
 /**
@@ -156,6 +160,38 @@ class FullMaintenanceCycleTest {
             // were removed, retention would run first and then GC would throw a similar "Phase 2"
             // message — so matching "gcDelete=false" is what makes this test bite on the fail-fast path.
             assertThat(result.error).contains("gcDelete=false")
+        }
+
+        @Test
+        fun `retention deletes by the source policy, not the built-in default`() = runTest {
+            val (repository, _) = TestRepositoryFactory.createInMemory()
+            repo = repository
+
+            val source = SourceInfo("host", "user", "/data")
+            repeat(3) { i ->
+                populateRepository(repository, source, "snap-policy-$i", mapOf("f$i.txt" to "d$i".toByteArray()))
+            }
+
+            // The user's saved policy keeps ONE snapshot. RetentionPolicy.Default keeps 10, so running
+            // maintenance against the default would delete nothing and silently ignore what the user
+            // configured in the policy editor.
+            PolicyManager.setPolicy(
+                repository,
+                source,
+                Policy(retentionPolicy = RetentionPolicy(keepLatest = 1)),
+            )
+
+            val result = MaintenanceRunner(repository).run(
+                MaintenanceOptions(mode = MaintenanceMode.FULL, force = true),
+            )
+
+            assertThat(result.error).isNull()
+            assertThat(result.retentionDeletedCount).isEqualTo(2)
+
+            // ...and the snapshots are really gone, not just counted. Retention deletes through its
+            // own writer session, so re-read the committed view.
+            repository.refresh()
+            assertThat(SnapshotManager.listSnapshots(repository, source)).hasSize(1)
         }
 
         @Test
