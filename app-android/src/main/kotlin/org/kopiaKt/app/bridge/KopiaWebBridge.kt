@@ -658,11 +658,15 @@ class KopiaWebBridge private constructor(
         restoreJob?.cancel()
         snapshotRepository.cancelRestore()
 
-        val request = json.decodeFromString<WebRestoreRequest>(requestJson)
-        val options = request.options?.toDomain() ?: org.kopiaKt.app.domain.repository.RestoreOptions()
-
         restoreJob = scope.launch {
             try {
+                // Decode inside the guarded block: an exception thrown out of a @JavascriptInterface
+                // method kills the process, so any script reaching the WebView could crash the app
+                // with a malformed request.
+                val request = json.decodeFromString<WebRestoreRequest>(requestJson)
+                val options = request.options?.toDomain()
+                    ?: org.kopiaKt.app.domain.repository.RestoreOptions()
+
                 snapshotRepository.restore(
                     snapshotId = request.snapshotId,
                     sourcePath = request.sourcePath,
