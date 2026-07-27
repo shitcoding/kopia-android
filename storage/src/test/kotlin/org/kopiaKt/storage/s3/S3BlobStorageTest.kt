@@ -276,6 +276,17 @@ class S3BlobStorageTest {
     inner class ListBlobsTests {
 
         @Test
+        fun `surfaces a credential failure as InvalidCredentialsException`() = runTest {
+            every { mockClient.listObjectsV2(any<ListObjectsV2Request>()) } throws S3Exception.builder()
+                .message("The request signature we calculated does not match")
+                .statusCode(403)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("SignatureDoesNotMatch").build())
+                .build()
+
+            assertThrows<InvalidCredentialsException> { storage.listBlobs("").toList() }
+        }
+
+        @Test
         fun `skips only the exact storage-config key, not blob ids ending in storageconfig`() = runTest {
             val now = Instant.now()
             val response = ListObjectsV2Response.builder()
@@ -486,14 +497,35 @@ class S3BlobStorageTest {
         private val opts = S3Options(bucketName = testBucket, prefix = testPrefix)
 
         @Test
+        fun `surfaces a credential failure as InvalidCredentialsException`() = runTest {
+            // create() reads .storageconfig, so this IS the connect path: with a wrong key the user
+            // must get "invalid credentials", not a raw SDK error. Found against a real provider —
+            // B2 answers a bad application key with SignatureDoesNotMatch/403, which the taxonomy
+            // recognises, but loadStorageConfig never consulted it.
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder()
+                .message("The request signature we calculated does not match")
+                .statusCode(403)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("SignatureDoesNotMatch").build())
+                .build()
+
+            assertThrows<InvalidCredentialsException> {
+                S3BlobStorage.loadStorageConfig(mockClient, opts)
+            }
+        }
+
+        @Test
         fun `surfaces auth errors instead of silently using defaults`() = runTest {
             // Reverting to the old broad catch would return defaults here (create() falsely succeeds
-            // with bad creds); the fix lets the auth error propagate.
+            // with bad creds); the fix lets the auth error propagate. This response carries NO error
+            // code — some S3-compatible providers omit it — so it also covers the status-only
+            // classification path, which reports it as invalid credentials rather than a raw SDK error.
             every {
                 mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
             } throws S3Exception.builder().message("InvalidAccessKeyId").statusCode(403).build()
 
-            assertThrows<S3Exception> {
+            assertThrows<InvalidCredentialsException> {
                 S3BlobStorage.loadStorageConfig(mockClient, opts)
             }
         }

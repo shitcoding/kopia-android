@@ -2,6 +2,7 @@ package org.kopiaKt.storage.s3
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -70,6 +71,8 @@ class S3BlobStorage private constructor(
         private const val CONTENT_TYPE = "application/x-kopia"
         private const val CONFIG_NAME = ".storageconfig"
         private const val HTTP_RANGE_NOT_SATISFIABLE = 416
+        private const val HTTP_UNAUTHORIZED = 401
+        private const val HTTP_FORBIDDEN = 403
 
         /** S3 error codes that mean a non-retryable auth failure (bad creds or denied permission). */
         private val CREDENTIAL_ERROR_CODES = setOf(
@@ -91,7 +94,15 @@ class S3BlobStorage private constructor(
         suspend fun create(options: S3Options, readOnly: Boolean = false): S3BlobStorage {
             requireSupportedOptions(options)
             val client = createClient(options)
-            val storageConfig = loadStorageConfig(client, options)
+            // Nobody owns the client until the storage is constructed, so close it if the connect
+            // fails — otherwise each rejected attempt (a mistyped key, an unreachable endpoint)
+            // strands a client and its HTTP resources until the process exits.
+            val storageConfig = try {
+                loadStorageConfig(client, options)
+            } catch (e: Throwable) {
+                client.close()
+                throw e
+            }
             return S3BlobStorage(client, options, storageConfig, readOnly)
         }
 
@@ -253,10 +264,35 @@ class S3BlobStorage private constructor(
                 // holds non-critical sharding/storage-class hints, so fall back to defaults rather
                 // than failing the whole connect.
                 S3StorageConfig()
+            } catch (e: S3Exception) {
+                // This runs during create(), i.e. the CONNECT path, so an auth failure here is what
+                // a user sees after typing the wrong key. Translate it to the typed exception the UI
+                // understands instead of surfacing a raw SDK error. Everything else (missing bucket,
+                // connectivity) still propagates untouched — swallowing those used to return defaults
+                // and make create() falsely "succeed" with unusable credentials.
+                throw asCredentialFailure(e) ?: e
             }
-            // Any other failure (bad credentials, access denied, missing bucket, connectivity) is
-            // deliberately NOT caught: swallowing it here used to return defaults and make create()
-            // falsely "succeed" with unusable credentials. Let it propagate so the connect fails loudly.
+        }
+
+        /**
+         * Maps an S3 error that means "your credentials are not usable" onto [InvalidCredentialsException],
+         * or returns null to leave the error alone.
+         *
+         * Used on the paths that report failures to the user but have no blob to attribute them to
+         * (connect, listing), where [handleS3Exception]'s not-found/range mapping makes no sense.
+         */
+        private fun asCredentialFailure(e: S3Exception): InvalidCredentialsException? {
+            val errorCode = e.awsErrorDetails()?.errorCode().orEmpty()
+            if (errorCode in CREDENTIAL_ERROR_CODES) {
+                return InvalidCredentialsException(e.message ?: errorCode)
+            }
+            // Not every S3-compatible provider sends a modelled error code. A bare 401/403 still
+            // means "these credentials cannot do this", so classify it rather than handing the user
+            // a raw SDK error they cannot act on.
+            if (errorCode.isEmpty() && (e.statusCode() == HTTP_UNAUTHORIZED || e.statusCode() == HTTP_FORBIDDEN)) {
+                return InvalidCredentialsException(e.message ?: "Authentication failed (HTTP ${e.statusCode()})")
+            }
+            return null
         }
 
         private fun getObjectKey(prefix: String, blobId: String): String = prefix + blobId
@@ -320,6 +356,17 @@ class S3BlobStorage private constructor(
     }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
+        // Listing had no error classification at all, so a bad key surfaced as a raw SDK exception
+        // here too. Not routed through handleS3Exception: a listing has no blob to attribute a
+        // not-found or bad-range error to.
+        try {
+            listBlobsInto(prefix)
+        } catch (e: S3Exception) {
+            throw asCredentialFailure(e) ?: e
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun FlowCollector<BlobMetadata>.listBlobsInto(prefix: String) {
         var continuationToken: String? = null
 
         do {
@@ -360,7 +407,7 @@ class S3BlobStorage private constructor(
                 null
             }
         } while (continuationToken != null)
-    }.flowOn(Dispatchers.IO)
+    }
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
         if (readOnly) {
