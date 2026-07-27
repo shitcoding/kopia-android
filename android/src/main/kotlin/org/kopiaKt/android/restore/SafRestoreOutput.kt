@@ -124,9 +124,11 @@ class SafRestoreOutput(
         }
     }
 
-    override suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String) {
-        // SAF doesn't support symlinks - skip or create as regular file
-        // For now, we'll skip symlinks silently
+    override suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String): Boolean {
+        // The Storage Access Framework has no symlink concept, so there is nothing to create.
+        // Returning false makes the restorer count this entry as SKIPPED rather than restored —
+        // reporting it as restored claimed a complete restore while silently dropping entries.
+        return false
     }
 
     override suspend fun symlinkExists(relativePath: String, entry: DirEntry, target: String): Boolean {

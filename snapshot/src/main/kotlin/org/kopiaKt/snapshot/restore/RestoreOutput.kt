@@ -91,7 +91,7 @@ interface RestoreOutput : Closeable {
      * @param entry Symlink entry metadata
      * @param target The symlink target path
      */
-    suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String)
+    suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String): Boolean
 
     /**
      * Checks if a symlink already exists with matching target.

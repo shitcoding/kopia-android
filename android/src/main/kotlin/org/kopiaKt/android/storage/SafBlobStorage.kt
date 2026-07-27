@@ -59,7 +59,7 @@ class SafBlobStorage private constructor(
      * Cache of shard directories to avoid repeated lookups.
      * Maps shard path (e.g., "p" or "p/ack") to DocumentFile.
      */
-    private val shardDirCache = mutableMapOf<String, DocumentFile>()
+    private val shardDirCache = java.util.concurrent.ConcurrentHashMap<String, DocumentFile>()
 
     override suspend fun getBlob(blobId: BlobId, offset: Long, length: Long): ByteArray = withContext(Dispatchers.IO) {
         // Validate parameters
