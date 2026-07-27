@@ -351,6 +351,18 @@ class S3BlobStorageTest {
         }
 
         @Test
+        fun `classifies a bare 403 with no error code as invalid credentials`() = runTest {
+            // Same rule as the connect/list paths, so a revoked key reports identically wherever it
+            // is first noticed — including providers that answer with a status but no modelled code.
+            val blobId = BlobId("test-blob")
+            every {
+                mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
+            } throws S3Exception.builder().message("Forbidden").statusCode(403).build()
+
+            assertThrows<InvalidCredentialsException> { storage.getBlob(blobId) }
+        }
+
+        @Test
         fun `should throw InvalidBlobRangeException for a 416 range-not-satisfiable response`() = runTest {
             val blobId = BlobId("test-blob")
 

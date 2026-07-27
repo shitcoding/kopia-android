@@ -66,5 +66,8 @@ echo "==> Running B2 provider tests against bucket '$KOPIA_B2_BUCKET' ($KOPIA_B2
 echo "    key id: ${KOPIA_B2_KEY_ID:0:4}…${KOPIA_B2_KEY_ID: -3}  (redacted)"
 
 # Gradle inherits the exported environment; nothing secret appears in the command line.
-# --no-daemon: do not leave a long-lived JVM holding these credentials in its environment.
-./gradlew --no-daemon :storage:test --tests '*B2Provider*' "$@"
+# --no-daemon:    do not leave a long-lived JVM holding these credentials in its environment.
+# --rerun-tasks:  environment variables are not Gradle task inputs, so an unchanged working tree
+#                 would mark :storage:test UP-TO-DATE and report success having run NOTHING —
+#                 a false pass exactly when you re-run to check a new key or bucket.
+./gradlew --no-daemon --rerun-tasks :storage:test --tests '*B2Provider*' "$@"

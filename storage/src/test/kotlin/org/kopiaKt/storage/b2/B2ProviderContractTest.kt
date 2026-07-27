@@ -57,8 +57,11 @@ object B2 {
         )
     }
 
-    /** Unique per run so concurrent or interrupted runs can never collide in a shared bucket. */
-    fun uniquePrefix(): String = "contract-${UUID.randomUUID().toString().take(8)}/"
+    /**
+     * Unique per run so concurrent runs cannot collide in a shared bucket — and a full UUID, not a
+     * truncation, because a collision would mean one run's cleanup deleting another run's objects.
+     */
+    fun uniquePrefix(): String = "contract-${UUID.randomUUID()}/"
 }
 
 @Tag("b2")

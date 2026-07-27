@@ -2,7 +2,6 @@ package org.kopiaKt.storage.s3
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -100,7 +99,13 @@ class S3BlobStorage private constructor(
             val storageConfig = try {
                 loadStorageConfig(client, options)
             } catch (e: Throwable) {
-                client.close()
+                // Suppress rather than propagate a close() failure: the connect error is the one the
+                // user needs to see, and losing it to a secondary cleanup failure would be worse.
+                try {
+                    client.close()
+                } catch (closeFailure: Exception) {
+                    e.addSuppressed(closeFailure)
+                }
                 throw e
             }
             return S3BlobStorage(client, options, storageConfig, readOnly)
@@ -356,17 +361,6 @@ class S3BlobStorage private constructor(
     }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
-        // Listing had no error classification at all, so a bad key surfaced as a raw SDK exception
-        // here too. Not routed through handleS3Exception: a listing has no blob to attribute a
-        // not-found or bad-range error to.
-        try {
-            listBlobsInto(prefix)
-        } catch (e: S3Exception) {
-            throw asCredentialFailure(e) ?: e
-        }
-    }.flowOn(Dispatchers.IO)
-
-    private suspend fun FlowCollector<BlobMetadata>.listBlobsInto(prefix: String) {
         var continuationToken: String? = null
 
         do {
@@ -380,7 +374,16 @@ class S3BlobStorage private constructor(
                 requestBuilder.continuationToken(continuationToken)
             }
 
-            val response = client.listObjectsV2(requestBuilder.build())
+            // Listing had no error classification at all, so a bad key surfaced as a raw SDK
+            // exception here too. The try covers ONLY the SDK call: wrapping the emit() below would
+            // also catch a downstream collector's S3Exception and retype it as ours. Not routed
+            // through handleS3Exception either — a listing has no blob to attribute a not-found or
+            // bad-range error to.
+            val response = try {
+                client.listObjectsV2(requestBuilder.build())
+            } catch (e: S3Exception) {
+                throw asCredentialFailure(e) ?: e
+            }
 
             for (obj in response.contents()) {
                 val key = obj.key()
@@ -407,7 +410,7 @@ class S3BlobStorage private constructor(
                 null
             }
         } while (continuationToken != null)
-    }
+    }.flowOn(Dispatchers.IO)
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
         if (readOnly) {
@@ -563,12 +566,12 @@ class S3BlobStorage private constructor(
         // Classify by the S3 error CODE, not fragile message-substring matching. NB: AccessDenied may be
         // a bucket-policy/permission error rather than bad credentials, but both are non-retryable auth
         // failures, so mapping to InvalidCredentialsException (carrying the original message) is correct
-        // for control flow; the message conveys the real cause.
-        val errorCode = e.awsErrorDetails()?.errorCode().orEmpty()
+        // for control flow; the message conveys the real cause. Shared with the connect/list paths so a
+        // revoked key reports identically wherever it is noticed, including providers that answer with
+        // a bare 401/403 and no error code.
+        asCredentialFailure(e)?.let { throw it }
 
-        if (errorCode in CREDENTIAL_ERROR_CODES) {
-            throw InvalidCredentialsException(e.message ?: errorCode)
-        }
+        val errorCode = e.awsErrorDetails()?.errorCode().orEmpty()
 
         // Check for not found
         if (e.statusCode() == 404 || errorCode == "NoSuchKey" || errorCode == "NoSuchBucket") {
