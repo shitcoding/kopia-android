@@ -56,6 +56,15 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     @Volatile
     private var currentRepository: DirectRepository? = null
 
+    /**
+     * The blob storage backing [currentRepository]. This manager creates it, so this manager owns
+     * closing it — DirectRepositoryImpl.close() deliberately leaves the storage alone (a writer does
+     * not own the storage it was handed). Without this, every connect/reconnect cycle leaked a live
+     * SSH session, OkHttp client or S3Client for the lifetime of the process.
+     */
+    @Volatile
+    private var currentStorage: BlobStorage? = null
+
     override suspend fun connect(
         config: ConnectionConfig,
         repositoryPassword: String,
@@ -63,17 +72,24 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         _connectionState.value = ConnectionState.Connecting
 
         try {
+            closeCurrent()
             val storage = createBlobStorage(config)
 
-            val repository = DirectRepositoryImpl.open(
-                blobStorage = storage,
-                password = repositoryPassword,
-                clientOptions = ClientOptions.withDefaults(
-                    description = "KopiaKt Android",
-                ),
-            )
+            val repository = try {
+                DirectRepositoryImpl.open(
+                    blobStorage = storage,
+                    password = repositoryPassword,
+                    clientOptions = ClientOptions.withDefaults(
+                        description = "KopiaKt Android",
+                    ),
+                )
+            } catch (e: Throwable) {
+                storage.close()
+                throw e
+            }
 
             currentRepository = repository
+            currentStorage = storage
 
             val connection = RepositoryConnection(
                 id = UUID.randomUUID().toString(),
@@ -102,6 +118,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         _connectionState.value = ConnectionState.Connecting
 
         try {
+            closeCurrent()
             val storage = createBlobStorage(config, isCreate = true)
 
             val repoConfig = buildRepositoryConfig(options)
@@ -112,16 +129,22 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
             val keyDerivationAlgorithm = options.keyDerivationAlgorithm
 
-            val repository = DirectRepositoryImpl.create(
-                blobStorage = storage,
-                password = repositoryPassword,
-                config = repoConfig,
-                clientOptions = clientOpts,
-                keyDerivationAlgorithm = keyDerivationAlgorithm
-                    ?: org.kopiaKt.core.format.KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM,
-            )
+            val repository = try {
+                DirectRepositoryImpl.create(
+                    blobStorage = storage,
+                    password = repositoryPassword,
+                    config = repoConfig,
+                    clientOptions = clientOpts,
+                    keyDerivationAlgorithm = keyDerivationAlgorithm
+                        ?: org.kopiaKt.core.format.KopiaRepositoryJson.DEFAULT_KEY_DERIVATION_ALGORITHM,
+                )
+            } catch (e: Throwable) {
+                storage.close()
+                throw e
+            }
 
             currentRepository = repository
+            currentStorage = storage
 
             val connection = RepositoryConnection(
                 id = UUID.randomUUID().toString(),
@@ -144,11 +167,19 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
     override suspend fun disconnect() {
         withContext(Dispatchers.IO) {
-            val repo = currentRepository
-            currentRepository = null
             _connectionState.value = ConnectionState.Disconnected
-            repo?.close()
+            closeCurrent()
         }
+    }
+
+    /** Releases the current repository and the blob storage this manager opened for it. */
+    private suspend fun closeCurrent() {
+        val repo = currentRepository
+        val storage = currentStorage
+        currentRepository = null
+        currentStorage = null
+        repo?.close()
+        storage?.close()
     }
 
     override suspend fun getStoredConnections(): List<RepositoryConnection> {
