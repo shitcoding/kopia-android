@@ -168,6 +168,13 @@ class FilesystemOutput(
             if (!options.overwriteFiles) {
                 throw RestoreException("File already exists and overwrite is disabled: $path")
             }
+            // Replace an existing symlink rather than writing through it. CREATE|TRUNCATE_EXISTING
+            // follows the link and creates its target, so a symlink planted at the destination —
+            // dangling or not — would redirect the restored bytes outside the restore root.
+            // validatePath deliberately permits a dangling leaf link; this is what makes that safe.
+            if (path.isSymbolicLink()) {
+                Files.delete(path)
+            }
         }
 
         // Ensure parent directory exists
@@ -272,7 +279,7 @@ class FilesystemOutput(
         return timeDelta < MAX_TIME_DELTA
     }
 
-    override suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String) {
+    override suspend fun createSymlink(relativePath: String, entry: DirEntry, target: String): Boolean {
         val path = validatePath(relativePath)
 
         // Validate relative symlink targets don't escape the restore root.
@@ -310,6 +317,7 @@ class FilesystemOutput(
 
         Files.createSymbolicLink(path, Path.of(target))
         setSymlinkAttributes(path, entry)
+        return true
     }
 
     override suspend fun symlinkExists(relativePath: String, entry: DirEntry, target: String): Boolean {

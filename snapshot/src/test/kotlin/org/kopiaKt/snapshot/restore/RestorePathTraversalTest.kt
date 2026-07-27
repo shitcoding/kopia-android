@@ -9,8 +9,10 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.EntryType
+import org.kopiaKt.snapshot.testutil.MockDirectory
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.exists
@@ -178,6 +180,57 @@ class RestorePathTraversalTest {
             output.writeFile("subdir/deep/file.txt", entry, ByteArrayInputStream(content))
 
             assertThat(tempDir.resolve("subdir/deep/file.txt").exists()).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("Writing through a planted symlink")
+    inner class SymlinkLeafWrites {
+
+        @Test
+        fun `writing over a dangling symlink must not create its target outside the root`() = runTest {
+            val outside = Files.createDirectory(tempDir.resolve("outside"))
+            val victim = outside.resolve("victim.txt")
+            val target = Files.createDirectory(tempDir.resolve("target"))
+
+            // A dangling symlink planted in the restore destination.
+            Files.createSymbolicLink(target.resolve("note.txt"), victim)
+
+            val output = FilesystemOutput(target, FilesystemOutputOptions(overwriteFiles = true))
+            val content = "restored".toByteArray()
+            val entry = makeFileEntry("note.txt", content.size.toLong())
+            output.writeFile("note.txt", entry, ByteArrayInputStream(content))
+
+            // The bytes must land inside the restore root, never at the link's target.
+            assertThat(victim.exists()).isFalse()
+            assertThat(Files.readAllBytes(target.resolve("note.txt"))).isEqualTo(content)
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteExtra must not escape the restore root")
+    inner class DeleteExtraSymlinks {
+
+        @Test
+        fun `deleting an extra symlinked directory must not delete through the link`() = runTest {
+            val outside = Files.createDirectory(tempDir.resolve("outside"))
+            val precious = outside.resolve("precious.txt")
+            Files.writeString(precious, "must survive")
+
+            val target = Files.createDirectory(tempDir.resolve("target"))
+            val link = target.resolve("link")
+            Files.createSymbolicLink(link, outside)
+
+            // The snapshot has no entry named "link", so deleteExtra must remove it.
+            val restorer = SnapshotRestorer(
+                FilesystemOutput(target, FilesystemOutputOptions(overwriteDirectories = true)),
+                options = RestoreOptions(deleteExtra = true),
+            )
+            restorer.restore(MockDirectory(name = "", entries = emptyList()))
+
+            assertThat(Files.exists(link, LinkOption.NOFOLLOW_LINKS)).isFalse()
+            assertThat(precious.exists()).isTrue()
+            assertThat(outside.exists()).isTrue()
         }
     }
 

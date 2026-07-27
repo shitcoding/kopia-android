@@ -14,6 +14,7 @@ import org.kopiaKt.snapshot.snapshotfs.RepositoryDirectory
 import org.kopiaKt.snapshot.snapshotfs.RepositoryFile
 import org.kopiaKt.snapshot.snapshotfs.RepositorySymlink
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.exists
@@ -308,8 +309,12 @@ class SnapshotRestorer(
             val dirEntry = getDirEntry(symlink)
             val target = symlink.readlink()
 
-            output.createSymlink(targetPath, dirEntry, target)
-            progress.symlinkRestored()
+            if (output.createSymlink(targetPath, dirEntry, target)) {
+                progress.symlinkRestored()
+            } else {
+                // The output cannot represent symlinks (e.g. SAF); count it as skipped, not restored.
+                progress.fileSkipped(0)
+            }
         }
 
         private suspend fun deleteExtraFilesInDir(
@@ -338,16 +343,19 @@ class SnapshotRestorer(
                 stream.forEach { existingPath ->
                     val name = existingPath.name
 
-                    if (existingPath.isDirectory()) {
+                    // Symlinks MUST be classified before directories: isDirectory() follows links,
+                    // so a link pointing outside the restore root would be treated as a directory
+                    // and deleteRecursively would walk through it and delete the target's contents.
+                    if (existingPath.isSymbolicLink()) {
+                        if (name !in snapshotFileNames) {
+                            Files.delete(existingPath)
+                            progress.symlinkDeleted()
+                        }
+                    } else if (existingPath.isDirectory()) {
                         if (name !in snapshotDirNames) {
                             // Delete directory not in snapshot
                             deleteRecursively(existingPath)
                             progress.directoryDeleted()
-                        }
-                    } else if (existingPath.isSymbolicLink()) {
-                        if (name !in snapshotFileNames) {
-                            Files.delete(existingPath)
-                            progress.symlinkDeleted()
                         }
                     } else if (existingPath.isRegularFile()) {
                         if (name !in snapshotFileNames) {
@@ -360,7 +368,8 @@ class SnapshotRestorer(
         }
 
         private fun deleteRecursively(path: Path) {
-            if (path.isDirectory()) {
+            // NOFOLLOW: recursing into a symlinked directory would delete outside the restore root.
+            if (path.isDirectory(LinkOption.NOFOLLOW_LINKS)) {
                 Files.list(path).use { stream ->
                     stream.forEach { child ->
                         deleteRecursively(child)
