@@ -42,7 +42,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("schedulePeriodicBackup delegates to WorkSchedulingPort")
         fun `schedulePeriodicBackup delegates to WorkSchedulingPort`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             scheduler.schedulePeriodicBackup(
                 sourceId = source.id,
@@ -63,7 +63,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("scheduleOneTimeBackup delegates to WorkSchedulingPort")
         fun `scheduleOneTimeBackup delegates to WorkSchedulingPort`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             scheduler.scheduleOneTimeBackup(
                 sourceId = source.id,
@@ -82,7 +82,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("interval below 15 minutes is clamped to minimum 1 hour")
         fun `interval below minimum is clamped`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             // WorkManager minimum for periodic is 15 minutes, but we use hours.
             // The minimum meaningful periodic interval is 1 hour.
@@ -106,7 +106,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("constraints are passed through to scheduling port")
         fun `constraints passed through to scheduling port`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
             val constraints = BackupConstraints(
                 requiresCharging = true,
                 requiresWifi = false,
@@ -139,7 +139,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("pauseSource cancels scheduled work and updates source state to PAUSED")
         fun `pauseSource cancels scheduled work and updates source state`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             scheduler.pauseSource(source.id)
 
@@ -152,7 +152,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("resumeSource re-creates work and updates source state to IDLE")
         fun `resumeSource re-creates work and updates source state`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
             sourceManager.pauseSource(source.id) // Start in paused state
 
             scheduler.resumeSource(
@@ -177,7 +177,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("updateSchedule cancels old work and creates new schedule")
         fun `updateSchedule cancels old and creates new`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             scheduler.updateSchedule(
                 sourceId = source.id,
@@ -199,7 +199,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("cancelScheduledBackup delegates cancel to scheduling port")
         fun `cancelScheduledBackup delegates cancel`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
             scheduler.schedulePeriodicBackup(source.id, 24)
 
             scheduler.cancelScheduledBackup(source.id)
@@ -215,9 +215,9 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("multiple sources have independent schedules")
         fun `multiple sources have independent schedules`() {
-            val source1 = sourceManager.createSource("/path/1", "Source 1")
-            val source2 = sourceManager.createSource("/path/2", "Source 2")
-            val source3 = sourceManager.createSource("/path/3", "Source 3")
+            val source1 = sourceManager.createSource("/path/1", "/path/1", "Source 1")
+            val source2 = sourceManager.createSource("/path/2", "/path/2", "Source 2")
+            val source3 = sourceManager.createSource("/path/3", "/path/3", "Source 3")
 
             scheduler.schedulePeriodicBackup(source1.id, 6)
             scheduler.schedulePeriodicBackup(source2.id, 12)
@@ -252,8 +252,8 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("cancelScheduledBackup only affects target source")
         fun `cancelScheduledBackup only affects target source`() {
-            val source1 = sourceManager.createSource("/path/1", "Source 1")
-            val source2 = sourceManager.createSource("/path/2", "Source 2")
+            val source1 = sourceManager.createSource("/path/1", "/path/1", "Source 1")
+            val source2 = sourceManager.createSource("/path/2", "/path/2", "Source 2")
 
             scheduler.schedulePeriodicBackup(source1.id, 6)
             scheduler.schedulePeriodicBackup(source2.id, 12)
@@ -283,7 +283,7 @@ class BackupSchedulerTest {
         @Test
         @DisplayName("hasActiveSchedule returns false after cancel")
         fun `hasActiveSchedule returns false after cancel`() {
-            val source = sourceManager.createSource("/test/path", "Test")
+            val source = sourceManager.createSource("/test/path", "/test/path", "Test")
 
             scheduler.schedulePeriodicBackup(source.id, 24)
             assertThat(scheduler.hasActiveSchedule(source.id)).isTrue()

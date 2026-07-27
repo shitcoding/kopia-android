@@ -175,6 +175,7 @@ class BackupSessionLifecycleTest {
 
             val source = sourceManager.createSource(
                 tempDir.toAbsolutePath().toString(),
+                tempDir.toAbsolutePath().toString(),
                 "Documents",
             )
 
@@ -210,8 +211,16 @@ class BackupSessionLifecycleTest {
             Files.write(dir1.resolve("a.txt"), "aaa".toByteArray())
             Files.write(dir2.resolve("b.txt"), "bbb".toByteArray())
 
-            val src1 = sourceManager.createSource(dir1.toAbsolutePath().toString(), "Source 1")
-            val src2 = sourceManager.createSource(dir2.toAbsolutePath().toString(), "Source 2")
+            val src1 = sourceManager.createSource(
+                dir1.toAbsolutePath().toString(),
+                dir1.toAbsolutePath().toString(),
+                "Source 1",
+            )
+            val src2 = sourceManager.createSource(
+                dir2.toAbsolutePath().toString(),
+                dir2.toAbsolutePath().toString(),
+                "Source 2",
+            )
 
             val (repo, writer) = mockRepository()
             val (cpStore, _) = mockCheckpointStore()
@@ -252,7 +261,11 @@ class BackupSessionLifecycleTest {
             val dir = createTempDir("incremental")
             Files.write(dir.resolve("file1.txt"), "original".toByteArray())
 
-            val source = sourceManager.createSource(dir.toAbsolutePath().toString(), "Incremental")
+            val source = sourceManager.createSource(
+                dir.toAbsolutePath().toString(),
+                dir.toAbsolutePath().toString(),
+                "Incremental",
+            )
 
             val (repo, writer) = mockRepository()
             val (cpStore, _) = mockCheckpointStore()
@@ -294,7 +307,11 @@ class BackupSessionLifecycleTest {
             val dir = createTempDir("tagged")
             Files.write(dir.resolve("data.bin"), byteArrayOf(1, 2, 3))
 
-            val source = sourceManager.createSource(dir.toAbsolutePath().toString(), "Tagged")
+            val source = sourceManager.createSource(
+                dir.toAbsolutePath().toString(),
+                dir.toAbsolutePath().toString(),
+                "Tagged",
+            )
 
             val (repo, writer) = mockRepository()
             val (cpStore, _) = mockCheckpointStore()
@@ -459,7 +476,11 @@ class BackupSessionLifecycleTest {
         fun `backup fails gracefully when source path does not exist`() = runTest {
             val tm = createTaskManager()
             val sourceManager = BackupSourceManager()
-            val source = sourceManager.createSource("/nonexistent/lifecycle/path", "Missing")
+            val source = sourceManager.createSource(
+                "/nonexistent/lifecycle/path",
+                "/nonexistent/lifecycle/path",
+                "Missing",
+            )
 
             val (repo, _) = mockRepository()
             val (cpStore, _) = mockCheckpointStore()
@@ -723,7 +744,11 @@ class BackupSessionLifecycleTest {
             val dir = createTempDir("state-tracking")
             Files.write(dir.resolve("s.txt"), "state".toByteArray())
 
-            val source = sourceManager.createSource(dir.toAbsolutePath().toString(), "Stateful")
+            val source = sourceManager.createSource(
+                dir.toAbsolutePath().toString(),
+                dir.toAbsolutePath().toString(),
+                "Stateful",
+            )
 
             // Initially IDLE
             assertThat(sourceManager.getSource(source.id)!!.status).isEqualTo(SourceStatus.IDLE)

@@ -438,6 +438,12 @@ data class WebBackupSourceInfo(
  */
 @Serializable
 data class WebSourceStatus(
+    /**
+     * The handle the UI must pass back to `startBackup`/`pauseSource`/`resumeSource`/
+     * `getSourceStatus`. The native side is authoritative about it; the UI reconstructing
+     * `user@host:path` from [source] is exactly the contract break this field closes.
+     */
+    val id: String,
     val source: WebSourceInfo,
     val status: String,
     val nextBackupTimeEpochMs: Long? = null,
@@ -579,6 +585,20 @@ fun org.kopiaKt.android.worker.SourceInfo.toWeb() = WebBackupSourceInfo(
  * exact policy the wizard set. Keep these two in sync via this single helper — a drift would silently
  * store the policy under a key the editor never reads.
  */
+/**
+ * Canonical form of a user-entered source path. The path is half of the source's durable identity,
+ * so `/sdcard/DCIM` and `/sdcard/DCIM/` must not become two sources over one directory. Content URIs
+ * are left alone apart from trimming — their trailing characters are part of the document id.
+ */
+internal fun normalizeSourcePath(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.startsWith("content://")) {
+        return trimmed
+    }
+    val stripped = trimmed.trimEnd('/')
+    return stripped.ifEmpty { if (trimmed.isEmpty()) "" else "/" }
+}
+
 internal fun localSnapshotSourceInfo(path: String): org.kopiaKt.snapshot.model.SourceInfo = org.kopiaKt.snapshot.model.SourceInfo(
     host = android.os.Build.MODEL ?: "unknown",
     userName = "local",
@@ -586,6 +606,7 @@ internal fun localSnapshotSourceInfo(path: String): org.kopiaKt.snapshot.model.S
 )
 
 fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
+    id = id,
     source = localSnapshotSourceInfo(path).toWeb(),
     status = status.name,
     lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),

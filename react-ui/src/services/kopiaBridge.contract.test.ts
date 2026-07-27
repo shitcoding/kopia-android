@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getPolicy, setPolicy, getTask, createRepository, BridgeError } from "@/services/kopiaBridge";
+import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, pauseSource, BridgeError } from "@/services/kopiaBridge";
 import { sourceId } from "@/lib/format";
 
 // Contract pins for the JS -> Kotlin bridge marshalling. The Kotlin counterpart lives in
@@ -114,5 +114,39 @@ describe("bridge single-slot callbacks", () => {
     (window as unknown as { KopiaEvents: { onRepositoryCreated: (s: string) => void } })
       .KopiaEvents.onRepositoryCreated(JSON.stringify({ success: true, data: null }));
     await expect(retry).resolves.toBeUndefined();
+  });
+})
+
+describe("bridge contract: the source id is native's, not rebuilt from the source triple", () => {
+  it("getAllSourceStatuses surfaces the id native assigned", async () => {
+    stubBridge("listAllSources", () =>
+      ok([
+        {
+          id: "local@Pixel 7:/sdcard/DCIM",
+          source: { userName: "local", host: "Pixel 7", path: "/sdcard/DCIM" },
+          status: "IDLE",
+          snapshotCount: 0,
+          totalFileSize: 0,
+        },
+      ]),
+    );
+
+    const [status] = await getAllSourceStatuses();
+
+    // The dashboard addresses the source by this field. Rebuilding user@host:path locally is what
+    // made pauseSource/resumeSource/getSourceStatus answer "Source not found".
+    expect(status.id).toBe("local@Pixel 7:/sdcard/DCIM");
+  });
+
+  it("pauseSource forwards the raw id, not a JSON-quoted string", async () => {
+    let received: string | undefined;
+    stubBridge("pauseSource", (arg) => {
+      received = arg;
+      return ok(true);
+    });
+
+    await pauseSource("local@Pixel 7:/sdcard/DCIM");
+
+    expect(received).toBe("local@Pixel 7:/sdcard/DCIM");
   });
 })

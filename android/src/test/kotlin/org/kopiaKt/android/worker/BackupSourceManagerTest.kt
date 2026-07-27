@@ -36,7 +36,11 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("createSource stores source with stable ID")
         fun `createSource stores source with stable ID`() {
-            val source = manager.createSource("/storage/emulated/0/Documents", "Documents")
+            val source = manager.createSource(
+                "/storage/emulated/0/Documents",
+                "/storage/emulated/0/Documents",
+                "Documents",
+            )
 
             assertThat(source.id).isNotNull()
             assertThat(source.id).isNotEmpty()
@@ -46,7 +50,7 @@ class BackupSourceManagerTest {
         @DisplayName("createSource with SAF URI")
         fun `createSource with SAF URI`() {
             val safUri = "content://com.android.externalstorage.documents/tree/primary%3ADocuments"
-            val source = manager.createSource(safUri, "SAF Documents")
+            val source = manager.createSource(safUri, safUri, "SAF Documents")
 
             assertThat(source.path).isEqualTo(safUri)
             assertThat(source.displayName).isEqualTo("SAF Documents")
@@ -56,7 +60,7 @@ class BackupSourceManagerTest {
         @DisplayName("createSource with file path")
         fun `createSource with file path`() {
             val path = "/storage/emulated/0/DCIM"
-            val source = manager.createSource(path, "Camera")
+            val source = manager.createSource(path, path, "Camera")
 
             assertThat(source.path).isEqualTo(path)
             assertThat(source.displayName).isEqualTo("Camera")
@@ -65,7 +69,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("deleteSource removes source")
         fun `deleteSource removes source`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
 
             manager.deleteSource(source.id)
 
@@ -82,7 +86,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("getSource returns source info")
         fun `getSource returns source info`() {
-            val created = manager.createSource("/test/path", "Test Source")
+            val created = manager.createSource("/test/path", "/test/path", "Test Source")
 
             val retrieved = manager.getSource(created.id)
 
@@ -95,9 +99,9 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("listSources returns all sources")
         fun `listSources returns all sources`() {
-            manager.createSource("/path/1", "Source 1")
-            manager.createSource("/path/2", "Source 2")
-            manager.createSource("/path/3", "Source 3")
+            manager.createSource("/path/1", "/path/1", "Source 1")
+            manager.createSource("/path/2", "/path/2", "Source 2")
+            manager.createSource("/path/3", "/path/3", "Source 3")
 
             val sources = manager.listSources()
 
@@ -121,7 +125,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("new source starts in IDLE state")
         fun `new source starts in IDLE state`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
 
             assertThat(source.status).isEqualTo(SourceStatus.IDLE)
         }
@@ -129,7 +133,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("source transitions to UPLOADING on status change")
         fun `source transitions to UPLOADING on status change`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
 
             manager.setSourceStatus(source.id, SourceStatus.UPLOADING)
 
@@ -140,7 +144,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("source transitions back to IDLE on status change")
         fun `source transitions back to IDLE on status change`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
             manager.setSourceStatus(source.id, SourceStatus.UPLOADING)
 
             manager.setSourceStatus(source.id, SourceStatus.IDLE)
@@ -152,7 +156,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("source transitions to PAUSED on pause")
         fun `source transitions to PAUSED on pause`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
 
             manager.pauseSource(source.id)
 
@@ -163,7 +167,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("source transitions from PAUSED to IDLE on resume")
         fun `source transitions from PAUSED to IDLE on resume`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
             manager.pauseSource(source.id)
 
             manager.resumeSource(source.id)
@@ -175,7 +179,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("paused source status survives multiple operations")
         fun `paused source status survives multiple operations`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
             manager.pauseSource(source.id)
 
             // Perform multiple reads
@@ -190,7 +194,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("source records last snapshot time")
         fun `source records last snapshot time`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
             val snapshotTime = Instant.parse("2026-01-15T10:30:00Z")
 
             manager.updateLastSnapshotTime(source.id, snapshotTime)
@@ -216,7 +220,7 @@ class BackupSourceManagerTest {
                 repeat(threadCount) { i ->
                     executor.submit {
                         barrier.await(5, TimeUnit.SECONDS)
-                        manager.createSource("/path/$i", "Source $i")
+                        manager.createSource("/path/$i", "/path/$i", "Source $i")
                         latch.countDown()
                     }
                 }
@@ -233,7 +237,7 @@ class BackupSourceManagerTest {
         fun `concurrent listSources calls safe`() {
             // Pre-populate some sources
             repeat(10) { i ->
-                manager.createSource("/path/$i", "Source $i")
+                manager.createSource("/path/$i", "/path/$i", "Source $i")
             }
 
             val threadCount = 20
@@ -267,7 +271,7 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("getSource returns consistent snapshot")
         fun `getSource returns consistent snapshot`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
 
             val threadCount = 20
             val barrier = CyclicBarrier(threadCount)
@@ -304,7 +308,7 @@ class BackupSourceManagerTest {
         fun `deleteSource while listing is safe`() {
             // Create many sources
             val sourceIds = (0 until 50).map { i ->
-                manager.createSource("/path/$i", "Source $i").id
+                manager.createSource("/path/$i", "/path/$i", "Source $i").id
             }
 
             val threadCount = 10
@@ -355,25 +359,43 @@ class BackupSourceManagerTest {
         @Test
         @DisplayName("createSource with empty display name uses path")
         fun `createSource with empty display name uses path`() {
-            val source = manager.createSource("/storage/emulated/0/Documents", "")
+            val source = manager.createSource("/storage/emulated/0/Documents", "/storage/emulated/0/Documents", "")
 
             assertThat(source.displayName).isEqualTo("/storage/emulated/0/Documents")
         }
 
         @Test
-        @DisplayName("createSource generates unique IDs")
-        fun `createSource generates unique IDs`() {
+        @DisplayName("createSource keys on the supplied identity")
+        fun `createSource keys on the supplied identity`() {
             val ids = (0 until 100).map { i ->
-                manager.createSource("/path/$i", "Source $i").id
+                manager.createSource("local@phone:/path/$i", "/path/$i", "Source $i").id
             }.toSet()
 
             assertThat(ids).hasSize(100)
         }
 
         @Test
+        @DisplayName("re-registering an identity keeps its accumulated state")
+        fun `re-registering an identity keeps its accumulated state`() {
+            val id = "local@phone:/test/path"
+            val first = manager.createSource(id, "/test/path", "Test")
+            manager.setSourceStatus(id, SourceStatus.PAUSED)
+            manager.updateLastSnapshotTime(id, Instant.ofEpochSecond(1000))
+
+            val second = manager.createSource(id, "/test/path", "Renamed")
+
+            // Adding the same path twice is the same source, not a second row with a fresh history.
+            assertThat(manager.listSources()).hasSize(1)
+            assertThat(second.displayName).isEqualTo("Renamed")
+            assertThat(second.status).isEqualTo(SourceStatus.PAUSED)
+            assertThat(second.lastSnapshotTime).isEqualTo(Instant.ofEpochSecond(1000))
+            assertThat(second.createdAt).isEqualTo(first.createdAt)
+        }
+
+        @Test
         @DisplayName("deleteSource on already deleted is no-op")
         fun `deleteSource on already deleted is no-op`() {
-            val source = manager.createSource("/test/path", "Test")
+            val source = manager.createSource("/test/path", "/test/path", "Test")
             manager.deleteSource(source.id)
 
             // Second delete should not throw

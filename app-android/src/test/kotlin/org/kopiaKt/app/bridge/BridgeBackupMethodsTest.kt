@@ -124,7 +124,7 @@ class BridgeBackupMethodsTest {
                 status = SourceStatus.IDLE,
                 createdAt = Instant.parse("2026-01-01T00:00:00Z"),
             )
-            every { sourceManager.createSource("/storage/documents", "My Documents") } returns fakeSource
+            every { sourceManager.createSource(any(), "/storage/documents", "My Documents") } returns fakeSource
 
             val result = bridge.createSource("""{"uri":"/storage/documents","displayName":"My Documents"}""")
             val obj = assertSuccess(result)
@@ -144,11 +144,11 @@ class BridgeBackupMethodsTest {
                 displayName = "Data",
                 createdAt = Instant.now(),
             )
-            every { sourceManager.createSource("/data", "Data") } returns fakeSource
+            every { sourceManager.createSource(any(), "/data", "Data") } returns fakeSource
 
             bridge.createSource("""{"uri":"/data","displayName":"Data"}""")
 
-            verify(exactly = 1) { sourceManager.createSource("/data", "Data") }
+            verify(exactly = 1) { sourceManager.createSource(any(), "/data", "Data") }
         }
 
         @Test
@@ -160,7 +160,7 @@ class BridgeBackupMethodsTest {
         @Test
         fun `applies the add-source wizard policy under the source's policy identity`() {
             val fakeSource = SourceInfo(id = "src-9", path = "/data", displayName = "/data", createdAt = Instant.now())
-            every { sourceManager.createSource("/data", "") } returns fakeSource
+            every { sourceManager.createSource(any(), "/data", "") } returns fakeSource
             coEvery { PolicyManager.setPolicy(any(), any(), any()) } returns Unit
 
             val result = bridge.createSource("""{"uri":"/data","policy":{"retention":{"keepLatest":7}}}""")
@@ -181,7 +181,7 @@ class BridgeBackupMethodsTest {
             val result = bridge.createSource("""{"uri":"/data","policy":{}}""")
 
             assertError(result)
-            verify(exactly = 0) { sourceManager.createSource(any(), any()) }
+            verify(exactly = 0) { sourceManager.createSource(any(), any(), any()) }
         }
 
         @Test
@@ -193,7 +193,7 @@ class BridgeBackupMethodsTest {
             val result = bridge.createSource("""{"uri":"/data","policy":{}}""")
 
             assertError(result)
-            verify(exactly = 0) { sourceManager.createSource(any(), any()) }
+            verify(exactly = 0) { sourceManager.createSource(any(), any(), any()) }
         }
     }
 

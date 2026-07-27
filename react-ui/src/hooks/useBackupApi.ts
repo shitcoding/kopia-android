@@ -64,10 +64,9 @@ export function useCreateSource() {
 export function useDeleteSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sourceId: string) => {
-      deleteSourceBridge(sourceId);
-      return Promise.resolve();
-    },
+    // Adopt the bridge's rejection: dropping it made every failure -- "Source not found" included --
+    // resolve, so the UI toasted success while nothing had happened.
+    mutationFn: (sourceId: string) => Promise.resolve(deleteSourceBridge(sourceId)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
   });
 }
@@ -83,10 +82,9 @@ export function useStartBackup() {
 export function usePauseSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sourceId: string) => {
-      pauseSourceBridge(sourceId);
-      return Promise.resolve();
-    },
+    // Adopt the bridge's rejection: dropping it made every failure -- "Source not found" included --
+    // resolve, so the UI toasted success while nothing had happened.
+    mutationFn: (sourceId: string) => Promise.resolve(pauseSourceBridge(sourceId)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
   });
 }
@@ -94,10 +92,9 @@ export function usePauseSource() {
 export function useResumeSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sourceId: string) => {
-      resumeSourceBridge(sourceId);
-      return Promise.resolve();
-    },
+    // Adopt the bridge's rejection: dropping it made every failure -- "Source not found" included --
+    // resolve, so the UI toasted success while nothing had happened.
+    mutationFn: (sourceId: string) => Promise.resolve(resumeSourceBridge(sourceId)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
   });
 }

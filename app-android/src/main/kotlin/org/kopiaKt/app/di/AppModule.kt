@@ -2,8 +2,11 @@ package org.kopiaKt.app.di
 
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import org.kopiaKt.android.worker.BackupSourceManager
+import org.kopiaKt.android.worker.TaskManager
 import org.kopiaKt.app.data.repository.EncryptedCredentialRepository
 import org.kopiaKt.app.data.repository.KopiaRepositoryManagerImpl
 import org.kopiaKt.app.data.repository.SnapshotRepositoryImpl
@@ -33,4 +36,18 @@ abstract class AppModule {
     abstract fun bindCredentialRepository(
         impl: EncryptedCredentialRepository,
     ): CredentialRepository
+
+    companion object {
+        /**
+         * Backup state outlives any one screen: the bridge is rebuilt per `MainActivity`, and
+         * `BackupWorker` must reach the same instances the Tasks screen reads.
+         */
+        @Provides
+        @Singleton
+        fun provideTaskManager(): TaskManager = TaskManager()
+
+        @Provides
+        @Singleton
+        fun provideBackupSourceManager(): BackupSourceManager = BackupSourceManager()
+    }
 }

@@ -47,6 +47,16 @@ interface WebBridgeEntryPoint {
     fun repositoryManager(): KopiaRepositoryManager
     fun snapshotRepository(): SnapshotRepository
     fun credentialRepository(): org.kopiaKt.app.domain.repository.CredentialRepository
+
+    /**
+     * Application-scoped, deliberately. The bridge is rebuilt per `MainActivity`, so anything it
+     * owned privately died on activity recreation -- configured sources vanished on a rotation, and
+     * `BackupWorker` could never reach the same instance the Tasks screen reads.
+     */
+    fun taskManager(): TaskManager
+
+    /** Application-scoped for the same reason as [taskManager]. */
+    fun sourceManager(): BackupSourceManager
 }
 
 /**
@@ -121,12 +131,10 @@ class KopiaWebBridge private constructor(
     private val snapshotRepository get() = entryPoint.snapshotRepository()
     private val credentialRepository get() = entryPoint.credentialRepository()
 
-    private val lazyTaskManager by lazy { TaskManager() }
     internal val taskManager: TaskManager
-        get() = _taskManager ?: lazyTaskManager
-    private val lazySourceManager by lazy { BackupSourceManager() }
+        get() = _taskManager ?: entryPoint.taskManager()
     internal val sourceManager: BackupSourceManager
-        get() = _sourceManager ?: lazySourceManager
+        get() = _sourceManager ?: entryPoint.sourceManager()
 
     private val webViewRef = AtomicReference<WebView?>()
 
@@ -919,6 +927,15 @@ class KopiaWebBridge private constructor(
             // step first means a failure leaves no orphaned source with a missing policy. Store it under
             // the SAME SourceInfo the policy editor resolves (localSnapshotSourceInfo) so it persists and
             // shows up when the user opens the editor for this source.
+            // One identity for the source record, its policy and (later) its snapshots. The UI gets
+            // it back as WebSourceStatus.id and addresses the source by it -- so normalize BEFORE
+            // deriving it, or "/sdcard/DCIM" and "/sdcard/DCIM/" become two sources over one
+            // directory, with two policies and interleaved retention.
+            val path = normalizeSourcePath(request.path)
+            if (path.isEmpty()) {
+                return json.encodeToString(WebResult.error<WebBackupSourceInfo>("Source path is required"))
+            }
+            val identity = localSnapshotSourceInfo(path)
             request.policy?.let { policy ->
                 val repo = repositoryManager.getRepository()
                     ?: return json.encodeToString(
@@ -927,10 +944,10 @@ class KopiaWebBridge private constructor(
                         ),
                     )
                 runBlocking {
-                    PolicyManager.setPolicy(repo, localSnapshotSourceInfo(request.path), policy)
+                    PolicyManager.setPolicy(repo, identity, policy)
                 }
             }
-            val source = sourceManager.createSource(request.path, request.displayName)
+            val source = sourceManager.createSource(identity.toString(), path, request.displayName)
             json.encodeToString(WebResult.success(source.toWeb()))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<WebBackupSourceInfo>(e.message ?: "Error creating source"))

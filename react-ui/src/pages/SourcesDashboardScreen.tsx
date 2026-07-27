@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatFileSize, formatRelativeTime, sourceId } from "@/lib/format";
+import { formatFileSize, formatRelativeTime } from "@/lib/format";
 import type { WebSourceStatus } from "@/types/kopia";
 import { useSources, useStartBackup, usePauseSource, useResumeSource, useDeleteSource } from "@/hooks/useBackupApi";
 import BackupProgressSheet from "@/components/BackupProgressSheet";
@@ -145,7 +145,8 @@ const SourcesDashboardScreen = () => {
             </button>
 
             {sources.map((src, index) => {
-              const sid = sourceId(src.source);
+              // Native's id, never a locally rebuilt user@host:path — see WebSourceStatus.id.
+              const sid = src.id;
               const badge = STATUS_BADGE[src.status];
               const uploadProgress = src.uploadCounters
                 ? Math.round((src.uploadCounters.totalUploadedBytes / Math.max(src.uploadCounters.estimatedBytes, 1)) * 100)
@@ -167,7 +168,12 @@ const SourcesDashboardScreen = () => {
                         <p className="font-semibold text-foreground truncate text-sm">
                           {src.source.path.split("/").pop() || src.source.path}
                         </p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.className}`}>
+                        {/* Stateful element: the aria-label must track the label, or E2E can't
+                            tell "Paused" on this row from "Paused" anywhere else on screen. */}
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.className}`}
+                          aria-label={`Source status ${badge.label}`}
+                        >
                           {badge.label}
                         </span>
                       </div>
@@ -244,7 +250,7 @@ const SourcesDashboardScreen = () => {
         <AlertDialogContent className="max-w-sm mx-4 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Source?</AlertDialogTitle>
-            <AlertDialogDescription>This will remove the backup source and its policy. Existing snapshots will not be deleted.</AlertDialogDescription>
+            <AlertDialogDescription>This stops backing up this folder. Its policy and its existing snapshots are kept in the repository.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-3">
             <AlertDialogCancel className="flex-1 mt-0">Cancel</AlertDialogCancel>

@@ -215,6 +215,12 @@ export interface WebUploadCounters {
 
 /** Source status */
 export interface WebSourceStatus {
+  /**
+   * The handle to pass back to startBackup/pauseSource/resumeSource/getSourceStatus. Native is
+   * authoritative about it — never rebuild it from `source`, which is what used to make every one
+   * of those calls answer "Source not found".
+   */
+  id: string;
   source: SourceInfo;
   status: "IDLE" | "UPLOADING" | "PAUSED" | "FAILED" | "SCHEDULED";
   nextBackupTimeEpochMs?: number;

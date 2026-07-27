@@ -348,7 +348,12 @@ class BackupWorker(
         }
         return PendingIntent.getBroadcast(
             applicationContext,
-            sourceId.hashCode(),
+            // Not sourceId.hashCode(): PendingIntent matching ignores extras, so two sources whose ids
+            // collide (trivial for path-based ids -- "Aa" and "BB" hash alike) would share one
+            // PendingIntent, and the second FLAG_UPDATE_CURRENT would rewrite the first's source id.
+            // Cancel on one backup would then cancel the other. The notification registry already
+            // hands out collision-free per-source slots.
+            BackupNotificationIds.forSource(sourceId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
