@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -335,7 +334,6 @@ class BridgeBackupMethodsTest {
     inner class StartBackupTests {
 
         @Test
-        @Disabled("startBackup is not yet implemented")
         fun `returns task ID on success`() {
             val fakeSource = SourceInfo(
                 id = "src-1",
@@ -354,17 +352,52 @@ class BridgeBackupMethodsTest {
         }
 
         @Test
-        fun `returns not-implemented error`() {
+        fun `reports an unknown source rather than starting nothing`() {
+            every { sourceManager.getSource("any-source") } returns null
+
             val result = bridge.startBackup("any-source")
+
             val obj = assertError(result)
             assertTrue(
-                obj["error"]!!.jsonPrimitive.content.contains("not yet implemented"),
-                "Expected a not-implemented error, got: $result",
+                obj["error"]!!.jsonPrimitive.content.contains("Source not found"),
+                "Expected a source-not-found error, got: $result",
             )
         }
 
         @Test
-        @Disabled("startBackup is not yet implemented")
+        fun `the wizard's start-immediately checkbox starts a backup`() {
+            val fakeSource = SourceInfo(
+                id = "src-1",
+                path = "/data",
+                displayName = "Data",
+                createdAt = Instant.now(),
+            )
+            every { sourceManager.createSource(any(), "/data", any()) } returns fakeSource
+            every { sourceManager.getSource("src-1") } returns fakeSource
+            every { taskManager.startTask(TaskKind.BACKUP, any(), any()) } returns "task-7"
+
+            bridge.createSource("""{"uri":"/data","startBackup":true}""")
+
+            // AddSourceScreen has always sent this flag and createSource has always ignored it.
+            verify(exactly = 1) { taskManager.startTask(TaskKind.BACKUP, any(), any()) }
+        }
+
+        @Test
+        fun `a source added without the checkbox does not start a backup`() {
+            val fakeSource = SourceInfo(
+                id = "src-1",
+                path = "/data",
+                displayName = "Data",
+                createdAt = Instant.now(),
+            )
+            every { sourceManager.createSource(any(), "/data", any()) } returns fakeSource
+
+            bridge.createSource("""{"uri":"/data"}""")
+
+            verify(exactly = 0) { taskManager.startTask(any(), any(), any()) }
+        }
+
+        @Test
         fun `delegates to TaskManager with BACKUP kind`() {
             val fakeSource = SourceInfo(
                 id = "src-1",

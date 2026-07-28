@@ -34,7 +34,10 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
   const isEstimating =
     !estimateError && (!task || task.status === "RUNNING" || task.status === "CANCELING");
   const isComplete = task?.status === "SUCCESS";
+  // Counters are Go's open map of named values; a run reports none until it has something to
+  // report, so read by name and render nothing rather than indexing into absent fields.
   const counters = task?.counters;
+  const counter = (name: string) => counters?.[name]?.value;
 
   const handleStartBackup = () => {
     startBackup.mutate(sourceId);
@@ -61,24 +64,24 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
               <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
               <button onClick={onClose} className="btn-secondary mt-4">Cancel</button>
             </div>
-          ) : isComplete && counters ? (
+          ) : isComplete && Object.keys(counters ?? {}).length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="card-elevated !p-3">
                   <p className="text-xs text-muted-foreground">Total files</p>
-                  <p className="text-lg font-bold text-foreground">{counters.estimatedFiles.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">{(counter("Estimated Files") ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="card-elevated !p-3">
                   <p className="text-xs text-muted-foreground">Total size</p>
-                  <p className="text-lg font-bold text-foreground">{formatFileSize(counters.estimatedBytes)}</p>
+                  <p className="text-lg font-bold text-foreground">{formatFileSize(counter("Estimated Bytes") ?? 0)}</p>
                 </div>
                 <div className="card-elevated !p-3">
                   <p className="text-xs text-muted-foreground">Excluded files</p>
-                  <p className="text-lg font-bold text-foreground">{counters.totalExcludedFiles.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">{(counter("Excluded Files") ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="card-elevated !p-3">
                   <p className="text-xs text-muted-foreground">Excluded dirs</p>
-                  <p className="text-lg font-bold text-foreground">{counters.totalExcludedDirs.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">{(counter("Excluded Directories") ?? 0).toLocaleString()}</p>
                 </div>
               </div>
 

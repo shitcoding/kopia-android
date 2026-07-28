@@ -59,7 +59,9 @@ const SourcesDashboardScreen = () => {
 
   const handleBackupNow = (sid: string) => {
     startBackup.mutate(sid, {
-      onSuccess: () => toast({ title: "Backup started" }),
+      // The returned task id is the handle for watching and cancelling the run; open the progress
+      // sheet on it rather than dropping it and showing a toast that says nothing.
+      onSuccess: (taskId) => setProgressTaskId(taskId),
       onError: (err) => toast({ title: "Failed to start backup", description: String(err), variant: "destructive" }),
     });
   };

@@ -14,6 +14,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Operation
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -22,6 +23,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -238,7 +241,11 @@ class BackupWorker(
         // checkpoint). See BackupSessionRegistry.
         BackupSessionRegistry.register(sourceId, session)
         try {
-            return session.run(existingCheckpoint)
+            // Two sources share one DirectRepositoryImpl and one ContentManager. The mutexes inside
+            // make that memory-safe, but one session's flush() would commit the other's half-written
+            // packs and manifest state -- Go isolates each upload in its own WriteSession. Backups
+            // therefore run one at a time process-wide.
+            return repositoryMutex.withLock { session.run(existingCheckpoint) }
         } finally {
             BackupSessionRegistry.unregister(sourceId, session)
         }
@@ -360,6 +367,9 @@ class BackupWorker(
     }
 
     companion object {
+        /** Serializes every backup in this process; see the call site in [runBackup]. */
+        private val repositoryMutex = Mutex()
+
         const val KEY_SOURCE_ID = "source_id"
         const val KEY_SOURCE_PATH = "source_path"
         const val KEY_CONFIG = "config"
@@ -405,7 +415,8 @@ class BackupWorker(
             config: BackupWorkerConfig = BackupWorkerConfig(),
             constraints: BackupConstraints = BackupConstraints(),
             @DrawableRes notificationIcon: Int = android.R.drawable.ic_popup_sync,
-        ) {
+            existingWorkPolicy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP,
+        ): Operation {
             val workConstraints = constraints.toWorkConstraints()
 
             val inputData = Data.Builder()
@@ -426,13 +437,19 @@ class BackupWorker(
                 )
                 .build()
 
-            WorkManager.getInstance(context)
+            // KEEP, not REPLACE: a second "back up now" tap used to cancel the running backup and
+            // start again from nothing, which on a large first backup is the worst possible answer
+            // to an impatient user.
+            return WorkManager.getInstance(context)
                 .enqueueUniqueWork(
-                    "$UNIQUE_WORK_PREFIX$sourceId",
-                    ExistingWorkPolicy.REPLACE,
+                    uniqueWorkName(sourceId),
+                    existingWorkPolicy,
                     request,
                 )
         }
+
+        /** The unique-work name a source's one-time backup is enqueued under. */
+        fun uniqueWorkName(sourceId: String): String = "$UNIQUE_WORK_PREFIX$sourceId"
 
         /**
          * Schedules periodic backups for the given source.
@@ -486,13 +503,21 @@ class BackupWorker(
         }
 
         /**
-         * Cancels all scheduled backups for the given source.
+         * Cancels both the current run and the source's schedule.
          */
-        fun cancel(context: Context, sourceId: String) {
-            WorkManager.getInstance(context)
-                .cancelUniqueWork("$UNIQUE_WORK_PREFIX$sourceId")
-            WorkManager.getInstance(context)
+        fun cancel(context: Context, sourceId: String): Operation {
+            cancelOneTime(context, sourceId)
+            return WorkManager.getInstance(context)
                 .cancelUniqueWork("${UNIQUE_WORK_PREFIX}periodic_$sourceId")
+        }
+
+        /**
+         * Cancels the source's current run only, leaving its schedule alone -- stopping a backup is
+         * not the same as never backing this source up again.
+         */
+        fun cancelOneTime(context: Context, sourceId: String): Operation {
+            val workManager = WorkManager.getInstance(context)
+            return workManager.cancelUniqueWork(uniqueWorkName(sourceId))
         }
 
         /**
@@ -562,14 +587,38 @@ data class BackupConstraints(
      * Require sufficient storage space.
      */
     val requiresStorageNotLow: Boolean = true,
-)
+
+    /**
+     * Require any network at all. False for a local repository, where waiting for connectivity would
+     * block a backup that needs none.
+     */
+    val requiresNetwork: Boolean = true,
+) {
+    companion object {
+        /**
+         * Constraints for a backup the user just asked for. The scheduled defaults require an
+         * unmetered network and a healthy battery, which is right for "every night" and wrong for
+         * "now" -- a user on cellular taps Back Up Now and nothing happens at all.
+         */
+        fun interactive(): BackupConstraints = BackupConstraints(
+            requiresWifi = false,
+            requiresBatteryNotLow = false,
+            requiresStorageNotLow = false,
+            requiresNetwork = false,
+        )
+    }
+}
 
 /**
  * Converts BackupConstraints to WorkManager Constraints.
  */
 internal fun BackupConstraints.toWorkConstraints(): Constraints = Constraints.Builder()
     .setRequiredNetworkType(
-        if (requiresWifi) NetworkType.UNMETERED else NetworkType.CONNECTED,
+        when {
+            !requiresNetwork -> NetworkType.NOT_REQUIRED
+            requiresWifi -> NetworkType.UNMETERED
+            else -> NetworkType.CONNECTED
+        },
     )
     .setRequiresCharging(requiresCharging)
     .setRequiresBatteryNotLow(requiresBatteryNotLow)

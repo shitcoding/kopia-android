@@ -97,9 +97,14 @@ const TaskListScreen = () => {
             const badge = STATUS_BADGE[task.status];
             const isExpanded = expandedId === task.id;
             const isRunning = task.status === "RUNNING" || task.status === "CANCELING";
-            const uploadProgress = task.counters
-              ? Math.round((task.counters.totalUploadedBytes / Math.max(task.counters.estimatedBytes, 1)) * 100)
-              : 0;
+            // Counters are an open map and a run reports none until it has something to report;
+            // indexing into fields that may not exist used to blank the whole screen.
+            const uploaded = task.counters?.["Uploaded Bytes"]?.value;
+            const estimated = task.counters?.["Estimated Bytes"]?.value;
+            const uploadProgress =
+              uploaded !== undefined && estimated !== undefined && estimated > 0
+                ? Math.round((uploaded / estimated) * 100)
+                : null;
 
             return (
               <div
@@ -134,10 +139,13 @@ const TaskListScreen = () => {
                       </div>
 
                       {/* Running progress */}
-                      {isRunning && task.counters && (
+                      {isRunning && (
                         <div className="mt-2">
                           <div className="progress-bar">
-                            <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+                            <div
+                              className="progress-fill"
+                              style={{ width: uploadProgress === null ? "100%" : `${uploadProgress}%` }}
+                            />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">{task.progressInfo}</p>
                         </div>
@@ -149,14 +157,14 @@ const TaskListScreen = () => {
                       )}
 
                       {/* Expanded details */}
-                      {isExpanded && task.counters && (
+                      {isExpanded && Object.keys(task.counters ?? {}).length > 0 && (
                         <div className="mt-3 pt-3 border-t border-border space-y-1 text-xs text-muted-foreground">
                           <div className="grid grid-cols-2 gap-2">
-                            <span>Hashed: {task.counters.totalHashedFiles.toLocaleString()} files</span>
-                            <span>Cached: {task.counters.totalCachedFiles.toLocaleString()} files</span>
-                            <span>Uploaded: {formatFileSize(task.counters.totalUploadedBytes)}</span>
-                            <span>Excluded: {task.counters.totalExcludedFiles} files</span>
-                            <span>Errors: {task.counters.fatalErrorCount} fatal, {task.counters.ignoredErrorCount} ignored</span>
+                            {Object.entries(task.counters ?? {}).map(([name, counter]) => (
+                              <span key={name}>
+                                {name}: {counter.units === "bytes" ? formatFileSize(counter.value) : counter.value.toLocaleString()}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       )}

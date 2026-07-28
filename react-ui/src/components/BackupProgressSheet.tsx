@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { formatFileSize } from "@/lib/format";
 import { useTask, useCancelTask } from "@/hooks/useBackupApi";
+import type { WebTaskCounter } from "@/types/kopia";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +24,18 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const cancelTask = useCancelTask();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  const counters = task?.counters;
-  const progress = counters
-    ? Math.round((counters.totalUploadedBytes / Math.max(counters.estimatedBytes, 1)) * 100)
-    : 0;
+  // Counters are Go's open map of named values, not a fixed struct, and a run reports none until it
+  // has something to report. Render whatever arrives; never index into fields that may not exist.
+  const counters = Object.entries(task?.counters ?? {});
+  const uploaded = task?.counters?.["Uploaded Bytes"]?.value;
+  const estimated = task?.counters?.["Estimated Bytes"]?.value;
+  const progress =
+    uploaded !== undefined && estimated !== undefined && estimated > 0
+      ? Math.round((uploaded / estimated) * 100)
+      : null;
+
+  const formatCounter = (counter: WebTaskCounter) =>
+    counter.units === "bytes" ? formatFileSize(counter.value) : counter.value.toLocaleString();
 
   const handleCancel = () => {
     cancelTask.mutate(taskId);
@@ -50,43 +59,25 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
             </button>
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar — indeterminate until the run has an estimate to divide by */}
           <div className="mb-4">
             <div className="progress-bar h-3">
-              <div className="progress-fill" style={{ width: `${progress}%` }} />
+              <div className="progress-fill" style={{ width: progress === null ? "100%" : `${progress}%` }} />
             </div>
-            <p className="text-center text-lg font-bold text-foreground mt-2">{progress}%</p>
+            <p className="text-center text-lg font-bold text-foreground mt-2" aria-label="Backup progress">
+              {progress === null ? task?.progressInfo || "Working…" : `${progress}%`}
+            </p>
           </div>
 
           {/* Stats grid */}
-          {counters && (
+          {counters.length > 0 && (
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="card-elevated !p-3">
-                <p className="text-xs text-muted-foreground">Files hashed</p>
-                <p className="text-sm font-semibold text-foreground">{counters.totalHashedFiles.toLocaleString()} / {counters.estimatedFiles.toLocaleString()}</p>
-              </div>
-              <div className="card-elevated !p-3">
-                <p className="text-xs text-muted-foreground">Files cached</p>
-                <p className="text-sm font-semibold text-foreground">{counters.totalCachedFiles.toLocaleString()}</p>
-              </div>
-              <div className="card-elevated !p-3">
-                <p className="text-xs text-muted-foreground">Uploaded</p>
-                <p className="text-sm font-semibold text-foreground">{formatFileSize(counters.totalUploadedBytes)} / {formatFileSize(counters.estimatedBytes)}</p>
-              </div>
-              <div className="card-elevated !p-3">
-                <p className="text-xs text-muted-foreground">Excluded</p>
-                <p className="text-sm font-semibold text-foreground">{counters.totalExcludedFiles} files, {counters.totalExcludedDirs} dirs</p>
-              </div>
-              <div className="card-elevated !p-3 col-span-2">
-                <p className="text-xs text-muted-foreground">Current directory</p>
-                <p className="text-xs font-medium text-foreground truncate">{counters.currentDirectory || "—"}</p>
-              </div>
-              {(counters.fatalErrorCount > 0 || counters.ignoredErrorCount > 0) && (
-                <div className="card-elevated !p-3 col-span-2">
-                  <p className="text-xs text-muted-foreground">Errors</p>
-                  <p className="text-sm font-semibold text-foreground">{counters.ignoredErrorCount} ignored, {counters.fatalErrorCount} fatal</p>
+              {counters.map(([name, counter]) => (
+                <div key={name} className="card-elevated !p-3">
+                  <p className="text-xs text-muted-foreground">{name}</p>
+                  <p className="text-sm font-semibold text-foreground">{formatCounter(counter)}</p>
                 </div>
-              )}
+              ))}
             </div>
           )}
 

@@ -26,9 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
+import org.kopiaKt.android.worker.BackupSourceDeleter
 import org.kopiaKt.android.worker.BackupSourceManager
+import org.kopiaKt.android.worker.BackupWorker
+import org.kopiaKt.android.worker.SourceStatus
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
+import org.kopiaKt.android.worker.runInteractiveBackup
 import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
@@ -510,6 +514,10 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun disconnect() {
         runBlocking {
+            // Backups run only while connected (D2), so pending work has to go with the connection.
+            // Left enqueued it would wake up against a repository that is no longer open and burn
+            // its retry budget failing.
+            context?.let { BackupWorker.cancelAll(it) }
             repositoryManager.disconnect()
         }
     }
@@ -1059,6 +1067,12 @@ class KopiaWebBridge private constructor(
                 }
             }
             val source = sourceManager.createSource(identity.toString(), path, request.displayName)
+            if (request.startBackup) {
+                // The wizard's "Start first backup immediately" checkbox was sent and ignored.
+                // A failure here must not fail source creation -- the source exists either way.
+                runCatching { enqueueBackup(source.id) }
+                    .onFailure { android.util.Log.w(TAG, "could not start the first backup", it) }
+            }
             json.encodeToString(WebResult.success(source.toWeb()))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<WebBackupSourceInfo>(e.message ?: "Error creating source"))
@@ -1073,11 +1087,19 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun deleteSource(sourceId: String): String {
         return try {
-            val existing = sourceManager.getSource(sourceId)
+            sourceManager.getSource(sourceId)
                 ?: return json.encodeToString(
                     WebResult.error<Boolean>("Source not found: $sourceId"),
                 )
-            sourceManager.deleteSource(sourceId)
+            val ctx = context
+            if (ctx == null) {
+                sourceManager.deleteSource(sourceId)
+            } else {
+                // Blocking rather than fire-and-forget: the user is told it is deleted, so the
+                // cancel/checkpoint/grant cleanup has to have happened by then. @JavascriptInterface
+                // calls arrive on a WebView worker thread, not the main thread.
+                runBlocking { BackupSourceDeleter(ctx, sourceManager).delete(sourceId) }
+            }
             json.encodeToString(WebResult.success(true))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error deleting source"))
@@ -1160,9 +1182,41 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<String> containing the task ID
      */
     @JavascriptInterface
-    fun startBackup(sourceId: String): String = json.encodeToString(
-        WebResult.error<String>("Backup execution is not yet implemented"),
-    )
+    fun startBackup(sourceId: String): String = try {
+        json.encodeToString(WebResult.success(enqueueBackup(sourceId)))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<String>(e.message ?: "Could not start the backup"))
+    }
+
+    /**
+     * Enqueues a backup for [sourceId] and returns the id of the task tracking it.
+     *
+     * The task wraps the WorkManager run rather than doing the work itself, so cancelling the task
+     * really reaches the worker: [runInteractiveBackup] turns the coroutine's cancellation into a
+     * cooperative session cancel plus a WorkManager cancel. A returned id that could not be observed
+     * or cancelled would be a broken API.
+     */
+    private fun enqueueBackup(sourceId: String): String {
+        val source = sourceManager.getSource(sourceId)
+            ?: error("Source not found: $sourceId")
+        val ctx = context ?: error("Context not available")
+        // Backups run only while connected (D2). Enqueuing without a repository would just burn
+        // retries on a worker that has nothing to write to, and tell the user nothing useful.
+        if (repositoryManager.getRepository() == null) {
+            error("Connect to a repository before backing up")
+        }
+
+        return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") {
+            sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING)
+            try {
+                runInteractiveBackup(ctx, source.id, source.path)
+                sourceManager.updateLastSnapshotTime(source.id, java.time.Instant.now())
+            } finally {
+                // The dashboard would otherwise show a source uploading forever.
+                sourceManager.setSourceStatus(source.id, SourceStatus.IDLE)
+            }
+        }
+    }
 
     /**
      * Cancel a running backup by task ID.

@@ -215,6 +215,17 @@ export interface WebUploadCounters {
   currentDirectory: string;
 }
 
+/**
+ * One entry of a task's counter map. Kotlin emits Go's shape — an open map of named counters, each
+ * with its own unit — rather than a fixed struct, so new counters appear without a wire change.
+ * `units` is Go's own vocabulary ("bytes", "count", ...).
+ */
+export interface WebTaskCounter {
+  value: number;
+  units: string;
+  level?: string;
+}
+
 /** Source status */
 export interface WebSourceStatus {
   /**
@@ -242,7 +253,8 @@ export interface WebTaskInfo {
   startTimeEpochMs: number;
   endTimeEpochMs?: number;
   progressInfo: string;
-  counters?: WebUploadCounters;
+  /** Named counters, Go's open-map shape. Empty until the run reports any. */
+  counters?: Record<string, WebTaskCounter>;
   error?: string;
 }
 

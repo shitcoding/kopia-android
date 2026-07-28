@@ -1,9 +1,11 @@
 package org.kopiaKt.app.di
 
+import android.content.Context
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.TaskManager
@@ -48,6 +50,8 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideBackupSourceManager(): BackupSourceManager = BackupSourceManager()
+        fun provideBackupSourceManager(
+            @ApplicationContext context: Context,
+        ): BackupSourceManager = BackupSourceManager(context)
     }
 }

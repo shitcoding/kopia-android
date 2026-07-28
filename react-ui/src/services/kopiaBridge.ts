@@ -497,8 +497,9 @@ export async function deleteSource(sourceId: string): Promise<void> {
   callBridge<void>("deleteSource", sourceId);
 }
 
-export async function startBackup(sourceId: string): Promise<void> {
-  callBridge<void>("startBackup", sourceId);
+/** @returns the id of the task tracking the run — needed to show progress or cancel it. */
+export async function startBackup(sourceId: string): Promise<string> {
+  return callBridge<string>("startBackup", sourceId);
 }
 
 export async function pauseSource(sourceId: string): Promise<void> {
