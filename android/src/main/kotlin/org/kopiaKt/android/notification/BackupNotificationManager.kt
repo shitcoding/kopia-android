@@ -226,16 +226,27 @@ class BackupNotificationManager(
         errorMessage: String,
         retryIntent: PendingIntent? = null,
         detailsIntent: PendingIntent? = null,
+        /**
+         * False when the snapshot WAS saved but skipped entries it could not read. Announcing that
+         * as "Backup failed" would send someone hunting for a backup that is sitting in the
+         * repository, complete and restorable.
+         */
+        failed: Boolean = true,
     ): Notification = NotificationCompat.Builder(context, BackupNotificationChannels.ERROR)
         .setSmallIcon(smallIcon)
-        .setContentTitle("Backup failed")
-        .setContentText("Failed to backup: $sourcePath")
+        .setContentTitle(if (failed) "Backup failed" else "Backup completed with errors")
+        .setContentText(if (failed) "Failed to backup: $sourcePath" else "$sourcePath: $errorMessage")
         .setAutoCancel(true)
         .setCategory(NotificationCompat.CATEGORY_ERROR)
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .apply {
-            val style = NotificationCompat.BigTextStyle()
-                .bigText("Failed to backup: $sourcePath\n\nError: $errorMessage")
+            val style = NotificationCompat.BigTextStyle().bigText(
+                if (failed) {
+                    "Failed to backup: $sourcePath\n\nError: $errorMessage"
+                } else {
+                    "Backed up: $sourcePath\n\nSome entries were skipped: $errorMessage"
+                },
+            )
             setStyle(style)
 
             retryIntent?.let { intent ->

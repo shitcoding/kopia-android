@@ -402,8 +402,8 @@ class SnapshotUploadIntegrationTest {
     inner class UploadErrorHandling {
 
         @Test
-        @DisplayName("upload with read error marks snapshot incomplete when error not ignored")
-        fun `upload with read error marks snapshot incomplete`() = runBlocking {
+        @DisplayName("a non-ignored read error yields a COMPLETE snapshot carrying the error count")
+        fun `upload with read error completes and records the error`() = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -431,13 +431,40 @@ class SnapshotUploadIntegrationTest {
 
             val result = uploader.upload(rootDir)
 
-            // Should be incomplete due to read error
-            assertTrue(result.incomplete, "Snapshot should be incomplete when file read error occurs")
-            assertNotNull(result.incompleteReason, "Incomplete reason should be set")
-            assertTrue(
-                result.incompleteReason!!.contains("error"),
-                "Incomplete reason should mention error",
+            // Go's default is record-and-continue: the failed entry is recorded, the walk carries
+            // on, and a COMPLETE manifest is saved with fatalErrorCount > 0. This test used to
+            // assert the opposite, which is how the fail-fast defect stayed green for so long.
+            assertFalse(result.incomplete, "One unreadable file must not throw away the whole backup")
+            assertEquals(null, result.incompleteReason)
+            assertEquals(1, result.stats.errorCount, "The failed entry must be recorded")
+            assertNotNull(
+                result.manifestId,
+                "The snapshot must still be saved so the files that did upload are usable",
             )
+        }
+
+        @Test
+        @DisplayName("failFast stops the upload and marks the snapshot incomplete")
+        fun `failFast marks snapshot incomplete`() = runBlocking {
+            val writer = TrackingRepositoryWriter()
+            val uploader = SnapshotUploader(
+                writer = writer,
+                source = testSource,
+                policy = Policy(errorHandlingPolicy = ErrorHandlingPolicy(ignoreFileErrors = false)),
+                progress = CountingUploadProgress(),
+            )
+
+            val result = uploader.upload(
+                InMemoryDirectory(
+                    "root",
+                    entries = listOf(FailingFile("bad.txt", IOException("Disk read error"))),
+                ),
+                UploadOptions(failFast = true),
+            )
+
+            assertTrue(result.incomplete, "failFast is what stops early")
+            assertNotNull(result.incompleteReason)
+            assertTrue(result.incompleteReason!!.contains("error"))
         }
 
         @Test

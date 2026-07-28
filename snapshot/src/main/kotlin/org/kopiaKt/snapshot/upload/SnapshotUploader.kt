@@ -12,7 +12,6 @@ import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SnapshotStats
 import org.kopiaKt.snapshot.model.SourceInfo
-import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
 import org.kopiaKt.snapshot.policy.Policy
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
@@ -148,8 +147,9 @@ class SnapshotUploader(
             val walker = TreeWalker(
                 processor = fileUploader,
                 progress = progress,
-                errorPolicy = createErrorPolicy(options),
+                errorPolicy = policy.errorHandlingPolicy,
                 parallelism = options.parallelUploads,
+                failFast = options.failFast,
             )
             currentWalker.set(walker)
             // Apply a cancel that landed before the walker existed (see [cancelled]).
@@ -183,8 +183,11 @@ class SnapshotUploader(
                 nonCachedFiles = counters.totalHashedFiles,
                 excludedFileCount = counters.totalExcludedFiles,
                 excludedDirCount = counters.totalExcludedDirs,
-                ignoredErrorCount = counters.ignoredErrorCount,
-                errorCount = counters.fatalErrorCount,
+                // From the tree that was actually written, not from the progress reporter: a
+                // caller using NullUploadProgress would otherwise save a snapshot whose directory
+                // summaries record failures while its stats claim none.
+                ignoredErrorCount = rootEntry?.dirSummary?.ignoredErrorCount ?: counters.ignoredErrorCount,
+                errorCount = rootEntry?.dirSummary?.fatalErrorCount ?: counters.fatalErrorCount,
             )
 
             // Create the snapshot manifest
@@ -228,28 +231,37 @@ class SnapshotUploader(
     private fun applyIgnoreRules(dir: Directory): Directory = IgnoreFS.wrap(dir, policy.filesPolicy)
 
     /**
-     * Finds the most recent previous snapshot for the same source.
+     * Finds the most recent COMPLETE previous snapshot for the same source.
+     *
+     * Completeness is the whole point. A cancelled run saves an incomplete manifest whose
+     * `rootEntry` is null; taking simply the newest manifest handed that one back, `loadRootManifest`
+     * then returned null, and the next backup re-hashed the entire tree — so cancelling a backup
+     * used to make the retry as expensive as the first run, exactly when the user least wants that.
+     *
+     * Go additionally returns the newer incomplete manifests and merges their entries per directory
+     * (`snapshot/manager.go` FindPreviousManifests). That needs a multi-manifest walk API and lands
+     * with the checkpoint work in phase 3; latest-complete is what makes today's behaviour correct.
      */
     private suspend fun findPreviousSnapshot(): SnapshotManifest? {
         val labels = ManifestLabels.forSnapshot(source)
 
-        val manifests = writer.findManifests(labels)
-        if (manifests.isEmpty()) return null
-
-        // Find the most recent complete snapshot
-        val mostRecent = manifests
-            .maxByOrNull { it.modTime }
-            ?: return null
-
-        return try {
-            val (manifest, _) = writer.getManifest(mostRecent.id, SnapshotManifest.serializer())
-            manifest
-        } catch (e: CancellationException) {
-            throw e // never swallow coroutine cancellation
-        } catch (e: Exception) {
-            // If we can't load it, proceed without caching
-            null
+        val candidates = writer.findManifests(labels).sortedByDescending { it.modTime }
+        for (candidate in candidates) {
+            val manifest = try {
+                writer.getManifest(candidate.id, SnapshotManifest.serializer()).first
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
+            } catch (e: Exception) {
+                // Unreadable: skip it rather than give up on reuse entirely (Go does the same).
+                java.util.logging.Logger.getLogger(SnapshotUploader::class.java.name)
+                    .log(java.util.logging.Level.WARNING, "skipping unreadable snapshot manifest ${candidate.id}", e)
+                continue
+            }
+            if (manifest.incompleteReason == null && manifest.rootEntry != null) {
+                return manifest
+            }
         }
+        return null
     }
 
     /**
@@ -271,9 +283,4 @@ class SnapshotUploader(
             null
         }
     }
-
-    /**
-     * Creates error handling policy from upload options and policy.
-     */
-    private fun createErrorPolicy(options: UploadOptions): ErrorHandlingPolicy = policy.errorHandlingPolicy.copy()
 }

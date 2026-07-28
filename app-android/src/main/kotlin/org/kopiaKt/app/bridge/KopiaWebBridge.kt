@@ -1206,11 +1206,15 @@ class KopiaWebBridge private constructor(
             error("Connect to a repository before backing up")
         }
 
-        return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") {
+        return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") { controller ->
             sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING)
             try {
-                runInteractiveBackup(ctx, source.id, source.path)
+                val skipped = runInteractiveBackup(ctx, source.id, source.path)
                 sourceManager.updateLastSnapshotTime(source.id, java.time.Instant.now())
+                // A saved snapshot that skipped unreadable entries is not a plain success.
+                if (skipped > 0) {
+                    controller.reportProgress("Completed with $skipped skipped entr${if (skipped == 1) "y" else "ies"}")
+                }
             } finally {
                 // The dashboard would otherwise show a source uploading forever.
                 sourceManager.setSourceStatus(source.id, SourceStatus.IDLE)

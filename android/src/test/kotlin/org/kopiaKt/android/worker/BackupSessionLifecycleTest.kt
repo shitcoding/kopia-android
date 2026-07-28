@@ -5,7 +5,9 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.slot
+import io.mockk.unmockkObject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,10 +26,14 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.snapshot.model.SnapshotManifest
+import org.kopiaKt.snapshot.policy.FilesPolicy
+import org.kopiaKt.snapshot.policy.Policy
+import org.kopiaKt.snapshot.policy.PolicyManager
 import org.kopiaKt.snapshot.upload.UploadCounters
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -160,6 +166,55 @@ class BackupSessionLifecycleTest {
     // ==================================================================
     // Full Lifecycle Pipeline
     // ==================================================================
+
+    @Nested
+    @DisplayName("Effective policy")
+    inner class EffectivePolicy {
+
+        /**
+         * Nothing used to resolve the source's policy, so the ignore rules a user configured in the
+         * add-source wizard were silently inert and the files they excluded were backed up anyway.
+         */
+        @Test
+        @DisplayName("the source's ignore rules exclude matching files")
+        fun `the source's ignore rules exclude matching files`() = runBlocking {
+            val tempDir = createTempDir("policy-applied")
+            Files.write(tempDir.resolve("keep.txt"), "keep".toByteArray())
+            Files.write(tempDir.resolve("drop.tmp"), "drop".toByteArray())
+
+            val (repo, writer) = mockRepository()
+            val (cpStore, _) = mockCheckpointStore()
+            stubWriterForSuccess(writer)
+            // Capture what is actually written: the directory manifest names the entries that
+            // survived the ignore rules, which is the only real proof the policy was applied.
+            val written = mutableListOf<ByteArray>()
+            val fakeObjectId = ObjectId.parse("kaabbccddeeff00112233445566778899")
+            coEvery { writer.writeObject(capture(written), any()) } returns fakeObjectId
+
+            mockkObject(PolicyManager)
+            try {
+                coEvery { PolicyManager.getEffectivePolicy(any(), any()) } returns Policy(
+                    filesPolicy = FilesPolicy(ignoreRules = listOf("*.tmp")),
+                )
+
+                val session = createSessionForSource(
+                    repo = repo,
+                    writer = writer,
+                    checkpointStore = cpStore,
+                    sourcePath = tempDir.toAbsolutePath().toString(),
+                    sourceId = "local@phone:${'$'}{tempDir.toAbsolutePath()}",
+                )
+                session.run()
+            } finally {
+                unmockkObject(PolicyManager)
+            }
+
+            // Exactly one excluded: the .tmp matched the rule and the .txt did not.
+            val manifests = written.map { it.toString(Charsets.UTF_8) }
+            assertThat(manifests.any { it.contains("keep.txt") }).isTrue()
+            assertThat(manifests.none { it.contains("drop.tmp") }).isTrue()
+        }
+    }
 
     @Nested
     @DisplayName("Full Lifecycle Pipeline")

@@ -89,6 +89,14 @@ class TreeWalker(
     private val progress: UploadProgress,
     private val errorPolicy: ErrorHandlingPolicy = ErrorHandlingPolicy(),
     private val parallelism: Int = Runtime.getRuntime().availableProcessors(),
+    /**
+     * Stop at the first non-ignored error instead of recording it and carrying on.
+     *
+     * Off by default, matching Go: one unreadable entry out of ten thousand should cost that entry,
+     * not the whole backup. The error is still recorded against the snapshot either way, so the run
+     * can be reported as "completed with N errors" rather than quietly succeeding.
+     */
+    private val failFast: Boolean = false,
 ) {
     private val semaphore = Semaphore(parallelism)
     private val cancelled = AtomicBoolean(false)
@@ -102,6 +110,15 @@ class TreeWalker(
      * Exception thrown when a fatal error occurs and failFast is enabled.
      */
     class FatalErrorException(message: String, cause: Throwable) : Exception(message, cause)
+
+    /**
+     * A directory whose contents could not be listed. Carried up one level so the parent records it
+     * against itself, which is where Go puts it; at the root there is no parent and it aborts.
+     */
+    class DirectoryReadException(
+        val path: String,
+        cause: Throwable,
+    ) : Exception("Unable to read directory $path", cause)
 
     /**
      * Cancels the current walk operation.
@@ -188,7 +205,11 @@ class TreeWalker(
         } catch (e: FatalErrorException) {
             throw e
         } catch (e: Exception) {
-            handleError(relativePath, e, builder, isDirectory = true)
+            // Go: "always fail if the top level directory can't be read, otherwise a meaningless,
+            // empty snapshot is created that can't be restored" (upload.go). A child's read failure
+            // is recorded by the PARENT (see processEntry) and contributes no entry at all, so this
+            // rethrows either way rather than uploading an empty manifest for the directory.
+            throw DirectoryReadException(dirPath, e)
         }
 
         progress.finishedDirectory(dirPath)
@@ -286,8 +307,34 @@ class TreeWalker(
         } catch (e: FatalErrorException) {
             throw e
         } catch (e: Exception) {
-            handleError(entryPath, e, builder, isDirectory = entry.type == EntryType.DIRECTORY)
+            handleEntryFailure(entry, entryPath, e, builder)
         }
+    }
+
+    /**
+     * Decides what a failed entry means, the way Go does.
+     *
+     * A source-side read failure is recorded and the walk carries on. Anything else escaping a
+     * *subdirectory* is a repository-side failure — writing its manifest, say — and aborts, because
+     * a snapshot that claims to be complete while a whole subtree is missing is worse than no
+     * snapshot at all.
+     */
+    private fun handleEntryFailure(
+        entry: Entry,
+        entryPath: String,
+        error: Exception,
+        builder: DirManifestBuilder,
+    ) {
+        if (error is DirectoryReadException) {
+            // Recorded here, in the parent, and the child gets no entry of its own -- a phantom
+            // empty directory would restore as data loss dressed up as data.
+            handleError(error.path, error.cause ?: error, builder, isDirectory = true)
+            return
+        }
+        if (entry.type == EntryType.DIRECTORY) {
+            throw error
+        }
+        handleError(entryPath, error, builder, isDirectory = false)
     }
 
     /**
@@ -308,9 +355,9 @@ class TreeWalker(
         progress.error(path, error, isIgnored)
         builder.addFailedEntry(path, isIgnored, error)
 
-        // Note: failFast is controlled by the UploadOptions, not the ErrorHandlingPolicy
-        // We throw FatalErrorException if error is not ignored
-        if (!isIgnored) {
+        // Recorded, and the walk continues -- the entry counts against the snapshot's
+        // fatalErrorCount and the caller decides what to make of that. Only failFast unwinds.
+        if (failFast && !isIgnored) {
             throw FatalErrorException("Fatal error at $path", error)
         }
     }

@@ -21,6 +21,7 @@ import org.kopiaKt.snapshot.fs.LocalFilesystem
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.policy.Policy
+import org.kopiaKt.snapshot.policy.PolicyManager
 import org.kopiaKt.snapshot.upload.CountingUploadProgress
 import org.kopiaKt.snapshot.upload.SnapshotUploader
 import org.kopiaKt.snapshot.upload.UploadCounters
@@ -53,8 +54,12 @@ data class BackupSessionConfig(
     /** Percentage of files to force re-hash (0-100). */
     val forceHashPercentage: Int = 0,
 
-    /** Backup policy to apply. */
-    val policy: Policy = Policy(),
+    /**
+     * Policy to apply, or null to resolve the source's effective policy from the repository — the
+     * normal case. Nothing used to resolve it, so every ignore rule and compression setting a user
+     * configured was silently inert and the files they excluded were backed up anyway.
+     */
+    val policy: Policy? = null,
 
     /** Checkpoint options. */
     val checkpointOptions: CheckpointOptions = CheckpointOptions(),
@@ -64,13 +69,21 @@ data class BackupSessionConfig(
  * Result of a backup session.
  */
 sealed class BackupSessionResult {
-    /** Backup completed successfully. */
+    /**
+     * The snapshot was saved. [fatalErrorCount] is non-zero when entries were recorded as failed:
+     * Go's record-and-continue still produces a complete, usable snapshot, but the run is
+     * "completed with N errors" rather than a plain success — and specifically not a WorkManager
+     * failure, which would retry a snapshot that is already saved and valid.
+     */
     data class Success(
         val manifestId: ManifestId,
         val manifest: SnapshotManifest,
         val counters: UploadCounters,
         val durationMillis: Long,
-    ) : BackupSessionResult()
+        val fatalErrorCount: Int = 0,
+    ) : BackupSessionResult() {
+        val completedWithErrors: Boolean get() = fatalErrorCount > 0
+    }
 
     /** Backup was cancelled. */
     data class Cancelled(
@@ -210,11 +223,17 @@ class BackupSession(
         }
 
         try {
+            // Resolved, not defaulted, and deliberately not swallowed: backing up files the user
+            // excluded because their policy could not be read is worse than not backing up. Inside
+            // the try so a failure travels the session's normal Failed/callback path.
+            val effectivePolicy = config.policy
+                ?: PolicyManager.getEffectivePolicy(repository, sourceInfo)
+
             // Create uploader
             val uploader = SnapshotUploader(
                 writer = writer,
                 source = sourceInfo,
-                policy = config.policy,
+                policy = effectivePolicy,
                 progress = progress,
             )
             uploaderRef.set(uploader)
@@ -432,6 +451,7 @@ class BackupSession(
             manifest = uploadResult.manifest,
             counters = counters,
             durationMillis = durationMillis,
+            fatalErrorCount = uploadResult.stats.errorCount,
         )
     }
 

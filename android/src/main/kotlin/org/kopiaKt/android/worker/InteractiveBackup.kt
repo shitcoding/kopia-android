@@ -17,13 +17,17 @@ import kotlinx.coroutines.withContext
  *
  * Throws [BackupFailedException] if the run ends in any state other than success, so the surrounding
  * task is not reported as SUCCESS when nothing was written.
+ *
+ * @return the number of entries the run recorded as failed. Non-zero means a complete, saved
+ *   snapshot that skipped entries it could not read — reported as "completed with errors", not as a
+ *   plain success and not as a failure that would retry a valid snapshot.
  */
 suspend fun runInteractiveBackup(
     context: Context,
     sourceId: String,
     sourcePath: String,
     config: BackupWorkerConfig = BackupWorkerConfig(),
-) {
+): Int {
     // Await the enqueue itself before watching for a result: observing "no rows for this name yet"
     // would otherwise look exactly like "the work is already gone", and the task would report a
     // finished backup while the real one was still to come.
@@ -35,16 +39,18 @@ suspend fun runInteractiveBackup(
         constraints = BackupConstraints.interactive(),
     ).await()
 
-    val state = try {
-        awaitTerminalState(context, sourceId)
+    val info = try {
+        awaitTerminalInfo(context, sourceId)
     } catch (e: CancellationException) {
         withContext(NonCancellable) { stopBackup(context, sourceId) }
         throw e
     }
 
+    val state = info?.state ?: WorkInfo.State.CANCELLED
     if (state != WorkInfo.State.SUCCEEDED) {
         throw BackupFailedException("Backup ${state.name.lowercase()}")
     }
+    return info?.outputData?.getInt(BackupWorker.KEY_ERROR_COUNT, 0) ?: 0
 }
 
 /**
@@ -64,12 +70,12 @@ private fun stopBackup(context: Context, sourceId: String) {
 /** A backup that reached a terminal state without succeeding. */
 class BackupFailedException(message: String) : Exception(message)
 
-private suspend fun awaitTerminalState(context: Context, sourceId: String): WorkInfo.State {
+private suspend fun awaitTerminalInfo(context: Context, sourceId: String): WorkInfo? {
     val name = BackupWorker.uniqueWorkName(sourceId)
     val infos = WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(name)
 
     // An empty list means the work is gone (pruned), which is terminal too -- waiting for a state
     // that will never arrive would hang the task and its foreground notification forever.
     val finished = infos.first { list -> list.isEmpty() || list.all { it.state.isFinished } }
-    return finished.lastOrNull()?.state ?: WorkInfo.State.CANCELLED
+    return finished.lastOrNull()
 }

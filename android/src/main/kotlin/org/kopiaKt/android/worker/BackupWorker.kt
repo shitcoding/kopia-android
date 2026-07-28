@@ -139,18 +139,32 @@ class BackupWorker(
             // Handle result
             when (result) {
                 is BackupSessionResult.Success -> {
-                    showCompletionNotification(
-                        sourceId = sourceId,
-                        sourcePath = sourcePath,
-                        counters = result.counters,
-                        durationMillis = result.durationMillis,
-                    )
+                    if (result.completedWithErrors) {
+                        // A complete, saved, usable snapshot that skipped entries it could not
+                        // read. Not a plain success -- the user should know -- and deliberately not
+                        // a WorkManager failure, which would retry a snapshot that is already
+                        // written and valid.
+                        showErrorNotification(
+                            sourceId,
+                            sourcePath,
+                            "${result.fatalErrorCount} entr${if (result.fatalErrorCount == 1) "y" else "ies"} skipped",
+                            failed = false,
+                        )
+                    } else {
+                        showCompletionNotification(
+                            sourceId = sourceId,
+                            sourcePath = sourcePath,
+                            counters = result.counters,
+                            durationMillis = result.durationMillis,
+                        )
+                    }
                     Result.success(
                         workDataOf(
                             KEY_MANIFEST_ID to result.manifestId.value,
                             KEY_FILES_COUNT to (result.counters.totalCachedFiles + result.counters.totalHashedFiles),
                             KEY_BYTES_TOTAL to (result.counters.totalCachedBytes + result.counters.totalHashedBytes),
                             KEY_DURATION_MILLIS to result.durationMillis,
+                            KEY_ERROR_COUNT to result.fatalErrorCount,
                         ),
                     )
                 }
@@ -340,10 +354,16 @@ class BackupWorker(
         notificationManager.notify(BackupNotificationIds.completionForSource(sourceId), notification)
     }
 
-    private fun showErrorNotification(sourceId: String, sourcePath: String, errorMessage: String) {
+    private fun showErrorNotification(
+        sourceId: String,
+        sourcePath: String,
+        errorMessage: String,
+        failed: Boolean = true,
+    ) {
         val notification = notificationManager.buildErrorNotification(
             sourcePath = sourcePath,
             errorMessage = errorMessage,
+            failed = failed,
         )
         notificationManager.notify(BackupNotificationIds.errorForSource(sourceId), notification)
     }
@@ -369,6 +389,8 @@ class BackupWorker(
     companion object {
         /** Serializes every backup in this process; see the call site in [runBackup]. */
         private val repositoryMutex = Mutex()
+
+        const val KEY_ERROR_COUNT = "error_count"
 
         const val KEY_SOURCE_ID = "source_id"
         const val KEY_SOURCE_PATH = "source_path"
