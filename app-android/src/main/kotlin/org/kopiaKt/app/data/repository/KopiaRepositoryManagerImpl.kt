@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import org.kopiaKt.android.identity.SourceIdentityStore
 import org.kopiaKt.android.storage.SafBlobStorage
 import org.kopiaKt.android.storage.SafOptions
 import org.kopiaKt.app.BuildConfig
@@ -50,6 +51,21 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         const val REPOSITORY_KEY_SIZE_BYTES = 32
     }
 
+    /**
+     * Go treats ClientOptions as authoritative for snapshot identity and maintenance ownership, and
+     * its JVM defaults are junk on Android (`InetAddress.getLocalHost().hostName`, `user.name`).
+     * Using the persisted device identity keeps one `user@host` across ClientOptions, the source's
+     * policy and the snapshots themselves.
+     */
+    private fun androidClientOptions(description: String): ClientOptions {
+        val identity = SourceIdentityStore.get(context)
+        return ClientOptions.withDefaults(
+            hostname = identity.host,
+            username = identity.userName,
+            description = description,
+        )
+    }
+
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -79,9 +95,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
                 DirectRepositoryImpl.open(
                     blobStorage = storage,
                     password = repositoryPassword,
-                    clientOptions = ClientOptions.withDefaults(
-                        description = "KopiaKt Android",
-                    ),
+                    clientOptions = androidClientOptions("KopiaKt Android"),
                 )
             } catch (e: Throwable) {
                 storage.close()
@@ -90,6 +104,15 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
             currentRepository = repository
             currentStorage = storage
+
+            // Policies the add-source wizard wrote before this device had a persisted identity are
+            // keyed by a host nothing resolves any more; move them now or the user's ignore rules
+            // and compression silently stop applying. Best-effort: it must not block connecting.
+            migrateLegacySourcePolicies(
+                repository,
+                SourceIdentityStore.legacyIdentity(),
+                SourceIdentityStore.get(context),
+            )
 
             val connection = RepositoryConnection(
                 id = UUID.randomUUID().toString(),
@@ -123,9 +146,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
 
             val repoConfig = buildRepositoryConfig(options)
 
-            val clientOpts = ClientOptions.withDefaults(
-                description = options.description.ifEmpty { "KopiaKt Android" },
-            )
+            val clientOpts = androidClientOptions(options.description.ifEmpty { "KopiaKt Android" })
 
             val keyDerivationAlgorithm = options.keyDerivationAlgorithm
 

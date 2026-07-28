@@ -601,15 +601,26 @@ internal fun normalizeSourcePath(raw: String): String {
     return stripped.ifEmpty { if (trimmed.isEmpty()) "" else "/" }
 }
 
-internal fun localSnapshotSourceInfo(path: String): org.kopiaKt.snapshot.model.SourceInfo = org.kopiaKt.snapshot.model.SourceInfo(
-    host = android.os.Build.MODEL ?: "unknown",
-    userName = "local",
-    path = path,
-)
+internal fun localSnapshotSourceInfo(
+    context: android.content.Context,
+    path: String,
+): org.kopiaKt.snapshot.model.SourceInfo {
+    val identity = org.kopiaKt.android.identity.SourceIdentityStore.get(context)
+    return org.kopiaKt.snapshot.model.SourceInfo(
+        host = identity.host,
+        userName = identity.userName,
+        path = path,
+    )
+}
 
 fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
     id = id,
-    source = localSnapshotSourceInfo(path).toWeb(),
+    // Parsed from the id rather than recomputed: the id is what everything else keys on, and
+    // rebuilding the triple beside it is how these two drifted apart in the first place.
+    source = (
+        org.kopiaKt.snapshot.model.SourceInfo.parse(id)
+            ?: org.kopiaKt.snapshot.model.SourceInfo(host = "unknown", userName = "local", path = path)
+        ).toWeb(),
     status = status.name,
     lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
     snapshotCount = 0,

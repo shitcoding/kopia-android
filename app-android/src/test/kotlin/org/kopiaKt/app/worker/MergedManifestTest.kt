@@ -2,6 +2,7 @@ package org.kopiaKt.app.worker
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.kopiaKt.android.identity.SourceIdentityStore
 import org.w3c.dom.Element
 import java.io.File
 import java.util.Properties
@@ -40,6 +41,59 @@ class MergedManifestTest {
             .map { it.getAttributeNS(ANDROID_NS, "name") }
 
         assertThat(initializers).doesNotContain(WORK_MANAGER_INITIALIZER)
+    }
+
+    /**
+     * The source identity is the `host` half of every source key this device writes. A transplanted
+     * copy would let a replacement device — or a second device restored from the same cloud backup —
+     * write into the original device's source, interleaving two devices' snapshots under one
+     * retention policy.
+     */
+    @Test
+    fun `the source identity is excluded from Android backup and device transfer`() {
+        val application = mergedManifestElements("application").single()
+        val prefsFile = "${SourceIdentityStore.PREFS_NAME}.xml"
+
+        // Both attributes and both rule files: pre-31 devices read fullBackupContent, 31+ read
+        // dataExtractionRules, and each has to cover every channel that copies data off the device.
+        assertThat(application.getAttributeNS(ANDROID_NS, "fullBackupContent")).isEqualTo("@xml/backup_rules")
+        assertThat(application.getAttributeNS(ANDROID_NS, "dataExtractionRules"))
+            .isEqualTo("@xml/data_extraction_rules")
+
+        assertThat(excludedSharedPrefs("backup_rules", "full-backup-content")).contains(prefsFile)
+        assertThat(excludedSharedPrefs("data_extraction_rules", "cloud-backup")).contains(prefsFile)
+        assertThat(excludedSharedPrefs("data_extraction_rules", "device-transfer")).contains(prefsFile)
+    }
+
+    /**
+     * Shared-preference files excluded under [section] of the named `res/xml` rules file.
+     *
+     * Both formats take bare attributes (AAPT rejects `android:domain` outright), but read the
+     * namespaced form too so a future format change surfaces as a failed assertion rather than an
+     * empty list that quietly matches nothing.
+     */
+    private fun excludedSharedPrefs(rulesFile: String, section: String): List<String> {
+        val document = DocumentBuilderFactory.newInstance()
+            .apply { isNamespaceAware = true }
+            .newDocumentBuilder()
+            .parse(File("src/main/res/xml/$rulesFile.xml"))
+
+        val root = if (document.documentElement.tagName == section) {
+            document.documentElement
+        } else {
+            document.getElementsByTagName(section).item(0) as? Element
+                ?: error("no <$section> in $rulesFile.xml")
+        }
+        val excludes = root.getElementsByTagName("exclude")
+        return (0 until excludes.length)
+            .map { excludes.item(it) as Element }
+            .filter { it.attribute("domain") == "sharedpref" }
+            .map { it.attribute("path") }
+    }
+
+    private fun Element.attribute(name: String): String {
+        val namespaced = getAttributeNS(ANDROID_NS, name)
+        return namespaced.ifEmpty { getAttribute(name) }
     }
 
     private fun mergedManifestServices(): List<Element> = mergedManifestElements("service")

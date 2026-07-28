@@ -95,14 +95,16 @@ class KopiaWebBridge private constructor(
     )
 
     /**
-     * Test constructor that accepts managers directly, avoiding Android/Hilt dependencies.
+     * Test constructor that accepts managers directly, avoiding Hilt. A context is still needed by
+     * anything that reads the device's source identity.
      */
     constructor(
         taskManager: TaskManager,
         sourceManager: BackupSourceManager,
         repositoryManager: KopiaRepositoryManager,
+        context: Context? = null,
     ) : this(
-        context = null,
+        context = context,
         activity = null,
         containerView = null,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
@@ -1044,7 +1046,7 @@ class KopiaWebBridge private constructor(
             if (path.isEmpty()) {
                 return json.encodeToString(WebResult.error<WebBackupSourceInfo>("Source path is required"))
             }
-            val identity = localSnapshotSourceInfo(path)
+            val identity = localSnapshotSourceInfo(context ?: error("Context not available"), path)
             request.policy?.let { policy ->
                 val repo = repositoryManager.getRepository()
                     ?: return json.encodeToString(

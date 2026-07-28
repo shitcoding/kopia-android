@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ backup/transfer rules. See backup_rules.xml for why the source identity is excluded
+    from both cloud backup and device-to-device transfer.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="kopia_source_identity.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="kopia_source_identity.xml" />
+    </device-transfer>
+</data-extraction-rules>

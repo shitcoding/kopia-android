@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.TaskManager
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
@@ -25,7 +26,12 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 @Config(sdk = [34])
 class SourceIdContractTest {
 
-    private val bridge = KopiaWebBridge(TaskManager(), BackupSourceManager(), mockk(relaxed = true))
+    private val bridge = KopiaWebBridge(
+        taskManager = TaskManager(),
+        sourceManager = BackupSourceManager(),
+        repositoryManager = mockk(relaxed = true),
+        context = RuntimeEnvironment.getApplication(),
+    )
 
     private fun listedId(): String {
         val listed = bridgeJson.parseToJsonElement(bridge.listAllSources())
@@ -56,7 +62,8 @@ class SourceIdContractTest {
     fun `the source id is the snapshot identity the policy is stored under`() {
         bridge.createSource("""{"uri":"$SOURCE_PATH","displayName":"Camera"}""")
 
-        assertThat(listedId()).isEqualTo(localSnapshotSourceInfo(SOURCE_PATH).toString())
+        val identity = localSnapshotSourceInfo(RuntimeEnvironment.getApplication(), SOURCE_PATH)
+        assertThat(listedId()).isEqualTo(identity.toString())
     }
 
     @Test
@@ -68,7 +75,7 @@ class SourceIdContractTest {
             .jsonObject["data"]!!.jsonArray
         assertThat(listed).hasSize(1)
         assertThat(listed.single().jsonObject["id"]!!.jsonPrimitive.content)
-            .isEqualTo(localSnapshotSourceInfo(SOURCE_PATH).toString())
+            .isEqualTo(localSnapshotSourceInfo(RuntimeEnvironment.getApplication(), SOURCE_PATH).toString())
     }
 
     /**
@@ -89,7 +96,7 @@ class SourceIdContractTest {
         val uri = "content://com.android.externalstorage.documents/tree/primary%3ADCIM"
         bridge.createSource("""{"uri":"$uri","displayName":"Camera"}""")
 
-        assertThat(listedId()).isEqualTo(localSnapshotSourceInfo(uri).toString())
+        assertThat(listedId()).isEqualTo(localSnapshotSourceInfo(RuntimeEnvironment.getApplication(), uri).toString())
     }
 
     @Test

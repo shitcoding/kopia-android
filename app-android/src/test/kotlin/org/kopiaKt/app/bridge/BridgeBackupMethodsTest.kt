@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.SourceInfo
 import org.kopiaKt.android.worker.SourceStatus
@@ -35,6 +36,9 @@ import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.policy.Policy
 import org.kopiaKt.snapshot.policy.PolicyManager
 import org.kopiaKt.snapshot.policy.RetentionPolicy
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.time.Instant
 
 /**
@@ -48,6 +52,8 @@ import java.time.Instant
  *   - Error cases produce {success: false, error: ..., errorCode: ...}
  *   - Methods properly delegate to underlying managers
  */
+@ExtendWith(RobolectricExtension::class)
+@Config(sdk = [34])
 class BridgeBackupMethodsTest {
 
     private val json = Json {
@@ -76,6 +82,7 @@ class BridgeBackupMethodsTest {
             taskManager = taskManager,
             sourceManager = sourceManager,
             repositoryManager = repositoryManager,
+            context = RuntimeEnvironment.getApplication(),
         )
     }
 
@@ -166,11 +173,11 @@ class BridgeBackupMethodsTest {
             val result = bridge.createSource("""{"uri":"/data","policy":{"retention":{"keepLatest":7}}}""")
             assertSuccess(result)
 
-            // The wizard policy must be stored under the EXACT SourceInfo the policy editor resolves for
-            // this source (localSnapshotSourceInfo) — assert the whole identity incl. host, since host
-            // drift is exactly the silent-drop class this fix guards against.
+            // The wizard policy must be stored under the SAME SourceInfo the policy editor resolves
+            // for this source; drift between the two is the silent-drop class this guards against.
+            // The exact host is the persisted device identity, pinned by SourceIdContractTest.
             coVerify(exactly = 1) {
-                PolicyManager.setPolicy(repository, match { it == localSnapshotSourceInfo("/data") }, any())
+                PolicyManager.setPolicy(repository, match { it.path == "/data" && it.userName == "local" }, any())
             }
         }
 

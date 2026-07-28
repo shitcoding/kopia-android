@@ -10,6 +10,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.kopiaKt.android.identity.SourceIdentityStore
 import org.kopiaKt.android.storage.SafFilesystem
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
@@ -171,14 +172,10 @@ class BackupSession(
             callback.onProgress(counters)
         }
 
-        // Create source info
-        val hostName = android.os.Build.DEVICE
-        val userName = "android"
-        val sourceInfo = SourceInfo(
-            host = hostName,
-            userName = userName,
-            path = config.sourcePath,
-        )
+        // The snapshot's identity IS the source's id -- the same string the source's policy is
+        // stored under. Snapshotting as anything else (this used to be android@Build.DEVICE) means
+        // the effective policy resolved at backup time is never the one the wizard saved.
+        val sourceInfo = sourceIdentity()
 
         // Create repository connection JSON for checkpoint (simplified - just store path info).
         // Built by the serializer, not string interpolation: a source path containing a quote or a
@@ -300,6 +297,22 @@ class BackupSession(
 
         callback.onComplete(result)
         result
+    }
+
+    /**
+     * The identity to snapshot under. `config.sourceId` already carries `user@host:path` (it is the
+     * key the source and its policy live under), so it is the authority; the persisted device
+     * identity is the fallback for a session built with a bare id, and the path always comes from
+     * `config.sourcePath` so the two can never disagree about what was backed up.
+     */
+    private fun sourceIdentity(): SourceInfo {
+        val parsed = SourceInfo.parse(config.sourceId)
+        val fallback = context?.let { SourceIdentityStore.get(it) }
+        return SourceInfo(
+            host = parsed?.host?.takeIf { it.isNotEmpty() } ?: fallback?.host ?: "unknown",
+            userName = parsed?.userName?.takeIf { it.isNotEmpty() } ?: fallback?.userName ?: "local",
+            path = config.sourcePath,
+        )
     }
 
     private fun openSourceDirectory(): Directory {

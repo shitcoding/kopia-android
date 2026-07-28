@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto Backup rules (API <= 30).
+
+    The device's source identity must NOT travel to another device. It is the `host` half of every
+    source key this device writes, so a transplanted copy would let a replacement phone - or a second
+    phone restored from the same cloud backup - write into the original device's source, interleaving
+    two devices' snapshots under one retention policy. A new device gets a new identity; the old
+    device's snapshots stay browsable and restorable under the old one.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="kopia_source_identity.xml" />
+</full-backup-content>

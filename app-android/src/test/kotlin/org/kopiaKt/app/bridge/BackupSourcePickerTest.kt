@@ -79,7 +79,12 @@ class BackupSourcePickerTest {
     @Test
     fun `an unavailable activity is reported, not thrown across the bridge`() {
         // An exception escaping a @JavascriptInterface method kills the process.
-        val bridge = KopiaWebBridge(TaskManager(), BackupSourceManager(), mockk(relaxed = true))
+        val bridge = KopiaWebBridge(
+            taskManager = TaskManager(),
+            sourceManager = BackupSourceManager(),
+            repositoryManager = mockk(relaxed = true),
+            context = RuntimeEnvironment.getApplication(),
+        )
 
         assertThat(succeeded(bridge.pickBackupSource())).isFalse()
     }
