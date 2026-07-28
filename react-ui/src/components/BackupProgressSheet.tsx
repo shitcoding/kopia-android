@@ -113,7 +113,16 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-3">
             <AlertDialogCancel className="flex-1 mt-0">Keep Running</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancel} className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">Cancel Backup</AlertDialogAction>
+            {/* Its own label: the sheet's button, this dialog's title and this button would
+                otherwise all match the same text. */}
+            <AlertDialogAction
+              onClick={handleCancel}
+              id="confirm-cancel-backup-button"
+              aria-label="Confirm cancel backup"
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancel Backup
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

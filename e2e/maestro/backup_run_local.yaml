@@ -23,6 +23,7 @@ androidWebViewHierarchy: devtools
     env:
       START_IMMEDIATELY: "false"
       EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source"
 
 # ===== Back Up Now =====
 #

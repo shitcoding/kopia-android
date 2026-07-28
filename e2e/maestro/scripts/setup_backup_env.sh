@@ -72,7 +72,25 @@ mkdir -p "$STATE_DIR/source"
 adb shell "rm -rf $DEVICE_SOURCE" || fail "could not clear $DEVICE_SOURCE"
 adb push "$HOST_SOURCE" "$DEVICE_SOURCE" >/dev/null || fail "could not push the source tree"
 
-# 5. Nothing left over from a previous verification.
+# 4b. A larger tree, used only by the cancellation flow: the small one finishes in seconds, so
+#     there would be nothing left running by the time Cancel is tapped.
+LARGE_SOURCE="/sdcard/Download/phone_source_large"
+adb shell "rm -rf $LARGE_SOURCE" || true
+adb shell "mkdir -p $LARGE_SOURCE" || fail "could not create $LARGE_SOURCE"
+# ~190 MB of incompressible data. Sized from measurement, not guesswork: 72 MB was hashed and
+# uploaded before the Cancel tap could land, so the flow asserted the absence of a snapshot that had
+# already been written.
+for i in $(seq 1 16); do
+    adb shell "dd if=/dev/urandom of=$LARGE_SOURCE/blob-$i.bin bs=1048576 count=12" >/dev/null 2>&1 \
+        || fail "could not generate the large source"
+done
+
+# 5. Portrait. A flow that rotates the device to force an activity recreation cannot restore it
+#    if it fails mid-way, and every later flow would then run sideways.
+adb shell settings put system accelerometer_rotation 0 >/dev/null 2>&1 || true
+adb shell settings put system user_rotation 0 >/dev/null 2>&1 || true
+
+# 6. Nothing left over from a previous verification.
 rm -rf "$STATE_DIR/pulled" "$STATE_DIR/restored"
 
 echo "[setup_backup_env] ready: repo=$DEVICE_REPO source=$DEVICE_SOURCE"

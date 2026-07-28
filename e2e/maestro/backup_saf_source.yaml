@@ -1,0 +1,165 @@
+# E2E Test: a folder picked through the SAF picker still backs up after the app is killed
+# (task-30.5)
+#
+# The add-source screen used the RESTORE picker, which returns a tree URI but never takes a
+# persistable permission. The grant then lasted only for that process: "back up now" straight after
+# picking worked, and every backup after the app was next killed threw SecurityException. It cannot
+# be repaired later either - the grant can only be taken at pick time - so this is the one thing in
+# phase 0 that had to land before any source was created in anger.
+#
+# This flow also covers the wizard's "Start first backup immediately" checkbox, which is left TICKED
+# here: the first snapshot must appear without anyone tapping Back Up Now.
+#
+# RISK: DocumentsUI's layout varies by API level. If the picker stops being automatable, treat that
+# as INFRA and pin the AVD image - do NOT weaken this into a dumpsys grep, which cannot run inside a
+# flow, can match a stale grant, and proves nothing about reading through SAF after process death.
+#
+# Category: backup.
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- stopApp
+- stopApp: "com.google.android.documentsui"
+- launchApp
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 40000
+
+# ===== Connect =====
+
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 15000
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/backup_e2e_repo"
+- hideKeyboard
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "testpassword123"
+- hideKeyboard
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 90000
+
+- runFlow:
+    file: flows/_goto_sources.yaml
+
+# ===== Pick the folder through SAF =====
+
+- tapOn:
+    text: ".*Add.*Source.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Choose a folder.*"
+    timeout: 10000
+
+- tapOn:
+    id: "choose-folder-button"
+
+- extendedWaitUntil:
+    visible:
+      text: "Download|Downloads|USE THIS FOLDER"
+    timeout: 20000
+- tapOn:
+    text: "Download|Downloads"
+    optional: true
+- runFlow:
+    when:
+      visible: "phone_source"
+    commands:
+      - tapOn: "phone_source"
+
+- extendedWaitUntil:
+    visible: "USE THIS FOLDER"
+    timeout: 15000
+- tapOn: "USE THIS FOLDER"
+
+- runFlow:
+    when:
+      visible: "ALLOW"
+    commands:
+      - tapOn: "ALLOW"
+
+# A content:// URI, not a path - proof the picker result came back rather than a manual entry.
+- extendedWaitUntil:
+    visible:
+      text: ".*content://.*"
+    timeout: 20000
+
+- tapOn:
+    text: "Next step"
+- extendedWaitUntil:
+    visible:
+      text: ".*Configure backup schedule.*"
+    timeout: 10000
+- scroll
+- tapOn:
+    text: "Review settings"
+- extendedWaitUntil:
+    visible:
+      text: ".*Review and add source.*"
+    timeout: 10000
+
+# Left TICKED: creation must start the first backup by itself.
+- assertVisible:
+    text: "Start first backup immediately, on"
+- tapOn:
+    id: "add-source-button"
+
+- extendedWaitUntil:
+    visible:
+      text: "Source .*"
+    timeout: 30000
+
+# ===== The grant survives the app being killed =====
+
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 40000
+
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 15000
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/backup_e2e_repo"
+- hideKeyboard
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "testpassword123"
+- hideKeyboard
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 90000
+
+- runFlow:
+    file: flows/_goto_sources.yaml
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+
+# Without a persisted grant this second run throws SecurityException and no snapshot appears.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 180000

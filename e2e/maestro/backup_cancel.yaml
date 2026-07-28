@@ -1,0 +1,60 @@
+# E2E Test: cancelling a running backup really reaches the worker (task-30.8)
+#
+# Cancellation is device-only behaviour - WorkManager plus a foreground service - and the bridge's
+# cancelTask used to touch only TaskManager while the worker cancelled by work name, so a cancelled
+# task left the backup running behind a cancelled-looking UI.
+#
+# Uses the larger source tree, because the small one finishes before Cancel could be tapped.
+#
+# Category: backup. No verify_backup arguments: this flow asserts the ABSENCE of a complete
+# snapshot, and the verifier requires at least one.
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source_large"
+
+# ===== Start, then cancel =====
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Progress.*"
+    timeout: 30000
+
+- tapOn:
+    text: "Cancel Backup"
+- extendedWaitUntil:
+    visible: "Cancel Backup?"
+    timeout: 15000
+# By its own label: the sheet's button, the dialog's title and this button all carry the same text.
+- tapOn:
+    id: "confirm-cancel-backup-button"
+
+# ===== Nothing complete was written =====
+
+# The sheet closes itself once the task reaches its terminal state, which here means the cancel
+# actually landed on the worker rather than only on the task record.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 60000
+- tapOn: "Source phone_source_large"
+- extendedWaitUntil:
+    visible:
+      text: ".*Snapshots.*"
+    timeout: 30000
+
+# A cancelled run leaves an incomplete manifest, never a complete snapshot the user could restore
+# and believe in. If the cancel had not reached the worker the backup would have finished and a
+# snapshot row would be here.
+- assertVisible:
+    text: ".*No snapshots found.*"

@@ -19,6 +19,7 @@ androidWebViewHierarchy: devtools
     env:
       START_IMMEDIATELY: "true"
       EXCLUSIONS: "excluded/**"
+      SOURCE_PATH: "/sdcard/Download/phone_source"
 
 # Creation started the backup (the wizard's checkbox, left ticked, is wired as of task-30.8).
 - tapOn: "Source phone_source"

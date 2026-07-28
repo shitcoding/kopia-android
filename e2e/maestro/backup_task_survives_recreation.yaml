@@ -1,0 +1,89 @@
+# E2E Test: sources and a running task survive process death and activity recreation
+# (task-30.3 singletons, task-30.7 persistence)
+#
+# Sources lived in a map inside KopiaWebBridge, which is rebuilt per MainActivity, so a configured
+# folder vanished on a ROTATION - not merely on process death. Persisting them (30.7) fixes the
+# source list, but a per-bridge manager would reload it and a source-list assertion would stay green;
+# the singleton defect is only observable through state that is NOT persisted, which is the in-flight
+# task. So this checks both: the source survives a restart, and a RUNNING backup survives a rotation.
+#
+# Category: backup.
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source"
+
+# ===== The source survives process death =====
+
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 40000
+
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 15000
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/backup_e2e_repo"
+- hideKeyboard
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "testpassword123"
+- hideKeyboard
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 90000
+
+- runFlow:
+    file: flows/_goto_sources.yaml
+
+# Still there after the process was killed and the app reconnected.
+- assertVisible: "Source phone_source"
+
+# ===== A running task survives activity recreation =====
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Progress.*"
+    timeout: 30000
+
+# Rotation recreates MainActivity (the manifest declares only configChanges="uiMode"), which is
+# exactly what used to take the TaskManager - and with it the running backup - away.
+- setOrientation: LANDSCAPE_LEFT
+- waitForAnimationToEnd
+
+# The WebView reloads on recreation and the React app resets to its first route, so the UI cannot be
+# asked whether the backup survived - it is showing the welcome screen. (A real defect, but a
+# pre-existing one about WebView state restoration, not about backup.) The proof is in the
+# repository: the runner's verify_backup.sh asserts exactly one snapshot landed, which cannot happen
+# if the recreation took the task down with it.
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 60000
+
+- setOrientation: PORTRAIT
+- waitForAnimationToEnd
+
+# Give the worker time to finish before the verifier pulls the repository.
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 180000
