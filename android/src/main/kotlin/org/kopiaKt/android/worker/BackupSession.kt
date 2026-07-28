@@ -18,6 +18,7 @@ import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.core.repository.WriteSessionOptions
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.LocalFilesystem
+import org.kopiaKt.snapshot.maintenance.MaintenanceRunner
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.policy.Policy
@@ -31,6 +32,8 @@ import java.io.File
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+private const val TAG = "BackupSession"
 
 /**
  * Configuration for a backup session.
@@ -282,6 +285,7 @@ class BackupSession(
             result = if (cancelled.get() || uploadResult.incomplete) {
                 handleCancelledOrIncomplete(uploadResult, repoConnectionJson, sourceInfo)
             } else {
+                applyRetention(sourceInfo)
                 handleSuccess(uploadResult, startTimeValue)
             }
         } catch (e: CancellationException) {
@@ -316,6 +320,24 @@ class BackupSession(
 
         callback.onComplete(result)
         result
+    }
+
+    /**
+     * Applies the source's retention policy, exactly as Go does after every `snapshot create`.
+     *
+     * Failure ordering matters: the snapshot is already saved and valid, so a retention failure must
+     * not undo it or fail the run. It is only reported. The local checkpoint is cleared afterwards
+     * by [handleSuccess], so an interrupted retention leaves at worst an over-full snapshot list —
+     * never a lost snapshot.
+     */
+    private suspend fun applyRetention(sourceInfo: SourceInfo) {
+        try {
+            MaintenanceRunner(repository).applyRetention(sourceInfo)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "retention failed after a successful snapshot", e)
+        }
     }
 
     /**

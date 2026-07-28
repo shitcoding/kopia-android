@@ -23,8 +23,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -32,6 +30,7 @@ import kotlinx.serialization.json.Json
 import org.kopiaKt.android.notification.BackupNotificationIds
 import org.kopiaKt.android.notification.BackupNotificationManager
 import org.kopiaKt.core.repository.DirectRepository
+import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.upload.UploadCounters
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -255,11 +254,10 @@ class BackupWorker(
         // checkpoint). See BackupSessionRegistry.
         BackupSessionRegistry.register(sourceId, session)
         try {
-            // Two sources share one DirectRepositoryImpl and one ContentManager. The mutexes inside
-            // make that memory-safe, but one session's flush() would commit the other's half-written
-            // packs and manifest state -- Go isolates each upload in its own WriteSession. Backups
-            // therefore run one at a time process-wide.
-            return repositoryMutex.withLock { session.run(existingCheckpoint) }
+            // Backups, retention and maintenance take turns: they share one repository writer, and
+            // one operation's flush() would commit another's half-written state. See
+            // RepositoryWriteLock.
+            return RepositoryWriteLock.withLock { session.run(existingCheckpoint) }
         } finally {
             BackupSessionRegistry.unregister(sourceId, session)
         }
@@ -387,9 +385,6 @@ class BackupWorker(
     }
 
     companion object {
-        /** Serializes every backup in this process; see the call site in [runBackup]. */
-        private val repositoryMutex = Mutex()
-
         const val KEY_ERROR_COUNT = "error_count"
 
         const val KEY_SOURCE_ID = "source_id"

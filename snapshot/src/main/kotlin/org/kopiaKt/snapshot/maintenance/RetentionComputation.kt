@@ -56,7 +56,7 @@ data class RetentionResult(
 fun computeRetention(
     snapshots: List<SnapshotManifest>,
     policy: RetentionPolicy,
-    now: Instant,
+    @Suppress("UNUSED_PARAMETER") now: Instant,
     zone: ZoneId = ZoneId.systemDefault(),
 ): List<RetentionResult> {
     if (snapshots.isEmpty()) {
@@ -64,9 +64,13 @@ fun computeRetention(
     }
 
     // Sort snapshots by start time, most recent first
-    val sortedSnapshots = snapshots
-        .filter { it.endTime != null || it.incompleteReason == null } // Exclude incomplete
-        .sortedByDescending { it.startTime }
+    val sortedSnapshots = snapshots.sortedByDescending { it.startTime }
+
+    // Go measures an incomplete snapshot's age against the NEWEST snapshot's start time rather than
+    // the wall clock, so the same set of manifests always produces the same answer -- a maintenance
+    // run started an hour later must not reap a different set.
+    val newestStartTime = sortedSnapshots.first().startTime
+    val incompleteKept = incompleteToKeep(sortedSnapshots, newestStartTime)
 
     // Track retention for each category
     // effectiveKeepLatest() is Go's fail-safe: a policy with NO keep counts set keeps
@@ -78,35 +82,11 @@ fun computeRetention(
     val monthlyTracker = TimeBasedTracker(policy.keepMonthly ?: 0, "monthly") { it.truncateToMonth(zone) }
     val annualTracker = TimeBasedTracker(policy.keepAnnual ?: 0, "annual") { it.truncateToYear(zone) }
 
+    val timeTrackers = listOf(annualTracker, monthlyTracker, weeklyTracker, dailyTracker, hourlyTracker)
     val results = mutableListOf<RetentionResult>()
 
     for (snapshot in sortedSnapshots) {
-        val reasons = mutableListOf<String>()
-        val snapshotTime = snapshot.startTime
-
-        // Handle incomplete snapshots
-        if (snapshot.incompleteReason != null) {
-            // Keep incomplete snapshots that are recent (less than 4 hours old)
-            // or if we have fewer than 3 incomplete snapshots total
-            val age = Duration.between(snapshotTime, now)
-            if (age < Duration.ofHours(4)) {
-                reasons.add("incomplete-recent")
-            }
-            // Note: In full implementation, we'd track incomplete count too
-        } else {
-            // Check latest retention
-            val latestReason = latestTracker.tryAdd(snapshot.id)
-            if (latestReason != null) {
-                reasons.add(latestReason)
-            }
-
-            // Check time-based retentions
-            annualTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
-            monthlyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
-            weeklyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
-            dailyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
-            hourlyTracker.tryAdd(snapshotTime, snapshot.id)?.let { reasons.add(it) }
-        }
+        val reasons = retentionReasons(snapshot, incompleteKept, latestTracker, timeTrackers)
 
         // Check pins
         if (snapshot.pins.isNotEmpty()) {
@@ -127,6 +107,56 @@ fun computeRetention(
 
     return results
 }
+
+/**
+ * The incomplete snapshots to keep, following Go's rule in `snapshot/policy/retention_policy.go`.
+ *
+ * Walking newest-first, an incomplete snapshot is kept while it is younger than
+ * [RETAIN_INCOMPLETE_YOUNGER_THAN] **or** it is within the first [RETAIN_INCOMPLETE_MINIMUM_COUNT]
+ * snapshots — and the walk **stops at the first complete one**. That last part is what stops
+ * checkpoints accumulating forever: once a run has finished, the partial manifests it left behind
+ * are litter no matter how recent they are. The minimum count is what stops an overnight
+ * interruption reaping every checkpoint of a backup that could still be resumed.
+ */
+/** The reasons to keep [snapshot], or an empty list if nothing wants it. */
+private fun retentionReasons(
+    snapshot: SnapshotManifest,
+    incompleteKept: Set<String>,
+    latestTracker: RetentionTracker,
+    timeTrackers: List<TimeBasedTracker>,
+): MutableList<String> {
+    val reasons = mutableListOf<String>()
+    if (snapshot.incompleteReason != null) {
+        if (snapshot.id in incompleteKept) {
+            reasons.add("incomplete")
+        }
+        return reasons
+    }
+    latestTracker.tryAdd(snapshot.id)?.let { reasons.add(it) }
+    timeTrackers.forEach { tracker ->
+        tracker.tryAdd(snapshot.startTime, snapshot.id)?.let { reasons.add(it) }
+    }
+    return reasons
+}
+
+private fun incompleteToKeep(
+    sortedSnapshots: List<SnapshotManifest>,
+    newestStartTime: Instant,
+): Set<String> = sortedSnapshots
+    .asSequence()
+    .withIndex()
+    .takeWhile { (index, snapshot) ->
+        snapshot.incompleteReason != null &&
+            (
+                Duration.between(snapshot.startTime, newestStartTime) < RETAIN_INCOMPLETE_YOUNGER_THAN ||
+                    index < RETAIN_INCOMPLETE_MINIMUM_COUNT
+                )
+    }
+    .map { (_, snapshot) -> snapshot.id }
+    .toSet()
+
+private val RETAIN_INCOMPLETE_YOUNGER_THAN: Duration = Duration.ofHours(4)
+private const val RETAIN_INCOMPLETE_MINIMUM_COUNT = 3
 
 /**
  * Returns the list of snapshots that should be deleted based on retention policy.

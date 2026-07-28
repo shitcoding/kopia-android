@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.WriteSessionOptions
+import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.model.ManifestLabels
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
@@ -118,7 +119,9 @@ class MaintenanceRunner(
      * @param options Maintenance options
      * @return Result of the maintenance run
      */
-    suspend fun run(options: MaintenanceOptions = MaintenanceOptions()): MaintenanceResult = withContext(Dispatchers.Default) {
+    suspend fun run(options: MaintenanceOptions = MaintenanceOptions()): MaintenanceResult = RepositoryWriteLock.withLock { runLocked(options) }
+
+    private suspend fun runLocked(options: MaintenanceOptions): MaintenanceResult = withContext(Dispatchers.Default) {
         runMaintenance(options)
     }
 
@@ -284,6 +287,28 @@ class MaintenanceRunner(
 
         return sources
     }
+
+    /**
+     * Applies the source's retention policy and nothing else.
+     *
+     * Go runs exactly this after every `snapshot create` (`command_snapshot_create.go`) and after
+     * every checkpoint: per-source, manifests only, and cheap. The equivalent here was private and
+     * reachable only through a full maintenance run, which also drags a whole GC mark walk over the
+     * repository — far too expensive to do after each backup, so in practice retention never ran at
+     * all and the incomplete manifests from every cancelled run accumulated forever.
+     *
+     * @return the number of snapshots deleted.
+     */
+    suspend fun applyRetention(source: SourceInfo): Int {
+        // The snapshot that triggered this was written through its own session; without a refresh
+        // the repository's manifest view predates it, so retention would compute against a set that
+        // is one short and never delete anything.
+        repository.refresh()
+        return applyRetentionForSource(source, MaintenanceOptions())
+    }
+
+    // NOTE: applyRetention deliberately does NOT take RepositoryWriteLock. It is called from inside
+    // a backup, which already holds it, and the lock is not reentrant.
 
     private suspend fun applyRetentionForSource(source: SourceInfo, options: MaintenanceOptions): Int {
         // Get all snapshots for this source
