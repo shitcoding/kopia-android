@@ -8,6 +8,7 @@ import org.kopiaKt.snapshot.policy.RetentionPolicy
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.TimeZone
 
 class RetentionComputationTest {
 
@@ -246,5 +247,53 @@ class RetentionComputationTest {
         assertThat(result.shouldDelete).isTrue()
         assertThat(result.retentionReasons).isEmpty()
         assertThat(result.snapshot).isEqualTo(snapshot)
+    }
+
+    @Test
+    fun `the weekly period follows the device timezone, matching Go's own inconsistency`() {
+        // Go's weekly id is the only one not forced to UTC: `ToTime().ISOWeek()`, and `ToTime()` is
+        // `time.Unix(0, n)` -- local. These two are the same UTC ISO week but different Moscow ones
+        // (the local week turns at 21:00Z Sunday), so Go gives each its own weekly reason and keeps
+        // both. Normalising the week to UTC would collapse them into one bucket and delete the
+        // older -- the same over-deletion the UTC test above exists to prevent, mirrored.
+        val original = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
+
+            val older = createSnapshot("older", Instant.parse("2026-07-05T20:30:00Z"))
+            val newer = createSnapshot("newer", Instant.parse("2026-07-05T22:30:00Z"))
+            val policy = RetentionPolicy(keepLatest = 1, keepWeekly = 2)
+
+            val result = computeRetention(listOf(older, newer), policy, Instant.parse("2026-07-06T00:00:00Z"))
+
+            assertThat(result.filterNot { it.shouldDelete }.map { it.snapshot.id })
+                .containsExactly("older", "newer")
+        } finally {
+            TimeZone.setDefault(original)
+        }
+    }
+
+    @Test
+    fun `hourly, daily, monthly and annual periods are bucketed in UTC, not the device timezone`() {
+        // Go derives every period id from `UTCTimestamp.Format`, which is `ToTime().UTC().Format(...)`
+        // -- the buckets are UTC wherever the machine sits. Defaulting to the device's zone instead
+        // would make a phone delete snapshots desktop Kopia keeps: these two are on different UTC
+        // days, so Go grants each its own daily reason, but at UTC+3 they fall on the same local day
+        // and the older one is left with no reason at all.
+        val original = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
+
+            val older = createSnapshot("older", Instant.parse("2026-07-01T23:30:00Z"))
+            val newer = createSnapshot("newer", Instant.parse("2026-07-02T01:30:00Z"))
+            val policy = RetentionPolicy(keepLatest = 1, keepDaily = 2)
+
+            val result = computeRetention(listOf(older, newer), policy, Instant.parse("2026-07-02T02:00:00Z"))
+
+            assertThat(result.filterNot { it.shouldDelete }.map { it.snapshot.id })
+                .containsExactly("older", "newer")
+        } finally {
+            TimeZone.setDefault(original)
+        }
     }
 }

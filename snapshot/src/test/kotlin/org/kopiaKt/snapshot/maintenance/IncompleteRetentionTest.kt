@@ -71,19 +71,20 @@ class IncompleteRetentionTest {
 
     @Test
     fun `age is measured from the newest snapshot, not the wall clock`() {
-        val newest = snapshot(minutesAgo = 0, incomplete = true)
-        val hoursOld = snapshot(minutesAgo = 200, incomplete = true)
+        // FOUR of them, an hour apart, so the last one sits past the minimum count and only the age
+        // rule can save it: they are all within four hours OF EACH OTHER, but the run itself
+        // finished a day ago. Measuring age against the wall clock would reap that fourth one --
+        // with only three the minimum count keeps everything and the test proves nothing.
+        val run = (0..3).map { snapshot(minutesAgo = it * 60L, incomplete = true) }
 
-        // Both are within four hours OF EACH OTHER, so both are kept regardless of how long ago the
-        // whole run happened.
         val results = computeRetention(
-            listOf(newest, hoursOld),
+            run,
             policy,
             now = base.plusSeconds(86_400),
             zone = ZoneId.of("UTC"),
         )
 
         assertThat(results.filterNot { it.shouldDelete }.map { it.snapshot.id })
-            .containsExactly(newest.id, hoursOld.id)
+            .containsExactlyElementsIn(run.map { it.id })
     }
 }

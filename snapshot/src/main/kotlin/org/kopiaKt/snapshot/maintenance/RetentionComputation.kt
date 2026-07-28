@@ -5,6 +5,7 @@ import org.kopiaKt.snapshot.policy.RetentionPolicy
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoField
 import java.time.temporal.ChronoUnit
@@ -50,7 +51,14 @@ data class RetentionResult(
  * @param snapshots List of snapshots to evaluate, will be sorted by startTime descending
  * @param policy The retention policy to apply
  * @param now The current time (for time-based retention)
- * @param zone The timezone to use for day/week/month/year calculations
+ * @param zone The machine's own timezone, which decides **the weekly bucket and nothing else**.
+ *   Go is inconsistent here and the divergence is worth matching rather than tidying: the hourly,
+ *   daily, monthly and annual period ids all come from `UTCTimestamp.Format`, i.e.
+ *   `ToTime().UTC().Format(...)`, but the weekly id comes from `ToTime().ISOWeek()` — and `ToTime()`
+ *   is `time.Unix(0, n)`, which is local. Cutting the other four in the device's zone would let a
+ *   phone at UTC+3 delete a snapshot desktop Kopia keeps, because two snapshots either side of
+ *   midnight UTC share one local day and only the newer is given a reason; cutting the weekly one in
+ *   UTC does the same thing around a local week boundary, in the other direction.
  * @return List of retention results for each snapshot
  */
 fun computeRetention(
@@ -76,11 +84,13 @@ fun computeRetention(
     // effectiveKeepLatest() is Go's fail-safe: a policy with NO keep counts set keeps
     // everything rather than reading as "delete the entire snapshot history".
     val latestTracker = RetentionTracker(policy.effectiveKeepLatest() ?: 0)
-    val hourlyTracker = TimeBasedTracker(policy.keepHourly ?: 0, "hourly") { it.truncateToHour(zone) }
-    val dailyTracker = TimeBasedTracker(policy.keepDaily ?: 0, "daily") { it.truncateToDay(zone) }
+    // UTC for four of them, [zone] for the week -- see the note on [zone]; this mirrors Go rather
+    // than tidying it.
+    val hourlyTracker = TimeBasedTracker(policy.keepHourly ?: 0, "hourly") { it.truncateToHour(ZoneOffset.UTC) }
+    val dailyTracker = TimeBasedTracker(policy.keepDaily ?: 0, "daily") { it.truncateToDay(ZoneOffset.UTC) }
     val weeklyTracker = TimeBasedTracker(policy.keepWeekly ?: 0, "weekly") { it.truncateToWeek(zone) }
-    val monthlyTracker = TimeBasedTracker(policy.keepMonthly ?: 0, "monthly") { it.truncateToMonth(zone) }
-    val annualTracker = TimeBasedTracker(policy.keepAnnual ?: 0, "annual") { it.truncateToYear(zone) }
+    val monthlyTracker = TimeBasedTracker(policy.keepMonthly ?: 0, "monthly") { it.truncateToMonth(ZoneOffset.UTC) }
+    val annualTracker = TimeBasedTracker(policy.keepAnnual ?: 0, "annual") { it.truncateToYear(ZoneOffset.UTC) }
 
     val timeTrackers = listOf(annualTracker, monthlyTracker, weeklyTracker, dailyTracker, hourlyTracker)
     val results = mutableListOf<RetentionResult>()
@@ -108,16 +118,6 @@ fun computeRetention(
     return results
 }
 
-/**
- * The incomplete snapshots to keep, following Go's rule in `snapshot/policy/retention_policy.go`.
- *
- * Walking newest-first, an incomplete snapshot is kept while it is younger than
- * [RETAIN_INCOMPLETE_YOUNGER_THAN] **or** it is within the first [RETAIN_INCOMPLETE_MINIMUM_COUNT]
- * snapshots — and the walk **stops at the first complete one**. That last part is what stops
- * checkpoints accumulating forever: once a run has finished, the partial manifests it left behind
- * are litter no matter how recent they are. The minimum count is what stops an overnight
- * interruption reaping every checkpoint of a backup that could still be resumed.
- */
 /** The reasons to keep [snapshot], or an empty list if nothing wants it. */
 private fun retentionReasons(
     snapshot: SnapshotManifest,
@@ -139,6 +139,16 @@ private fun retentionReasons(
     return reasons
 }
 
+/**
+ * The incomplete snapshots to keep, following Go's rule in `snapshot/policy/retention_policy.go`.
+ *
+ * Walking newest-first, an incomplete snapshot is kept while it is younger than
+ * [RETAIN_INCOMPLETE_YOUNGER_THAN] **or** it is within the first [RETAIN_INCOMPLETE_MINIMUM_COUNT]
+ * snapshots — and the walk **stops at the first complete one**. That last part is what stops
+ * checkpoints accumulating forever: once a run has finished, the partial manifests it left behind
+ * are litter no matter how recent they are. The minimum count is what stops an overnight
+ * interruption reaping every checkpoint of a backup that could still be resumed.
+ */
 private fun incompleteToKeep(
     sortedSnapshots: List<SnapshotManifest>,
     newestStartTime: Instant,
