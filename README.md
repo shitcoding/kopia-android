@@ -10,7 +10,7 @@ Native Kotlin implementation of [Kopia](https://github.com/kopia/kopia) for Andr
 
 I use Kopia on desktop to back up my machines. When I needed to access and restore those snapshots on Android, there was no solution available. Running the Go binary on Android had too many limitations, so I decided to implement the Kopia repository format natively in Kotlin.
 
-KopiaKt can open and read repositories created by the original Go implementation. Connect to your existing Kopia repository from your phone, browse snapshots, and restore files directly to the device.
+KopiaKt can open and read repositories created by the original Go implementation. Connect to your existing Kopia repository from your phone, browse snapshots, restore files directly to the device — and back the phone up into that same repository, as a normal Kopia snapshot your desktop can restore.
 
 ## Screenshots
 
@@ -21,7 +21,7 @@ KopiaKt can open and read repositories created by the original Go implementation
 
 ## Status
 
-KopiaKt is **usable for read and restore, and is not yet a backup client**. Concretely:
+KopiaKt reads, restores, and backs up — **on demand, while the app is running**. Concretely:
 
 | Capability | State |
 |---|---|
@@ -29,13 +29,35 @@ KopiaKt is **usable for read and restore, and is not yet a backup client**. Conc
 | Browse snapshots and directory trees | Works |
 | Restore files and directories to the device | Works |
 | Create a new (empty) repository | Works |
-| Edit retention / scheduling / compression policies | Works |
-| **Run a backup from the phone** | **Not wired up** — the app's backup action returns "not yet implemented" |
-| Repository maintenance / garbage collection | Implemented in the library, not exposed in the app |
+| Edit retention / compression / ignore-rule policies | Works |
+| **Run a backup from the phone** | **Works**, on demand — see [Divergences](#divergences-from-desktop-kopia) |
+| Apply retention after a backup | Works — deletes snapshot manifests only, never contents |
+| Automatic / scheduled backups | **Not implemented.** The schedule UI writes a policy nothing on the phone acts on |
+| Repository maintenance / garbage collection | Not run on the phone; use desktop Kopia |
 
-The snapshot-writing code exists and is exercised by the cross-compatibility tests (Kotlin writes
-into a Go-created repository and Go reads the result), but nothing in the Android UI triggers it yet.
-Treat this as a companion to a desktop Kopia install, not a replacement for it.
+You start a backup yourself; it holds a foreground-service notification for as long as it runs. What
+it writes is a normal Kopia snapshot: the test suite has desktop Go Kopia restore a phone-written
+snapshot pulled off the device and compare it byte for byte against the original.
+
+**An interrupted backup does not resume.** The run lives in the app's own process — closing the UI is
+fine, the notification keeps it going — but if that process is stopped, by the system reclaiming
+memory or by the phone's own app-killing, the backup ends there. Start it again and it will be cheap:
+everything already uploaded is deduplicated, so the retry re-uses it instead of re-uploading.
+
+Treat this as a companion to a desktop Kopia install, not a replacement for it — the phone still
+depends on the desktop for maintenance.
+
+## Divergences from desktop Kopia
+
+These are deliberate behavioural differences, not bugs. They do not affect repository-format
+compatibility — see [Compatibility](#compatibility).
+
+| Divergence | What it means for you |
+|---|---|
+| **Backups run only while the app is running and connected.** Starting one with no repository open is refused, and disconnecting cancels pending work. | A backup makes progress only while the app's process is alive — no scheduled or background work picks it up later. It does not resume by itself; you start it again, and deduplication makes the retry cheap. |
+| **The phone never runs repository maintenance.** Desktop Kopia auto-runs maintenance — including garbage collection with deletion — after a snapshot when it owns the repository. KopiaKt never does. | Retention on the phone deletes snapshot *manifests*, never *contents*, and an interrupted run leaves orphaned packs behind. **Run maintenance from desktop Kopia periodically, or repository storage grows.** |
+| **One effective policy per source**, merged source → user → host → global. Desktop Kopia resolves a policy *tree*: a policy set on a parent path applies to sources beneath it, and per-subdirectory policies can change the rules partway through a directory walk. | A policy you set on a parent path from the desktop does not reach a phone source underneath it, and a per-subdirectory policy is ignored. Set the policy on the source itself. |
+| **Scheduled backups are not implemented.** The policy editor's *Schedule* tab and the add-source wizard still write a scheduling policy, but nothing on the phone reads it. | Every backup on the phone is one you start by hand. |
 
 ## Usage
 
@@ -53,10 +75,16 @@ Treat this as a companion to a desktop Kopia install, not a replacement for it.
 4. **Browse.** Snapshots are grouped by source. Open one to walk its directory tree.
 5. **Restore.** Select files or directories, choose a destination folder through the system picker,
    and confirm. Progress is reported per file, and the restore can be cancelled.
+6. **Back up.** Add a source — a folder picked with the system picker, or a path under shared
+   storage — and optionally set its policy. Then pick *Back Up Now* from that source's menu on the
+   dashboard. A notification shows progress and offers *Cancel*. The snapshot is written under the
+   phone's own source identity, and the source's retention policy is applied as soon as it is saved.
 
 ## Features
 
-- Byte-level Kopia repository-format compatibility for **read and restore** — see [Compatibility](#compatibility)
+- Byte-level Kopia repository-format compatibility for **read, restore and backup** — see [Compatibility](#compatibility)
+- Back up folders from the phone into a repository shared with desktop Kopia, with the source's
+  effective policy (ignore rules, compression, retention) applied
 - Connect over S3, WebDAV, SFTP, local filesystem, or Android SAF
 - Browse snapshot directory trees; restore files and directories to device storage
 - AES-256-GCM-HMAC-SHA256 content encryption; scrypt (or PBKDF2) password derivation, HKDF for content keys
@@ -161,6 +189,9 @@ Verified against repositories, fixtures, and test vectors produced by the Go imp
 - **Pack format** — pack blobs and their embedded (encrypted) local index; pack index V1 and V2 parsing
 - **Index blobs** — epoch-mode blob naming, so Go sees index blobs written by Kotlin
 - **Round trip** — Kotlin writing into a Go-created repository, and Go reading the result
+- **On a device** — a snapshot backed up from an Android emulator into a repository the Go binary
+  created, then pulled off the device, restored by that binary, and compared byte for byte against
+  the original tree
 
 Content encryption uses a random nonce, so byte-identical output is not achievable in either
 direction (the same is true of Go). The contract that is tested is **mutual readability**, not
