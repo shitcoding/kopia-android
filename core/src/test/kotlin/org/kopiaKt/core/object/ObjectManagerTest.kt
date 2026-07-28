@@ -3,6 +3,7 @@ package org.kopiaKt.core.`object`
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -80,15 +81,20 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `write and read empty data`() = runBlocking {
-        val data = ByteArray(0)
+    fun `writing empty data produces a real object id, as Go does`() = runBlocking {
+        val objectId = objectManager.writeObject(ByteArray(0))
 
-        val objectId = objectManager.writeObject(data)
+        // Not ObjectId.Empty: Go hashes the empty byte string and stores its content id, and a
+        // directory manifest carrying `obj: ""` is one Go refuses to restore. This test asserted
+        // the opposite, which is how a snapshot containing one empty file stayed unrestorable.
+        assertNotEquals(ObjectId.Empty, objectId)
+        assertArrayEquals(ByteArray(0), objectManager.readObject(objectId))
+    }
 
-        assertEquals(ObjectId.Empty, objectId)
-
-        val readData = objectManager.readObject(objectId)
-        assertArrayEquals(data, readData)
+    @Test
+    fun `the empty object id still reads as empty`() = runBlocking {
+        // Snapshots written before the fix carry it; they must keep restoring.
+        assertArrayEquals(ByteArray(0), objectManager.readObject(ObjectId.Empty))
     }
 
     @Test

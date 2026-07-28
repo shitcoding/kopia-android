@@ -176,6 +176,9 @@ class BackupWorker(
                 }
 
                 is BackupSessionResult.Failed -> {
+                    // A backup that fails silently is unusable: without this, the only evidence a
+                    // user or a developer has is a notification with a one-line message.
+                    android.util.Log.e(TAG, "backup of $sourcePath failed", result.error)
                     if (runAttemptCount < MAX_RETRY_COUNT && result.checkpointSaved) {
                         // Retry with checkpoint
                         Result.retry()
@@ -191,6 +194,7 @@ class BackupWorker(
             // WorkManager cancellation - session should have saved checkpoint
             Result.failure(workDataOf(KEY_ERROR to "Backup cancelled"))
         } catch (e: Exception) {
+            android.util.Log.e(TAG, "backup of $sourcePath threw", e)
             if (runAttemptCount < MAX_RETRY_COUNT) {
                 Result.retry()
             } else {
@@ -385,6 +389,8 @@ class BackupWorker(
     }
 
     companion object {
+        private const val TAG = "BackupWorker"
+
         const val KEY_ERROR_COUNT = "error_count"
 
         const val KEY_SOURCE_ID = "source_id"

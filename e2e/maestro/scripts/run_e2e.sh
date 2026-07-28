@@ -79,6 +79,8 @@ case "$RETRY_MAX"    in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RETRY_MAX must b
 #  Flow manifest - explicit + ordered. category drives per-flow prerequisites:
 #    local   : test repos pushed (default)
 #    restore : local + reset /sdcard/Download/_kopia_restore before the flow
+#    backup  : local + a wiped app, a writable repo path and a fresh deterministic source tree,
+#              reset before EVERY attempt; verified afterwards by Go kopia (host `kopia` required)
 #    s3|webdav|sftp : local + Docker backend up & seeded (host `kopia` required)
 #  (the dead flows/_connect_and_browse.yaml was removed in Phase 5.)
 # --------------------------------------------------------------------------- #
@@ -116,6 +118,7 @@ MANIFEST=(
   "filebrowser_restore_directory_preservation|restore"
   "full_e2e_flow|restore"
   "restore_roundtrip|roundtrip"
+  "backup_run_local|backup"
   "connect_s3_repo|s3"
   "connect_s3_errors|s3"
   "connect_webdav_repo|webdav"
@@ -415,7 +418,21 @@ run_one() {
             ;;
     esac
 
-    # Round-trip flows back up a deterministic source with Go kopia and push that repo (loud-fail,
+    # Arguments for verify_backup.sh, per flow. Each backup flow asserts a different repository state, so
+# a single fixed invocation could not tell "exactly one snapshot" from "exactly two".
+backup_verify_args() {
+    case "$1" in
+        backup_run_local|backup_task_survives_recreation) echo "--expect-snapshots 1" ;;
+        backup_saf_source)   echo "--expect-snapshots 2" ;;
+        backup_policy_ignore) echo "--expect-snapshots 1 --expect-absent excluded/secret.txt" ;;
+        backup_retention)    echo "--expect-snapshots 2" ;;
+        # backup_cancel asserts NO complete snapshot; verify_backup would fail on an empty repo, so
+        # the flow's own assertions are the check there.
+        *) echo "" ;;
+    esac
+}
+
+# Round-trip flows back up a deterministic source with Go kopia and push that repo (loud-fail,
     # never skip — the whole point is an independent original-vs-restored byte check).
     if [ "$cat" = "roundtrip" ]; then
         if ! "$SCRIPT_DIR/setup_roundtrip_repo.sh" "$serial" >"$ARTIFACT_DIR/$name.setup.log" 2>&1; then
@@ -435,7 +452,16 @@ run_one() {
     for (( i = 1; i <= attempts; i++ )); do
         # Reset volatile state before EVERY attempt (including retries) so a retry starts clean.
         adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
-        case "$cat" in restore|roundtrip) reset_restore_dir "$serial" ;; esac
+        case "$cat" in
+            restore|roundtrip) reset_restore_dir "$serial" ;;
+            backup)
+                if ! "$SCRIPT_DIR/setup_backup_env.sh" "$serial" >"$ARTIFACT_DIR/$name.setup.log" 2>&1; then
+                    RESULTS+=("$name|FAIL|backup env setup failed; see $name.setup.log")
+                    warn "FAIL $name - setup_backup_env.sh failed; see $ARTIFACT_DIR/$name.setup.log"
+                    return
+                fi
+                ;;
+        esac
 
         if [ "$i" -eq 1 ]; then log "RUN  $name ($cat)..."; else log "RETRY $name (attempt $i/$attempts)..."; retried=1; fi
         rc=0
@@ -483,6 +509,12 @@ run_one() {
             case "$cat" in
                 roundtrip) "$SCRIPT_DIR/verify_roundtrip.sh" "$serial" >/dev/null 2>&1 || rc=1 ;;
                 restore)   "$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" >/dev/null 2>&1 || rc=1 ;;
+                backup)
+                    # shellcheck disable=SC2046 # deliberate word splitting of the per-flow arguments
+                    if [ -n "$(backup_verify_args "$name")" ]; then
+                        "$SCRIPT_DIR/verify_backup.sh" "$serial" $(backup_verify_args "$name") >/dev/null 2>&1 || rc=1
+                    fi
+                    ;;
             esac
         fi
         if [ "$timed_out" -eq 1 ]; then
@@ -504,17 +536,20 @@ run_one() {
     if [ "$rc" -eq 0 ]; then
         # Restore flows: a UI "Restore Complete" is not enough — verify the restored bytes match a
         # Go-kopia reference restore of the same snapshot (verify_restore.sh: count + per-file md5).
-        if [ "$cat" = "restore" ] || [ "$cat" = "roundtrip" ]; then
+        if [ "$cat" = "restore" ] || [ "$cat" = "roundtrip" ] || { [ "$cat" = "backup" ] && [ -n "$(backup_verify_args "$name")" ]; }; then
             local vout vrc=0 vlast
             if [ "$cat" = "roundtrip" ]; then
                 vout="$("$SCRIPT_DIR/verify_roundtrip.sh" "$serial" 2>&1)" || vrc=$?
+            elif [ "$cat" = "backup" ]; then
+                # shellcheck disable=SC2046 # deliberate word splitting of the per-flow arguments
+                vout="$("$SCRIPT_DIR/verify_backup.sh" "$serial" $(backup_verify_args "$name") 2>&1)" || vrc=$?
             else
                 vout="$("$SCRIPT_DIR/verify_restore.sh" "$serial" "$(restore_min_files "$name")" 2>&1)" || vrc=$?
             fi
             vlast="$(printf '%s' "$vout" | tail -1)"
             if [ "$vrc" -ne 0 ]; then
                 printf '%s\n' "$vout" > "$ARTIFACT_DIR/$name.restore-verify.log"
-                RESULTS+=("$name|FAIL|restore integrity: $vlast$mark")
+                RESULTS+=("$name|FAIL|integrity: $vlast$mark")
                 capture_artifacts "$serial" "$name"
                 warn "FAIL $name - restore integrity check failed: $vlast (see $ARTIFACT_DIR/$name.restore-verify.log)"
                 return
@@ -607,11 +642,11 @@ run_shard_mode() {
     local files=() entry skipped=()
     for entry in "${MANIFEST[@]}"; do
         case "${entry##*|}" in
-            restore|roundtrip) skipped+=("${entry%%|*}") ;;
+            restore|roundtrip|backup) skipped+=("${entry%%|*}") ;;
             *) files+=("$FLOW_DIR/${entry%%|*}.yaml") ;;
         esac
     done
-    [ "${#skipped[@]}" -eq 0 ] || warn "shard mode SKIPS restore/roundtrip flows (need per-flow setup + byte-verification; run them via the per-flow runner): ${skipped[*]}"
+    [ "${#skipped[@]}" -eq 0 ] || warn "shard mode SKIPS restore/roundtrip/backup flows (need per-attempt setup + byte-verification; run them via the per-flow runner): ${skipped[*]}"
 
     log "Running ${#files[@]} flows sharded ${#serials[@]}-way..."
     maestro --device "$SHARD_SERIALS" test --shard-split "${#serials[@]}" "${files[@]}"

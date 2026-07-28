@@ -1,0 +1,17 @@
+# Navigate to the Sources dashboard from anywhere that has a Settings button in its app bar.
+# The source-snapshots screen's Back goes to the all-snapshots list, not here.
+appId: org.kopiaKt.app
+---
+- tapOn: "Settings"
+# "Settings" also matches the gear button's own label on the screen we came from, so wait for
+# something only the Settings screen has -- otherwise a tap that did not navigate reads as success.
+- extendedWaitUntil:
+    visible: "Navigation"
+    timeout: 15000
+- scroll
+- tapOn:
+    text: ".*Sources.*Manage.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000

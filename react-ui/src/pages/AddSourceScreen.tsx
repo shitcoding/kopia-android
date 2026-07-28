@@ -172,6 +172,10 @@ const AddSourceScreen = () => {
               </button>
               {manualEntry && (
                 <input
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   type="text"
                   placeholder="/storage/emulated/0/..."
                   value={selectedPath}
@@ -210,7 +214,11 @@ const AddSourceScreen = () => {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground px-1 mb-1">Every</p>
-                  <input type="text" inputMode="numeric" value={intervalValue} onChange={(e) => setIntervalValue(e.target.value)} className="input-md3" aria-label="Backup interval value" />
+                  <input
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false} type="text" inputMode="numeric" value={intervalValue} onChange={(e) => setIntervalValue(e.target.value)} className="input-md3" aria-label="Backup interval value" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground px-1 mb-1">Unit</p>
@@ -277,7 +285,11 @@ const AddSourceScreen = () => {
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer py-1">
+              {/* Stateful: the aria-label carries the checked state so a test can assert it, not
+                  just toggle it and hope. */}
               <Checkbox
+                id="start-backup-checkbox"
+                aria-label={startImmediately ? "Start first backup immediately, on" : "Start first backup immediately, off"}
                 checked={startImmediately}
                 onCheckedChange={(c) => setStartImmediately(c === true)}
               />

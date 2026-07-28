@@ -159,6 +159,10 @@ const SettingsScreen = () => {
                 </Label>
                 <div className="relative">
                   <input
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     type="color"
                     id="custom-color"
                     value={customColor}

@@ -112,10 +112,10 @@ class ObjectManager(
         data: ByteArray,
         options: ObjectWriterOptions = ObjectWriterOptions(),
     ): ObjectId {
-        if (data.isEmpty()) {
-            return ObjectId.Empty
-        }
-
+        // No early return for empty data. Go hashes the empty byte string and stores its content id,
+        // so an empty file gets a real object id; handing back ObjectId.Empty put `obj: ""` in the
+        // directory manifest, which Go refuses to restore -- one empty file made the entire snapshot
+        // unrestorable by desktop Kopia.
         val writer = newWriter(options)
         try {
             writer.write(data)

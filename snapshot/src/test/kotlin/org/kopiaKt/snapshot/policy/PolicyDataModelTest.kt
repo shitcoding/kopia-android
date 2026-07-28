@@ -625,16 +625,14 @@ class PolicyDataModelTest {
     inner class OSSnapshotPolicyTest {
         @Test
         fun `should deserialize OSSnapshotPolicy from Go JSON`() {
-            val goJson = """{
-                "volumeShadowCopy": {
-                    "enable": "when-available"
-                }
-            }
-            """.trimIndent()
+            // Verbatim from `kopia policy show --global --json` on a repository Go created. This
+            // test used to assert a quoted "when-available", which no Go build ever writes:
+            // OSSnapshotMode is a bare byte with no custom marshalling (os_snapshot_policy.go).
+            val goJson = """{"volumeShadowCopy":{"enable":0}}"""
 
             val policy = json.decodeFromString<OSSnapshotPolicy>(goJson)
 
-            assertEquals(OSSnapshotMode.WHEN_AVAILABLE, policy.volumeShadowCopy.enable)
+            assertEquals(OSSnapshotMode.NEVER, policy.volumeShadowCopy.enable)
         }
 
         @Test
@@ -645,7 +643,9 @@ class PolicyDataModelTest {
 
             val serialized = json.encodeToString(policy)
 
-            assertTrue(serialized.contains(""""enable":"always""""))
+            // A number, as Go writes it - the string form made every Go-written policy manifest
+            // undecodable, and with it every backup into a desktop-created repository.
+            assertTrue(serialized.contains(""""enable":1"""))
         }
 
         @Test

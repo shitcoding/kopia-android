@@ -203,7 +203,11 @@ const PolicyEditorScreen = () => {
   const NumberInput = ({ label, value, onChange, placeholder, id }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; id?: string }) => (
     <div className="flex items-center justify-between gap-4">
       <span className="text-sm text-foreground">{label}</span>
-      <input type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || "—"} className="input-md3 w-20 text-center text-sm py-2" aria-label={label} id={id} />
+      <input
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false} type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || "—"} className="input-md3 w-20 text-center text-sm py-2" aria-label={label} id={id} />
     </div>
   );
 
@@ -262,7 +266,11 @@ const PolicyEditorScreen = () => {
                 <div className="card-elevated space-y-3">
                   <p className="text-sm font-medium text-foreground">Interval</p>
                   <div className="flex gap-2">
-                    <input type="text" inputMode="numeric" value={intervalNum} onChange={(e) => setIntervalNum(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval value" />
+                    <input
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false} type="text" inputMode="numeric" value={intervalNum} onChange={(e) => setIntervalNum(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval value" />
                     <select value={intervalUnit} onChange={(e) => setIntervalUnit(Number(e.target.value))} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval unit">
                       {INTERVAL_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                     </select>
@@ -272,7 +280,11 @@ const PolicyEditorScreen = () => {
                 <div className="card-elevated space-y-3">
                   <p className="text-sm font-medium text-foreground">Times of day</p>
                   <div className="flex gap-2">
-                    <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Time of day" />
+                    <input
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false} type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Time of day" />
                     <button onClick={addTime} className="btn-secondary text-sm px-4 py-2" aria-label="Add time">Add</button>
                   </div>
                   {timesOfDay.length > 0 && (

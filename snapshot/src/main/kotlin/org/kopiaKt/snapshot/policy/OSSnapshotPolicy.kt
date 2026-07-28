@@ -51,16 +51,24 @@ enum class OSSnapshotMode {
 
 /**
  * Serializer for OSSnapshotMode.
+ *
+ * Go's `OSSnapshotMode` is a bare `byte` with no custom JSON marshalling (`os_snapshot_policy.go`),
+ * so it crosses the wire as a NUMBER: 0 never, 1 always, 2 when-available. Encoding it as the
+ * human-readable string made every policy manifest Go had written -- including the global policy
+ * `kopia repository create` writes -- fail to decode, which took every backup down with it.
  */
 object OSSnapshotModeSerializer : KSerializer<OSSnapshotMode> {
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("OSSnapshotMode", PrimitiveKind.STRING)
+        PrimitiveSerialDescriptor("OSSnapshotMode", PrimitiveKind.INT)
 
     override fun serialize(encoder: Encoder, value: OSSnapshotMode) {
-        encoder.encodeString(value.toString())
+        encoder.encodeInt(value.ordinal)
     }
 
-    override fun deserialize(decoder: Decoder): OSSnapshotMode = OSSnapshotMode.fromString(decoder.decodeString())
+    override fun deserialize(decoder: Decoder): OSSnapshotMode {
+        val ordinal = decoder.decodeInt()
+        return OSSnapshotMode.entries.getOrElse(ordinal) { OSSnapshotMode.NEVER }
+    }
 }
 
 /**

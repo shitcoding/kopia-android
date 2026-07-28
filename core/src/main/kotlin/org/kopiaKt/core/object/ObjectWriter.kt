@@ -170,7 +170,11 @@ internal class DefaultObjectWriter(
      * Must be called with mutex held.
      */
     private suspend fun flushBufferUnlocked() {
-        if (buffer.size() == 0) return
+        // A zero-byte object still has content: Go hashes the empty byte string and stores it, so an
+        // empty file ends up with a real object id. Returning early here left `obj: ""` in the
+        // directory manifest, and Go refuses to restore that ("invalid content ID"), which made any
+        // snapshot containing a single empty file unrestorable by desktop Kopia.
+        if (buffer.size() == 0 && indirectIndex.isNotEmpty()) return
 
         val data = buffer.toByteArray()
         buffer.reset()

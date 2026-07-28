@@ -99,6 +99,7 @@ test-output/
 report.xml
 e2e/maestro/artifacts/
 e2e/maestro/.roundtrip/
+e2e/maestro/.backup/
 
 # Coverage reports
 coverage/

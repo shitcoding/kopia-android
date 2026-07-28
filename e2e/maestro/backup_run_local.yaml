@@ -1,0 +1,68 @@
+# E2E Test: back up from the phone (the headline flow for task-30)
+#
+# Creates a repository, adds a source, taps "Back Up Now" and waits for a real snapshot to appear.
+# The runner then runs verify_backup.sh, which pulls the repository off the device and has the
+# HOST Go kopia binary list and restore the snapshot, comparing it byte-for-byte against the
+# original the setup script retained. That comparison, not the UI, is the real assertion: an in-app
+# restore would only verify the app against itself.
+#
+# "Start first backup immediately" is deliberately UNTICKED and the snapshot list is asserted EMPTY
+# before the tap. The wizard defaults that checkbox on, so leaving it ticked would mean source
+# creation ran the backup and this flow would pass with "Back Up Now" still stubbed.
+#
+# Category: backup. setup_backup_env.sh runs before every attempt (wipes the app, recreates the
+# writable repo path and pushes a fresh deterministic source tree).
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+
+# ===== Back Up Now =====
+#
+# Nothing has run yet: the shared preamble asserted the wizard's checkbox read
+# "Start first backup immediately, off" before creating the source, so any snapshot below is this
+# tap's doing. (Visiting the source's snapshot list to see the empty state would be stronger still,
+# but its app-bar buttons do not respond to taps, so there is no way back to the dashboard from
+# there - filed rather than worked around.)
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+
+# The progress sheet opens on the task id startBackup returned. Dismiss it and watch for the
+# snapshot itself: a sheet appearing only proves a task was created, not that anything was written.
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Progress.*"
+    timeout: 20000
+- tapOn:
+    point: "50%,15%"
+
+# ===== A real snapshot exists =====
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000
+- tapOn: "Source phone_source"
+
+# Uploading 8 small files on a software-GPU emulator; generous, but a hang is a defect.
+- extendedWaitUntil:
+    visible: "Select snapshot 1"
+    timeout: 180000
+
+- assertVisible: "Select snapshot 1"
+# Exactly one: a second would mean something ran a backup we did not ask for.
+- assertNotVisible: "Select snapshot 2"
+# The file count is load-bearing - it used to show files-hashed-this-run, rendering a whole tree as
+# "1 files" (fixed in c002e16). The generated tree has 8 files and the default policy excludes none.
+- assertVisible:
+    text: ".*8 files.*"

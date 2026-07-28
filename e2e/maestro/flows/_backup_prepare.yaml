@@ -1,0 +1,117 @@
+# Shared preamble for the `backup`-category flows: cold start, connect to the Go-created repository
+# and add /sdcard/Download/phone_source. Extracted so seven flows do not carry seven copies of it.
+#
+# env:
+#   START_IMMEDIATELY  "true" leaves the wizard's checkbox ticked (source creation runs the first
+#                      backup); anything else unticks it.
+#   EXCLUSIONS         appended to the wizard's exclusions box when non-empty.
+appId: org.kopiaKt.app
+---
+- stopApp
+- stopApp: "com.google.android.documentsui"
+- launchApp
+
+# First launch after `pm clear` is a cold start; the usual 20s is not enough.
+- extendedWaitUntil:
+    visible: "KopiaKt"
+    timeout: 40000
+
+# ===== Connect to the repository Go created =====
+#
+# Connect, not create: setup_backup_env.sh has Go build the repository, so every snapshot the phone
+# writes below goes into a repository a desktop Kopia made - which is the compatibility claim worth
+# testing, and the only way the Go-side verifier can open it (the debug build uses fast scrypt that
+# Go refuses).
+
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 15000
+
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/backup_e2e_repo"
+- hideKeyboard
+
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "testpassword123"
+- hideKeyboard
+
+- tapOn:
+    id: "connect-button"
+
+# Go-created repositories use scrypt N=65536, which is slow on a software-GPU emulator.
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 90000
+
+- runFlow:
+    file: _goto_sources.yaml
+
+# ===== Add the source =====
+
+- tapOn:
+    text: ".*Add.*Source.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Choose a folder.*"
+    timeout: 10000
+
+- tapOn:
+    text: ".*Enter path manually.*"
+- tapOn:
+    id: "source-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/Download/phone_source"
+- hideKeyboard
+
+- tapOn:
+    text: "Next step"
+- extendedWaitUntil:
+    visible:
+      text: ".*Configure backup schedule.*"
+    timeout: 10000
+
+# The exclusions box is PREFILLED (*.tmp, .cache/**), so append rather than typing into a blank one.
+- runFlow:
+    when:
+      true: ${EXCLUSIONS != ""}
+    commands:
+      - tapOn:
+          text: "File exclusions"
+      - waitForAnimationToEnd
+      - inputText: "\n${EXCLUSIONS}"
+      - hideKeyboard
+
+- scroll
+- tapOn:
+    text: "Review settings"
+- extendedWaitUntil:
+    visible:
+      text: ".*Review and add source.*"
+    timeout: 10000
+
+# The wizard defaults this ON. A flow that means to test "Back Up Now" must untick it, or source
+# creation runs the backup and the later tap proves nothing.
+- runFlow:
+    when:
+      true: ${START_IMMEDIATELY != "true"}
+    commands:
+      - assertVisible:
+          text: "Start first backup immediately, on"
+      - tapOn:
+          text: "Start first backup immediately, on"
+      - assertVisible:
+          text: "Start first backup immediately, off"
+
+- tapOn:
+    id: "add-source-button"
+- extendedWaitUntil:
+    visible: "Source phone_source"
+    timeout: 30000
