@@ -240,6 +240,10 @@ const AddSourceScreen = () => {
             <div>
               <p className="text-xs text-muted-foreground px-1 mb-1">File exclusions (one glob per line)</p>
               <textarea
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 value={exclusions}
                 onChange={(e) => setExclusions(e.target.value)}
                 rows={4}

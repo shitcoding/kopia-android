@@ -1,0 +1,55 @@
+# E2E Test: pause and resume a source from the dashboard (task-30.4)
+#
+# These calls answered "Source not found" for as long as they existed: WebSourceStatus carried no id,
+# so the dashboard rebuilt user@host:path itself while BackupSourceManager keyed on a random UUID.
+# This flow is the RED-first test of that fix - on any build where the two disagree the bridge call
+# errors, the status never changes, and the menu never flips.
+#
+# The assertion goes through the options menu rather than the status chip: the chip is a span inside
+# the row's button, so it is not an accessibility node of its own, whereas the menu item is driven
+# directly by src.status and is a real interactive element.
+#
+# Category: backup (setup_backup_env.sh wipes the app and provides the repository).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+
+# ===== Idle to begin with =====
+
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "Pause"
+    timeout: 10000
+- assertNotVisible: "Resume"
+
+# ===== Pause =====
+
+- tapOn:
+    text: "Pause"
+
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "Resume"
+    timeout: 20000
+# The menu flipped, so pauseSource reached the source rather than answering "Source not found".
+- assertNotVisible: "Pause"
+
+# ===== Resume =====
+
+- tapOn:
+    text: "Resume"
+
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "Pause"
+    timeout: 20000
+- assertNotVisible: "Resume"

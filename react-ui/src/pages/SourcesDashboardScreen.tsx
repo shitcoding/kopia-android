@@ -173,6 +173,7 @@ const SourcesDashboardScreen = () => {
                         {/* Stateful element: the aria-label must track the label, or E2E can't
                             tell "Paused" on this row from "Paused" anywhere else on screen. */}
                         <span
+                          role="status"
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.className}`}
                           aria-label={`Source status ${badge.label}`}
                         >

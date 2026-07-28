@@ -304,7 +304,14 @@ class MaintenanceRunner(
         // the repository's manifest view predates it, so retention would compute against a set that
         // is one short and never delete anything.
         repository.refresh()
-        return applyRetentionForSource(source, MaintenanceOptions())
+        val deleted = applyRetentionForSource(source, MaintenanceOptions())
+        if (deleted > 0) {
+            // And again afterwards: the deletions went through their own writer session, so without
+            // this the repository's view still lists the snapshots that were just removed -- the app
+            // shows a snapshot that no longer exists and opening it fails.
+            repository.refresh()
+        }
+        return deleted
     }
 
     // NOTE: applyRetention deliberately does NOT take RepositoryWriteLock. It is called from inside

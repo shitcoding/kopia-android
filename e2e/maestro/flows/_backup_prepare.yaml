@@ -86,7 +86,10 @@ appId: org.kopiaKt.app
       - tapOn:
           text: "File exclusions"
       - waitForAnimationToEnd
-      - inputText: "\n${EXCLUSIONS}"
+      # The box is PREFILLED (*.tmp, .cache/**), so clear it and write the rule under test rather
+      # than appending to defaults whose behaviour is not what this flow is about.
+      - eraseText: 40
+      - inputText: ${EXCLUSIONS}
       - hideKeyboard
 
 - scroll

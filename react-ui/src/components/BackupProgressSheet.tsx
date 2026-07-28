@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { formatFileSize } from "@/lib/format";
 import { useTask, useCancelTask } from "@/hooks/useBackupApi";
@@ -23,6 +23,16 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const { data: task } = useTask(taskId);
   const cancelTask = useCancelTask();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  // Close once the run is over. Leaving a finished backup's progress sheet on screen - with a
+  // "Cancel Backup" button under it - reads as though it were still running. The outcome is carried
+  // by the completion notification.
+  const status = task?.status;
+  useEffect(() => {
+    if (status === "SUCCESS" || status === "FAILED" || status === "CANCELED") {
+      onClose();
+    }
+  }, [status, onClose]);
 
   // Counters are Go's open map of named values, not a fixed struct, and a run reports none until it
   // has something to report. Render whatever arrives; never index into fields that may not exist.

@@ -1,0 +1,44 @@
+# E2E Test: the source's ignore rules are actually applied (task-30.9)
+#
+# Nothing resolved a source's effective policy, so every ignore rule a user configured in the wizard
+# was silently inert and the files they excluded were backed up anyway. This flow adds a source with
+# an exclusion, backs it up, and checks both ends: the excluded file is absent from the snapshot as
+# the app browses it, and absent from Go's own restore of the same snapshot.
+#
+# The control file matters as much as the excluded one - absence alone would also "pass" if the
+# browse were broken or the backup empty.
+#
+# Category: backup. The runner passes --expect-absent excluded/secret.txt to verify_backup.sh, which
+# exempts that path from the byte comparison and hard-asserts it is missing.
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "true"
+      EXCLUSIONS: "excluded/**"
+
+# Creation started the backup (the wizard's checkbox, left ticked, is wired as of task-30.8).
+- tapOn: "Source phone_source"
+- extendedWaitUntil:
+    visible: "Select snapshot 1"
+    timeout: 180000
+
+# ===== Browse the snapshot =====
+# The snapshot's own row opens the file browser; "Select snapshot N" is the selection checkbox
+# beside it, which only marks it for deletion.
+- tapOn:
+    text: ".*8 files.*|.*7 files.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*notes.txt.*"
+    timeout: 30000
+
+# Present: proves the backup and the browse both worked.
+- assertVisible:
+    text: ".*excluded_control.txt.*"
+# Absent: the rule was applied. Both assertions are needed - either alone can pass on a broken build.
+- assertNotVisible:
+    text: "excluded"

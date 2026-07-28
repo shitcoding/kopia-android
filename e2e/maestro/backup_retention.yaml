@@ -1,0 +1,89 @@
+# E2E Test: retention runs after a backup (task-30.12 - task-30.14)
+#
+# Retention never ran after a backup: the only way to reach it dragged a full GC mark walk over the
+# repository, so a phone backing up nightly kept every snapshot it had ever made while the user's
+# policy said otherwise. Go applies retention after every `snapshot create`.
+#
+# Sets keepLatest = 2, runs three backups, and checks both the app's snapshot list and - through
+# verify_backup.sh --expect-snapshots 2 - the repository itself, so a UI that merely pages the list
+# cannot pass this.
+#
+# Category: backup. The most expensive flow in the suite; run it in the full pass, not per commit.
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+
+# ===== keepLatest = 2 =====
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Edit Policy"
+- extendedWaitUntil:
+    visible:
+      text: ".*Keep latest.*"
+    timeout: 20000
+
+# The field selects its contents on focus, so typing replaces the value outright. Erasing is not
+# used here: eraseText cannot reliably clear a filled WebView field (see the E2E guide).
+- tapOn:
+    id: "keep-latest-input"
+- waitForAnimationToEnd
+- inputText: "2"
+
+# Dismiss the keyboard by tapping empty space, NOT hideKeyboard: on this screen that lands as a back
+# press and navigates away from the editor before the save can happen.
+- tapOn:
+    point: "50%,58%"
+- tapOn:
+    id: "save-policy-button"
+# Saving toasts; it does not navigate.
+- extendedWaitUntil:
+    visible:
+      text: ".*Policy saved.*"
+    timeout: 30000
+
+# Dismiss the toast first: it covers the app bar, so a Back tap lands on the toast instead.
+- tapOn:
+    point: "90%,7%"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 30000
+
+# ===== Three backups =====
+
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          text: "Source options"
+      - tapOn:
+          text: "Back Up Now"
+      - extendedWaitUntil:
+          visible:
+            text: ".*Backup Progress.*"
+          timeout: 30000
+      # The sheet closes itself when the run reaches a terminal state, which is the signal that the
+      # next tap will start a NEW backup: a second tap while one is running is deduped by
+      # ExistingWorkPolicy.KEEP and would leave this flow one snapshot short.
+      - extendedWaitUntil:
+          notVisible:
+            text: ".*Backup Progress.*"
+          timeout: 180000
+
+# ===== Two snapshots survive, not three =====
+
+- tapOn: "Source phone_source"
+- extendedWaitUntil:
+    visible: "Select snapshot 1"
+    timeout: 60000
+- assertVisible: "Select snapshot 2"
+- assertNotVisible: "Select snapshot 3"

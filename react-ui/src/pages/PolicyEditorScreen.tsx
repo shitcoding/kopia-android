@@ -33,6 +33,35 @@ const FILTER_PRESETS: { label: string; patterns: string[] }[] = [
   { label: "Dot files", patterns: [".*"] },
 ];
 
+/**
+ * Defined at module scope, NOT inside the screen. A component declared in the render body is a new
+ * type on every render, so React unmounts and remounts the input on each keystroke and it loses
+ * focus after the first character - which makes any two-digit value impossible to type.
+ */
+const NumberInput = ({ label, value, onChange, placeholder, id }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; id?: string }) => (
+  <div className="flex items-center justify-between gap-4">
+    <span className="text-sm text-foreground">{label}</span>
+    <input
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      type="text"
+      inputMode="numeric"
+      value={value}
+      // Select on focus: tapping a small number field means "change this number", and without it
+      // the caret lands between the digits, so typing 2 over 10 gives 20. (It also makes the field
+      // usable from an automated test, where erasing a filled WebView field is unreliable.)
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder || "—"}
+      className="input-md3 w-20 text-center text-sm py-2"
+      aria-label={label}
+      id={id}
+    />
+  </div>
+);
+
 const PolicyEditorScreen = () => {
   const navigate = useNavigate();
   const { sourceId } = useParams();
@@ -200,17 +229,6 @@ const PolicyEditorScreen = () => {
     toast({ title: "Reset to defaults" });
   };
 
-  const NumberInput = ({ label, value, onChange, placeholder, id }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; id?: string }) => (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-foreground">{label}</span>
-      <input
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false} type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || "—"} className="input-md3 w-20 text-center text-sm py-2" aria-label={label} id={id} />
-    </div>
-  );
-
   return (
     <div className="app-container min-h-screen flex flex-col">
       <header className="app-bar">
@@ -325,12 +343,20 @@ const PolicyEditorScreen = () => {
 
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Only compress (globs)</p>
-              <textarea value={onlyCompress} onChange={(e) => setOnlyCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.txt\n*.log"} aria-label="Only compress globs" />
+              <textarea
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false} value={onlyCompress} onChange={(e) => setOnlyCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.txt\n*.log"} aria-label="Only compress globs" />
             </div>
 
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Never compress (globs)</p>
-              <textarea value={neverCompress} onChange={(e) => setNeverCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.jpg\n*.mp4"} aria-label="Never compress globs" />
+              <textarea
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false} value={neverCompress} onChange={(e) => setNeverCompress(e.target.value)} rows={3} className="input-md3 font-mono text-xs" placeholder={"*.jpg\n*.mp4"} aria-label="Never compress globs" />
             </div>
 
             <div className="card-elevated space-y-3">
@@ -343,7 +369,11 @@ const PolicyEditorScreen = () => {
           <TabsContent value="files" className="mt-0 space-y-3">
             <div className="card-elevated space-y-3">
               <p className="text-sm font-medium text-foreground">Ignore rules (one glob per line)</p>
-              <textarea value={ignoreRules} onChange={(e) => setIgnoreRules(e.target.value)} rows={5} className="input-md3 font-mono text-xs" aria-label="Ignore rules" />
+              <textarea
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false} value={ignoreRules} onChange={(e) => setIgnoreRules(e.target.value)} rows={5} className="input-md3 font-mono text-xs" aria-label="Ignore rules" />
               <div className="flex flex-wrap gap-2">
                 {FILTER_PRESETS.map((p) => (
                   <button key={p.label} onClick={() => addPreset(p.patterns)} className="text-xs bg-secondary hover:bg-secondary/80 px-2.5 py-1 rounded-full text-foreground transition-colors" aria-label={`Add ${p.label} preset`}>
