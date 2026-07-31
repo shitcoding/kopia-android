@@ -1,13 +1,18 @@
 package org.kopiaKt.android.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.await
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
+import org.kopiaKt.snapshot.upload.UploadCounters
+
+private const val TAG = "InteractiveBackup"
 
 /**
  * Runs a backup the user just asked for, and does not return until it is over.
@@ -27,6 +32,7 @@ suspend fun runInteractiveBackup(
     sourceId: String,
     sourcePath: String,
     config: BackupWorkerConfig = BackupWorkerConfig(),
+    onProgress: (counters: UploadCounters, final: Boolean) -> Unit = { _, _ -> },
 ): Int {
     // Await the enqueue itself before watching for a result: observing "no rows for this name yet"
     // would otherwise look exactly like "the work is already gone", and the task would report a
@@ -40,7 +46,7 @@ suspend fun runInteractiveBackup(
     ).await()
 
     val info = try {
-        awaitTerminalInfo(context, sourceId)
+        awaitTerminalInfo(context, sourceId, onProgress)
     } catch (e: CancellationException) {
         withContext(NonCancellable) { stopBackup(context, sourceId) }
         throw e
@@ -70,12 +76,43 @@ private fun stopBackup(context: Context, sourceId: String) {
 /** A backup that reached a terminal state without succeeding. */
 class BackupFailedException(message: String) : Exception(message)
 
-private suspend fun awaitTerminalInfo(context: Context, sourceId: String): WorkInfo? {
+private suspend fun awaitTerminalInfo(
+    context: Context,
+    sourceId: String,
+    onProgress: (counters: UploadCounters, final: Boolean) -> Unit,
+): WorkInfo? {
     val name = BackupWorker.uniqueWorkName(sourceId)
     val infos = WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(name)
 
     // An empty list means the work is gone (pruned), which is terminal too -- waiting for a state
     // that will never arrive would hang the task and its foreground notification forever.
-    val finished = infos.first { list -> list.isEmpty() || list.all { it.state.isFinished } }
-    return finished.lastOrNull()
+    val finished = infos
+        .onEach { list ->
+            // Every non-terminal emission carries whatever the worker last published. Reporting from
+            // here rather than from the worker keeps the counters flowing to the task even though the
+            // two may be in different processes.
+            // Best-effort, like the worker's own progress loop: a callback that throws must not
+            // fail a task whose backup is still running perfectly well.
+            try {
+                list.lastOrNull()?.progress?.toUploadCounters()?.let { onProgress(it, false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Reporting progress is not worth losing the run over.
+                Log.w(TAG, "could not report backup progress", e)
+            }
+        }
+        .first { list -> list.isEmpty() || list.all { it.state.isFinished } }
+    val terminal = finished.lastOrNull()
+    // The run's own final numbers, which the loop may never have published.
+    terminal?.outputData?.toUploadCounters()?.let {
+        try {
+            onProgress(it, true)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Log.w(TAG, "could not report the final backup counters", e)
+        }
+    }
+    return terminal
 }

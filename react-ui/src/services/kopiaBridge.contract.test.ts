@@ -138,6 +138,32 @@ describe("bridge contract: the source id is native's, not rebuilt from the sourc
     expect(status.id).toBe("local@Pixel 7:/sdcard/DCIM");
   });
 
+  it("task counters arrive as Go's named map, keyed by display name", async () => {
+    // Kotlin emits Map<String, WebTaskCounterValue>, mirroring Go's uitask.CounterValue, and the
+    // Tasks screen reads counters by name. The TS type was once a fixed struct
+    // (WebUploadCounters); with ignoreUnknownKeys on the Kotlin side, that mismatch loses counters
+    // silently rather than failing. This pins the shape from the JS end.
+    stubBridge("getTask", () =>
+      ok({
+        id: "task-1",
+        kind: "Snapshot",
+        status: "RUNNING",
+        description: "Backing up",
+        startTimeEpochMs: 0,
+        progressInfo: "",
+        counters: {
+          "Uploaded Bytes": { value: 1024, units: "bytes" },
+          Errors: { value: 2, units: "", level: "error" },
+        },
+      }),
+    );
+
+    const task = await getTask("task-1");
+
+    expect(task.counters?.["Uploaded Bytes"]).toEqual({ value: 1024, units: "bytes" });
+    expect(task.counters?.Errors?.level).toBe("error");
+  });
+
   it("pauseSource forwards the raw id, not a JSON-quoted string", async () => {
     let received: string | undefined;
     stubBridge("pauseSource", (arg) => {

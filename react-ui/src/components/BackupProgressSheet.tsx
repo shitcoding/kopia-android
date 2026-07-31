@@ -37,11 +37,14 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   // Counters are Go's open map of named values, not a fixed struct, and a run reports none until it
   // has something to report. Render whatever arrives; never index into fields that may not exist.
   const counters = Object.entries(task?.counters ?? {});
-  const uploaded = task?.counters?.["Uploaded Bytes"]?.value;
+  // Processed, not Uploaded: "Uploaded Bytes" is what actually went to the server, so a run that
+  // dedups or caches most of its data would crawl towards a total it never reaches. Processed =
+  // hashed + cached is the work done against the estimate.
+  const processed = task?.counters?.["Processed Bytes"]?.value;
   const estimated = task?.counters?.["Estimated Bytes"]?.value;
   const progress =
-    uploaded !== undefined && estimated !== undefined && estimated > 0
-      ? Math.round((uploaded / estimated) * 100)
+    processed !== undefined && estimated !== undefined && estimated > 0
+      ? Math.min(100, Math.round((processed / estimated) * 100))
       : null;
 
   const formatCounter = (counter: WebTaskCounter) =>

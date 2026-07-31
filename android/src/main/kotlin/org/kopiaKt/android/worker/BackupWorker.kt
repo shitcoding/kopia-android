@@ -157,14 +157,26 @@ class BackupWorker(
                             durationMillis = result.durationMillis,
                         )
                     }
+                    // The counters ride along with the result. The progress loop delays BEFORE its
+                    // first publish, so a backup that finishes inside one second -- an incremental
+                    // run with nothing to do, which is most of them -- would otherwise leave the
+                    // finished task showing an empty counter map. Go reports once more after the
+                    // upload returns for the same reason.
                     Result.success(
-                        workDataOf(
-                            KEY_MANIFEST_ID to result.manifestId.value,
-                            KEY_FILES_COUNT to (result.counters.totalCachedFiles + result.counters.totalHashedFiles),
-                            KEY_BYTES_TOTAL to (result.counters.totalCachedBytes + result.counters.totalHashedBytes),
-                            KEY_DURATION_MILLIS to result.durationMillis,
-                            KEY_ERROR_COUNT to result.fatalErrorCount,
-                        ),
+                        Data.Builder()
+                            .putAll(result.counters.toProgressData())
+                            .putString(KEY_MANIFEST_ID, result.manifestId.value)
+                            .putInt(
+                                KEY_FILES_COUNT,
+                                result.counters.totalCachedFiles + result.counters.totalHashedFiles,
+                            )
+                            .putLong(
+                                KEY_BYTES_TOTAL,
+                                result.counters.totalCachedBytes + result.counters.totalHashedBytes,
+                            )
+                            .putLong(KEY_DURATION_MILLIS, result.durationMillis)
+                            .putInt(KEY_ERROR_COUNT, result.fatalErrorCount)
+                            .build(),
                     )
                 }
 
@@ -281,6 +293,10 @@ class BackupWorker(
             delay(PROGRESS_UPDATE_INTERVAL_MILLIS)
             val counters = latestCounters.get() ?: continue
             try {
+                // Same cadence as the notification. WorkManager progress is how the counters leave
+                // this process's worker and reach whoever is watching the work -- without it the
+                // Tasks screen has a task with no numbers in it, which is what it had.
+                setProgress(counters.toProgressData())
                 setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters))
             } catch (e: CancellationException) {
                 throw e
@@ -402,6 +418,20 @@ class BackupWorker(
         const val KEY_FILES_COUNT = "files_count"
         const val KEY_BYTES_TOTAL = "bytes_total"
         const val KEY_DURATION_MILLIS = "duration_millis"
+
+        // Progress keys. Separate from the terminal output keys above: these are republished every
+        // second while the run is alive, and are absent from the final Data.
+        const val KEY_PROGRESS_CACHED_BYTES = "p_cached_bytes"
+        const val KEY_PROGRESS_HASHED_BYTES = "p_hashed_bytes"
+        const val KEY_PROGRESS_UPLOADED_BYTES = "p_uploaded_bytes"
+        const val KEY_PROGRESS_ESTIMATED_BYTES = "p_estimated_bytes"
+        const val KEY_PROGRESS_CACHED_FILES = "p_cached_files"
+        const val KEY_PROGRESS_HASHED_FILES = "p_hashed_files"
+        const val KEY_PROGRESS_EXCLUDED_FILES = "p_excluded_files"
+        const val KEY_PROGRESS_EXCLUDED_DIRS = "p_excluded_dirs"
+        const val KEY_PROGRESS_FATAL_ERRORS = "p_fatal_errors"
+        const val KEY_PROGRESS_ESTIMATED_FILES = "p_estimated_files"
+        const val KEY_PROGRESS_CURRENT_DIR = "p_current_dir"
 
         const val ACTION_CANCEL_BACKUP = "org.kopiaKt.android.CANCEL_BACKUP"
 

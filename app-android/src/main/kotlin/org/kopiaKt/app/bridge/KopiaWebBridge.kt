@@ -36,6 +36,7 @@ import org.kopiaKt.android.worker.SourceStatus
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
 import org.kopiaKt.android.worker.runInteractiveBackup
+import org.kopiaKt.android.worker.toUiTaskCounters
 import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
@@ -1228,7 +1229,14 @@ class KopiaWebBridge private constructor(
         return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") { controller ->
             sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING)
             try {
-                val skipped = runInteractiveBackup(ctx, source.id, source.path)
+                val skipped = runInteractiveBackup(ctx, source.id, source.path) { counters, final ->
+                    // The Tasks screen reads these by name; without a producer it had a task with no
+                    // numbers in it for the whole run. `final` drops the estimates, as Go does, so a
+                    // finished backup is not left showing what it once expected to do.
+                    controller.reportCounters(counters.toUiTaskCounters(final = final))
+                    val dir = counters.currentDirectory
+                    if (!final && dir.isNotEmpty()) controller.reportProgress(dir)
+                }
                 sourceManager.updateLastSnapshotTime(source.id, java.time.Instant.now())
                 // A saved snapshot that skipped unreadable entries is not a plain success.
                 if (skipped > 0) {

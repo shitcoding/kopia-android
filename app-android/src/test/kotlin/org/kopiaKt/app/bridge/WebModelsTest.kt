@@ -285,4 +285,28 @@ class WebModelsTest {
         assertTrue(out.contains("\"error\":\"boom\""), out)
         assertFalse(out.contains("errorMessage"), out)
     }
+
+    @Test
+    fun `WebTaskInfo counters stay Go's open map, not a fixed struct`() {
+        // Go's uitask.CounterValue is a NAMED MAP whose keys are display strings, and the Tasks
+        // screen looks them up by name (task.counters["Uploaded Bytes"]). Flattening this to a fixed
+        // struct -- which the TS side once was -- would break every counter the moment Kotlin added
+        // or renamed one, silently, because ignoreUnknownKeys eats the difference.
+        val out = bridgeJson.encodeToString(
+            WebTaskInfo(
+                id = "t1",
+                kind = "Snapshot",
+                description = "d",
+                status = "RUNNING",
+                counters = mapOf(
+                    "Uploaded Bytes" to WebTaskCounterValue(value = 1024, units = "bytes"),
+                    "Errors" to WebTaskCounterValue(value = 2, units = "", level = "error"),
+                ),
+                startTimeEpochMs = 0L,
+            ),
+        )
+
+        assertTrue(out.contains("\"Uploaded Bytes\":{\"value\":1024,\"units\":\"bytes\""), out)
+        assertTrue(out.contains("\"level\":\"error\""), out)
+    }
 }
