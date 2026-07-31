@@ -74,7 +74,7 @@ class ManifestManagerTest {
     )
 
     @Test
-    fun `put and get simple manifest`() = runBlocking {
+    fun `put and get simple manifest`(): Unit = runBlocking {
         val payload = TestPayload("test", 42)
         val labels = mapOf("type" to "test-type", "key" to "value")
 
@@ -93,7 +93,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `put and get manifest with nested data`() = runBlocking {
+    fun `put and get manifest with nested data`(): Unit = runBlocking {
         val payload = TestPayload("complex", 100, NestedData(listOf("a", "b", "c")))
         val labels = mapOf("type" to "complex", "extra" to "data")
 
@@ -105,7 +105,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `put requires type label`() = runBlocking {
+    fun `put requires type label`(): Unit = runBlocking {
         val payload = TestPayload("test", 42)
         val labels = mapOf("key" to "value") // missing "type"
 
@@ -115,7 +115,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `get returns not found for unknown id`() = runBlocking {
+    fun `get returns not found for unknown id`(): Unit = runBlocking {
         val unknownId = ManifestId("00000000000000000000000000000000")
 
         assertThrows<ManifestNotFoundException> {
@@ -126,7 +126,7 @@ class ManifestManagerTest {
     // === Metadata Tests ===
 
     @Test
-    fun `getMetadata returns metadata without content`() = runBlocking {
+    fun `getMetadata returns metadata without content`(): Unit = runBlocking {
         val payload = TestPayload("test", 42)
         val labels = mapOf("type" to "meta-test", "category" to "example")
 
@@ -141,7 +141,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `getMetadata returns null for unknown id`() = runBlocking {
+    fun `getMetadata returns null for unknown id`(): Unit = runBlocking {
         val unknownId = ManifestId("00000000000000000000000000000000")
         val metadata = manifestManager.getMetadataOrNull(unknownId)
         assertNull(metadata)
@@ -150,7 +150,7 @@ class ManifestManagerTest {
     // === Find Tests ===
 
     @Test
-    fun `find by single label`() = runBlocking {
+    fun `find by single label`(): Unit = runBlocking {
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server1"), TestPayload("s1", 1))
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server2"), TestPayload("s2", 2))
         manifestManager.put(mapOf("type" to "policy", "host" to "server1"), TestPayload("p1", 3))
@@ -163,7 +163,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `find by multiple labels`() = runBlocking {
+    fun `find by multiple labels`(): Unit = runBlocking {
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server1", "user" to "alice"), TestPayload("s1", 1))
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server1", "user" to "bob"), TestPayload("s2", 2))
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server2", "user" to "alice"), TestPayload("s3", 3))
@@ -181,7 +181,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `find returns empty list for no matches`() = runBlocking {
+    fun `find returns empty list for no matches`(): Unit = runBlocking {
         manifestManager.put(mapOf("type" to "snapshot", "host" to "server1"), TestPayload("s1", 1))
 
         val results = manifestManager.find(mapOf("type" to "nonexistent"))
@@ -189,7 +189,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `find results sorted by modification time`() = runBlocking {
+    fun `find results sorted by modification time`(): Unit = runBlocking {
         // Create manifests with small delays to ensure ordering
         val id1 = manifestManager.put(mapOf("type" to "sorted"), TestPayload("first", 1))
         val id2 = manifestManager.put(mapOf("type" to "sorted"), TestPayload("second", 2))
@@ -206,7 +206,7 @@ class ManifestManagerTest {
     // === Delete Tests ===
 
     @Test
-    fun `delete makes manifest unfindable`() = runBlocking {
+    fun `delete makes manifest unfindable`(): Unit = runBlocking {
         val id = manifestManager.put(mapOf("type" to "deletable"), TestPayload("test", 1))
 
         // Before delete
@@ -227,7 +227,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `delete non-existent manifest is no-op`() = runBlocking {
+    fun `delete non-existent manifest is no-op`(): Unit = runBlocking {
         val unknownId = ManifestId("00000000000000000000000000000000")
         // Should not throw
         manifestManager.delete(unknownId)
@@ -236,7 +236,7 @@ class ManifestManagerTest {
     // === Flush and Persistence Tests ===
 
     @Test
-    fun `flush persists pending manifests`() = runBlocking {
+    fun `flush persists pending manifests`(): Unit = runBlocking {
         val id = manifestManager.put(mapOf("type" to "persistent"), TestPayload("data", 123))
 
         // Flush to storage
@@ -253,7 +253,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `flush persists deletions`() = runBlocking {
+    fun `flush persists deletions`(): Unit = runBlocking {
         val id = manifestManager.put(mapOf("type" to "to-delete"), TestPayload("data", 1))
         manifestManager.flush()
         contentManager.flush()
@@ -273,7 +273,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `multiple manifests in single flush`() = runBlocking {
+    fun `multiple manifests in single flush`(): Unit = runBlocking {
         val ids = (1..10).map { i ->
             manifestManager.put(mapOf("type" to "batch", "index" to "$i"), TestPayload("item$i", i))
         }
@@ -298,7 +298,7 @@ class ManifestManagerTest {
     // === Refresh Tests ===
 
     @Test
-    fun `refresh loads committed manifests`() = runBlocking {
+    fun `refresh loads committed manifests`(): Unit = runBlocking {
         // Create and flush manifest
         val id = manifestManager.put(mapOf("type" to "refresh-test"), TestPayload("original", 1))
         manifestManager.flush()
@@ -319,7 +319,7 @@ class ManifestManagerTest {
     // === Pending vs Committed Priority Tests ===
 
     @Test
-    fun `pending entries override committed`() = runBlocking {
+    fun `pending entries override committed`(): Unit = runBlocking {
         // Create and flush initial manifest
         val id = manifestManager.put(mapOf("type" to "override"), TestPayload("old", 1))
         manifestManager.flush()
@@ -337,7 +337,7 @@ class ManifestManagerTest {
     // === Edge Cases ===
 
     @Test
-    fun `empty labels except type`() = runBlocking {
+    fun `empty labels except type`(): Unit = runBlocking {
         val id = manifestManager.put(mapOf("type" to "minimal"), TestPayload("minimal", 0))
         val (retrieved, metadata) = manifestManager.get<TestPayload>(id)
 
@@ -347,7 +347,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `unicode in payload and labels`() = runBlocking {
+    fun `unicode in payload and labels`(): Unit = runBlocking {
         val payload = TestPayload("日本語テスト", 42, NestedData(listOf("🎉", "こんにちは")))
         val labels = mapOf("type" to "unicode", "language" to "日本語")
 
@@ -365,7 +365,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `large payload`() = runBlocking {
+    fun `large payload`(): Unit = runBlocking {
         val largeList = (1..1000).map { "item_$it" }
         val payload = TestPayload("large", 1000, NestedData(largeList))
         val labels = mapOf("type" to "large")
@@ -385,7 +385,7 @@ class ManifestManagerTest {
     // === Compaction Tests ===
 
     @Test
-    fun `compact consolidates manifest contents`() = runBlocking {
+    fun `compact consolidates manifest contents`(): Unit = runBlocking {
         // Create multiple flushes to generate multiple manifest content blocks
         repeat(5) { batch ->
             repeat(3) { i ->
@@ -417,7 +417,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `compact tombstones the manifest contents it supersedes`() = runBlocking {
+    fun `compact tombstones the manifest contents it supersedes`(): Unit = runBlocking {
         repeat(5) { batch ->
             manifestManager.put(
                 mapOf("type" to "supersede-test", "batch" to "$batch"),
@@ -445,7 +445,7 @@ class ManifestManagerTest {
     }
 
     @Test
-    fun `compact removes deleted manifests permanently`() = runBlocking {
+    fun `compact removes deleted manifests permanently`(): Unit = runBlocking {
         // Create manifests
         val keepId = manifestManager.put(mapOf("type" to "keep"), TestPayload("keep", 1))
         val deleteId = manifestManager.put(mapOf("type" to "delete"), TestPayload("delete", 2))
@@ -529,6 +529,47 @@ class ManifestManagerTest {
     }
 
     // === Helper Functions ===
+
+    @Test
+    fun `compaction does not resurrect a manifest another session deleted`(): Unit = runBlocking {
+        // Compaction records a deletion by ABSENCE: it writes one block holding the live entries and
+        // tombstones the blocks it supersedes -- including whichever block carried the tombstone.
+        // A session that compacts from a view loaded BEFORE someone else's delete therefore writes
+        // that manifest back out as live, with nothing left on storage to contradict it. The deleted
+        // snapshot returns from the dead, and its contents are protected from GC again.
+        //
+        // Threshold 2 so both sessions compact on their second block; at the default 16 this is the
+        // same story with more paperwork.
+        val deleter = ManifestManager(contentManager, autoCompactionThreshold = 2)
+        val victim = deleter.put(mapOf("type" to "victim"), TestPayload("doomed", 1))
+        deleter.flush()
+        contentManager.flush()
+
+        // The second session loads while the victim is still live. This is the stale view.
+        val other = ManifestManager(contentManager, autoCompactionThreshold = 2)
+        other.refresh()
+
+        // The first session deletes it and compacts, which removes the tombstone along with the
+        // block it superseded -- correctly, as far as that session can see.
+        deleter.delete(victim)
+        deleter.flush()
+        contentManager.flush()
+
+        // The second session now writes something entirely unrelated and crosses its own threshold.
+        val bystander = other.put(mapOf("type" to "bystander"), TestPayload("innocent", 2))
+        other.flush()
+        contentManager.flush()
+
+        val fresh = ManifestManager(contentManager)
+        fresh.refresh()
+        assertThrows<ManifestNotFoundException> {
+            runBlocking { fresh.get<TestPayload>(victim) }
+        }
+        // ...and the reload the fix performs mid-flush must not have lost the block that flush had
+        // only just written and not yet committed to storage. Without this the test would still pass
+        // if the reload dropped the pending layer entirely.
+        assertEquals("innocent", fresh.get<TestPayload>(bystander).first.name)
+    }
 
     private suspend fun countManifestContents(): Int = manifestManager.getCommittedContentCount()
 

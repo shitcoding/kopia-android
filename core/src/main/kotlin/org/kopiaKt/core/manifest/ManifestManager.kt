@@ -309,7 +309,46 @@ class ManifestManager(
         committedContentIds.add(contentId)
         pendingEntries.clear()
 
-        // Check for auto-compaction
+        if (committedContentIds.size >= autoCompactionThreshold) {
+            maybeCompact()
+        }
+    }
+
+    /**
+     * Compacts, but only over a freshly loaded view.
+     *
+     * Compaction records deletions by ABSENCE, so it may only ever run over a view that already
+     * contains every deletion anyone has committed. A session's view dates from whenever it last
+     * loaded; if another session has deleted a manifest and compacted since — taking the tombstone
+     * with it, which is exactly what compaction does — then rewriting from a view older than that
+     * reinstates the manifest as live, with nothing left on storage to contradict it. A deleted
+     * snapshot comes back, protecting its contents from GC again.
+     *
+     * Go sidesteps this by only ever compacting immediately after a fresh load. Reloading here
+     * reaches the same state without making a read-only `refresh()` try to write: content iteration
+     * merges the pending layer, so a block written moments ago is in the view too, and
+     * `ContentManager.refresh()` leaves pending writes untouched.
+     */
+    private suspend fun maybeCompact() {
+        // Cheap decline BEFORE paying for a reload. Go writes its manifest content zstd-compressed,
+        // so in a repository shared with desktop Kopia compactInternal() refuses every time anyway
+        // (see canTombstoneAll) — without this, every flush past the threshold would re-list and
+        // re-read the whole manifest set over the network, on a phone, only to decline at the end.
+        if (!canTombstoneAll(committedContentIds)) return
+
+        try {
+            loadCommittedManifests()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Compaction is only ever an optimization. The entries are already written and the
+            // caller's flush must not fail because a housekeeping step could not read storage.
+            logger.log(Level.WARNING, "Skipping manifest compaction: could not reload the committed view", e)
+            return
+        }
+
+        // The reload can shrink the set below the threshold — most of those blocks may already have
+        // been superseded by someone else's compaction.
         if (committedContentIds.size >= autoCompactionThreshold) {
             compactInternal()
         }
@@ -339,6 +378,9 @@ class ManifestManager(
      * removing deleted entries permanently.
      */
     suspend fun compact(): Unit = mutex.withLock {
+        // Same freshness requirement as the automatic path — see [maybeCompact]. Compacting from a
+        // view older than someone else's delete brings the deleted manifest back.
+        loadCommittedManifests()
         compactInternal()
     }
 
@@ -428,13 +470,21 @@ class ManifestManager(
         }
     }
 
+    /**
+     * Reloads the committed view from storage.
+     *
+     * Built into local collections and swapped in only once the load has run to completion: a
+     * failure part-way through — storage unreachable mid-listing, say — must leave the previous view
+     * standing rather than an empty one that reads as "this repository has no manifests". The
+     * completeness flag moves with it, so it never advertises a view that was never installed.
+     */
     private suspend fun loadCommittedManifests() {
-        committedEntries.clear()
-        committedContentIds.clear()
-        // Assume complete until a manifest content block fails to parse below. Note that the content
-        // load inside contentManager.refresh() maintains its OWN completeness flag
+        val entries = mutableMapOf<ManifestId, ManifestEntry>()
+        val contentIds = mutableSetOf<ContentId>()
+        // Complete until a manifest content block fails to parse below. Note that the content load
+        // inside contentManager.refresh() maintains its OWN completeness flag
         // (ContentManager.isIndexLoadComplete) — this flag covers only manifest-content decode failures.
-        manifestLoadComplete = true
+        var complete = true
 
         // First refresh the content manager to load new indexes
         contentManager.refresh()
@@ -447,16 +497,16 @@ class ManifestManager(
                 val jsonString = jsonData.toString(Charsets.UTF_8)
                 val container = json.decodeFromString<ManifestContainer>(jsonString)
 
-                committedContentIds.add(contentId)
+                contentIds.add(contentId)
 
                 // Merge entries (newer entries override older ones)
                 for (entry in container.entries) {
                     val manifestId = ManifestId(entry.id)
-                    val existing = committedEntries[manifestId]
+                    val existing = entries[manifestId]
 
                     // Keep the newer entry by modification time
                     if (existing == null || entry.modTime.isAfter(existing.modTime)) {
-                        committedEntries[manifestId] = entry
+                        entries[manifestId] = entry
                     }
                 }
             } catch (e: CancellationException) {
@@ -467,7 +517,7 @@ class ManifestManager(
                 // snapshot manifest makes its content look unreferenced to GC). isManifestLoadComplete()
                 // now returns false so a destructive GC delete run fails closed. (Go keeps the skip
                 // non-fatal, gated by KOPIA_IGNORE_MALFORMED_MANIFEST_CONTENTS.)
-                manifestLoadComplete = false
+                complete = false
                 logger.log(
                     Level.WARNING,
                     "Skipping malformed manifest content $contentId: ${e.message}",
@@ -477,10 +527,13 @@ class ManifestManager(
         }
 
         // Remove deleted entries after merging all content
-        val deletedIds = committedEntries.filterValues { it.deleted }.keys.toSet()
-        for (id in deletedIds) {
-            committedEntries.remove(id)
-        }
+        entries.values.removeIf { it.deleted }
+
+        committedEntries.clear()
+        committedEntries.putAll(entries)
+        committedContentIds.clear()
+        committedContentIds.addAll(contentIds)
+        manifestLoadComplete = complete
     }
 
     // === Private Helpers ===
