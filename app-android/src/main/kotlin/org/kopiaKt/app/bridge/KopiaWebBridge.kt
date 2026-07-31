@@ -1,7 +1,9 @@
 package org.kopiaKt.app.bridge
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
@@ -11,6 +13,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -118,6 +121,17 @@ class KopiaWebBridge private constructor(
     )
 
     private companion object {
+        /**
+         * Whether this PROCESS has already put the notification dialog in front of the user.
+         *
+         * Deliberately not an instance field: `MainActivity` builds a fresh bridge in `onCreate`, so
+         * a per-bridge flag would ask again after any activity recreation -- which is exactly the
+         * nagging the once-only rule exists to prevent. It resets on process death, which is wanted:
+         * the OS silently auto-denies after two refusals, so a later ask costs the user nothing,
+         * while persisting it would permanently silence the prompt after one stray dismissal.
+         */
+        private val notificationPermissionAsked = java.util.concurrent.atomic.AtomicBoolean(false)
+
         const val TAG = "KopiaWebBridge"
 
         // Safety net so an unreachable backend can't hang the connect/create coroutine indefinitely.
@@ -1206,6 +1220,11 @@ class KopiaWebBridge private constructor(
             error("Connect to a repository before backing up")
         }
 
+        // Ask for notifications here rather than at launch: this is the moment the grant is
+        // actually about, and the answer only affects what the user is told. Deliberately not
+        // awaited and never a gate -- a denial costs a notification, not a backup.
+        requestNotificationPermissionOnce()
+
         return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") { controller ->
             sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING)
             try {
@@ -1218,6 +1237,54 @@ class KopiaWebBridge private constructor(
             } finally {
                 // The dashboard would otherwise show a source uploading forever.
                 sourceManager.setSourceStatus(source.id, SourceStatus.IDLE)
+            }
+        }
+    }
+
+    /**
+     * Asks for POST_NOTIFICATIONS once per process, if it is needed and not already held.
+     *
+     * The worker routes PROGRESS through `setForeground`, which needs no grant, but COMPLETION and
+     * ERROR notifications go through `notify()` and are **silently dropped** on API 33+ without it --
+     * so a user who never granted it is simply never told a backup finished or failed. Routing those
+     * through the foreground service is not an alternative: that notification is removed when the
+     * worker ends, and terminal notifications by definition outlive it.
+     *
+     * Once per process, because the system stops showing the dialog after two refusals and there is
+     * nothing to gain by asking on every backup. Silent no-op below API 33, when already granted, or
+     * when there is no Activity to ask from.
+     */
+    private fun requestNotificationPermissionOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val act = activity ?: return
+        val ctx = context ?: return
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        if (!notificationPermissionAsked.compareAndSet(false, true)) return
+
+        val key = "kopia_notif_${UUID.randomUUID()}"
+        act.runOnUiThread {
+            var launcher: androidx.activity.result.ActivityResultLauncher<String>? = null
+            launcher = act.activityResultRegistry.register(
+                key,
+                ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                launcher?.unregister()
+                if (!granted) {
+                    android.util.Log.i(TAG, "notifications denied; backups run but report nothing when they end")
+                }
+            }
+            try {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } catch (e: Exception) {
+                // The dialog never appeared, so this must not count as having asked -- the picker
+                // paths above release their guard the same way.
+                android.util.Log.w(TAG, "could not ask for notification permission", e)
+                launcher.unregister()
+                notificationPermissionAsked.set(false)
             }
         }
     }

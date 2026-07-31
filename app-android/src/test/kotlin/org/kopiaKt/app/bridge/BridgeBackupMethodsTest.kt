@@ -352,6 +352,29 @@ class BridgeBackupMethodsTest {
         }
 
         @Test
+        fun `a backup still starts when notifications are not granted`() {
+            // startBackup asks for POST_NOTIFICATIONS on API 33+ so the user actually learns the
+            // backup finished or failed -- completion and error notifications go through notify(),
+            // which is silently dropped without the grant. The request must never gate the backup:
+            // a denied permission costs the user a notification, not their backup. This bridge is
+            // built with no Activity at all, which is the same path a denial takes.
+            val fakeSource = SourceInfo(
+                id = "src-1",
+                path = "/data",
+                displayName = "Data",
+                createdAt = Instant.now(),
+            )
+            every { sourceManager.getSource("src-1") } returns fakeSource
+            every {
+                taskManager.startTask(any(), any(), any())
+            } returns "task-7"
+
+            val obj = assertSuccess(bridge.startBackup("src-1"))
+
+            assertEquals("task-7", obj["data"]!!.jsonPrimitive.content)
+        }
+
+        @Test
         fun `reports an unknown source rather than starting nothing`() {
             every { sourceManager.getSource("any-source") } returns null
 
