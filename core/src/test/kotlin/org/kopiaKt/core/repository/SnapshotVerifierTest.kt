@@ -34,7 +34,7 @@ class SnapshotVerifierTest {
     @DisplayName("Intact Repository")
     inner class IntactRepository {
         @Test
-        fun `should verify intact repository returns no errors`() = runTest {
+        fun `should verify intact repository returns no errors`(): Unit = runTest {
             val objects = (1..5).associate { "obj$it" to "data for object $it".toByteArray() }
             val result = TestRepositoryFactory.createWithObjects(objects)
             repo = result.first
@@ -55,7 +55,7 @@ class SnapshotVerifierTest {
     @DisplayName("Corrupted Content")
     inner class CorruptedContent {
         @Test
-        fun `should report error when content blob is corrupted`() = runTest {
+        fun `should report error when content blob is corrupted`(): Unit = runTest {
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to "test data".toByteArray()),
             )
@@ -82,7 +82,7 @@ class SnapshotVerifierTest {
         }
 
         @Test
-        fun `should report error when content blob is missing`() = runTest {
+        fun `should report error when content blob is missing`(): Unit = runTest {
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to "test data".toByteArray()),
             )
@@ -107,7 +107,7 @@ class SnapshotVerifierTest {
     @DisplayName("Multiple Objects")
     inner class MultipleObjects {
         @Test
-        fun `should verify all objects are readable`() = runTest {
+        fun `should verify all objects are readable`(): Unit = runTest {
             val objects = (1..10).associate {
                 "obj$it" to LargeDataGenerator.generate(1024, seed = it.toLong())
             }
@@ -124,7 +124,7 @@ class SnapshotVerifierTest {
         }
 
         @Test
-        fun `should report specific object IDs that failed verification`() = runTest {
+        fun `should report specific object IDs that failed verification`(): Unit = runTest {
             val objects = mapOf(
                 "good1" to "good data 1".toByteArray(),
                 "good2" to "good data 2".toByteArray(),
@@ -162,7 +162,7 @@ class SnapshotVerifierTest {
     @DisplayName("Error Reporting")
     inner class ErrorReporting {
         @Test
-        fun `should return non-zero error count on failure`() = runTest {
+        fun `should return non-zero error count on failure`(): Unit = runTest {
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to "data".toByteArray()),
             )
@@ -184,7 +184,7 @@ class SnapshotVerifierTest {
         }
 
         @Test
-        fun `should include meaningful error messages`() = runTest {
+        fun `should include meaningful error messages`(): Unit = runTest {
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to "data".toByteArray()),
             )

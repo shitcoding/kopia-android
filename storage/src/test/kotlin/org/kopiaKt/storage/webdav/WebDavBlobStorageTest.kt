@@ -56,7 +56,7 @@ class WebDavBlobStorageTest {
     inner class GetBlobTests {
 
         @Test
-        fun `returns blob data for simple blob ID`() = runTest {
+        fun `returns blob data for simple blob ID`(): Unit = runTest {
             val blobId = BlobId("short")
             val expectedData = "test data".toByteArray()
 
@@ -68,7 +68,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns blob data for sharded blob ID`() = runTest {
+        fun `returns blob data for sharded blob ID`(): Unit = runTest {
             // Blob ID longer than maxNonShardedLength (20) triggers sharding
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val expectedData = "sharded test data".toByteArray()
@@ -85,7 +85,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset`() = runTest {
+        fun `returns partial blob data with offset`(): Unit = runTest {
             val blobId = BlobId("short")
             val expectedData = "partial".toByteArray()
 
@@ -99,7 +99,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset and length`() = runTest {
+        fun `returns partial blob data with offset and length`(): Unit = runTest {
             val blobId = BlobId("short")
             val expectedData = "art".toByteArray()
 
@@ -113,7 +113,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws when the server returns a wrong-size body for a ranged read`() = runTest {
+        fun `throws when the server returns a wrong-size body for a ranged read`(): Unit = runTest {
             // Server ignored the Range header and returned the whole file instead of the 3 requested
             // bytes; returning it as-is would hand back silently-wrong content for the blob.
             val blobId = BlobId("short")
@@ -129,7 +129,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws beyond-blob-size for an empty body on a fixed-length read`() = runTest {
+        fun `throws beyond-blob-size for an empty body on a fixed-length read`(): Unit = runTest {
             // An empty 206 body for a positive-length range means the offset is at/past EOF.
             val blobId = BlobId("short")
             every {
@@ -142,7 +142,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns empty array for zero-length read`() = runTest {
+        fun `returns empty array for zero-length read`(): Unit = runTest {
             val blobId = BlobId("short")
 
             every {
@@ -155,7 +155,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws BlobNotFoundException when blob does not exist`() = runTest {
+        fun `throws BlobNotFoundException when blob does not exist`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockClient.get("${baseUrl}missing.f") } throws
@@ -167,7 +167,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for invalid range`() = runTest {
+        fun `throws InvalidBlobRangeException for invalid range`(): Unit = runTest {
             val blobId = BlobId("short")
 
             every {
@@ -183,7 +183,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for negative offset`() = runTest {
+        fun `throws InvalidBlobRangeException for negative offset`(): Unit = runTest {
             val blobId = BlobId("short")
 
             assertThrows<InvalidBlobRangeException> {
@@ -192,7 +192,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidCredentialsException for auth failure`() = runTest {
+        fun `throws InvalidCredentialsException for auth failure`(): Unit = runTest {
             val blobId = BlobId("short")
 
             every { mockClient.get("${baseUrl}short.f") } throws
@@ -209,7 +209,7 @@ class WebDavBlobStorageTest {
     inner class GetBlobMetadataTests {
 
         @Test
-        fun `returns metadata for existing blob`() = runTest {
+        fun `returns metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("short")
 
             val mockResource = DavResource(
@@ -231,7 +231,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns null for non-existent blob`() = runTest {
+        fun `returns null for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockClient.list("${baseUrl}missing.f", 0) } throws
@@ -243,7 +243,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns null when list returns empty`() = runTest {
+        fun `returns null when list returns empty`(): Unit = runTest {
             val blobId = BlobId("empty")
 
             every { mockClient.list("${baseUrl}empty.f", 0) } returns emptyList()
@@ -259,7 +259,7 @@ class WebDavBlobStorageTest {
     inner class PutBlobTests {
 
         @Test
-        fun `writes blob data successfully`() = runTest {
+        fun `writes blob data successfully`(): Unit = runTest {
             val blobId = BlobId("new")
             val data = "new content".toByteArray()
 
@@ -279,7 +279,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `writes blob atomically when atomicWrites is true`() = runTest {
+        fun `writes blob atomically when atomicWrites is true`(): Unit = runTest {
             val atomicOptions = WebDavOptions(url = baseUrl, atomicWrites = true)
             val atomicStorage = WebDavBlobStorage.createWithClient(
                 client = mockClient,
@@ -301,7 +301,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `creates parent directories when write fails`() = runTest {
+        fun `creates parent directories when write fails`(): Unit = runTest {
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val data = "data".toByteArray()
 
@@ -333,7 +333,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `skips write when blob exists and dontOverwrite is true`() = runTest {
+        fun `skips write when blob exists and dontOverwrite is true`(): Unit = runTest {
             val blobId = BlobId("existing")
             val data = "data".toByteArray()
 
@@ -350,7 +350,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws UnsupportedPutOptionException for retention options`() = runTest {
+        fun `throws UnsupportedPutOptionException for retention options`(): Unit = runTest {
             val blobId = BlobId("blob")
             val data = "data".toByteArray()
 
@@ -367,7 +367,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `throws UnsupportedPutOptionException for setModTime`() = runTest {
+        fun `throws UnsupportedPutOptionException for setModTime`(): Unit = runTest {
             val blobId = BlobId("blob")
             val data = "data".toByteArray()
 
@@ -382,7 +382,7 @@ class WebDavBlobStorageTest {
     inner class DeleteBlobTests {
 
         @Test
-        fun `deletes existing blob`() = runTest {
+        fun `deletes existing blob`(): Unit = runTest {
             val blobId = BlobId("todelete")
 
             every { mockClient.delete("${baseUrl}todelete.f") } just Runs
@@ -393,7 +393,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `ignores delete for non-existent blob`() = runTest {
+        fun `ignores delete for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockClient.delete("${baseUrl}missing.f") } throws
@@ -404,7 +404,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `deletes sharded blob`() = runTest {
+        fun `deletes sharded blob`(): Unit = runTest {
             val blobId = BlobId("pack-abcdef1234567890abcdef")
 
             every { mockClient.delete("${baseUrl}p/ack/-abcdef1234567890abcdef.f") } just Runs
@@ -420,7 +420,7 @@ class WebDavBlobStorageTest {
     inner class ListBlobsTests {
 
         @Test
-        fun `lists blobs with prefix`() = runTest {
+        fun `lists blobs with prefix`(): Unit = runTest {
             // Root directory listing
             val rootDir = DavResource(
                 href = baseUrl,
@@ -479,7 +479,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `returns empty list when directory does not exist`() = runTest {
+        fun `returns empty list when directory does not exist`(): Unit = runTest {
             every { mockClient.list(baseUrl, 1) } throws
                 WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
@@ -489,7 +489,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `ignores files without complete blob suffix`() = runTest {
+        fun `ignores files without complete blob suffix`(): Unit = runTest {
             val rootDir = DavResource(
                 href = baseUrl,
                 isDirectory = true,
@@ -523,7 +523,7 @@ class WebDavBlobStorageTest {
     inner class PathOnlyHrefTests {
 
         @Test
-        fun `path-only href for root is correctly matched`() = runTest {
+        fun `path-only href for root is correctly matched`(): Unit = runTest {
             // WebDAV server returns "/" as href for the root directory
             val rootDir = DavResource(
                 href = "/",
@@ -547,7 +547,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `path-only href for subdirectories is correctly matched`() = runTest {
+        fun `path-only href for subdirectories is correctly matched`(): Unit = runTest {
             // Root listing returns path-only hrefs
             val rootDir = DavResource(
                 href = "/dav/",
@@ -585,7 +585,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `dot-segment paths are normalized`() = runTest {
+        fun `dot-segment paths are normalized`(): Unit = runTest {
             // Href with dot segments like /dav/./  should normalize to /dav/
             val rootDir = DavResource(
                 href = "/dav/./",
@@ -609,7 +609,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `double-slash paths are handled`() = runTest {
+        fun `double-slash paths are handled`(): Unit = runTest {
             // Some servers may return double slashes in hrefs
             val rootDir = DavResource(
                 href = "//dav//",
@@ -691,7 +691,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `putBlob is rejected in read-only mode`() = runTest {
+        fun `putBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = WebDavBlobStorage.createWithClient(
                 client = mockClient,
                 options = options,
@@ -704,7 +704,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `deleteBlob is rejected in read-only mode`() = runTest {
+        fun `deleteBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = WebDavBlobStorage.createWithClient(
                 client = mockClient,
                 options = options,
@@ -722,7 +722,7 @@ class WebDavBlobStorageTest {
     inner class ShardingTests {
 
         @Test
-        fun `short blob IDs are not sharded`() = runTest {
+        fun `short blob IDs are not sharded`(): Unit = runTest {
             val blobId = BlobId("short") // Length 5 < 20
             val data = "data".toByteArray()
 
@@ -740,7 +740,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `long blob IDs are sharded`() = runTest {
+        fun `long blob IDs are sharded`(): Unit = runTest {
             // ID length 25 > 20, so will be sharded with [1, 3]
             val blobId = BlobId("pack-abcdef1234567890abc")
             val data = "data".toByteArray()
@@ -759,7 +759,7 @@ class WebDavBlobStorageTest {
         }
 
         @Test
-        fun `uses prefix override shards when matching`() = runTest {
+        fun `uses prefix override shards when matching`(): Unit = runTest {
             val customParams = ShardingParameters(
                 default = listOf(1, 3),
                 maxNonShardedLength = 5,
@@ -797,7 +797,7 @@ class WebDavBlobStorageTest {
     inner class CloseTests {
 
         @Test
-        fun `calls shutdown on client`() = runTest {
+        fun `calls shutdown on client`(): Unit = runTest {
             every { mockClient.shutdown() } just Runs
 
             storage.close()

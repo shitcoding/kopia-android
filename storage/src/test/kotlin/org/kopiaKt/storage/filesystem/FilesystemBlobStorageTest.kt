@@ -41,7 +41,7 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
     inner class FilesystemSpecificTests {
 
         @Test
-        fun `should create sharded directory structure`() = runTest {
+        fun `should create sharded directory structure`(): Unit = runTest {
             val storage = createStorage() as FilesystemBlobStorage
 
             // Short blob IDs (< 20 chars) are stored at root with .f suffix
@@ -70,7 +70,7 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
         }
 
         @Test
-        fun `should return capacity information`() = runTest {
+        fun `should return capacity information`(): Unit = runTest {
             val storage = createStorage() as FilesystemBlobStorage
             val capacity = storage.getCapacity()
 
@@ -89,7 +89,7 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
         }
 
         @Test
-        fun `putBlob is rejected in read-only mode`() = runTest {
+        fun `putBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = FilesystemBlobStorage.create(storageDir!!, readOnly = true)
             assertThrows<IllegalStateException> {
                 readOnlyStorage.putBlob(org.kopiaKt.core.blob.BlobId("ro"), "data".toByteArray())
@@ -97,7 +97,7 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
         }
 
         @Test
-        fun `deleteBlob is rejected in read-only mode`() = runTest {
+        fun `deleteBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = FilesystemBlobStorage.create(storageDir!!, readOnly = true)
             assertThrows<IllegalStateException> {
                 readOnlyStorage.deleteBlob(org.kopiaKt.core.blob.BlobId("ro"))

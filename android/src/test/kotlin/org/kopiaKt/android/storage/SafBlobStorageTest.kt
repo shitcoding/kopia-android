@@ -98,7 +98,7 @@ class SafBlobStorageTest {
     inner class GetBlobTests {
 
         @Test
-        fun `returns blob data for simple blob ID`() = runTest {
+        fun `returns blob data for simple blob ID`(): Unit = runTest {
             val blobId = BlobId("short")
             val expectedData = "test data".toByteArray()
 
@@ -115,7 +115,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns blob data for sharded blob ID`() = runTest {
+        fun `returns blob data for sharded blob ID`(): Unit = runTest {
             // Blob ID longer than maxNonShardedLength (20) triggers sharding
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val expectedData = "sharded test data".toByteArray()
@@ -139,7 +139,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset`() = runTest {
+        fun `returns partial blob data with offset`(): Unit = runTest {
             val blobId = BlobId("short")
             val fullData = "test data for partial read".toByteArray()
 
@@ -156,7 +156,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset and length`() = runTest {
+        fun `returns partial blob data with offset and length`(): Unit = runTest {
             val blobId = BlobId("short")
             val fullData = "test data for partial read".toByteArray()
 
@@ -173,7 +173,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns empty array for zero-length read`() = runTest {
+        fun `returns empty array for zero-length read`(): Unit = runTest {
             val blobId = BlobId("short")
             val fullData = "test data".toByteArray()
 
@@ -190,7 +190,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws BlobNotFoundException when blob does not exist`() = runTest {
+        fun `throws BlobNotFoundException when blob does not exist`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockRootDocument.findFile("missing.f") } returns null
@@ -201,7 +201,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for negative offset`() = runTest {
+        fun `throws InvalidBlobRangeException for negative offset`(): Unit = runTest {
             val blobId = BlobId("short")
 
             assertThrows<InvalidBlobRangeException> {
@@ -210,7 +210,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for offset beyond file size`() = runTest {
+        fun `throws InvalidBlobRangeException for offset beyond file size`(): Unit = runTest {
             val blobId = BlobId("short")
             val smallData = "abc".toByteArray()
 
@@ -227,7 +227,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `fixed-length read that runs past EOF fails loudly instead of returning a short buffer`() = runTest {
+        fun `fixed-length read that runs past EOF fails loudly instead of returning a short buffer`(): Unit = runTest {
             // A truncated/corrupt pack (or a bad packOffset/packedLength) must not be handed upward as a
             // short buffer — the other backends reject short fixed-length reads (task-15/task-14).
             val blobId = BlobId("short")
@@ -246,7 +246,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `offset past EOF on a seekable over-skipping stream still fails loudly`() = runTest {
+        fun `offset past EOF on a seekable over-skipping stream still fails loudly`(): Unit = runTest {
             // On a real device the SAF stream is FileInputStream-family: skip() lseeks and reports success
             // PAST EOF, so the skipped<offset guard cannot catch an out-of-range offset — the short-read
             // check must. A bad packOffset on a truncated pack must surface as a range error, not empty data.
@@ -263,7 +263,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `ranged read at an offset beyond Int MAX returns correct bytes without buffering the whole blob`() = runTest {
+        fun `ranged read at an offset beyond Int MAX returns correct bytes without buffering the whole blob`(): Unit = runTest {
             // Regression for task-14: getBlob used to readBytes() the WHOLE blob and narrow offset/length
             // to Int. On a multi-GiB pack that OOMs, and any offset >= 2 GiB wraps to garbage via toInt().
             // A 5 GiB virtual stream (no allocation) proves the ranged read (a) never buffers the whole blob
@@ -325,7 +325,7 @@ class SafBlobStorageTest {
     inner class GetBlobMetadataTests {
 
         @Test
-        fun `returns metadata for existing blob`() = runTest {
+        fun `returns metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("short")
             val modTime = System.currentTimeMillis()
 
@@ -345,7 +345,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns null for non-existent blob`() = runTest {
+        fun `returns null for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockRootDocument.findFile("missing.f") } returns null
@@ -361,7 +361,7 @@ class SafBlobStorageTest {
     inner class PutBlobTests {
 
         @Test
-        fun `writes blob data with atomic writes`() = runTest {
+        fun `writes blob data with atomic writes`(): Unit = runTest {
             val blobId = BlobId("new")
             val data = "new content".toByteArray()
 
@@ -387,7 +387,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `keeps the existing blob when the replacement fails to write`() = runTest {
+        fun `keeps the existing blob when the replacement fails to write`(): Unit = runTest {
             val blobId = BlobId("existing")
 
             val mockExisting = mockk<DocumentFile> {
@@ -412,7 +412,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `replaces the existing blob only after the replacement is written`() = runTest {
+        fun `replaces the existing blob only after the replacement is written`(): Unit = runTest {
             val blobId = BlobId("existing")
             val data = "new content".toByteArray()
 
@@ -450,7 +450,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `skips write when blob exists and dontOverwrite is true`() = runTest {
+        fun `skips write when blob exists and dontOverwrite is true`(): Unit = runTest {
             val blobId = BlobId("existing")
             val data = "data".toByteArray()
 
@@ -463,7 +463,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `creates shard directory when writing sharded blob`() = runTest {
+        fun `creates shard directory when writing sharded blob`(): Unit = runTest {
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val data = "data".toByteArray()
 
@@ -512,7 +512,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws UnsupportedPutOptionException for retention options`() = runTest {
+        fun `throws UnsupportedPutOptionException for retention options`(): Unit = runTest {
             val blobId = BlobId("blob")
             val data = "data".toByteArray()
 
@@ -529,7 +529,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws IOException in read-only mode`() = runTest {
+        fun `throws IOException in read-only mode`(): Unit = runTest {
             val readOnlyStorage = SafBlobStorage.createForTesting(
                 context = mockContext,
                 treeUri = testUri,
@@ -549,7 +549,7 @@ class SafBlobStorageTest {
     inner class DeleteBlobTests {
 
         @Test
-        fun `deletes existing blob`() = runTest {
+        fun `deletes existing blob`(): Unit = runTest {
             val blobId = BlobId("todelete")
 
             val mockFile = mockk<DocumentFile> {
@@ -564,7 +564,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `ignores delete for non-existent blob`() = runTest {
+        fun `ignores delete for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockRootDocument.findFile("missing.f") } returns null
@@ -574,7 +574,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `throws IOException in read-only mode`() = runTest {
+        fun `throws IOException in read-only mode`(): Unit = runTest {
             val readOnlyStorage = SafBlobStorage.createForTesting(
                 context = mockContext,
                 treeUri = testUri,
@@ -594,7 +594,7 @@ class SafBlobStorageTest {
     inner class ListBlobsTests {
 
         @Test
-        fun `lists blobs with prefix`() = runTest {
+        fun `lists blobs with prefix`(): Unit = runTest {
             val modTime = System.currentTimeMillis()
 
             // Root has a directory "p" and some files
@@ -626,7 +626,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `returns empty list when no matching blobs`() = runTest {
+        fun `returns empty list when no matching blobs`(): Unit = runTest {
             every { mockRootDocument.listFiles() } returns emptyArray()
 
             val results = storage.listBlobs("anything").toList()
@@ -635,7 +635,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `ignores files without complete blob suffix`() = runTest {
+        fun `ignores files without complete blob suffix`(): Unit = runTest {
             val modTime = System.currentTimeMillis()
 
             every { mockRootDocument.listFiles() } returns arrayOf(
@@ -711,7 +711,7 @@ class SafBlobStorageTest {
     inner class ShardingTests {
 
         @Test
-        fun `short blob IDs are not sharded`() = runTest {
+        fun `short blob IDs are not sharded`(): Unit = runTest {
             val blobId = BlobId("short") // Length 5 < 20
 
             val mockFile = mockk<DocumentFile> {
@@ -728,7 +728,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `long blob IDs are sharded`() = runTest {
+        fun `long blob IDs are sharded`(): Unit = runTest {
             // ID length 25 > 20, so will be sharded with [1]
             val blobId = BlobId("pack-abcdef1234567890abc")
 
@@ -750,7 +750,7 @@ class SafBlobStorageTest {
         }
 
         @Test
-        fun `uses prefix override shards when matching`() = runTest {
+        fun `uses prefix override shards when matching`(): Unit = runTest {
             val customParams = SafShardingParameters(
                 default = listOf(1),
                 maxNonShardedLength = 5,

@@ -55,7 +55,7 @@ class PerformanceBaselineTest {
         @Test
         @Timeout(value = 120, unit = TimeUnit.SECONDS)
         @DisplayName("Should write and read 100MB of data in under 30 seconds")
-        fun `should write and read 100MB of data in under 30 seconds`() = runTest(timeout = 2.minutes) {
+        fun `should write and read 100MB of data in under 30 seconds`(): Unit = runTest(timeout = 2.minutes) {
             assumeTrue(isE2EEnabled()) {
                 "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
             }
@@ -112,7 +112,7 @@ class PerformanceBaselineTest {
         @Test
         @Timeout(value = 60, unit = TimeUnit.SECONDS)
         @DisplayName("Should load 1000 index entries in under 5 seconds")
-        fun `should load 1000 index entries in under 5 seconds`() = runTest(timeout = 1.minutes) {
+        fun `should load 1000 index entries in under 5 seconds`(): Unit = runTest(timeout = 1.minutes) {
             assumeTrue(isE2EEnabled()) {
                 "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
             }

@@ -48,7 +48,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Kotlin recoverIndex decrypts a Go-created pack blob's encrypted local index")
-    fun goPackBlobLocalIndex_recoveredByKotlin() = runTest(timeout = 5.minutes) {
+    fun goPackBlobLocalIndex_recoveredByKotlin(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // 1. Go creates a repo + snapshot, writing pack blobs whose local (recovery) index is encrypted.
@@ -87,7 +87,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot restored by Kotlin matches source byte-for-byte")
-    fun goCreatedSnapshot_restoredByKotlin_matchesSourceByteForByte() = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_restoredByKotlin_matchesSourceByteForByte(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // 1. Create a deterministic source directory with known files
@@ -157,7 +157,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with nested dirs restored by Kotlin preserves structure")
-    fun goCreatedSnapshot_nestedDirs_restoredByKotlin() = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_nestedDirs_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // Create a more complex source with deep nesting
@@ -212,7 +212,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with binary data restored by Kotlin preserves bytes")
-    fun goCreatedSnapshot_binaryData_restoredByKotlin() = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_binaryData_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // Create binary files with known deterministic content
@@ -266,7 +266,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with empty files and dirs restored by Kotlin")
-    fun goCreatedSnapshot_emptyFilesAndDirs_restoredByKotlin() = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_emptyFilesAndDirs_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // Create empty file and empty directory
@@ -326,7 +326,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with symlinks restored by Kotlin")
-    fun goCreatedSnapshot_symlinks_restoredByKotlin() = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_symlinks_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
         requireGoKopia()
 
         // Create source with symlinks

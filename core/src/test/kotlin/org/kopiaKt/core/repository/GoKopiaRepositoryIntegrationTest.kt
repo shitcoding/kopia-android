@@ -164,7 +164,7 @@ class GoKopiaRepositoryIntegrationTest {
 
     @Test
     @DisplayName("Read manifests from Go Kopia repository")
-    fun `read manifests from go kopia repository`() = runTest {
+    fun `read manifests from go kopia repository`(): Unit = runTest {
         val repoDir = File(testRepoPath)
         assumeTrue(testRepoExists()) {
             "Go Kopia test repository not found at $testRepoPath — run create_test_repo.sh first"
@@ -219,7 +219,7 @@ class GoKopiaRepositoryIntegrationTest {
 
     @Test
     @DisplayName("Find all manifest types in Go Kopia repository")
-    fun `find all manifest types`() = runTest {
+    fun `find all manifest types`(): Unit = runTest {
         val repoDir = File(testRepoPath)
         assumeTrue(testRepoExists()) {
             "Go Kopia test repository not found at $testRepoPath — run create_test_repo.sh first"

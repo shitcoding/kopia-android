@@ -69,7 +69,7 @@ class HashMismatchDetectionTest {
     inner class SingleObjectCorruption {
 
         @Test
-        fun `should detect corrupted content during readObject`() = runTest {
+        fun `should detect corrupted content during readObject`(): Unit = runTest {
             val data = "integrity-test-payload".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
                 objects = mapOf("obj" to data),
@@ -96,7 +96,7 @@ class HashMismatchDetectionTest {
         }
 
         @Test
-        fun `should still succeed verifyObject on corrupted blob`() = runTest {
+        fun `should still succeed verifyObject on corrupted blob`(): Unit = runTest {
             val data = "verify-vs-read-test".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
                 objects = mapOf("obj" to data),
@@ -120,7 +120,7 @@ class HashMismatchDetectionTest {
     inner class TargetedEncryptedDataCorruption {
 
         @Test
-        fun `should detect when encrypted blob is bit-flipped in storage`() = runTest {
+        fun `should detect when encrypted blob is bit-flipped in storage`(): Unit = runTest {
             // Use a larger payload to ensure the encrypted data area is substantial
             val data = ByteArray(4096) { (it % 251).toByte() }
             val result = TestRepositoryFactory.createWithObjects(
@@ -161,7 +161,7 @@ class HashMismatchDetectionTest {
     inner class PackWideCorruptionImpact {
 
         @Test
-        fun `should fail reading at least one object when their shared pack blob is corrupted`() = runTest {
+        fun `should fail reading at least one object when their shared pack blob is corrupted`(): Unit = runTest {
             // Write multiple small objects that will land in the same pack blob
             val objects = mapOf(
                 "alpha" to "first-object-data-alpha".toByteArray(),

@@ -31,7 +31,7 @@ class FileChangeDuringBackupTest {
     inner class ContentChangeDetection {
 
         @Test
-        fun `should detect file content change between scan and upload when forceHash is 100`() = runBlocking {
+        fun `should detect file content change between scan and upload when forceHash is 100`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress, forceHashPercentage = 100)
@@ -74,7 +74,7 @@ class FileChangeDuringBackupTest {
     inner class FileDeletionDuringBackup {
 
         @Test
-        fun `should handle file deletion between scan and upload`() = runBlocking {
+        fun `should handle file deletion between scan and upload`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             // forceHash=100 to ensure we always attempt upload (not reuse cache)
@@ -112,7 +112,7 @@ class FileChangeDuringBackupTest {
     inner class FileSizeChanges {
 
         @Test
-        fun `should handle file growth between scan and upload`() = runBlocking {
+        fun `should handle file growth between scan and upload`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress, forceHashPercentage = 100)
@@ -147,7 +147,7 @@ class FileChangeDuringBackupTest {
         }
 
         @Test
-        fun `should handle file truncation between scan and upload`() = runBlocking {
+        fun `should handle file truncation between scan and upload`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress, forceHashPercentage = 100)

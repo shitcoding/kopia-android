@@ -39,7 +39,7 @@ class PasswordChangeTest {
     }
 
     @Test
-    fun `should change password and open with new password`() = runTest {
+    fun `should change password and open with new password`(): Unit = runTest {
         val storage = InMemoryBlobStorage()
         val config = createConfig()
         val fbm = FormatBlobManager(storage)
@@ -57,7 +57,7 @@ class PasswordChangeTest {
     }
 
     @Test
-    fun `should fail to open with old password after change`() = runTest {
+    fun `should fail to open with old password after change`(): Unit = runTest {
         val storage = InMemoryBlobStorage()
         val config = createConfig()
         val fbm = FormatBlobManager(storage)
@@ -74,7 +74,7 @@ class PasswordChangeTest {
     private data class TestPayload(val name: String, val value: Int)
 
     @Test
-    fun `should preserve all data after password change`() = runTest {
+    fun `should preserve all data after password change`(): Unit = runTest {
         val storage = InMemoryBlobStorage()
         val config = createConfig()
 
@@ -105,7 +105,7 @@ class PasswordChangeTest {
     }
 
     @Test
-    fun `should preserve manifests after password change`() = runTest {
+    fun `should preserve manifests after password change`(): Unit = runTest {
         val storage = InMemoryBlobStorage()
         val config = createConfig()
 

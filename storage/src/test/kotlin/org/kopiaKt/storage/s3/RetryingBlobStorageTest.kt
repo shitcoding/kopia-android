@@ -52,7 +52,7 @@ class RetryingBlobStorageTest {
     inner class SuccessTests {
 
         @Test
-        fun `should pass through successful getBlob`() = runTest {
+        fun `should pass through successful getBlob`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
 
@@ -65,7 +65,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should pass through successful putBlob`() = runTest {
+        fun `should pass through successful putBlob`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val data = "test data".toByteArray()
 
@@ -77,7 +77,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should pass through successful deleteBlob`() = runTest {
+        fun `should pass through successful deleteBlob`(): Unit = runTest {
             val blobId = BlobId("test-blob")
 
             coEvery { mockDelegate.deleteBlob(blobId) } returns Unit
@@ -88,7 +88,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should pass through getBlobMetadata`() = runTest {
+        fun `should pass through getBlobMetadata`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val metadata = BlobMetadata(blobId, 100, Instant.now())
 
@@ -105,7 +105,7 @@ class RetryingBlobStorageTest {
     inner class RetryTests {
 
         @Test
-        fun `should retry on IOException`() = runTest {
+        fun `should retry on IOException`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -124,7 +124,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on SocketTimeoutException`() = runTest {
+        fun `should retry on SocketTimeoutException`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -143,7 +143,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on S3 503 Service Unavailable`() = runTest {
+        fun `should retry on S3 503 Service Unavailable`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -165,7 +165,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on S3 500 Internal Server Error`() = runTest {
+        fun `should retry on S3 500 Internal Server Error`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -186,7 +186,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on S3 429 Too Many Requests`() = runTest {
+        fun `should retry on S3 429 Too Many Requests`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -207,7 +207,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on WebDAV 503 Service Unavailable`() = runTest {
+        fun `should retry on WebDAV 503 Service Unavailable`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -226,7 +226,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on SFTP connection lost`() = runTest {
+        fun `should retry on SFTP connection lost`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -245,7 +245,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should retry on WebDAV 408 Request Timeout`() = runTest {
+        fun `should retry on WebDAV 408 Request Timeout`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "test data".toByteArray()
             val callCount = AtomicInteger(0)
@@ -264,7 +264,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should exhaust retries and throw`() = runTest {
+        fun `should exhaust retries and throw`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -287,7 +287,7 @@ class RetryingBlobStorageTest {
     inner class NonRetryableTests {
 
         @Test
-        fun `should not retry BlobNotFoundException`() = runTest {
+        fun `should not retry BlobNotFoundException`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -304,7 +304,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry InvalidCredentialsException`() = runTest {
+        fun `should not retry InvalidCredentialsException`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -321,7 +321,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry S3 400 Bad Request`() = runTest {
+        fun `should not retry S3 400 Bad Request`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -341,7 +341,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry S3 403 Forbidden`() = runTest {
+        fun `should not retry S3 403 Forbidden`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -361,7 +361,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry S3 404 Not Found`() = runTest {
+        fun `should not retry S3 404 Not Found`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -381,7 +381,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry SFTP permission denied`() = runTest {
+        fun `should not retry SFTP permission denied`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -398,7 +398,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry WebDAV 404 Not Found`() = runTest {
+        fun `should not retry WebDAV 404 Not Found`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -415,7 +415,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not retry IllegalArgumentException`() = runTest {
+        fun `should not retry IllegalArgumentException`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val callCount = AtomicInteger(0)
 
@@ -465,7 +465,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should passthrough close`() = runTest {
+        fun `should passthrough close`(): Unit = runTest {
             coEvery { mockDelegate.close() } returns Unit
 
             retryingStorage.close()
@@ -479,7 +479,7 @@ class RetryingBlobStorageTest {
     inner class ListBlobsRetryTests {
 
         @Test
-        fun `should retry flow on error`() = runTest {
+        fun `should retry flow on error`(): Unit = runTest {
             val callCount = AtomicInteger(0)
 
             coEvery { mockDelegate.listBlobs("test-") } answers {
@@ -497,7 +497,7 @@ class RetryingBlobStorageTest {
         }
 
         @Test
-        fun `should not double-emit already-listed blobs when retrying`() = runTest {
+        fun `should not double-emit already-listed blobs when retrying`(): Unit = runTest {
             // The upstream emits a,b then fails once; on retry it emits a,b,c. The wrapper must NOT
             // hand the collector a,b,a,b,c — a mid-stream retry cannot re-emit already-seen blobs.
             val callCount = AtomicInteger(0)

@@ -86,7 +86,7 @@ class SftpBlobStorageTest {
     inner class GetBlobTests {
 
         @Test
-        fun `returns blob data for simple blob ID`() = runTest {
+        fun `returns blob data for simple blob ID`(): Unit = runTest {
             val blobId = BlobId("short")
             val expectedData = "test data".toByteArray()
 
@@ -113,7 +113,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns blob data for sharded blob ID`() = runTest {
+        fun `returns blob data for sharded blob ID`(): Unit = runTest {
             // Blob ID longer than 20 chars triggers sharding
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val expectedData = "sharded test data".toByteArray()
@@ -142,7 +142,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset`() = runTest {
+        fun `returns partial blob data with offset`(): Unit = runTest {
             val blobId = BlobId("short")
             val fullData = "0123456789".toByteArray()
 
@@ -169,7 +169,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns partial blob data with offset and length`() = runTest {
+        fun `returns partial blob data with offset and length`(): Unit = runTest {
             val blobId = BlobId("short")
             val fullData = "0123456789".toByteArray()
 
@@ -195,7 +195,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns empty array for zero-length read`() = runTest {
+        fun `returns empty array for zero-length read`(): Unit = runTest {
             val blobId = BlobId("short")
 
             val mockFile = mockk<RemoteFile>(relaxed = true) {
@@ -212,7 +212,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws BlobNotFoundException when blob does not exist`() = runTest {
+        fun `throws BlobNotFoundException when blob does not exist`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every {
@@ -225,7 +225,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for offset beyond file size`() = runTest {
+        fun `throws InvalidBlobRangeException for offset beyond file size`(): Unit = runTest {
             val blobId = BlobId("short")
 
             val mockFile = mockk<RemoteFile>(relaxed = true) {
@@ -242,7 +242,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws InvalidBlobRangeException for negative offset`() = runTest {
+        fun `throws InvalidBlobRangeException for negative offset`(): Unit = runTest {
             val blobId = BlobId("short")
 
             assertThrows<InvalidBlobRangeException> {
@@ -251,7 +251,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws on a short open-ended read instead of silently truncating`() = runTest {
+        fun `throws on a short open-ended read instead of silently truncating`(): Unit = runTest {
             // File claims 10 bytes but the server delivers only 4 then EOF. The open-ended (length
             // = -1) branch used to return the truncated 4 bytes silently — a corrupt restore.
             val blobId = BlobId("short")
@@ -265,7 +265,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws on a short fixed-length read`() = runTest {
+        fun `throws on a short fixed-length read`(): Unit = runTest {
             val blobId = BlobId("short")
             every {
                 mockSftpClient.open("$basePath/short.f", any<EnumSet<OpenMode>>())
@@ -277,7 +277,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws on a read larger than Int MAX instead of overflowing to empty`() = runTest {
+        fun `throws on a read larger than Int MAX instead of overflowing to empty`(): Unit = runTest {
             // A >2 GiB range can't fit one JVM array; narrowing to Int would overflow negative and
             // (pre-fix) silently return empty. It must fail loudly instead.
             val blobId = BlobId("huge")
@@ -299,7 +299,7 @@ class SftpBlobStorageTest {
     inner class GetBlobMetadataTests {
 
         @Test
-        fun `returns metadata for existing blob`() = runTest {
+        fun `returns metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("short")
             val modTime = Instant.parse("2024-01-15T10:30:00Z")
 
@@ -319,7 +319,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns null for non-existent blob`() = runTest {
+        fun `returns null for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockSftpClient.stat("$basePath/missing.f") } throws
@@ -336,7 +336,7 @@ class SftpBlobStorageTest {
     inner class PutBlobTests {
 
         @Test
-        fun `writes blob data successfully`() = runTest {
+        fun `writes blob data successfully`(): Unit = runTest {
             val blobId = BlobId("new")
             val data = "new content".toByteArray()
 
@@ -367,7 +367,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `creates parent directories when needed`() = runTest {
+        fun `creates parent directories when needed`(): Unit = runTest {
             val blobId = BlobId("pack-abcdef1234567890abcdef")
             val data = "data".toByteArray()
 
@@ -392,7 +392,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `skips write when blob exists and dontOverwrite is true`() = runTest {
+        fun `skips write when blob exists and dontOverwrite is true`(): Unit = runTest {
             val blobId = BlobId("existing")
             val data = "data".toByteArray()
 
@@ -407,7 +407,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `throws UnsupportedPutOptionException for retention options`() = runTest {
+        fun `throws UnsupportedPutOptionException for retention options`(): Unit = runTest {
             val blobId = BlobId("blob")
             val data = "data".toByteArray()
 
@@ -424,7 +424,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `sets modification time when requested`() = runTest {
+        fun `sets modification time when requested`(): Unit = runTest {
             val blobId = BlobId("timestamped")
             val data = "data".toByteArray()
             val modTime = Instant.parse("2024-01-15T10:30:00Z")
@@ -448,7 +448,7 @@ class SftpBlobStorageTest {
     inner class DeleteBlobTests {
 
         @Test
-        fun `deletes existing blob`() = runTest {
+        fun `deletes existing blob`(): Unit = runTest {
             val blobId = BlobId("todelete")
 
             every { mockSftpClient.rm("$basePath/todelete.f") } just Runs
@@ -459,7 +459,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `ignores delete for non-existent blob`() = runTest {
+        fun `ignores delete for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("missing")
 
             every { mockSftpClient.rm("$basePath/missing.f") } throws
@@ -470,7 +470,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `deletes sharded blob`() = runTest {
+        fun `deletes sharded blob`(): Unit = runTest {
             val blobId = BlobId("pack-abcdef1234567890abcdef")
 
             every { mockSftpClient.rm("$basePath/p/ack/-abcdef1234567890abcdef.f") } just Runs
@@ -486,7 +486,7 @@ class SftpBlobStorageTest {
     inner class ListBlobsTests {
 
         @Test
-        fun `lists blobs with prefix`() = runTest {
+        fun `lists blobs with prefix`(): Unit = runTest {
             val modTime = Instant.parse("2024-01-15T10:30:00Z")
 
             // Root directory listing
@@ -509,7 +509,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `returns empty list when directory does not exist`() = runTest {
+        fun `returns empty list when directory does not exist`(): Unit = runTest {
             every { mockSftpClient.ls(basePath) } throws
                 SFTPException(Response.StatusCode.NO_SUCH_FILE, "No such file")
 
@@ -519,7 +519,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `ignores files without complete blob suffix`() = runTest {
+        fun `ignores files without complete blob suffix`(): Unit = runTest {
             val validFile = mockResourceInfo("valid.f", isDirectory = false, size = 100L)
             val invalidFile = mockResourceInfo(".shards", isDirectory = false, size = 50L)
 
@@ -532,7 +532,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `ignores dot and dotdot entries`() = runTest {
+        fun `ignores dot and dotdot entries`(): Unit = runTest {
             val dotEntry = mockResourceInfo(".", isDirectory = true)
             val dotDotEntry = mockResourceInfo("..", isDirectory = true)
             val validFile = mockResourceInfo("valid.f", isDirectory = false, size = 100L)
@@ -546,7 +546,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `does not stack overflow on a directory cycle`() = runTest {
+        fun `does not stack overflow on a directory cycle`(): Unit = runTest {
             // Every directory lists a subdirectory of the same name (a server-side symlink cycle).
             // Without the recursion-depth cap this walks forever and StackOverflows.
             val loopDir = mockResourceInfo("loop", isDirectory = true)
@@ -602,7 +602,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `putBlob is rejected in read-only mode`() = runTest {
+        fun `putBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = SftpBlobStorage.createWithConnections(
                 options = options,
                 sshClient = mockSshClient,
@@ -616,7 +616,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `deleteBlob is rejected in read-only mode`() = runTest {
+        fun `deleteBlob is rejected in read-only mode`(): Unit = runTest {
             val readOnlyStorage = SftpBlobStorage.createWithConnections(
                 options = options,
                 sshClient = mockSshClient,
@@ -635,7 +635,7 @@ class SftpBlobStorageTest {
     inner class ShardingTests {
 
         @Test
-        fun `short blob IDs are not sharded`() = runTest {
+        fun `short blob IDs are not sharded`(): Unit = runTest {
             val blobId = BlobId("short") // Length 5 < 20
             val data = "data".toByteArray()
 
@@ -655,7 +655,7 @@ class SftpBlobStorageTest {
         }
 
         @Test
-        fun `long blob IDs are sharded`() = runTest {
+        fun `long blob IDs are sharded`(): Unit = runTest {
             // ID length 25 > 20, so will be sharded with [1, 3]
             val blobId = BlobId("pack-abcdef1234567890abc")
             val data = "data".toByteArray()
@@ -688,7 +688,7 @@ class SftpBlobStorageTest {
     inner class CloseTests {
 
         @Test
-        fun `closes SFTP and SSH clients`() = runTest {
+        fun `closes SFTP and SSH clients`(): Unit = runTest {
             every { mockSftpClient.close() } just Runs
             every { mockSshClient.disconnect() } just Runs
 

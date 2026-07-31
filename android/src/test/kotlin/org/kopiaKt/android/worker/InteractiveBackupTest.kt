@@ -45,7 +45,7 @@ class InteractiveBackupTest {
     }
 
     @Test
-    fun `a successful run completes normally`() = runBlocking {
+    fun `a successful run completes normally`(): Unit = runBlocking {
         BackupWorker.repositoryProvider = { TestWorkerFactory.repository }
 
         runInteractiveBackup(context, SOURCE_ID, "/does/not/matter")
@@ -64,7 +64,7 @@ class InteractiveBackupTest {
     }
 
     @Test
-    fun `cancelling the caller stops the run`() = runBlocking {
+    fun `cancelling the caller stops the run`(): Unit = runBlocking {
         val started = CompletableDeferred<Unit>()
         TestWorkerFactory.blockOn = started
 

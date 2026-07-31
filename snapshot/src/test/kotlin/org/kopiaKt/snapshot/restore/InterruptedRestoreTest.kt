@@ -49,7 +49,7 @@ class InterruptedRestoreTest {
     }
 
     @Test
-    fun `should complete restore after previous partial restore`() = runBlocking {
+    fun `should complete restore after previous partial restore`(): Unit = runBlocking {
         val fileContent = ByteArray(1000) { it.toByte() }
         val files = (1..10).map { i ->
             SlowMockFile("file$i.txt", fileContent, delayMs = 20)
@@ -98,7 +98,7 @@ class InterruptedRestoreTest {
     }
 
     @Test
-    fun `should not create duplicate files on retry`() = runBlocking {
+    fun `should not create duplicate files on retry`(): Unit = runBlocking {
         val contents = (1..5).map { i -> "content-$i".toByteArray() }
         val files = (1..5).map { i ->
             SlowMockFile("file$i.txt", contents[i - 1], delayMs = 20)
@@ -152,7 +152,7 @@ class InterruptedRestoreTest {
     }
 
     @Test
-    fun `should handle partially written file on retry`() = runBlocking {
+    fun `should handle partially written file on retry`(): Unit = runBlocking {
         val correctContent = "correct-full-content-here".toByteArray()
 
         // Manually write a truncated/incorrect file to tempDir
@@ -176,7 +176,7 @@ class InterruptedRestoreTest {
     }
 
     @Test
-    fun `should restore remaining files in incremental mode`() = runBlocking {
+    fun `should restore remaining files in incremental mode`(): Unit = runBlocking {
         val now = Instant.now()
         val fileContents = (1..5).map { i -> "file-content-$i".toByteArray() }
 
@@ -212,7 +212,7 @@ class InterruptedRestoreTest {
     }
 
     @Test
-    fun `coroutine cancellation must not be swallowed as an ignored restore error`() = runBlocking {
+    fun `coroutine cancellation must not be swallowed as an ignored restore error`(): Unit = runBlocking {
         val fileContent = ByteArray(1000) { it.toByte() }
         val files = (1..20).map { i -> SlowMockFile("file$i.txt", fileContent, delayMs = 30) }
         val rootDir = MockDirectory(name = "", entries = files)

@@ -51,7 +51,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI lists a snapshot written by a default (epoch-mode) Kotlin repo")
-    fun goListsKotlinEpochSnapshot() = runTest {
+    fun goListsKotlinEpochSnapshot(): Unit = runTest {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 
@@ -69,7 +69,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores a default (epoch-mode) Kotlin snapshot with matching content")
-    fun goRestoresKotlinEpochSnapshot() = runTest {
+    fun goRestoresKotlinEpochSnapshot(): Unit = runTest {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 
@@ -89,7 +89,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go sees a snapshot Kotlin writes INTO a Go-created epoch repo")
-    fun goSeesKotlinWriteIntoGoEpochRepo() = runTest {
+    fun goSeesKotlinWriteIntoGoEpochRepo(): Unit = runTest {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 

@@ -57,7 +57,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `getBlob delegates to underlying storage`() = runBlocking {
+    fun `getBlob delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         val expectedData = byteArrayOf(1, 2, 3, 4)
@@ -72,7 +72,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `putBlob delegates to underlying storage`() = runBlocking {
+    fun `putBlob delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         val data = byteArrayOf(1, 2, 3, 4)
@@ -86,7 +86,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `getBlobMetadata delegates to underlying storage`() = runBlocking {
+    fun `getBlobMetadata delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         val expectedMetadata = BlobMetadata(blobId, 100, Instant.now())
@@ -100,7 +100,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `listBlobs delegates to underlying storage`() = runBlocking {
+    fun `listBlobs delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val metadata1 = BlobMetadata(BlobId("blob1"), 100, Instant.now())
         val metadata2 = BlobMetadata(BlobId("blob2"), 200, Instant.now())
@@ -114,7 +114,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `deleteBlob delegates to underlying storage`() = runBlocking {
+    fun `deleteBlob delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
 
@@ -162,7 +162,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `close delegates to underlying storage`() = runBlocking {
+    fun `close delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
 
         coEvery { delegate.close() } returns Unit
@@ -174,7 +174,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `flushCaches delegates to underlying storage`() = runBlocking {
+    fun `flushCaches delegates to underlying storage`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
 
         coEvery { delegate.flushCaches() } returns Unit
@@ -186,7 +186,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `concurrent reads are limited by semaphore`() = runBlocking {
+    fun `concurrent reads are limited by semaphore`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         var concurrentCount = 0
@@ -214,7 +214,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `concurrent writes are limited by semaphore`() = runBlocking {
+    fun `concurrent writes are limited by semaphore`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val data = byteArrayOf(1, 2, 3)
         var concurrentCount = 0
@@ -241,7 +241,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `statistics track bytes consumed`() = runBlocking {
+    fun `statistics track bytes consumed`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         val data = ByteArray(1000)
@@ -263,7 +263,7 @@ class ThrottlingBlobStorageTest {
     }
 
     @Test
-    fun `statistics track bytes with throttling enabled`() = runBlocking {
+    fun `statistics track bytes with throttling enabled`(): Unit = runBlocking {
         val delegate = mockk<BlobStorage>()
         val blobId = BlobId("test-blob")
         val data = ByteArray(100)
@@ -306,7 +306,7 @@ class ThrottlingBlobStorageTest {
 class TokenBucketTest {
 
     @Test
-    fun `consume zero bytes returns immediately`() = runBlocking {
+    fun `consume zero bytes returns immediately`(): Unit = runBlocking {
         val bucket = TokenBucket(1000)
         val time = measureTimeMillis {
             bucket.consume(0)
@@ -315,7 +315,7 @@ class TokenBucketTest {
     }
 
     @Test
-    fun `consume within bucket capacity returns immediately`() = runBlocking {
+    fun `consume within bucket capacity returns immediately`(): Unit = runBlocking {
         val bucket = TokenBucket(10000) // 10KB/s, starts with 10KB
         val time = measureTimeMillis {
             bucket.consume(5000) // 5KB, within capacity
@@ -324,7 +324,7 @@ class TokenBucketTest {
     }
 
     @Test
-    fun `totalBytesConsumed tracks usage`() = runBlocking {
+    fun `totalBytesConsumed tracks usage`(): Unit = runBlocking {
         val bucket = TokenBucket(100000)
 
         bucket.consume(100)
@@ -335,7 +335,7 @@ class TokenBucketTest {
     }
 
     @Test
-    fun `multiple fast consumes are allowed when bucket has tokens`() = runBlocking {
+    fun `multiple fast consumes are allowed when bucket has tokens`(): Unit = runBlocking {
         val bucket = TokenBucket(100000) // 100KB/s
 
         val time = measureTimeMillis {

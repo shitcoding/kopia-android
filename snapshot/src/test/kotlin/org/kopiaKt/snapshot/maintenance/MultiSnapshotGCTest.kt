@@ -109,7 +109,7 @@ class MultiSnapshotGCTest {
     inner class BasicGCExecution {
 
         @Test
-        fun `should run GC without errors on repository with snapshots`() = runTest {
+        fun `should run GC without errors on repository with snapshots`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -180,7 +180,7 @@ class MultiSnapshotGCTest {
     inner class ContentPreservation {
 
         @Test
-        fun `should preserve all content when GC runs`() = runTest {
+        fun `should preserve all content when GC runs`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -245,7 +245,7 @@ class MultiSnapshotGCTest {
     inner class MultipleSnapshots {
 
         @Test
-        fun `should handle repository with multiple snapshots`() = runTest {
+        fun `should handle repository with multiple snapshots`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -343,7 +343,7 @@ class MultiSnapshotGCTest {
     inner class ProductionDirectoryTraversal {
 
         @Test
-        fun `in-use set includes content nested under directories written without the k prefix`() = runTest {
+        fun `in-use set includes content nested under directories written without the k prefix`(): Unit = runTest {
             // Production directory objects are written WITHOUT the 'k' prefix, so isDirectoryId is
             // false for them. GC must still recurse into them (via DirEntry.type) or it under-collects
             // the in-use set and would delete live content once Phase 2 lands. Build a two-level tree
@@ -466,7 +466,7 @@ class MultiSnapshotGCTest {
     inner class EmptyRepository {
 
         @Test
-        fun `should handle repository with no snapshots`() = runTest {
+        fun `should handle repository with no snapshots`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -537,7 +537,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `delete=true reclaims unreferenced content and keeps referenced content`() = runTest {
+        fun `delete=true reclaims unreferenced content and keeps referenced content`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -565,7 +565,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `unreferenced content younger than minContentAge is kept`() = runTest {
+        fun `unreferenced content younger than minContentAge is kept`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -582,7 +582,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `dry run reports but never deletes unreferenced content`() = runTest {
+        fun `dry run reports but never deletes unreferenced content`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -623,7 +623,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `dry run is fail-open and tolerates an unverifiable object without aborting`() = runTest {
+        fun `dry run is fail-open and tolerates an unverifiable object without aborting`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -639,7 +639,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `delete run completes on a snapshot containing an empty file`() = runTest {
+        fun `delete run completes on a snapshot containing an empty file`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -684,7 +684,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `delete run keeps a multi-chunk indirect file and its index content`() = runTest {
+        fun `delete run keeps a multi-chunk indirect file and its index content`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -771,7 +771,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `delete run refuses to run over a partial index view (fail closed)`() = runTest {
+        fun `delete run refuses to run over a partial index view (fail closed)`(): Unit = runTest {
             val (repository, storage) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -796,7 +796,7 @@ class MultiSnapshotGCTest {
         }
 
         @Test
-        fun `oversized directory manifest aborts a delete run and is skipped in a dry run`() = runTest {
+        fun `oversized directory manifest aborts a delete run and is skipped in a dry run`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 

@@ -46,7 +46,7 @@ class RepositoryCreationTest {
     inner class BasicCreation {
 
         @Test
-        fun `create repository with defaults produces valid repo`() = runTest {
+        fun `create repository with defaults produces valid repo`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
@@ -65,7 +65,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `create repository with each supported hash algorithm`() = runTest {
+        fun `create repository with each supported hash algorithm`(): Unit = runTest {
             for (hashAlg in HashAlgorithm.entries) {
                 val localStorage = InMemoryBlobStorage()
                 val config = RepositoryConfig(
@@ -93,7 +93,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `create repository with no compression`() = runTest {
+        fun `create repository with no compression`(): Unit = runTest {
             // RepositoryConfig does not have a compression field -- the default compression
             // is NONE in ContentManager. We verify that objects written without explicit
             // compression are stored and readable.
@@ -119,7 +119,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `create repository stores description in client options`() = runTest {
+        fun `create repository stores description in client options`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
@@ -141,7 +141,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `create repository with empty password fails gracefully`() = runTest {
+        fun `create repository with empty password fails gracefully`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
@@ -175,7 +175,7 @@ class RepositoryCreationTest {
     inner class PostCreationState {
 
         @Test
-        fun `newly created repo is connectable`() = runTest {
+        fun `newly created repo is connectable`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
@@ -195,7 +195,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `newly created repo has correct format version`() = runTest {
+        fun `newly created repo has correct format version`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,
@@ -214,7 +214,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `created repo supports write operations`() = runTest {
+        fun `created repo supports write operations`(): Unit = runTest {
             val (repo, _) = TestRepositoryFactory.createInMemory()
 
             // Write data
@@ -237,7 +237,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `created repo supports manifest operations`() = runTest {
+        fun `created repo supports manifest operations`(): Unit = runTest {
             val (repo, _) = TestRepositoryFactory.createInMemory()
 
             val writer = repo.newDirectWriter()
@@ -267,7 +267,7 @@ class RepositoryCreationTest {
     inner class StorageBackends {
 
         @Test
-        fun `create repo with in-memory storage succeeds`() = runTest {
+        fun `create repo with in-memory storage succeeds`(): Unit = runTest {
             val (repo, memStorage) = TestRepositoryFactory.createInMemory()
 
             assertThat(repo).isNotNull()
@@ -278,7 +278,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `create repo with filesystem storage succeeds`(@TempDir tempDir: Path) = runTest {
+        fun `create repo with filesystem storage succeeds`(@TempDir tempDir: Path): Unit = runTest {
             val fsStorage = FilesystemBlobStorage.create(tempDir, create = true)
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
@@ -311,7 +311,7 @@ class RepositoryCreationTest {
         }
 
         @Test
-        fun `wrong password fails to open created repo`() = runTest {
+        fun `wrong password fails to open created repo`(): Unit = runTest {
             val config = RepositoryConfig(
                 hash = HashAlgorithm.BLAKE2B_256_128.id,
                 encryption = EncryptionAlgorithm.AES256_GCM_HMAC_SHA256.id,

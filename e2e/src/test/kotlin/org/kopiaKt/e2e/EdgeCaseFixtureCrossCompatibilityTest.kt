@@ -79,7 +79,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
     @Test
     @DisplayName("policy saved to a Go-created repo persists across close and reopen")
-    fun policyPersistsInGoCreatedRepoAcrossReopen() = runTest(timeout = 2.minutes) {
+    fun policyPersistsInGoCreatedRepoAcrossReopen(): Unit = runTest(timeout = 2.minutes) {
         // Regression: on a Go-created repo the policy save appeared to succeed but the manifest
         // was not there after reopening (caught by the policy_editor E2E flow 2026-07-17).
         val source = org.kopiaKt.snapshot.model.SourceInfo(
@@ -111,7 +111,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
     @Test
     @DisplayName("Kotlin opens Go-created edge-case fixture and lists snapshots")
-    fun kotlinOpensFixtureAndListsSnapshots() = runTest(timeout = 2.minutes) {
+    fun kotlinOpensFixtureAndListsSnapshots(): Unit = runTest(timeout = 2.minutes) {
         val storage = FilesystemBlobStorage(fixtureRepoDir)
         val repository = DirectRepositoryImpl.open(storage, fixturePassword)
         repo = repository
@@ -137,7 +137,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
     @Test
     @DisplayName("Kotlin restores Go edge-case fixture with expected file tree")
-    fun kotlinRestoresGoEdgeCaseFixture() = runTest(timeout = 2.minutes) {
+    fun kotlinRestoresGoEdgeCaseFixture(): Unit = runTest(timeout = 2.minutes) {
         val storage = FilesystemBlobStorage(fixtureRepoDir)
         val repository = DirectRepositoryImpl.open(storage, fixturePassword)
         repo = repository
@@ -181,7 +181,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
     @Test
     @DisplayName("Kotlin restores edge-case fixture and verifies known file content")
-    fun kotlinRestoresFixtureAndVerifiesContent() = runTest(timeout = 2.minutes) {
+    fun kotlinRestoresFixtureAndVerifiesContent(): Unit = runTest(timeout = 2.minutes) {
         val storage = FilesystemBlobStorage(fixtureRepoDir)
         val repository = DirectRepositoryImpl.open(storage, fixturePassword)
         repo = repository
@@ -232,7 +232,7 @@ class EdgeCaseFixtureCrossCompatibilityTest {
 
     @Test
     @DisplayName("Go CLI and Kotlin see same snapshot count in fixture repo")
-    fun goAndKotlinSeeConsistentSnapshots() = runTest(timeout = 2.minutes) {
+    fun goAndKotlinSeeConsistentSnapshots(): Unit = runTest(timeout = 2.minutes) {
         // Require Go CLI for this test
         try {
             CrossCompatibilityTestBase.kopiaBinaryPath = KopiaCliRunner.defaultKopiaBinary()

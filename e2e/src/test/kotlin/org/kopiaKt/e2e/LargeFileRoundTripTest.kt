@@ -35,7 +35,7 @@ class LargeFileRoundTripTest {
 
         @Test
         @DisplayName("Should round-trip 10MB file with SHA-256 verification")
-        fun `should round-trip 10MB file with SHA-256 verification`() = runTest(timeout = 3.minutes) {
+        fun `should round-trip 10MB file with SHA-256 verification`(): Unit = runTest(timeout = 3.minutes) {
             val size = 10 * 1024 * 1024
             val original = LargeDataGenerator.generate(size, seed = 10L)
             val originalHash = LargeDataGenerator.sha256(original)
@@ -59,7 +59,7 @@ class LargeFileRoundTripTest {
 
         @Test
         @DisplayName("Should round-trip file exactly at splitter boundary (1MB)")
-        fun `should round-trip file exactly at splitter boundary`() = runTest(timeout = 1.minutes) {
+        fun `should round-trip file exactly at splitter boundary`(): Unit = runTest(timeout = 1.minutes) {
             val size = 1_048_576 // exactly 1MB, FIXED-1M splitter default
             val original = LargeDataGenerator.generate(size, seed = 100L)
             val originalHash = LargeDataGenerator.sha256(original)
@@ -78,7 +78,7 @@ class LargeFileRoundTripTest {
 
         @Test
         @DisplayName("Should round-trip file at splitter boundary plus one byte")
-        fun `should round-trip file at splitter boundary plus one byte`() = runTest(timeout = 1.minutes) {
+        fun `should round-trip file at splitter boundary plus one byte`(): Unit = runTest(timeout = 1.minutes) {
             val size = 1_048_577 // 1MB + 1 byte
             val original = LargeDataGenerator.generate(size, seed = 101L)
             val originalHash = LargeDataGenerator.sha256(original)
@@ -103,7 +103,7 @@ class LargeFileRoundTripTest {
         @Test
         @Tag("slow")
         @DisplayName("Should handle file with highly compressible content at 50MB")
-        fun `should handle file with highly compressible content at 50MB`() = runTest(timeout = 5.minutes) {
+        fun `should handle file with highly compressible content at 50MB`(): Unit = runTest(timeout = 5.minutes) {
             val size = 50 * 1024 * 1024
             val original = ByteArray(size) // all zeros -- highly compressible
             val originalHash = LargeDataGenerator.sha256(original)
@@ -123,7 +123,7 @@ class LargeFileRoundTripTest {
         @Test
         @Tag("slow")
         @DisplayName("Should handle file with incompressible content at 50MB")
-        fun `should handle file with incompressible content at 50MB`() = runTest(timeout = 5.minutes) {
+        fun `should handle file with incompressible content at 50MB`(): Unit = runTest(timeout = 5.minutes) {
             val size = 50 * 1024 * 1024
             val original = LargeDataGenerator.generate(size, seed = 999L) // random data, incompressible
             val originalHash = LargeDataGenerator.sha256(original)
@@ -148,7 +148,7 @@ class LargeFileRoundTripTest {
         @Test
         @Tag("slow")
         @DisplayName("Should round-trip 50MB file with SHA-256 verification")
-        fun `should round-trip 50MB file with SHA-256 verification`() = runTest(timeout = 5.minutes) {
+        fun `should round-trip 50MB file with SHA-256 verification`(): Unit = runTest(timeout = 5.minutes) {
             val size = 50 * 1024 * 1024
             val original = LargeDataGenerator.generate(size, seed = 50L)
             val originalHash = LargeDataGenerator.sha256(original)
@@ -168,7 +168,7 @@ class LargeFileRoundTripTest {
         @Test
         @Tag("slow")
         @DisplayName("Should round-trip 100MB file with SHA-256 verification")
-        fun `should round-trip 100MB file with SHA-256 verification`() = runTest(timeout = 10.minutes) {
+        fun `should round-trip 100MB file with SHA-256 verification`(): Unit = runTest(timeout = 10.minutes) {
             val size = 100 * 1024 * 1024
             val original = LargeDataGenerator.generate(size, seed = 100L)
             val originalHash = LargeDataGenerator.sha256(original)

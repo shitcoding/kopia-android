@@ -50,7 +50,7 @@ class MissingBlobDetectionTest {
     inner class SingleObjectMissingPack {
 
         @Test
-        fun `should throw when reading object whose pack blob was deleted`() = runTest {
+        fun `should throw when reading object whose pack blob was deleted`(): Unit = runTest {
             val data = "test data for missing blob detection".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to data),
@@ -79,7 +79,7 @@ class MissingBlobDetectionTest {
         }
 
         @Test
-        fun `should throw when reading object whose pack blob was truncated`() = runTest {
+        fun `should throw when reading object whose pack blob was truncated`(): Unit = runTest {
             val data = "test data for truncation detection".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to data),
@@ -119,7 +119,7 @@ class MissingBlobDetectionTest {
     inner class VerifyVsRead {
 
         @Test
-        fun `should still succeed verifyObject when pack blob is deleted but index exists`() = runTest {
+        fun `should still succeed verifyObject when pack blob is deleted but index exists`(): Unit = runTest {
             val data = "data for verify-vs-read test".toByteArray()
             val result = TestRepositoryFactory.createWithObjects(
                 mapOf("obj" to data),
@@ -155,7 +155,7 @@ class MissingBlobDetectionTest {
     inner class MultipleObjectsDeletedPack {
 
         @Test
-        fun `should report error when reading any object from a deleted pack`() = runTest {
+        fun `should report error when reading any object from a deleted pack`(): Unit = runTest {
             val objects = mapOf(
                 "first" to "first object data content".toByteArray(),
                 "second" to "second object data content".toByteArray(),
@@ -189,7 +189,7 @@ class MissingBlobDetectionTest {
         }
 
         @Test
-        fun `should handle gracefully when all pack blobs are missing`() = runTest {
+        fun `should handle gracefully when all pack blobs are missing`(): Unit = runTest {
             val objects = mapOf(
                 "alpha" to "alpha content bytes".toByteArray(),
                 "beta" to "beta content bytes here".toByteArray(),

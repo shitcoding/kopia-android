@@ -25,7 +25,7 @@ class FileUploaderTest {
     inner class CacheReuse {
 
         @Test
-        fun `reuses previous entry when metadata matches`() = runBlocking {
+        fun `reuses previous entry when metadata matches`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress)
@@ -55,7 +55,7 @@ class FileUploaderTest {
         }
 
         @Test
-        fun `uploads when size differs`() = runBlocking {
+        fun `uploads when size differs`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress)
@@ -84,7 +84,7 @@ class FileUploaderTest {
         }
 
         @Test
-        fun `uploads when mod time differs`() = runBlocking {
+        fun `uploads when mod time differs`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress)
@@ -117,7 +117,7 @@ class FileUploaderTest {
     inner class ForceHash {
 
         @Test
-        fun `always uploads when force hash is 100 percent`() = runBlocking {
+        fun `always uploads when force hash is 100 percent`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val progress = CountingUploadProgress()
             val uploader = FileUploader(mockWriter, progress, forceHashPercentage = 100)
@@ -150,7 +150,7 @@ class FileUploaderTest {
     inner class DirectoryManifests {
 
         @Test
-        fun `uploads directory manifest as JSON`() = runBlocking {
+        fun `uploads directory manifest as JSON`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val uploader = FileUploader(mockWriter, NullUploadProgress())
 
@@ -173,7 +173,7 @@ class FileUploaderTest {
         }
 
         @Test
-        fun `directory manifest object is recognized as a directory (Go-compatible k prefix)`() = runBlocking {
+        fun `directory manifest object is recognized as a directory (Go-compatible k prefix)`(): Unit = runBlocking {
             // Go kopia writes directory manifests with the 'k' content prefix; snapshotfs.isDirectoryId
             // (and therefore snapshot GC's tree walk) relies on it. The mock writer ignores the prefix,
             // so this exercises a real in-memory repository where the prefix actually lands on the
@@ -205,7 +205,7 @@ class FileUploaderTest {
     inner class SymlinkProcessing {
 
         @Test
-        fun `processes symlinks`() = runBlocking {
+        fun `processes symlinks`(): Unit = runBlocking {
             val mockWriter = MockRepositoryWriter()
             val uploader = FileUploader(mockWriter, NullUploadProgress())
 
@@ -228,7 +228,7 @@ class FileUploaderTest {
     inner class CompressionPolicy {
 
         @Test
-        fun `applies compression policy to files`() = runBlocking {
+        fun `applies compression policy to files`(): Unit = runBlocking {
             val policy = CompressionPolicy(
                 compressorName = "zstd",
                 minSize = 10,

@@ -30,7 +30,7 @@ class RetentionAfterSnapshotTest {
     private val source = SourceInfo(host = "phone", userName = "local", path = "/sdcard/DCIM")
 
     @Test
-    fun `a fourth backup leaves three snapshots when keepLatest is three`(@TempDir tempDir: Path) = runBlocking {
+    fun `a fourth backup leaves three snapshots when keepLatest is three`(@TempDir tempDir: Path): Unit = runBlocking {
         val (repository, _) = TestRepositoryFactory.createInMemory()
         val sourceDir = tempDir.resolve("src").also { it.toFile().mkdirs() }
         PolicyManager.setPolicy(repository, source, Policy(retentionPolicy = RetentionPolicy(keepLatest = 3)))
@@ -48,7 +48,7 @@ class RetentionAfterSnapshotTest {
     @Test
     fun `incomplete manifests from cancelled runs are reaped once a backup completes`(
         @TempDir tempDir: Path,
-    ) = runBlocking {
+    ): Unit = runBlocking {
         val (repository, _) = TestRepositoryFactory.createInMemory()
         val sourceDir = tempDir.resolve("src").also { it.toFile().mkdirs() }
         sourceDir.resolve("a.txt").writeText("data")

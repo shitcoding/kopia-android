@@ -48,7 +48,7 @@ class DirectRepositoryTest {
     inner class RepositoryCreation {
 
         @Test
-        fun `create initializes new repository`() = runTest {
+        fun `create initializes new repository`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
 
@@ -60,7 +60,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `create fails if repository already exists`() = runTest {
+        fun `create fails if repository already exists`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
             repo.close()
@@ -71,7 +71,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `open connects to existing repository`() = runTest {
+        fun `open connects to existing repository`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo1 = DirectRepositoryImpl.create(storage, "test-password", config)
             repo1.close()
@@ -82,7 +82,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `open fails with wrong password`() = runTest {
+        fun `open fails with wrong password`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo = DirectRepositoryImpl.create(storage, "correct-password", config)
             repo.close()
@@ -98,7 +98,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `open fails if repository does not exist`() = runTest {
+        fun `open fails if repository does not exist`(): Unit = runTest {
             assertThrows<Exception> {
                 DirectRepositoryImpl.open(storage, "test-password")
             }
@@ -118,7 +118,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `write and read small object`() = runTest {
+        fun `write and read small object`(): Unit = runTest {
             val data = "Hello, Kopia!".toByteArray()
 
             val writer = repo.newDirectWriter()
@@ -131,7 +131,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `write and read larger object`() = runTest {
+        fun `write and read larger object`(): Unit = runTest {
             // Create 100KB random data
             val data = Random.nextBytes(100_000)
 
@@ -145,7 +145,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `write object with streaming writer`() = runTest {
+        fun `write object with streaming writer`(): Unit = runTest {
             val writer = repo.newDirectWriter()
             val objectWriter = writer.newObjectWriter()
 
@@ -160,7 +160,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `verify object returns content IDs`() = runTest {
+        fun `verify object returns content IDs`(): Unit = runTest {
             val data = "Hello, Kopia!".toByteArray()
 
             val writer = repo.newDirectWriter()
@@ -173,7 +173,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `concatenate objects`() = runTest {
+        fun `concatenate objects`(): Unit = runTest {
             val writer = repo.newDirectWriter()
 
             val obj1 = writer.writeObject("Hello, ".toByteArray())
@@ -207,7 +207,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `put and get manifest`() = runTest {
+        fun `put and get manifest`(): Unit = runTest {
             val labels = mapOf("type" to "test", "key" to "value")
             val payload = TestManifest("test", 42)
 
@@ -224,7 +224,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `find manifests by labels`() = runTest {
+        fun `find manifests by labels`(): Unit = runTest {
             val labels1 = mapOf("type" to "snapshot", "source" to "/home/user")
             val labels2 = mapOf("type" to "snapshot", "source" to "/var/data")
             val labels3 = mapOf("type" to "policy")
@@ -245,7 +245,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `replace manifests deletes existing and creates new`() = runTest {
+        fun `replace manifests deletes existing and creates new`(): Unit = runTest {
             val labels = mapOf("type" to "policy", "path" to "/root")
             val payload1 = TestManifest("old", 1)
             val payload2 = TestManifest("new", 2)
@@ -272,7 +272,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `delete manifest marks it as deleted`() = runTest {
+        fun `delete manifest marks it as deleted`(): Unit = runTest {
             val labels = mapOf("type" to "test")
             val payload = TestManifest("to-delete", 1)
 
@@ -299,7 +299,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `get non-existent manifest throws ManifestNotFoundException`() = runTest {
+        fun `get non-existent manifest throws ManifestNotFoundException`(): Unit = runTest {
             val fakeId = org.kopiaKt.core.manifest.ManifestId.generate()
 
             assertThrows<ManifestNotFoundException> {
@@ -308,7 +308,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `put manifest requires type label`() = runTest {
+        fun `put manifest requires type label`(): Unit = runTest {
             val labels = mapOf("key" to "value") // Missing "type"
             val payload = TestManifest("test", 1)
 
@@ -428,7 +428,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `writeSession helper flushes on success`() = runTest {
+        fun `writeSession helper flushes on success`(): Unit = runTest {
             val data = "test data".toByteArray()
 
             val objectId = writeSession(repo) { writer ->
@@ -442,7 +442,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `writeSession does not flush on failure by default`() = runTest {
+        fun `writeSession does not flush on failure by default`(): Unit = runTest {
             val data = "test data".toByteArray()
 
             assertThrows<RuntimeException> {
@@ -454,7 +454,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `newDirectWriter creates writer session`() = runTest {
+        fun `newDirectWriter creates writer session`(): Unit = runTest {
             val writer = repo.newDirectWriter(WriteSessionOptions(purpose = "test"))
             assertThat(writer).isNotNull()
 
@@ -467,7 +467,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `onSuccessfulFlush callback is invoked`() = runTest {
+        fun `onSuccessfulFlush callback is invoked`(): Unit = runTest {
             var callbackInvoked = false
 
             val writer = repo.newDirectWriter()
@@ -487,7 +487,7 @@ class DirectRepositoryTest {
     inner class RepositoryLifecycle {
 
         @Test
-        fun `close marks repository as closed`() = runTest {
+        fun `close marks repository as closed`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
 
@@ -499,7 +499,7 @@ class DirectRepositoryTest {
         }
 
         @Test
-        fun `refresh reloads indexes from storage`() = runTest {
+        fun `refresh reloads indexes from storage`(): Unit = runTest {
             val config = createDefaultConfig()
             val repo = DirectRepositoryImpl.create(storage, "test-password", config)
 

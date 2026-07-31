@@ -27,7 +27,7 @@ class FormatBlobManagerTest {
     // === Create Repository Tests ===
 
     @Test
-    fun `createRepository creates format blob`() = runBlocking {
+    fun `createRepository creates format blob`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -40,7 +40,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `createRepository with custom build version`() = runBlocking {
+    fun `createRepository with custom build version`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -54,7 +54,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `createRepository fails if repository exists`() = runBlocking {
+    fun `createRepository fails if repository exists`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -71,7 +71,7 @@ class FormatBlobManagerTest {
     // === Open Repository Tests ===
 
     @Test
-    fun `openRepository with correct password succeeds`() = runBlocking {
+    fun `openRepository with correct password succeeds`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -85,7 +85,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `openRepository with wrong password fails`() = runBlocking {
+    fun `openRepository with wrong password fails`(): Unit = runBlocking {
         val password = "correct-password"
         val config = createTestConfig()
 
@@ -98,7 +98,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `openRepository fails if repository does not exist`() = runBlocking {
+    fun `openRepository fails if repository does not exist`(): Unit = runBlocking {
         assertThrows<FormatBlobNotFoundException> {
             runBlocking { manager.openRepository("any-password") }
         }
@@ -106,7 +106,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `openRepository validates format version`() = runBlocking {
+    fun `openRepository validates format version`(): Unit = runBlocking {
         // Create with valid version
         val password = "test-password"
         val config = createTestConfig()
@@ -121,7 +121,7 @@ class FormatBlobManagerTest {
     // === Change Password Tests ===
 
     @Test
-    fun `changePassword works with correct current password`() = runBlocking {
+    fun `changePassword works with correct current password`(): Unit = runBlocking {
         val oldPassword = "old-password"
         val newPassword = "new-password"
         val config = createTestConfig()
@@ -142,7 +142,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `changePassword fails with wrong current password`() = runBlocking {
+    fun `changePassword fails with wrong current password`(): Unit = runBlocking {
         val password = "correct-password"
         val config = createTestConfig()
 
@@ -155,7 +155,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `changePassword fails for format V1`() = runBlocking {
+    fun `changePassword fails for format V1`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig().copy(
             version = 1,
@@ -171,7 +171,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `changePassword can change key derivation algorithm`() = runBlocking {
+    fun `changePassword can change key derivation algorithm`(): Unit = runBlocking {
         val password = "test-password"
         val newPassword = "new-password"
         val config = createTestConfig()
@@ -202,7 +202,7 @@ class FormatBlobManagerTest {
     // === Read/Write Format Blob Tests ===
 
     @Test
-    fun `readFormatBlob and writeFormatBlob round-trip`() = runBlocking {
+    fun `readFormatBlob and writeFormatBlob round-trip`(): Unit = runBlocking {
         val formatJson = KopiaRepositoryJson.create(buildVersion = "test-1.0")
 
         manager.writeFormatBlob(formatJson)
@@ -215,7 +215,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `readFormatBlob throws if blob does not exist`() = runBlocking {
+    fun `readFormatBlob throws if blob does not exist`(): Unit = runBlocking {
         assertThrows<FormatBlobNotFoundException> {
             runBlocking { manager.readFormatBlob() }
         }
@@ -225,7 +225,7 @@ class FormatBlobManagerTest {
     // === Integration Tests ===
 
     @Test
-    fun `full repository lifecycle`() = runBlocking {
+    fun `full repository lifecycle`(): Unit = runBlocking {
         val password = "initial-password"
         val config = RepositoryConfig(
             hash = "BLAKE2B-256-128",
@@ -270,7 +270,7 @@ class FormatBlobManagerTest {
     // === Existence-probe classification (a misread here destroys an existing repository) ===
 
     @Test
-    fun `readFormatBlob propagates a read failure instead of reporting the blob missing`() = runBlocking {
+    fun `readFormatBlob propagates a read failure instead of reporting the blob missing`(): Unit = runBlocking {
         val failing = FailingReadBlobStorage(storage, IOException("connection reset"))
 
         assertThrows<IOException> {
@@ -280,7 +280,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `createRepository refuses to overwrite when the existence probe fails`() = runBlocking {
+    fun `createRepository refuses to overwrite when the existence probe fails`(): Unit = runBlocking {
         // An existing repository the user is about to point "create" at.
         val original = manager.createRepository("original-password", createTestConfig())
         val originalBytes = storage.getBlob(BlobId("kopia.repository"), 0, -1)
@@ -300,7 +300,7 @@ class FormatBlobManagerTest {
     }
 
     @Test
-    fun `createRepository still succeeds when the format blob is genuinely absent`() = runBlocking {
+    fun `createRepository still succeeds when the format blob is genuinely absent`(): Unit = runBlocking {
         val result = manager.createRepository("test-password", createTestConfig())
         assertTrue(storage.contains(BlobId("kopia.repository")))
         assertNotNull(result.formatJson)

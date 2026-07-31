@@ -32,7 +32,7 @@ class ConcurrentBlobStorageTest {
     inner class ConcurrentWrites {
 
         @Test
-        fun `should handle concurrent puts to different blob IDs`() = runTest {
+        fun `should handle concurrent puts to different blob IDs`(): Unit = runTest {
             val count = 10
 
             val results = (0 until count).map { i ->
@@ -55,7 +55,7 @@ class ConcurrentBlobStorageTest {
     inner class ConcurrentReads {
 
         @Test
-        fun `should handle concurrent gets of same blob`() = runTest {
+        fun `should handle concurrent gets of same blob`(): Unit = runTest {
             val blobId = BlobId("shared-blob")
             val expectedData = "shared-data-content".toByteArray()
             storage.putBlob(blobId, expectedData, PutBlobOptions())
@@ -73,7 +73,7 @@ class ConcurrentBlobStorageTest {
         }
 
         @Test
-        fun `should handle concurrent put and get`() = runTest {
+        fun `should handle concurrent put and get`(): Unit = runTest {
             // Pre-populate some blobs for reading
             for (i in 0 until 5) {
                 storage.putBlob(BlobId("existing-$i"), "existing-data-$i".toByteArray(), PutBlobOptions())
@@ -114,7 +114,7 @@ class ConcurrentBlobStorageTest {
     inner class ConcurrentModifications {
 
         @Test
-        fun `should handle concurrent put and delete`() = runTest {
+        fun `should handle concurrent put and delete`(): Unit = runTest {
             // Pre-populate blobs that will be deleted
             for (i in 0 until 10) {
                 storage.putBlob(BlobId("delete-me-$i"), "to-delete-$i".toByteArray(), PutBlobOptions())
@@ -148,7 +148,7 @@ class ConcurrentBlobStorageTest {
         }
 
         @Test
-        fun `should handle concurrent list during modifications`() = runTest {
+        fun `should handle concurrent list during modifications`(): Unit = runTest {
             // Pre-populate some blobs
             for (i in 0 until 5) {
                 storage.putBlob(BlobId("list-test-$i"), "list-data-$i".toByteArray(), PutBlobOptions())
@@ -190,7 +190,7 @@ class ConcurrentBlobStorageTest {
     inner class StressTest {
 
         @Test
-        fun `should handle 100 concurrent operations without data corruption`() = runTest {
+        fun `should handle 100 concurrent operations without data corruption`(): Unit = runTest {
             val totalOps = 100
             // Pre-populate blobs for read and delete operations
             for (i in 0 until 50) {

@@ -89,7 +89,7 @@ class SafProviderEdgeCasesTest {
     inner class NullStreamTests {
 
         @Test
-        fun `should handle null from ContentResolver openInputStream`() = runTest {
+        fun `should handle null from ContentResolver openInputStream`(): Unit = runTest {
             val blobId = BlobId("testblob")
 
             val mockFile = mockk<DocumentFile> {
@@ -107,7 +107,7 @@ class SafProviderEdgeCasesTest {
         }
 
         @Test
-        fun `should handle null from ContentResolver openOutputStream`() = runTest {
+        fun `should handle null from ContentResolver openOutputStream`(): Unit = runTest {
             val blobId = BlobId("writeblob")
             val data = "some data".toByteArray()
 
@@ -139,7 +139,7 @@ class SafProviderEdgeCasesTest {
     inner class NullListFilesTests {
 
         @Test
-        fun `should handle provider returning null from listFiles`() = runTest {
+        fun `should handle provider returning null from listFiles`(): Unit = runTest {
             // DocumentFile.listFiles() can return an empty array but the underlying
             // provider could return null in degenerate cases. With relaxed mocking,
             // listFiles() on the root document returns a default value.
@@ -157,7 +157,7 @@ class SafProviderEdgeCasesTest {
     inner class RenameFailureTests {
 
         @Test
-        fun `should handle rename failure during atomic write`() = runTest {
+        fun `should handle rename failure during atomic write`(): Unit = runTest {
             val blobId = BlobId("renamefail")
             val data = "data to write".toByteArray()
 
@@ -194,7 +194,7 @@ class SafProviderEdgeCasesTest {
     inner class PermissionRevocationTests {
 
         @Test
-        fun `should handle SecurityException from revoked permissions`() = runTest {
+        fun `should handle SecurityException from revoked permissions`(): Unit = runTest {
             val blobId = BlobId("secured")
 
             val mockFile = mockk<DocumentFile> {
@@ -219,7 +219,7 @@ class SafProviderEdgeCasesTest {
     inner class DeletedTreeUriTests {
 
         @Test
-        fun `should handle FileNotFoundException for deleted tree URI`() = runTest {
+        fun `should handle FileNotFoundException for deleted tree URI`(): Unit = runTest {
             // When the tree URI has been deleted or is no longer valid,
             // DocumentFile.fromTreeUri returns null. The rootDocument lazy
             // property will throw IllegalArgumentException in that case.

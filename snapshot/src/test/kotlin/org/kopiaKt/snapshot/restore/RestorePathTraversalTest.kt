@@ -28,7 +28,7 @@ class RestorePathTraversalTest {
     inner class FilePathTraversal {
 
         @Test
-        fun `should reject file with dot-dot in path`() = runTest {
+        fun `should reject file with dot-dot in path`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val content = "malicious".toByteArray()
             val entry = makeFileEntry("escape.txt", content.size.toLong())
@@ -42,7 +42,7 @@ class RestorePathTraversalTest {
         }
 
         @Test
-        fun `should reject file with absolute path`() = runTest {
+        fun `should reject file with absolute path`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val content = "malicious".toByteArray()
             val entry = makeFileEntry("shadow", content.size.toLong())
@@ -53,7 +53,7 @@ class RestorePathTraversalTest {
         }
 
         @Test
-        fun `should reject file with multiple dot-dot sequences`() = runTest {
+        fun `should reject file with multiple dot-dot sequences`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val content = "malicious".toByteArray()
             val entry = makeFileEntry("passwd", content.size.toLong())
@@ -69,7 +69,7 @@ class RestorePathTraversalTest {
     inner class DirectoryPathTraversal {
 
         @Test
-        fun `should reject directory with dot-dot`() = runTest {
+        fun `should reject directory with dot-dot`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val entry = makeDirEntry("escapedir")
 
@@ -87,7 +87,7 @@ class RestorePathTraversalTest {
     inner class SymlinkPathTraversal {
 
         @Test
-        fun `should reject symlink targeting outside restore root`() = runTest {
+        fun `should reject symlink targeting outside restore root`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val entry = makeDirEntry("link.txt")
 
@@ -105,7 +105,7 @@ class RestorePathTraversalTest {
     inner class SymlinkInPathTraversal {
 
         @Test
-        fun `should reject file write through symlink pointing outside root`() = runTest {
+        fun `should reject file write through symlink pointing outside root`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
 
             // Create a symlink inside restore root pointing to parent directory
@@ -124,7 +124,7 @@ class RestorePathTraversalTest {
         }
 
         @Test
-        fun `should reject directory creation through symlink pointing outside root`() = runTest {
+        fun `should reject directory creation through symlink pointing outside root`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
 
             // Create a symlink inside restore root pointing to parent directory
@@ -139,7 +139,7 @@ class RestorePathTraversalTest {
         }
 
         @Test
-        fun `should allow file write through symlink pointing within root`() = runTest {
+        fun `should allow file write through symlink pointing within root`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
 
             // Create a real subdirectory and a symlink pointing to it
@@ -161,7 +161,7 @@ class RestorePathTraversalTest {
     inner class LegitimatePaths {
 
         @Test
-        fun `should allow legitimate path containing dots`() = runTest {
+        fun `should allow legitimate path containing dots`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val content = "dotted filename".toByteArray()
             val entry = makeFileEntry("my.file.txt", content.size.toLong())
@@ -172,7 +172,7 @@ class RestorePathTraversalTest {
         }
 
         @Test
-        fun `should allow legitimate nested path`() = runTest {
+        fun `should allow legitimate nested path`(): Unit = runTest {
             val output = FilesystemOutput(tempDir)
             val content = "nested content".toByteArray()
             val entry = makeFileEntry("file.txt", content.size.toLong())
@@ -188,7 +188,7 @@ class RestorePathTraversalTest {
     inner class SymlinkLeafWrites {
 
         @Test
-        fun `writing over a dangling symlink must not create its target outside the root`() = runTest {
+        fun `writing over a dangling symlink must not create its target outside the root`(): Unit = runTest {
             val outside = Files.createDirectory(tempDir.resolve("outside"))
             val victim = outside.resolve("victim.txt")
             val target = Files.createDirectory(tempDir.resolve("target"))
@@ -212,7 +212,7 @@ class RestorePathTraversalTest {
     inner class DeleteExtraSymlinks {
 
         @Test
-        fun `deleting an extra symlinked directory must not delete through the link`() = runTest {
+        fun `deleting an extra symlinked directory must not delete through the link`(): Unit = runTest {
             val outside = Files.createDirectory(tempDir.resolve("outside"))
             val precious = outside.resolve("precious.txt")
             Files.writeString(precious, "must survive")

@@ -72,7 +72,7 @@ class S3BlobStorageTest {
     inner class GetBlobTests {
 
         @Test
-        fun `should retrieve blob successfully`() = runTest {
+        fun `should retrieve blob successfully`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val expectedData = "Hello, World!".toByteArray()
 
@@ -89,7 +89,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should throw BlobNotFoundException when blob does not exist`() = runTest {
+        fun `should throw BlobNotFoundException when blob does not exist`(): Unit = runTest {
             val blobId = BlobId("non-existent")
 
             every {
@@ -102,7 +102,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should return empty array for zero-length read`() = runTest {
+        fun `should return empty array for zero-length read`(): Unit = runTest {
             val blobId = BlobId("test-blob")
 
             val result = storage.getBlob(blobId, offset = 0, length = 0)
@@ -111,7 +111,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should set range header for partial read with offset`() = runTest {
+        fun `should set range header for partial read with offset`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val requestSlot = slot<GetObjectRequest>()
 
@@ -128,7 +128,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should set open-ended range for offset without length`() = runTest {
+        fun `should set open-ended range for offset without length`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val requestSlot = slot<GetObjectRequest>()
 
@@ -150,7 +150,7 @@ class S3BlobStorageTest {
     inner class GetBlobMetadataTests {
 
         @Test
-        fun `should return metadata for existing blob`() = runTest {
+        fun `should return metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val timestamp = Instant.now()
 
@@ -172,7 +172,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should return null for non-existent blob`() = runTest {
+        fun `should return null for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent")
 
             every {
@@ -190,7 +190,7 @@ class S3BlobStorageTest {
     inner class PutBlobTests {
 
         @Test
-        fun `should put blob successfully`() = runTest {
+        fun `should put blob successfully`(): Unit = runTest {
             val blobId = BlobId("new-blob")
             val data = "test data".toByteArray()
             val requestSlot = slot<PutObjectRequest>()
@@ -208,7 +208,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should skip put when dontOverwrite is true and blob exists`() = runTest {
+        fun `should skip put when dontOverwrite is true and blob exists`(): Unit = runTest {
             val blobId = BlobId("existing-blob")
             val data = "test data".toByteArray()
 
@@ -229,7 +229,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should throw UnsupportedPutOptionException for setModTime`() = runTest {
+        fun `should throw UnsupportedPutOptionException for setModTime`(): Unit = runTest {
             val blobId = BlobId("test-blob")
             val data = "test data".toByteArray()
 
@@ -244,7 +244,7 @@ class S3BlobStorageTest {
     inner class DeleteBlobTests {
 
         @Test
-        fun `should delete blob successfully`() = runTest {
+        fun `should delete blob successfully`(): Unit = runTest {
             val blobId = BlobId("to-delete")
             val requestSlot = slot<DeleteObjectRequest>()
 
@@ -259,7 +259,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should not throw when deleting non-existent blob`() = runTest {
+        fun `should not throw when deleting non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent")
 
             every {
@@ -276,7 +276,7 @@ class S3BlobStorageTest {
     inner class ListBlobsTests {
 
         @Test
-        fun `surfaces a credential failure as InvalidCredentialsException`() = runTest {
+        fun `surfaces a credential failure as InvalidCredentialsException`(): Unit = runTest {
             every { mockClient.listObjectsV2(any<ListObjectsV2Request>()) } throws S3Exception.builder()
                 .message("The request signature we calculated does not match")
                 .statusCode(403)
@@ -287,7 +287,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `skips only the exact storage-config key, not blob ids ending in storageconfig`() = runTest {
+        fun `skips only the exact storage-config key, not blob ids ending in storageconfig`(): Unit = runTest {
             val now = Instant.now()
             val response = ListObjectsV2Response.builder()
                 .contents(
@@ -334,7 +334,7 @@ class S3BlobStorageTest {
     inner class ErrorHandlingTests {
 
         @Test
-        fun `should throw InvalidCredentialsException for invalid access key`() = runTest {
+        fun `should throw InvalidCredentialsException for invalid access key`(): Unit = runTest {
             val blobId = BlobId("test-blob")
 
             every {
@@ -351,7 +351,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `classifies a bare 403 with no error code as invalid credentials`() = runTest {
+        fun `classifies a bare 403 with no error code as invalid credentials`(): Unit = runTest {
             // Same rule as the connect/list paths, so a revoked key reports identically wherever it
             // is first noticed — including providers that answer with a status but no modelled code.
             val blobId = BlobId("test-blob")
@@ -363,7 +363,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should throw InvalidBlobRangeException for a 416 range-not-satisfiable response`() = runTest {
+        fun `should throw InvalidBlobRangeException for a 416 range-not-satisfiable response`(): Unit = runTest {
             val blobId = BlobId("test-blob")
 
             every {
@@ -379,7 +379,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `should throw InvalidCredentialsException for expired token`() = runTest {
+        fun `should throw InvalidCredentialsException for expired token`(): Unit = runTest {
             val blobId = BlobId("test-blob")
 
             every {
@@ -401,7 +401,7 @@ class S3BlobStorageTest {
     inner class StorageClassTests {
 
         @Test
-        fun `should use storage class from config for matching prefix`() = runTest {
+        fun `should use storage class from config for matching prefix`(): Unit = runTest {
             val storageWithConfig = S3BlobStorage.createWithClient(
                 client = mockClient,
                 options = S3Options(bucketName = testBucket, prefix = testPrefix),
@@ -509,7 +509,7 @@ class S3BlobStorageTest {
         private val opts = S3Options(bucketName = testBucket, prefix = testPrefix)
 
         @Test
-        fun `surfaces a credential failure as InvalidCredentialsException`() = runTest {
+        fun `surfaces a credential failure as InvalidCredentialsException`(): Unit = runTest {
             // create() reads .storageconfig, so this IS the connect path: with a wrong key the user
             // must get "invalid credentials", not a raw SDK error. Found against a real provider —
             // B2 answers a bad application key with SignatureDoesNotMatch/403, which the taxonomy
@@ -528,7 +528,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `surfaces auth errors instead of silently using defaults`() = runTest {
+        fun `surfaces auth errors instead of silently using defaults`(): Unit = runTest {
             // Reverting to the old broad catch would return defaults here (create() falsely succeeds
             // with bad creds); the fix lets the auth error propagate. This response carries NO error
             // code — some S3-compatible providers omit it — so it also covers the status-only
@@ -543,7 +543,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `uses defaults when no config blob exists`() = runTest {
+        fun `uses defaults when no config blob exists`(): Unit = runTest {
             every {
                 mockClient.getObject(any<GetObjectRequest>(), any<ResponseTransformer<GetObjectResponse, ResponseBytes<GetObjectResponse>>>())
             } throws NoSuchKeyException.builder().message("NoSuchKey").build()
@@ -552,7 +552,7 @@ class S3BlobStorageTest {
         }
 
         @Test
-        fun `uses defaults when the config blob is unparseable`() = runTest {
+        fun `uses defaults when the config blob is unparseable`(): Unit = runTest {
             val responseBytes = mockk<ResponseBytes<GetObjectResponse>> {
                 every { asUtf8String() } returns "not valid json {{"
             }
@@ -574,14 +574,14 @@ class S3BlobStorageTest {
         )
 
         @Test
-        fun `putBlob is rejected in read-only mode`() = runTest {
+        fun `putBlob is rejected in read-only mode`(): Unit = runTest {
             assertThrows<IllegalStateException> {
                 readOnlyStorage().putBlob(BlobId("ro"), "data".toByteArray())
             }
         }
 
         @Test
-        fun `deleteBlob is rejected in read-only mode`() = runTest {
+        fun `deleteBlob is rejected in read-only mode`(): Unit = runTest {
             assertThrows<IllegalStateException> {
                 readOnlyStorage().deleteBlob(BlobId("ro"))
             }

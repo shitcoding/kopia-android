@@ -209,7 +209,7 @@ class SafPermissionManagerTest {
     inner class GetAllPersistedStoragesTests {
 
         @Test
-        fun `returns empty list when no permissions`() = runTest {
+        fun `returns empty list when no permissions`(): Unit = runTest {
             every { mockContentResolver.persistedUriPermissions } returns emptyList()
 
             val result = permissionManager.getAllPersistedStorages()
@@ -218,7 +218,7 @@ class SafPermissionManagerTest {
         }
 
         @Test
-        fun `returns all persisted storages`() = runTest {
+        fun `returns all persisted storages`(): Unit = runTest {
             val uri1 = Uri.parse("content://provider/tree/vol1")
             val uri2 = Uri.parse("content://provider/tree/vol2")
             val time1 = System.currentTimeMillis()

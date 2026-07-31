@@ -112,7 +112,7 @@ class B2ProviderSpecificsTest {
     }
 
     @Test
-    fun `round-trips a blob over TLS validated by the system trust store`() = runTest {
+    fun `round-trips a blob over TLS validated by the system trust store`(): Unit = runTest {
         B2.requireProfile()
         // The default trust path against a public endpoint: no rootCa, no pinning, no cleartext.
         val storage = S3BlobStorage.create(B2.options(B2.uniquePrefix()))

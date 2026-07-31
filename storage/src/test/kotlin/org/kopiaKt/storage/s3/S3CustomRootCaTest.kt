@@ -70,7 +70,7 @@ class S3CustomRootCaTest {
     )
 
     @Test
-    fun `connects to a private-CA server when rootCa is supplied`() = runBlocking {
+    fun `connects to a private-CA server when rootCa is supplied`(): Unit = runBlocking {
         val storage = S3BlobStorage.create(options(rootCa.certificatePem().toByteArray()))
 
         assertNotNull(storage)

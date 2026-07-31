@@ -21,6 +21,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.isSymbolicLink
 import kotlin.io.path.readBytes
 import kotlin.io.path.readSymbolicLink
+import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class FilesystemOutputTest {
@@ -43,7 +44,7 @@ class FilesystemOutputTest {
     // --- Directory Tests ---
 
     @Test
-    fun `beginDirectory creates new directory`() = runBlocking {
+    fun `beginDirectory creates new directory`(): Unit = runBlocking {
         val entry = makeDirEntry("testdir", EntryType.DIRECTORY)
 
         output.beginDirectory("testdir", entry)
@@ -53,7 +54,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `beginDirectory creates nested directories`() = runBlocking {
+    fun `beginDirectory creates nested directories`(): Unit = runBlocking {
         val entry = makeDirEntry("deep/nested/dir", EntryType.DIRECTORY)
 
         output.beginDirectory("deep/nested/dir", entry)
@@ -63,7 +64,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `beginDirectory fails on existing non-empty directory without overwrite`() = runBlocking {
+    fun `beginDirectory fails on existing non-empty directory without overwrite`(): Unit = runBlocking {
         // Create existing directory with content
         val dir = tempDir.resolve("existingdir").createDirectories()
         dir.resolve("file.txt").writeText("content")
@@ -73,10 +74,13 @@ class FilesystemOutputTest {
         assertThrows<RestoreException> {
             runBlocking { output.beginDirectory("existingdir", entry) }
         }
+        // Refusing is only half of it: what was already there has to still be there. A restore that
+        // clears the directory and THEN discovers it should not have would pass on the throw alone.
+        assertThat(dir.resolve("file.txt").readText()).isEqualTo("content")
     }
 
     @Test
-    fun `beginDirectory succeeds on existing non-empty directory with overwrite`() = runBlocking {
+    fun `beginDirectory succeeds on existing non-empty directory with overwrite`(): Unit = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
             FilesystemOutputOptions(overwriteDirectories = true),
@@ -94,7 +98,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `finishDirectory sets permissions on POSIX`() = runBlocking {
+    fun `finishDirectory sets permissions on POSIX`(): Unit = runBlocking {
         val entry = makeDirEntry("testdir", EntryType.DIRECTORY, permissions = 493) // 0o755
 
         output.beginDirectory("testdir", entry)
@@ -114,7 +118,7 @@ class FilesystemOutputTest {
     // --- File Tests ---
 
     @Test
-    fun `writeFile creates new file`() = runBlocking {
+    fun `writeFile creates new file`(): Unit = runBlocking {
         val content = "Hello, World!".toByteArray()
         val entry = makeFileEntry("test.txt", content.size.toLong())
 
@@ -127,7 +131,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `writeFile creates file in nested directory`() = runBlocking {
+    fun `writeFile creates file in nested directory`(): Unit = runBlocking {
         val content = "Nested content".toByteArray()
         val entry = makeFileEntry("a/b/c.txt", content.size.toLong())
 
@@ -142,7 +146,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `writeFile fails on existing file without overwrite`() = runBlocking {
+    fun `writeFile fails on existing file without overwrite`(): Unit = runBlocking {
         val path = tempDir.resolve("existing.txt")
         path.writeText("existing content")
 
@@ -152,10 +156,13 @@ class FilesystemOutputTest {
         assertThrows<RestoreException> {
             runBlocking { output.writeFile("existing.txt", entry, content.inputStream()) }
         }
+        // The file the user already had must be untouched -- truncating and then throwing would
+        // satisfy the assertion above while destroying their data.
+        assertThat(path.readText()).isEqualTo("existing content")
     }
 
     @Test
-    fun `writeFile succeeds on existing file with overwrite`() = runBlocking {
+    fun `writeFile succeeds on existing file with overwrite`(): Unit = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
             FilesystemOutputOptions(overwriteFiles = true),
@@ -173,7 +180,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `writeFile reports progress`() = runBlocking {
+    fun `writeFile reports progress`(): Unit = runBlocking {
         val content = ByteArray(10000) { it.toByte() }
         val entry = makeFileEntry("largefile.bin", content.size.toLong())
 
@@ -186,7 +193,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `writeFile atomic creates file atomically`() = runBlocking {
+    fun `writeFile atomic creates file atomically`(): Unit = runBlocking {
         val atomicOutput = FilesystemOutput(
             tempDir,
             FilesystemOutputOptions(writeFilesAtomically = true, overwriteFiles = true),
@@ -205,20 +212,20 @@ class FilesystemOutputTest {
     // --- fileExists Tests ---
 
     @Test
-    fun `fileExists returns false for non-existent file`() = runBlocking {
+    fun `fileExists returns false for non-existent file`(): Unit = runBlocking {
         val entry = makeFileEntry("nonexistent.txt", 100)
         assertThat(output.fileExists("nonexistent.txt", entry)).isFalse()
     }
 
     @Test
-    fun `fileExists returns false for directory`() = runBlocking {
+    fun `fileExists returns false for directory`(): Unit = runBlocking {
         tempDir.resolve("testdir").createDirectories()
         val entry = makeFileEntry("testdir", 0)
         assertThat(output.fileExists("testdir", entry)).isFalse()
     }
 
     @Test
-    fun `fileExists returns false for wrong size`() = runBlocking {
+    fun `fileExists returns false for wrong size`(): Unit = runBlocking {
         val path = tempDir.resolve("test.txt")
         path.writeText("short")
 
@@ -227,7 +234,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `fileExists returns true for matching file`() = runBlocking {
+    fun `fileExists returns true for matching file`(): Unit = runBlocking {
         val content = "test content"
         val path = tempDir.resolve("test.txt")
         path.writeText(content)
@@ -243,7 +250,7 @@ class FilesystemOutputTest {
     // --- Symlink Tests ---
 
     @Test
-    fun `createSymlink creates symbolic link`() = runBlocking {
+    fun `createSymlink creates symbolic link`(): Unit = runBlocking {
         val entry = makeDirEntry("link", EntryType.SYMLINK)
 
         output.createSymlink("link", entry, "/target/path")
@@ -254,7 +261,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `createSymlink fails on existing symlink without overwrite`() = runBlocking {
+    fun `createSymlink fails on existing symlink without overwrite`(): Unit = runBlocking {
         val existingLink = tempDir.resolve("link")
         Files.createSymbolicLink(existingLink, Path.of("/old/target"))
 
@@ -263,10 +270,12 @@ class FilesystemOutputTest {
         assertThrows<RestoreException> {
             runBlocking { output.createSymlink("link", entry, "/new/target") }
         }
+        // Deleting the old link before checking would still throw, and still have destroyed it.
+        assertThat(existingLink.readSymbolicLink().toString()).isEqualTo("/old/target")
     }
 
     @Test
-    fun `createSymlink succeeds on existing symlink with overwrite`() = runBlocking {
+    fun `createSymlink succeeds on existing symlink with overwrite`(): Unit = runBlocking {
         val overwriteOutput = FilesystemOutput(
             tempDir,
             FilesystemOutputOptions(overwriteSymlinks = true),
@@ -285,20 +294,20 @@ class FilesystemOutputTest {
     // --- symlinkExists Tests ---
 
     @Test
-    fun `symlinkExists returns false for non-existent symlink`() = runBlocking {
+    fun `symlinkExists returns false for non-existent symlink`(): Unit = runBlocking {
         val entry = makeDirEntry("nonexistent", EntryType.SYMLINK)
         assertThat(output.symlinkExists("nonexistent", entry, "/target")).isFalse()
     }
 
     @Test
-    fun `symlinkExists returns false for regular file`() = runBlocking {
+    fun `symlinkExists returns false for regular file`(): Unit = runBlocking {
         tempDir.resolve("file.txt").writeText("content")
         val entry = makeDirEntry("file.txt", EntryType.SYMLINK)
         assertThat(output.symlinkExists("file.txt", entry, "/target")).isFalse()
     }
 
     @Test
-    fun `symlinkExists returns false for wrong target`() = runBlocking {
+    fun `symlinkExists returns false for wrong target`(): Unit = runBlocking {
         val link = tempDir.resolve("link")
         Files.createSymbolicLink(link, Path.of("/wrong/target"))
 
@@ -307,7 +316,7 @@ class FilesystemOutputTest {
     }
 
     @Test
-    fun `symlinkExists returns true for matching symlink`() = runBlocking {
+    fun `symlinkExists returns true for matching symlink`(): Unit = runBlocking {
         val link = tempDir.resolve("link")
         Files.createSymbolicLink(link, Path.of("/target/path"))
 

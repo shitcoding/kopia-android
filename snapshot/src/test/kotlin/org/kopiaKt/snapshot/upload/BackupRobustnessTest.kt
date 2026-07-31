@@ -88,7 +88,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup 1000 small files, verify all present in snapshot manifest")
-        fun `backup 1000 small files and verify all in snapshot`() = runBlocking {
+        fun `backup 1000 small files and verify all in snapshot`(): Unit = runBlocking {
             val fileCount = 1000
             val fileSize = 4096 // 4KB each
 
@@ -168,7 +168,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup 10 files of 10MB each, verify chunking and dedup")
-        fun `backup 10 files of 10MB each`() = runBlocking {
+        fun `backup 10 files of 10MB each`(): Unit = runBlocking {
             val fileCount = 10
             val fileSize = 10 * 1024 * 1024 // 10MB
 
@@ -256,7 +256,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup directory tree with 10 levels of nesting")
-        fun `backup deep tree 10 levels`() = runBlocking {
+        fun `backup deep tree 10 levels`(): Unit = runBlocking {
             val depth = 10
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
@@ -347,7 +347,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("5 backup cycles with mutations between each")
-        fun `backup after multiple incremental changes`() = runBlocking {
+        fun `backup after multiple incremental changes`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val baseFiles = mutableMapOf<String, FileState>()
             val baseTime = Instant.parse("2025-01-01T00:00:00Z")
@@ -465,7 +465,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup and restore round-trip preserves all content via SHA-256")
-        fun `backup and restore round-trip preserves all content`() = runBlocking {
+        fun `backup and restore round-trip preserves all content`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -541,7 +541,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("concurrent backups on shared writer produce valid snapshots")
-        fun `concurrent backup and restore on same repo`() = runBlocking {
+        fun `concurrent backup and restore on same repo`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val backupCount = 5
 
@@ -624,7 +624,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup completes with error tracking when intermittent IO failures occur")
-        fun `backup with intermittent storage failures`() = runBlocking {
+        fun `backup with intermittent storage failures`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -696,7 +696,7 @@ class BackupRobustnessTest {
         @Test
         @Tag("stress")
         @DisplayName("backup of 2000 files does not cause excessive memory growth")
-        fun `backup memory usage stays bounded`() = runBlocking {
+        fun `backup memory usage stays bounded`(): Unit = runBlocking {
             // Force GC and capture baseline memory
             System.gc()
             Thread.sleep(100)

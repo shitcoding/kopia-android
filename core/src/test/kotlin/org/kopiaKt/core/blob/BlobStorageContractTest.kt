@@ -67,7 +67,7 @@ abstract class BlobStorageContractTest {
     inner class PutGetTests {
 
         @Test
-        fun `should store and retrieve blob`() = runTest {
+        fun `should store and retrieve blob`(): Unit = runTest {
             val blobId = BlobId("test-blob-001")
             val data = "Hello, World!".toByteArray()
 
@@ -78,7 +78,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should store and retrieve empty blob`() = runTest {
+        fun `should store and retrieve empty blob`(): Unit = runTest {
             val blobId = BlobId("empty-blob")
             val data = ByteArray(0)
 
@@ -89,7 +89,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should store and retrieve binary data`() = runTest {
+        fun `should store and retrieve binary data`(): Unit = runTest {
             val blobId = BlobId("binary-blob")
             val data = ByteArray(256) { it.toByte() } // All possible byte values
 
@@ -100,7 +100,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should store and retrieve large blob`() = runTest {
+        fun `should store and retrieve large blob`(): Unit = runTest {
             val blobId = BlobId("large-blob")
             val data = ByteArray(1024 * 1024) { (it % 256).toByte() } // 1MB
 
@@ -112,7 +112,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should overwrite existing blob by default`() = runTest {
+        fun `should overwrite existing blob by default`(): Unit = runTest {
             val blobId = BlobId("overwrite-test")
             val originalData = "original".toByteArray()
             val newData = "new data".toByteArray()
@@ -125,7 +125,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should not overwrite when dontOverwrite is true`() = runTest {
+        fun `should not overwrite when dontOverwrite is true`(): Unit = runTest {
             val blobId = BlobId("dont-overwrite-test")
             val originalData = "original".toByteArray()
             val newData = "new data".toByteArray()
@@ -138,7 +138,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should throw BlobNotFoundException for non-existent blob`() = runTest {
+        fun `should throw BlobNotFoundException for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent-blob")
 
             assertThrows<BlobNotFoundException> {
@@ -152,7 +152,7 @@ abstract class BlobStorageContractTest {
     inner class PartialReadTests {
 
         @Test
-        fun `should read with offset`() = runTest {
+        fun `should read with offset`(): Unit = runTest {
             val blobId = BlobId("partial-read-offset")
             val data = "0123456789".toByteArray()
 
@@ -163,7 +163,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should read with length`() = runTest {
+        fun `should read with length`(): Unit = runTest {
             val blobId = BlobId("partial-read-length")
             val data = "0123456789".toByteArray()
 
@@ -174,7 +174,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should read with offset and length`() = runTest {
+        fun `should read with offset and length`(): Unit = runTest {
             val blobId = BlobId("partial-read-both")
             val data = "0123456789".toByteArray()
 
@@ -185,7 +185,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should read zero bytes with length zero`() = runTest {
+        fun `should read zero bytes with length zero`(): Unit = runTest {
             val blobId = BlobId("partial-read-zero")
             val data = "0123456789".toByteArray()
 
@@ -196,7 +196,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should read from start with length -1`() = runTest {
+        fun `should read from start with length -1`(): Unit = runTest {
             val blobId = BlobId("partial-read-all")
             val data = "0123456789".toByteArray()
 
@@ -207,7 +207,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should read from offset to end with length -1`() = runTest {
+        fun `should read from offset to end with length -1`(): Unit = runTest {
             val blobId = BlobId("partial-read-offset-to-end")
             val data = "0123456789".toByteArray()
 
@@ -223,7 +223,7 @@ abstract class BlobStorageContractTest {
     inner class DeleteTests {
 
         @Test
-        fun `should delete existing blob`() = runTest {
+        fun `should delete existing blob`(): Unit = runTest {
             val blobId = BlobId("delete-test")
             val data = "to be deleted".toByteArray()
 
@@ -236,7 +236,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should not throw when deleting non-existent blob`() = runTest {
+        fun `should not throw when deleting non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent-delete")
 
             // Should not throw
@@ -244,7 +244,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should allow re-creating deleted blob`() = runTest {
+        fun `should allow re-creating deleted blob`(): Unit = runTest {
             val blobId = BlobId("recreate-test")
             val originalData = "original".toByteArray()
             val newData = "recreated".toByteArray()
@@ -263,7 +263,7 @@ abstract class BlobStorageContractTest {
     inner class MetadataTests {
 
         @Test
-        fun `should return metadata for existing blob`() = runTest {
+        fun `should return metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("metadata-test")
             val data = "metadata test data".toByteArray()
 
@@ -277,7 +277,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should return null for non-existent blob`() = runTest {
+        fun `should return null for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent-metadata")
 
             val metadata = storage.getBlobMetadata(blobId)
@@ -286,7 +286,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should return correct length for empty blob`() = runTest {
+        fun `should return correct length for empty blob`(): Unit = runTest {
             val blobId = BlobId("empty-metadata")
             val data = ByteArray(0)
 
@@ -298,7 +298,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should update metadata after overwrite`() = runTest {
+        fun `should update metadata after overwrite`(): Unit = runTest {
             val blobId = BlobId("metadata-overwrite")
             val smallData = "small".toByteArray()
             val largeData = "much larger data here".toByteArray()
@@ -321,7 +321,7 @@ abstract class BlobStorageContractTest {
     inner class ListTests {
 
         @Test
-        fun `should list all blobs with empty prefix`() = runTest {
+        fun `should list all blobs with empty prefix`(): Unit = runTest {
             val blobs = mapOf(
                 BlobId("abc") to "data1".toByteArray(),
                 BlobId("def") to "data2".toByteArray(),
@@ -338,7 +338,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should list blobs with matching prefix`() = runTest {
+        fun `should list blobs with matching prefix`(): Unit = runTest {
             storage.putBlob(BlobId("pack-001"), "data1".toByteArray())
             storage.putBlob(BlobId("pack-002"), "data2".toByteArray())
             storage.putBlob(BlobId("index-001"), "data3".toByteArray())
@@ -350,7 +350,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should return empty flow when no blobs match prefix`() = runTest {
+        fun `should return empty flow when no blobs match prefix`(): Unit = runTest {
             storage.putBlob(BlobId("abc"), "data".toByteArray())
 
             val listed = storage.listBlobs("xyz").toList()
@@ -359,14 +359,14 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should return empty flow when storage is empty`() = runTest {
+        fun `should return empty flow when storage is empty`(): Unit = runTest {
             val listed = storage.listBlobs("").toList()
 
             assertTrue(listed.isEmpty())
         }
 
         @Test
-        fun `should include correct metadata in listing`() = runTest {
+        fun `should include correct metadata in listing`(): Unit = runTest {
             val blobId = BlobId("list-metadata-test")
             val data = "listing metadata".toByteArray()
 
@@ -408,7 +408,7 @@ abstract class BlobStorageContractTest {
     inner class BlobIdTests {
 
         @Test
-        fun `should handle blob IDs with various prefixes`() = runTest {
+        fun `should handle blob IDs with various prefixes`(): Unit = runTest {
             val prefixes = listOf("p", "n", "s", "q", "x")
 
             for (prefix in prefixes) {
@@ -423,7 +423,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should handle blob IDs with hexadecimal characters`() = runTest {
+        fun `should handle blob IDs with hexadecimal characters`(): Unit = runTest {
             val blobId = BlobId("p0123456789abcdef0123456789abcdef")
             val data = "hex blob data".toByteArray()
 
@@ -434,7 +434,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should handle minimum length blob ID`() = runTest {
+        fun `should handle minimum length blob ID`(): Unit = runTest {
             val blobId = BlobId("x")
             val data = "single char id".toByteArray()
 
@@ -445,7 +445,7 @@ abstract class BlobStorageContractTest {
         }
 
         @Test
-        fun `should handle long blob ID`() = runTest {
+        fun `should handle long blob ID`(): Unit = runTest {
             val blobId = BlobId("p" + "a".repeat(200))
             val data = "long id blob".toByteArray()
 

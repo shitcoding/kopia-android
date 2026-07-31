@@ -66,7 +66,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload applies compression policy")
-        fun `upload applies compression policy`() = runBlocking {
+        fun `upload applies compression policy`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val policy = Policy(
                 compressionPolicy = CompressionPolicy(
@@ -105,7 +105,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload applies file exclusion rules")
-        fun `upload applies file exclusion rules`() = runBlocking {
+        fun `upload applies file exclusion rules`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val policy = Policy(
                 filesPolicy = FilesPolicy(
@@ -151,7 +151,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload respects max file size policy")
-        fun `upload respects max file size policy`() = runBlocking {
+        fun `upload respects max file size policy`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val policy = Policy(
                 filesPolicy = FilesPolicy(
@@ -205,7 +205,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("second upload deduplicates unchanged files")
-        fun `second upload deduplicates unchanged files`() = runBlocking {
+        fun `second upload deduplicates unchanged files`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress1 = CountingUploadProgress()
 
@@ -266,7 +266,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("modified file re-uploaded on second backup")
-        fun `modified file re-uploaded on second backup`() = runBlocking {
+        fun `modified file re-uploaded on second backup`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
 
             val originalModTime = Instant.parse("2025-01-01T00:00:00Z")
@@ -333,7 +333,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("deleted file absent from second snapshot manifest")
-        fun `deleted file absent from second snapshot manifest`() = runBlocking {
+        fun `deleted file absent from second snapshot manifest`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
 
             // First upload with two files
@@ -403,7 +403,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("a non-ignored read error yields a COMPLETE snapshot carrying the error count")
-        fun `upload with read error completes and records the error`() = runBlocking {
+        fun `upload with read error completes and records the error`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -445,7 +445,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("failFast stops the upload and marks the snapshot incomplete")
-        fun `failFast marks snapshot incomplete`() = runBlocking {
+        fun `failFast marks snapshot incomplete`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val uploader = SnapshotUploader(
                 writer = writer,
@@ -469,7 +469,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload with ignored read error completes with error count")
-        fun `upload with ignored read error completes with error count`() = runBlocking {
+        fun `upload with ignored read error completes with error count`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -507,7 +507,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload cancellation stops mid-upload")
-        fun `upload cancellation stops mid-upload`() = runBlocking {
+        fun `upload cancellation stops mid-upload`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -567,7 +567,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload empty directory creates valid snapshot")
-        fun `upload empty directory creates valid snapshot`() = runBlocking {
+        fun `upload empty directory creates valid snapshot`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
             val progress = CountingUploadProgress()
 
@@ -614,7 +614,7 @@ class SnapshotUploadIntegrationTest {
 
         @Test
         @DisplayName("upload nested empty directories creates valid snapshot")
-        fun `upload nested empty directories creates valid snapshot`() = runBlocking {
+        fun `upload nested empty directories creates valid snapshot`(): Unit = runBlocking {
             val writer = TrackingRepositoryWriter()
 
             val uploader = SnapshotUploader(

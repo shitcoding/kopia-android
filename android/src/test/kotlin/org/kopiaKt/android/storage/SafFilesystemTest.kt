@@ -43,7 +43,7 @@ class SafFilesystemTest {
     inner class SafDirectoryTests {
 
         @Test
-        fun `iterate returns files and subdirectories`() = runTest {
+        fun `iterate returns files and subdirectories`(): Unit = runTest {
             val childFile = FakeDocumentFileProvider(
                 name = "photo.jpg",
                 uri = Uri.parse("content://test/photo.jpg"),
@@ -79,7 +79,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `iterate on empty directory returns no entries`() = runTest {
+        fun `iterate on empty directory returns no entries`(): Unit = runTest {
             val root = FakeDocumentFileProvider(
                 name = "empty",
                 uri = Uri.parse("content://test/empty"),
@@ -97,7 +97,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `child returns correct entry for existing child`() = runTest {
+        fun `child returns correct entry for existing child`(): Unit = runTest {
             val childFile = FakeDocumentFileProvider(
                 name = "notes.txt",
                 uri = Uri.parse("content://test/notes.txt"),
@@ -124,7 +124,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `child returns null for nonexistent child`() = runTest {
+        fun `child returns null for nonexistent child`(): Unit = runTest {
             val root = FakeDocumentFileProvider(
                 name = "root",
                 uri = Uri.parse("content://test/root"),
@@ -142,7 +142,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `entry returns correct type for file child`() = runTest {
+        fun `entry returns correct type for file child`(): Unit = runTest {
             val childFile = FakeDocumentFileProvider(
                 name = "data.bin",
                 uri = Uri.parse("content://test/data.bin"),
@@ -172,7 +172,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `entry returns correct type for directory child`() = runTest {
+        fun `entry returns correct type for directory child`(): Unit = runTest {
             val childDir = FakeDocumentFileProvider(
                 name = "subdir",
                 uri = Uri.parse("content://test/subdir"),
@@ -203,7 +203,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `modTime returns last modified time`() = runTest {
+        fun `modTime returns last modified time`(): Unit = runTest {
             val timestamp = 1700000000000L
             val root = FakeDocumentFileProvider(
                 name = "root",
@@ -220,7 +220,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `name returns display name`() = runTest {
+        fun `name returns display name`(): Unit = runTest {
             val root = FakeDocumentFileProvider(
                 name = "My Documents",
                 uri = Uri.parse("content://test/my-documents"),
@@ -241,7 +241,7 @@ class SafFilesystemTest {
     inner class SafFileTests {
 
         @Test
-        fun `open returns InputStream via ContentResolverProvider`() = runTest {
+        fun `open returns InputStream via ContentResolverProvider`(): Unit = runTest {
             val fileContent = "Hello, SAF!".toByteArray()
             val fileUri = Uri.parse("content://test/hello.txt")
 
@@ -350,7 +350,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `entry type is never SYMLINK for SAF entries`() = runTest {
+        fun `entry type is never SYMLINK for SAF entries`(): Unit = runTest {
             val childFile = FakeDocumentFileProvider(
                 name = "file.txt",
                 uri = Uri.parse("content://test/file.txt"),
@@ -393,7 +393,7 @@ class SafFilesystemTest {
     inner class ErrorHandlingTests {
 
         @Test
-        fun `open on revoked URI throws IOException`() = runTest {
+        fun `open on revoked URI throws IOException`(): Unit = runTest {
             val fileUri = Uri.parse("content://test/revoked.txt")
 
             // Do not register any stream -- simulates revoked/unavailable URI
@@ -416,7 +416,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `iterate on deleted directory returns empty`() = runTest {
+        fun `iterate on deleted directory returns empty`(): Unit = runTest {
             // Simulate a directory whose children listing returns null
             val root = FakeDocumentFileProvider(
                 name = "deleted",
@@ -435,7 +435,7 @@ class SafFilesystemTest {
         }
 
         @Test
-        fun `iterate wraps ContentResolver exceptions`() = runTest {
+        fun `iterate wraps ContentResolver exceptions`(): Unit = runTest {
             val root = FakeDocumentFileProvider(
                 name = "error",
                 uri = Uri.parse("content://test/error"),

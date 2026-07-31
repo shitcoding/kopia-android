@@ -41,7 +41,7 @@ class RecordAndContinueTest {
     }
 
     @Test
-    fun `an unreadable file does not abort the rest of the backup`(@TempDir tempDir: Path) = runBlocking {
+    fun `an unreadable file does not abort the rest of the backup`(@TempDir tempDir: Path): Unit = runBlocking {
         val processor = CountingProcessor()
         val walker = TreeWalker(processor, NullUploadProgress())
 
@@ -52,7 +52,7 @@ class RecordAndContinueTest {
     }
 
     @Test
-    fun `the failed entry is recorded against the snapshot`(@TempDir tempDir: Path) = runBlocking {
+    fun `the failed entry is recorded against the snapshot`(@TempDir tempDir: Path): Unit = runBlocking {
         val processor = CountingProcessor()
         val walker = TreeWalker(processor, NullUploadProgress())
 
@@ -75,7 +75,7 @@ class RecordAndContinueTest {
     }
 
     @Test
-    fun `an ignored error counts as ignored, not fatal`(@TempDir tempDir: Path) = runBlocking {
+    fun `an ignored error counts as ignored, not fatal`(@TempDir tempDir: Path): Unit = runBlocking {
         val processor = CountingProcessor()
         val walker = TreeWalker(
             processor,
@@ -115,7 +115,9 @@ class RecordAndContinueTest {
      * its own — a phantom empty directory would restore as data loss dressed up as data.
      */
     @Test
-    fun `an unreadable subdirectory is recorded by its parent and adds no entry`(@TempDir tempDir: Path) = runBlocking {
+    fun `an unreadable subdirectory is recorded by its parent and adds no entry`(
+        @TempDir tempDir: Path,
+    ): Unit = runBlocking {
         tempDir.resolve("keep.txt").writeText("data")
         val locked = tempDir.resolve("locked").also { it.toFile().mkdirs() }
         locked.resolve("hidden.txt").writeText("data")

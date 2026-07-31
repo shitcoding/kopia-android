@@ -70,7 +70,7 @@ class MetadataFidelityTest {
     inner class PermissionModeTests {
 
         @Test
-        fun `should preserve exact permission mode 0644`() = runBlocking {
+        fun `should preserve exact permission mode 0644`(): Unit = runBlocking {
             val content = "test content".toByteArray()
             val mode644 = 420 // 0o644
             val entry = makeFileEntry("file644.txt", content.size.toLong(), permissions = mode644)
@@ -91,7 +91,7 @@ class MetadataFidelityTest {
         }
 
         @Test
-        fun `should preserve exact permission mode 0755`() = runBlocking {
+        fun `should preserve exact permission mode 0755`(): Unit = runBlocking {
             val content = "executable content".toByteArray()
             val mode755 = 493 // 0o755
             val entry = makeFileEntry("file755.sh", content.size.toLong(), permissions = mode755)
@@ -115,7 +115,7 @@ class MetadataFidelityTest {
         }
 
         @Test
-        fun `should preserve exact permission mode 0600`() = runBlocking {
+        fun `should preserve exact permission mode 0600`(): Unit = runBlocking {
             val content = "private content".toByteArray()
             val mode600 = 384 // 0o600
             val entry = makeFileEntry("file600.key", content.size.toLong(), permissions = mode600)
@@ -139,7 +139,7 @@ class MetadataFidelityTest {
     inner class TimestampTests {
 
         @Test
-        fun `should preserve modification time within 1 second tolerance`() = runBlocking {
+        fun `should preserve modification time within 1 second tolerance`(): Unit = runBlocking {
             val content = "timestamped content".toByteArray()
             // Use a specific past timestamp to avoid filesystem rounding issues
             val expectedModTime = Instant.parse("2024-06-15T10:30:00Z")
@@ -164,7 +164,7 @@ class MetadataFidelityTest {
     inner class ParentDirectoryTests {
 
         @Test
-        fun `should set correct permissions on restored parent directories`() = runBlocking {
+        fun `should set correct permissions on restored parent directories`(): Unit = runBlocking {
             val dirMode = 493 // 0o755
             val dirEntry = makeDirEntry("subdir", permissions = dirMode)
 
@@ -195,7 +195,7 @@ class MetadataFidelityTest {
         }
 
         @Test
-        fun `should not set epoch timestamp on parent directories`() = runBlocking {
+        fun `should not set epoch timestamp on parent directories`(): Unit = runBlocking {
             // Use a non-epoch timestamp for the directory
             val dirModTime = Instant.parse("2024-03-20T15:45:00Z")
             val dirEntry = makeDirEntry("parentdir", modTime = dirModTime)

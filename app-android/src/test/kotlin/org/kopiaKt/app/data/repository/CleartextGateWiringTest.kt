@@ -20,7 +20,7 @@ class CleartextGateWiringTest {
     private val manager = KopiaRepositoryManagerImpl(context)
 
     @Test
-    fun `connect refuses an unacknowledged cleartext S3 endpoint`() = runTest {
+    fun `connect refuses an unacknowledged cleartext S3 endpoint`(): Unit = runTest {
         val result = manager.connect(
             ConnectionConfig.S3(
                 bucket = "b",
@@ -40,7 +40,7 @@ class CleartextGateWiringTest {
     }
 
     @Test
-    fun `connect refuses an unacknowledged cleartext WebDAV url`() = runTest {
+    fun `connect refuses an unacknowledged cleartext WebDAV url`(): Unit = runTest {
         val result = manager.connect(
             ConnectionConfig.WebDAV(url = "http://nas.local/dav/", username = "u", password = "p"),
             repositoryPassword = "irrelevant",

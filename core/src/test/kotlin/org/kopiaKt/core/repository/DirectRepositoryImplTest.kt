@@ -28,7 +28,7 @@ class DirectRepositoryImplTest {
     // === Create Repository Tests ===
 
     @Test
-    fun `create repository succeeds with valid config`() = runBlocking {
+    fun `create repository succeeds with valid config`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -40,7 +40,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `create repository with custom client options`() = runBlocking {
+    fun `create repository with custom client options`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val clientOptions = ClientOptions(
@@ -58,7 +58,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `initialize is alias for create`() = runBlocking {
+    fun `initialize is alias for create`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -71,7 +71,7 @@ class DirectRepositoryImplTest {
     // === Open Repository Tests ===
 
     @Test
-    fun `open repository with correct password succeeds`() = runBlocking {
+    fun `open repository with correct password succeeds`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -87,7 +87,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `connect is alias for open`() = runBlocking {
+    fun `connect is alias for open`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -102,7 +102,7 @@ class DirectRepositoryImplTest {
     // === Object Read/Write Tests ===
 
     @Test
-    fun `write and read object round-trip`() = runBlocking {
+    fun `write and read object round-trip`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -121,7 +121,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `write large object creates indirect object`() = runBlocking {
+    fun `write large object creates indirect object`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -142,7 +142,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `verify object returns content IDs`() = runBlocking {
+    fun `verify object returns content IDs`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -168,7 +168,7 @@ class DirectRepositoryImplTest {
     )
 
     @Test
-    fun `put and get manifest round-trip`() = runBlocking {
+    fun `put and get manifest round-trip`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -190,7 +190,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `find manifests by labels`() = runBlocking {
+    fun `find manifests by labels`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -216,7 +216,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `delete manifest removes it from queries`() = runBlocking {
+    fun `delete manifest removes it from queries`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -244,7 +244,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `get non-existent manifest throws`() = runBlocking {
+    fun `get non-existent manifest throws`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -261,7 +261,7 @@ class DirectRepositoryImplTest {
     // === Repository State Tests ===
 
     @Test
-    fun `refresh reloads indexes`() = runBlocking {
+    fun `refresh reloads indexes`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
 
@@ -285,7 +285,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `close prevents further operations`() = runBlocking {
+    fun `close prevents further operations`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -298,7 +298,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `update description changes client options`() = runBlocking {
+    fun `update description changes client options`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -312,7 +312,7 @@ class DirectRepositoryImplTest {
     // === DirectRepository Interface Tests ===
 
     @Test
-    fun `unique ID is available`() = runBlocking {
+    fun `unique ID is available`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -324,7 +324,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `derive key produces consistent results`() = runBlocking {
+    fun `derive key produces consistent results`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -338,7 +338,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `derive key with different purposes produces different keys`() = runBlocking {
+    fun `derive key with different purposes produces different keys`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -351,7 +351,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `blob reader provides access to storage`() = runBlocking {
+    fun `blob reader provides access to storage`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -363,7 +363,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `supports password change based on config`() = runBlocking {
+    fun `supports password change based on config`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig().copy(enablePasswordChange = true)
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -375,7 +375,7 @@ class DirectRepositoryImplTest {
     // === Write Session Tests ===
 
     @Test
-    fun `write session flushes on success`() = runBlocking {
+    fun `write session flushes on success`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -393,7 +393,7 @@ class DirectRepositoryImplTest {
     }
 
     @Test
-    fun `direct write session provides low-level access`() = runBlocking {
+    fun `direct write session provides low-level access`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)
@@ -408,7 +408,7 @@ class DirectRepositoryImplTest {
     // === Concatenate Objects Tests ===
 
     @Test
-    fun `concatenate objects combines multiple objects`() = runBlocking {
+    fun `concatenate objects combines multiple objects`(): Unit = runBlocking {
         val password = "test-password"
         val config = createTestConfig()
         val repo = DirectRepositoryImpl.create(storage, password, config)

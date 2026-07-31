@@ -154,7 +154,7 @@ class S3BlobStorageIntegrationTest {
     inner class CrudTests {
 
         @Test
-        fun `should put and get blob`() = runTest {
+        fun `should put and get blob`(): Unit = runTest {
             val blobId = BlobId("test-blob-001")
             val data = "Hello, MinIO!".toByteArray()
 
@@ -165,7 +165,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should handle empty blob`() = runTest {
+        fun `should handle empty blob`(): Unit = runTest {
             val blobId = BlobId("empty-blob")
             val data = ByteArray(0)
 
@@ -176,7 +176,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should handle binary data`() = runTest {
+        fun `should handle binary data`(): Unit = runTest {
             val blobId = BlobId("binary-blob")
             val data = ByteArray(256) { it.toByte() }
 
@@ -187,7 +187,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should handle large blob`() = runTest {
+        fun `should handle large blob`(): Unit = runTest {
             val blobId = BlobId("large-blob")
             val data = ByteArray(5 * 1024 * 1024) { (it % 256).toByte() } // 5MB
 
@@ -198,7 +198,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should overwrite existing blob`() = runTest {
+        fun `should overwrite existing blob`(): Unit = runTest {
             val blobId = BlobId("overwrite-blob")
             val original = "original".toByteArray()
             val updated = "updated data".toByteArray()
@@ -211,7 +211,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should not overwrite when dontOverwrite is true`() = runTest {
+        fun `should not overwrite when dontOverwrite is true`(): Unit = runTest {
             val blobId = BlobId("no-overwrite-blob")
             val original = "original".toByteArray()
             val newData = "new data".toByteArray()
@@ -224,7 +224,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should throw BlobNotFoundException for non-existent blob`() = runTest {
+        fun `should throw BlobNotFoundException for non-existent blob`(): Unit = runTest {
             val blobId = BlobId("non-existent")
 
             assertThrows<BlobNotFoundException> {
@@ -233,7 +233,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should delete blob`() = runTest {
+        fun `should delete blob`(): Unit = runTest {
             val blobId = BlobId("to-delete")
             val data = "to be deleted".toByteArray()
 
@@ -246,7 +246,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should not throw when deleting non-existent blob`() = runTest {
+        fun `should not throw when deleting non-existent blob`(): Unit = runTest {
             val blobId = BlobId("never-existed")
 
             // Should not throw
@@ -259,7 +259,7 @@ class S3BlobStorageIntegrationTest {
     inner class PartialReadTests {
 
         @Test
-        fun `should read with offset`() = runTest {
+        fun `should read with offset`(): Unit = runTest {
             val blobId = BlobId("partial-offset")
             val data = "0123456789".toByteArray()
 
@@ -270,7 +270,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should read with length`() = runTest {
+        fun `should read with length`(): Unit = runTest {
             val blobId = BlobId("partial-length")
             val data = "0123456789".toByteArray()
 
@@ -281,7 +281,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should read with offset and length`() = runTest {
+        fun `should read with offset and length`(): Unit = runTest {
             val blobId = BlobId("partial-both")
             val data = "0123456789".toByteArray()
 
@@ -292,7 +292,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should return empty for zero-length read`() = runTest {
+        fun `should return empty for zero-length read`(): Unit = runTest {
             val blobId = BlobId("partial-zero")
             val data = "0123456789".toByteArray()
 
@@ -308,7 +308,7 @@ class S3BlobStorageIntegrationTest {
     inner class MetadataTests {
 
         @Test
-        fun `should get metadata for existing blob`() = runTest {
+        fun `should get metadata for existing blob`(): Unit = runTest {
             val blobId = BlobId("metadata-test")
             val data = "metadata test data".toByteArray()
 
@@ -322,7 +322,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should return null for non-existent blob metadata`() = runTest {
+        fun `should return null for non-existent blob metadata`(): Unit = runTest {
             val blobId = BlobId("no-metadata")
 
             val metadata = storage.getBlobMetadata(blobId)
@@ -336,7 +336,7 @@ class S3BlobStorageIntegrationTest {
     inner class ListTests {
 
         @Test
-        fun `should list all blobs`() = runTest {
+        fun `should list all blobs`(): Unit = runTest {
             storage.putBlob(BlobId("list-a"), "a".toByteArray())
             storage.putBlob(BlobId("list-b"), "b".toByteArray())
             storage.putBlob(BlobId("list-c"), "c".toByteArray())
@@ -348,7 +348,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should filter by prefix`() = runTest {
+        fun `should filter by prefix`(): Unit = runTest {
             storage.putBlob(BlobId("pack-001"), "a".toByteArray())
             storage.putBlob(BlobId("pack-002"), "b".toByteArray())
             storage.putBlob(BlobId("index-001"), "c".toByteArray())
@@ -360,7 +360,7 @@ class S3BlobStorageIntegrationTest {
         }
 
         @Test
-        fun `should return empty for non-matching prefix`() = runTest {
+        fun `should return empty for non-matching prefix`(): Unit = runTest {
             storage.putBlob(BlobId("exists"), "data".toByteArray())
 
             val blobs = storage.listBlobs("nonexistent-").toList()
@@ -396,7 +396,7 @@ class S3BlobStorageIntegrationTest {
 
         @Test
         @DisplayName("listBlobs handles many objects correctly")
-        fun listBlobs_handlesManyObjects() = runTest {
+        fun listBlobs_handlesManyObjects(): Unit = runTest {
             val prefix = "p_"
             repeat(50) { i ->
                 storage.putBlob(BlobId("${prefix}blob_${i.toString().padStart(4, '0')}"), "data$i".toByteArray())
@@ -407,7 +407,7 @@ class S3BlobStorageIntegrationTest {
 
         @Test
         @DisplayName("create with doNotUseTls connects over HTTP")
-        fun create_withDoNotUseTls_connectsOverHttp() = runTest {
+        fun create_withDoNotUseTls_connectsOverHttp(): Unit = runTest {
             val s3 = S3BlobStorage.create(
                 S3Options(
                     bucketName = bucketName,

@@ -43,7 +43,7 @@ class BackupWorkerExecutionTest {
     }
 
     @Test
-    fun `should return failure when source ID is missing`() = runBlocking {
+    fun `should return failure when source ID is missing`(): Unit = runBlocking {
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
             .setInputData(
                 workDataOf(
@@ -63,7 +63,7 @@ class BackupWorkerExecutionTest {
     }
 
     @Test
-    fun `should return failure when source path is missing`() = runBlocking {
+    fun `should return failure when source path is missing`(): Unit = runBlocking {
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
             .setInputData(
                 workDataOf(
@@ -83,7 +83,7 @@ class BackupWorkerExecutionTest {
     }
 
     @Test
-    fun `should fail when repository provider is not set`() = runBlocking {
+    fun `should fail when repository provider is not set`(): Unit = runBlocking {
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
             .setInputData(
                 workDataOf(
@@ -105,7 +105,7 @@ class BackupWorkerExecutionTest {
     }
 
     @Test
-    fun `should fail when repository provider returns null`() = runBlocking {
+    fun `should fail when repository provider returns null`(): Unit = runBlocking {
         BackupWorker.repositoryProvider = { _ -> null }
 
         val worker = TestListenableWorkerBuilder<BackupWorker>(context)
@@ -125,7 +125,7 @@ class BackupWorkerExecutionTest {
     }
 
     @Test
-    fun `should invoke repository provider with application context`() = runBlocking {
+    fun `should invoke repository provider with application context`(): Unit = runBlocking {
         var capturedContext: Context? = null
         BackupWorker.repositoryProvider = { ctx ->
             capturedContext = ctx

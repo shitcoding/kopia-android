@@ -46,7 +46,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("policy persists across repository close and reopen")
-        fun `policy persists across repository close and reopen`() = runTest {
+        fun `policy persists across repository close and reopen`(): Unit = runTest {
             val (r, storage) = TestRepositoryFactory.createInMemory()
             val policy = Policy(retentionPolicy = RetentionPolicy(keepLatest = 10))
             PolicyManager.setPolicy(r, pathSource, policy)
@@ -63,7 +63,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("setPolicy stores policy as manifest")
-        fun `setPolicy stores policy as manifest`() = runTest {
+        fun `setPolicy stores policy as manifest`(): Unit = runTest {
             val r = createRepo()
             val policy = Policy(
                 retentionPolicy = RetentionPolicy(keepLatest = 5),
@@ -79,7 +79,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("getPolicy retrieves stored policy")
-        fun `getPolicy retrieves stored policy`() = runTest {
+        fun `getPolicy retrieves stored policy`(): Unit = runTest {
             val r = createRepo()
             val policy = Policy(
                 retentionPolicy = RetentionPolicy(keepLatest = 42, keepDaily = 14),
@@ -95,7 +95,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("deletePolicy removes manifest")
-        fun `deletePolicy removes manifest`() = runTest {
+        fun `deletePolicy removes manifest`(): Unit = runTest {
             val r = createRepo()
             val policy = Policy(
                 retentionPolicy = RetentionPolicy(keepLatest = 5),
@@ -110,7 +110,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("listPolicies returns all policies")
-        fun `listPolicies returns all policies`() = runTest {
+        fun `listPolicies returns all policies`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -141,7 +141,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("setPolicy overwrites existing")
-        fun `setPolicy overwrites existing`() = runTest {
+        fun `setPolicy overwrites existing`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -171,7 +171,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("effective policy resolves global default")
-        fun `effective policy resolves global default`() = runTest {
+        fun `effective policy resolves global default`(): Unit = runTest {
             val r = createRepo()
 
             // Set only a global policy
@@ -191,7 +191,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("source policy overrides global default")
-        fun `source policy overrides global default`() = runTest {
+        fun `source policy overrides global default`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -216,7 +216,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("host-level policy applies to all sources on host")
-        fun `host-level policy applies to all sources on host`() = runTest {
+        fun `host-level policy applies to all sources on host`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -235,7 +235,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("most specific policy wins")
-        fun `most specific policy wins`() = runTest {
+        fun `most specific policy wins`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -268,7 +268,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("merge combines non-overlapping fields")
-        fun `merge combines non-overlapping fields`() = runTest {
+        fun `merge combines non-overlapping fields`(): Unit = runTest {
             val r = createRepo()
 
             // Global has retention keepWeekly
@@ -303,7 +303,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("resolvePolicy returns effective policy with scheduling")
-        fun `resolvePolicy returns effective policy with scheduling`() = runTest {
+        fun `resolvePolicy returns effective policy with scheduling`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -325,7 +325,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("resolvePolicy with no scheduling returns empty scheduling")
-        fun `resolvePolicy with no scheduling returns empty scheduling`() = runTest {
+        fun `resolvePolicy with no scheduling returns empty scheduling`(): Unit = runTest {
             val r = createRepo()
 
             // Set a policy with only retention, no scheduling
@@ -346,7 +346,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("resolvePolicy with intervalSeconds present")
-        fun `resolvePolicy with intervalSeconds present`() = runTest {
+        fun `resolvePolicy with intervalSeconds present`(): Unit = runTest {
             val r = createRepo()
 
             PolicyManager.setPolicy(
@@ -369,7 +369,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("getPolicy for nonexistent source returns null")
-        fun `getPolicy for nonexistent source returns null`() = runTest {
+        fun `getPolicy for nonexistent source returns null`(): Unit = runTest {
             val r = createRepo()
 
             val result = PolicyManager.getPolicy(r, pathSource)
@@ -379,7 +379,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("deletePolicy for nonexistent source is no-op")
-        fun `deletePolicy for nonexistent source is no-op`() = runTest {
+        fun `deletePolicy for nonexistent source is no-op`(): Unit = runTest {
             val r = createRepo()
 
             // Should not throw
@@ -392,7 +392,7 @@ class PolicyManagerTest {
 
         @Test
         @DisplayName("listPolicies empty on fresh repository")
-        fun `listPolicies empty on fresh repository`() = runTest {
+        fun `listPolicies empty on fresh repository`(): Unit = runTest {
             val r = createRepo()
 
             val policies = PolicyManager.listPolicies(r)

@@ -137,7 +137,7 @@ class FullMaintenanceCycleTest {
     inner class RepositoryValidityAfterMaintenance {
 
         @Test
-        fun `full maintenance with gcDelete=true fails loud without deleting`() = runTest {
+        fun `full maintenance with gcDelete=true fails loud without deleting`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -163,7 +163,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `retention deletes by the source policy, not the built-in default`() = runTest {
+        fun `retention deletes by the source policy, not the built-in default`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -195,7 +195,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `should leave repository valid after full maintenance cycle`() = runTest {
+        fun `should leave repository valid after full maintenance cycle`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -243,7 +243,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `should leave repository valid after quick maintenance`() = runTest {
+        fun `should leave repository valid after quick maintenance`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -273,7 +273,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `should preserve multiple snapshots after full maintenance`() = runTest {
+        fun `should preserve multiple snapshots after full maintenance`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -316,7 +316,7 @@ class FullMaintenanceCycleTest {
     inner class Idempotency {
 
         @Test
-        fun `should be idempotent when run twice`() = runTest {
+        fun `should be idempotent when run twice`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -360,7 +360,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `should produce consistent GC stats across two runs`() = runTest {
+        fun `should produce consistent GC stats across two runs`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 
@@ -396,7 +396,7 @@ class FullMaintenanceCycleTest {
     inner class NoDuplicateBlobProcessing {
 
         @Test
-        fun `should not process same blob multiple times`() = runTest {
+        fun `should not process same blob multiple times`(): Unit = runTest {
             // Regression: Go issue #3059 - blobs should not be processed more than once
             val (repository, storage) = TestRepositoryFactory.createInMemory()
             repo = repository
@@ -460,7 +460,7 @@ class FullMaintenanceCycleTest {
         }
 
         @Test
-        fun `should not duplicate work when objects are shared across snapshots`() = runTest {
+        fun `should not duplicate work when objects are shared across snapshots`(): Unit = runTest {
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
 

@@ -41,7 +41,7 @@ class CheckpointStoreTest {
     inner class SaveCheckpointTests {
 
         @Test
-        fun `saves checkpoint and retrieves it`() = runTest {
+        fun `saves checkpoint and retrieves it`(): Unit = runTest {
             val checkpoint = createTestCheckpoint("source-1")
 
             checkpointStore.saveCheckpoint(checkpoint)
@@ -54,7 +54,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `overwrites existing checkpoint`() = runTest {
+        fun `overwrites existing checkpoint`(): Unit = runTest {
             val checkpoint1 = createTestCheckpoint("source-1", processedFiles = 100)
             val checkpoint2 = createTestCheckpoint("source-1", processedFiles = 200)
 
@@ -72,14 +72,14 @@ class CheckpointStoreTest {
     inner class GetCheckpointTests {
 
         @Test
-        fun `returns NotFound for non-existent checkpoint`() = runTest {
+        fun `returns NotFound for non-existent checkpoint`(): Unit = runTest {
             val result = checkpointStore.getCheckpoint("non-existent")
 
             assertThat(result).isEqualTo(CheckpointResult.NotFound)
         }
 
         @Test
-        fun `returns Stale for old checkpoint`() = runTest {
+        fun `returns Stale for old checkpoint`(): Unit = runTest {
             val oldCheckpoint = BackupCheckpoint(
                 sourceId = "source-1",
                 sourcePath = "/test/path",
@@ -94,7 +94,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `returns Found for valid checkpoint`() = runTest {
+        fun `returns Found for valid checkpoint`(): Unit = runTest {
             val checkpoint = createTestCheckpoint("source-1")
 
             checkpointStore.saveCheckpoint(checkpoint)
@@ -109,7 +109,7 @@ class CheckpointStoreTest {
     inner class ClearCheckpointTests {
 
         @Test
-        fun `clears existing checkpoint`() = runTest {
+        fun `clears existing checkpoint`(): Unit = runTest {
             val checkpoint = createTestCheckpoint("source-1")
             checkpointStore.saveCheckpoint(checkpoint)
 
@@ -120,7 +120,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `does nothing for non-existent checkpoint`() = runTest {
+        fun `does nothing for non-existent checkpoint`(): Unit = runTest {
             // Should not throw
             checkpointStore.clearCheckpoint("non-existent")
 
@@ -134,7 +134,7 @@ class CheckpointStoreTest {
     inner class UpdateCheckpointTests {
 
         @Test
-        fun `updates existing checkpoint`() = runTest {
+        fun `updates existing checkpoint`(): Unit = runTest {
             val checkpoint = createTestCheckpoint("source-1", processedFiles = 100)
             checkpointStore.saveCheckpoint(checkpoint)
 
@@ -148,7 +148,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `does nothing for non-existent checkpoint`() = runTest {
+        fun `does nothing for non-existent checkpoint`(): Unit = runTest {
             checkpointStore.updateCheckpoint("non-existent") { existing ->
                 existing.copy(processedFiles = 999)
             }
@@ -163,14 +163,14 @@ class CheckpointStoreTest {
     inner class ListActiveCheckpointsTests {
 
         @Test
-        fun `returns empty list when no checkpoints`() = runTest {
+        fun `returns empty list when no checkpoints`(): Unit = runTest {
             val checkpoints = checkpointStore.listActiveCheckpoints()
 
             assertThat(checkpoints).isEmpty()
         }
 
         @Test
-        fun `returns all active checkpoints`() = runTest {
+        fun `returns all active checkpoints`(): Unit = runTest {
             checkpointStore.saveCheckpoint(createTestCheckpoint("source-1"))
             checkpointStore.saveCheckpoint(createTestCheckpoint("source-2"))
             checkpointStore.saveCheckpoint(createTestCheckpoint("source-3"))
@@ -182,7 +182,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `excludes stale checkpoints`() = runTest {
+        fun `excludes stale checkpoints`(): Unit = runTest {
             checkpointStore.saveCheckpoint(createTestCheckpoint("source-1"))
             checkpointStore.saveCheckpoint(
                 BackupCheckpoint(
@@ -205,7 +205,7 @@ class CheckpointStoreTest {
     inner class ClearStaleCheckpointsTests {
 
         @Test
-        fun `removes stale checkpoints`() = runTest {
+        fun `removes stale checkpoints`(): Unit = runTest {
             checkpointStore.saveCheckpoint(createTestCheckpoint("active"))
             checkpointStore.saveCheckpoint(
                 BackupCheckpoint(
@@ -224,7 +224,7 @@ class CheckpointStoreTest {
         }
 
         @Test
-        fun `returns zero when no stale checkpoints`() = runTest {
+        fun `returns zero when no stale checkpoints`(): Unit = runTest {
             checkpointStore.saveCheckpoint(createTestCheckpoint("active"))
 
             val cleared = checkpointStore.clearStaleCheckpoints()
@@ -238,14 +238,14 @@ class CheckpointStoreTest {
     inner class ObserveCheckpointTests {
 
         @Test
-        fun `emits null when checkpoint does not exist`() = runTest {
+        fun `emits null when checkpoint does not exist`(): Unit = runTest {
             val checkpoint = checkpointStore.observeCheckpoint("non-existent").first()
 
             assertThat(checkpoint).isNull()
         }
 
         @Test
-        fun `emits checkpoint when it exists`() = runTest {
+        fun `emits checkpoint when it exists`(): Unit = runTest {
             checkpointStore.saveCheckpoint(createTestCheckpoint("source-1"))
 
             val checkpoint = checkpointStore.observeCheckpoint("source-1").first()

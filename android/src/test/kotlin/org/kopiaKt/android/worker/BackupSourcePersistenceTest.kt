@@ -66,7 +66,7 @@ class BackupSourcePersistenceTest {
     }
 
     @Test
-    fun `deleting a source clears its checkpoint and releases its SAF grant`() = runBlocking {
+    fun `deleting a source clears its checkpoint and releases its SAF grant`(): Unit = runBlocking {
         val sources = manager()
         sources.createSource(SAF_ID, SAF_PATH, "Documents")
         val checkpoints = mockk<CheckpointStore>(relaxed = true)
@@ -80,7 +80,7 @@ class BackupSourcePersistenceTest {
     }
 
     @Test
-    fun `a SAF grant another source still needs is kept`() = runBlocking {
+    fun `a SAF grant another source still needs is kept`(): Unit = runBlocking {
         val sources = manager()
         sources.createSource(SAF_ID, SAF_PATH, "Documents")
         sources.createSource("local@phone:$SAF_PATH", SAF_PATH, "Documents again")
@@ -93,7 +93,7 @@ class BackupSourcePersistenceTest {
     }
 
     @Test
-    fun `deleting an unknown source is a no-op`() = runBlocking {
+    fun `deleting an unknown source is a no-op`(): Unit = runBlocking {
         val permissions = mockk<SafPermissionManager>(relaxed = true)
 
         BackupSourceDeleter(context, manager(), mockk(relaxed = true), permissions).delete("nope")

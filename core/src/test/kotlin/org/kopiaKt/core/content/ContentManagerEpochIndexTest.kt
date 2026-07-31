@@ -47,7 +47,7 @@ class ContentManagerEpochIndexTest {
     private suspend fun blobIds(storage: InMemoryBlobStorage, prefix: String): List<String> = storage.listBlobs(prefix).toList().map { it.blobId.value }
 
     @Test
-    fun `epoch mode writes Go-compatible xn0 uncompacted index blob names`() = runBlocking {
+    fun `epoch mode writes Go-compatible xn0 uncompacted index blob names`(): Unit = runBlocking {
         val storage = InMemoryBlobStorage()
         val cm = contentManager(storage, epochsEnabled = true)
         cm.writeContent("epoch content".toByteArray())
@@ -62,7 +62,7 @@ class ContentManagerEpochIndexTest {
     }
 
     @Test
-    fun `legacy (non-epoch) mode writes n-prefixed index blob names`() = runBlocking {
+    fun `legacy (non-epoch) mode writes n-prefixed index blob names`(): Unit = runBlocking {
         val storage = InMemoryBlobStorage()
         val cm = contentManager(storage, epochsEnabled = false)
         cm.writeContent("legacy content".toByteArray())
@@ -76,7 +76,7 @@ class ContentManagerEpochIndexTest {
     }
 
     @Test
-    fun `writer discovers the current epoch from xe markers`() = runBlocking {
+    fun `writer discovers the current epoch from xe markers`(): Unit = runBlocking {
         val storage = InMemoryBlobStorage()
         // Pretend the repo advanced to epoch 3 (marker blob is plaintext "epoch-marker").
         storage.putBlob(BlobId("xe3"), "epoch-marker".toByteArray())
@@ -91,7 +91,7 @@ class ContentManagerEpochIndexTest {
     }
 
     @Test
-    fun `epoch marker blobs are skipped on load without flagging the index incomplete`() = runBlocking {
+    fun `epoch marker blobs are skipped on load without flagging the index incomplete`(): Unit = runBlocking {
         val storage = InMemoryBlobStorage()
         val cm = contentManager(storage, epochsEnabled = true)
         val id = cm.writeContent("still readable".toByteArray())
@@ -123,7 +123,7 @@ class ContentManagerEpochIndexTest {
     }
 
     @Test
-    fun `a FormatVersion 1 repo writes legacy n-prefixed index blobs even if epochParameters says enabled`() = runBlocking {
+    fun `a FormatVersion 1 repo writes legacy n-prefixed index blobs even if epochParameters says enabled`(): Unit = runBlocking {
         // Simulates opening a pre-0.9 legacy repo whose format blob omits the epoch key (deserialized to the
         // truthy EpochParameters.DEFAULT): the runtime must still write Go's V0 legacy "n<hash>" index names,
         // NOT "xn0_", or Go's V0 reader on that legacy repo cannot see Kotlin's writes. (task-20 misdetection)

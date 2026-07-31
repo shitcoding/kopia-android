@@ -150,7 +150,7 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `unencrypted encrypt should return data unchanged`() = kotlinx.coroutines.runBlocking {
+    fun `unencrypted encrypt should return data unchanged`(): Unit = kotlinx.coroutines.runBlocking {
         val encryption = IndexBlobEncryption.unencrypted()
         val data = byteArrayOf(1, 2, 3, 4, 5)
         val blobId = BlobId("ntest")
@@ -161,7 +161,7 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `unencrypted decrypt should return data unchanged`() = kotlinx.coroutines.runBlocking {
+    fun `unencrypted decrypt should return data unchanged`(): Unit = kotlinx.coroutines.runBlocking {
         val encryption = IndexBlobEncryption.unencrypted()
         val data = byteArrayOf(1, 2, 3, 4, 5)
         val blobId = BlobId("ntest")
@@ -190,7 +190,7 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `encrypt should use encryptor when provided`() = kotlinx.coroutines.runBlocking {
+    fun `encrypt should use encryptor when provided`(): Unit = kotlinx.coroutines.runBlocking {
         val mockEncryptor = MockEncryptor()
         val encryption = IndexBlobEncryption(mockEncryptor)
         val data = byteArrayOf(1, 2, 3, 4, 5)
@@ -204,7 +204,7 @@ class IndexBlobEncryptionTest {
     }
 
     @Test
-    fun `decrypt should use encryptor decryptWithRawId when provided`() = kotlinx.coroutines.runBlocking {
+    fun `decrypt should use encryptor decryptWithRawId when provided`(): Unit = kotlinx.coroutines.runBlocking {
         val mockEncryptor = MockEncryptor()
         val encryption = IndexBlobEncryption(mockEncryptor)
         val data = byteArrayOf(1, 2, 3, 4, 5)

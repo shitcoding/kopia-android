@@ -52,7 +52,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `deleteContent hides content and leaves a tombstone visible only with includeDeleted`() = runBlocking {
+    fun `deleteContent hides content and leaves a tombstone visible only with includeDeleted`(): Unit = runBlocking {
         val id = cm.writeContent("hello world".toByteArray())
         cm.flush()
         assertThat(cm.getContentInfo(id)).isNotNull()
@@ -67,7 +67,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `undeleteContent revives a deleted content and it is readable again`() = runBlocking {
+    fun `undeleteContent revives a deleted content and it is readable again`(): Unit = runBlocking {
         val id = cm.writeContent("data".toByteArray())
         cm.flush()
         cm.deleteContent(id)
@@ -82,7 +82,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `deleteContent no-ops on already-deleted and undelete no-ops on live`() = runBlocking {
+    fun `deleteContent no-ops on already-deleted and undelete no-ops on live`(): Unit = runBlocking {
         val id = cm.writeContent("x".toByteArray())
         cm.flush()
 
@@ -96,7 +96,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `tombstone survives flush + reload and last-writer-wins across index blobs`() = runBlocking {
+    fun `tombstone survives flush + reload and last-writer-wins across index blobs`(): Unit = runBlocking {
         val id = cm.writeContent("payload".toByteArray())
         cm.flush()
         cm.deleteContent(id)
@@ -114,7 +114,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `re-writing deleted content resurrects it as live, beating the tombstone even in the same second`() = runBlocking {
+    fun `re-writing deleted content resurrects it as live, beating the tombstone even in the same second`(): Unit = runBlocking {
         val bytes = "resurrect me".toByteArray()
         val id = cm.writeContent(bytes)
         cm.flush()
@@ -140,7 +140,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `getContent and getContentInfo agree that a deleted content is absent`() = runBlocking {
+    fun `getContent and getContentInfo agree that a deleted content is absent`(): Unit = runBlocking {
         val id = cm.writeContent("bytes".toByteArray())
         cm.flush()
         cm.deleteContent(id) // tombstone in writtenContents, live entry still committed
@@ -156,7 +156,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `deleteContent on unflushed pending content actually deletes it and it stays deleted`() = runBlocking {
+    fun `deleteContent on unflushed pending content actually deletes it and it stays deleted`(): Unit = runBlocking {
         val id = cm.writeContent("pending".toByteArray()) // NOT flushed
         cm.deleteContent(id)
 
@@ -169,7 +169,7 @@ class ContentManagerSoftDeleteTest {
     }
 
     @Test
-    fun `delete-undelete-delete resolves to deleted via strictly increasing timestamps`() = runBlocking {
+    fun `delete-undelete-delete resolves to deleted via strictly increasing timestamps`(): Unit = runBlocking {
         val id = cm.writeContent("z".toByteArray())
         cm.flush()
         cm.deleteContent(id)

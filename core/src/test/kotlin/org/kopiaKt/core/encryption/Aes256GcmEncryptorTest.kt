@@ -252,7 +252,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `encrypt then decrypt round trips correctly`() = runBlocking {
+        fun `encrypt then decrypt round trips correctly`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -267,7 +267,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `ciphertext length equals plaintext plus overhead`() = runBlocking {
+        fun `ciphertext length equals plaintext plus overhead`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -281,7 +281,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `same content with same key and contentId produces different ciphertexts`() = runBlocking {
+        fun `same content with same key and contentId produces different ciphertexts`(): Unit = runBlocking {
             // Due to random nonce, each encryption should produce different output
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
@@ -302,7 +302,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `different content IDs produce different derived keys`() = runBlocking {
+        fun `different content IDs produce different derived keys`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -326,7 +326,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `different master keys produce incompatible ciphertexts`() = runBlocking {
+        fun `different master keys produce incompatible ciphertexts`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey1 = ByteArray(32) { it.toByte() }
             val masterKey2 = ByteArray(32) { (it + 1).toByte() }
@@ -350,7 +350,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `empty plaintext encrypts and decrypts correctly`() = runBlocking {
+        fun `empty plaintext encrypts and decrypts correctly`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -366,7 +366,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `large plaintext encrypts and decrypts correctly`() = runBlocking {
+        fun `large plaintext encrypts and decrypts correctly`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -382,7 +382,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `ciphertext too short should fail decryption`() = runBlocking {
+        fun `ciphertext too short should fail decryption`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)
@@ -399,7 +399,7 @@ class Aes256GcmEncryptorTest {
         }
 
         @Test
-        fun `corrupted ciphertext should fail decryption`() = runBlocking {
+        fun `corrupted ciphertext should fail decryption`(): Unit = runBlocking {
             val factory = DefaultEncryptorFactory()
             val masterKey = ByteArray(32) { it.toByte() }
             val encryptor = factory.create(EncryptionAlgorithm.AES256_GCM_HMAC_SHA256, masterKey)

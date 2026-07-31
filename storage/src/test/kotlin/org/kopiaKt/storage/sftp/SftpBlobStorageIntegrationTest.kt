@@ -100,7 +100,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(1)
     @DisplayName("put and get blob")
-    fun putAndGetBlob() = runTest {
+    fun putAndGetBlob(): Unit = runTest {
         val blobId = BlobId("test-blob")
         val data = "Hello, SFTP!".toByteArray()
 
@@ -114,7 +114,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(2)
     @DisplayName("put and get binary blob")
-    fun putAndGetBinaryBlob() = runTest {
+    fun putAndGetBinaryBlob(): Unit = runTest {
         val blobId = BlobId("binary-blob")
         val data = ByteArray(1024) { it.toByte() }
 
@@ -128,7 +128,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(3)
     @DisplayName("partial read")
-    fun partialRead() = runTest {
+    fun partialRead(): Unit = runTest {
         val blobId = BlobId("partial-blob")
         val data = "0123456789".toByteArray()
 
@@ -142,7 +142,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(4)
     @DisplayName("get blob metadata")
-    fun getBlobMetadata() = runTest {
+    fun getBlobMetadata(): Unit = runTest {
         val blobId = BlobId("metadata-blob")
         val data = "metadata test".toByteArray()
 
@@ -158,7 +158,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(5)
     @DisplayName("returns null for non-existent blob metadata")
-    fun nonExistentBlobMetadata() = runTest {
+    fun nonExistentBlobMetadata(): Unit = runTest {
         val blobId = BlobId("non-existent-metadata")
 
         val metadata = storage.getBlobMetadata(blobId)
@@ -169,7 +169,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(6)
     @DisplayName("delete blob")
-    fun deleteBlob() = runTest {
+    fun deleteBlob(): Unit = runTest {
         val blobId = BlobId("delete-blob")
         val data = "to be deleted".toByteArray()
 
@@ -183,7 +183,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(7)
     @DisplayName("dontOverwrite option")
-    fun dontOverwrite() = runTest {
+    fun dontOverwrite(): Unit = runTest {
         val blobId = BlobId("dont-overwrite-blob")
         val originalData = "original".toByteArray()
         val newData = "new".toByteArray()
@@ -199,7 +199,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(8)
     @DisplayName("list blobs")
-    fun listBlobs() = runTest {
+    fun listBlobs(): Unit = runTest {
         // Create some blobs
         storage.putBlob(BlobId("list-a"), "a".toByteArray())
         storage.putBlob(BlobId("list-b"), "b".toByteArray())
@@ -213,7 +213,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(9)
     @DisplayName("sharded blob storage")
-    fun shardedBlobStorage() = runTest {
+    fun shardedBlobStorage(): Unit = runTest {
         // Blob ID longer than 20 chars triggers sharding
         val blobId = BlobId("pack-abcdef1234567890abcdef")
         val data = "sharded content".toByteArray()
@@ -228,7 +228,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(10)
     @DisplayName("connection info")
-    fun connectionInfo() = runTest {
+    fun connectionInfo(): Unit = runTest {
         val info = storage.connectionInfo()
 
         assertThat(info.type).isEqualTo("sftp")
@@ -239,7 +239,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(11)
     @DisplayName("display name")
-    fun displayName() = runTest {
+    fun displayName(): Unit = runTest {
         val name = storage.displayName()
 
         assertThat(name).contains("SFTP")
@@ -250,7 +250,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(12)
     @DisplayName("empty blob")
-    fun emptyBlob() = runTest {
+    fun emptyBlob(): Unit = runTest {
         val blobId = BlobId("empty-blob")
         val data = ByteArray(0)
 
@@ -264,7 +264,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(13)
     @DisplayName("create with isCreate=true creates remote directory")
-    fun create_withIsCreate_createsRemoteDirectory() = runTest {
+    fun create_withIsCreate_createsRemoteDirectory(): Unit = runTest {
         val uniquePath = "/upload/test-${UUID.randomUUID().toString().take(8)}"
         val s = SftpBlobStorage.create(
             sftpOptions(path = uniquePath),
@@ -279,7 +279,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(14)
     @DisplayName("wrong password fails authentication")
-    fun create_failsWithWrongPassword() = runTest {
+    fun create_failsWithWrongPassword(): Unit = runTest {
         assertThrows<Exception> {
             runBlocking {
                 SftpBlobStorage.create(
@@ -293,7 +293,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(15)
     @DisplayName("honors a flat (unsharded) repo's .shards file when opening")
-    fun open_honorsFlatShardsFile() = runTest {
+    fun open_honorsFlatShardsFile(): Unit = runTest {
         // A repo created by e.g. `kopia repository create sftp --flat` writes .shards={"default":[]}
         // and stores blobs UNSHARDED at the repository root. create(isCreate=false) MUST read that
         // .shards and honor it; otherwise it assumes [1,3] sharding, computes x/n0_/… and finds
@@ -320,7 +320,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(16)
     @DisplayName("opens a legacy repo with no .shards using Go's [3,3] fallback")
-    fun open_legacyRepoWithoutShards_usesThreeThreeFallback() = runTest {
+    fun open_legacyRepoWithoutShards_usesThreeThreeFallback(): Unit = runTest {
         // A legacy repo has NO .shards file. Go lays such a repo out with [3,3] on open, so a blob
         // id "abc..." lives at abc/def/…. Kotlin must fall back to [3,3] (not [1,3], which would look
         // under a/bcd/… and read the repo empty). Guards the dead-[3,3]-fallback regression.
@@ -345,7 +345,7 @@ class SftpBlobStorageIntegrationTest {
     @Test
     @Order(17)
     @DisplayName("throws when opening a repo whose .shards is present but unparseable")
-    fun open_corruptShards_throws() = runTest {
+    fun open_corruptShards_throws(): Unit = runTest {
         // A present-but-corrupt .shards must fail loud, not silently fall back to a guessed layout.
         val corruptPath = "/upload/corrupt-${UUID.randomUUID().toString().take(8)}"
         withRawSftp { raw ->

@@ -43,7 +43,7 @@ class InterruptedBackupTest {
     inner class UnflushedWriteSession {
 
         @Test
-        fun `should open repository after pack written but index not flushed`() = runTest {
+        fun `should open repository after pack written but index not flushed`(): Unit = runTest {
             val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
             storage = createdStorage
@@ -64,7 +64,7 @@ class InterruptedBackupTest {
         }
 
         @Test
-        fun `should not see uncommitted objects after crash`() = runTest {
+        fun `should not see uncommitted objects after crash`(): Unit = runTest {
             val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
             storage = createdStorage
@@ -89,7 +89,7 @@ class InterruptedBackupTest {
         }
 
         @Test
-        fun `should preserve previously committed objects after crash`() = runTest {
+        fun `should preserve previously committed objects after crash`(): Unit = runTest {
             val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
             storage = createdStorage
@@ -140,7 +140,7 @@ class InterruptedBackupTest {
     inner class OrphanPackBlobs {
 
         @Test
-        fun `should handle partial pack blob in storage`() = runTest {
+        fun `should handle partial pack blob in storage`(): Unit = runTest {
             // Create a repository with real committed data
             val realData = "legitimate-committed-data".toByteArray()
             val (createdRepo, createdStorage, objectIds) = TestRepositoryFactory.createWithObjects(
@@ -175,7 +175,7 @@ class InterruptedBackupTest {
     inner class ResumeAfterCrash {
 
         @Test
-        fun `should resume backup after interrupted session`() = runTest {
+        fun `should resume backup after interrupted session`(): Unit = runTest {
             val (createdRepo, createdStorage) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
             storage = createdStorage

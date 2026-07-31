@@ -23,7 +23,7 @@ class PreviousSnapshotSelectionTest {
     private val source = SourceInfo(host = "phone", userName = "local", path = "/sdcard/DCIM")
 
     @Test
-    fun `a newer incomplete snapshot does not hide the last complete one`(@TempDir tempDir: Path) = runBlocking {
+    fun `a newer incomplete snapshot does not hide the last complete one`(@TempDir tempDir: Path): Unit = runBlocking {
         val (repository, _) = TestRepositoryFactory.createInMemory()
         val sourceDir = tempDir.resolve("src").also { it.toFile().mkdirs() }
         sourceDir.resolve("a.txt").writeText("hello")

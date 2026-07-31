@@ -110,7 +110,7 @@ class LocalFilesystemTest {
     @Nested
     inner class DirectoryOperations {
         @Test
-        fun `directory can enumerate children`() = runBlocking {
+        fun `directory can enumerate children`(): Unit = runBlocking {
             // Create test structure
             tempDir.resolve("file1.txt").writeText("content1")
             tempDir.resolve("file2.txt").writeText("content2")
@@ -126,7 +126,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `directory can get child by name`() = runBlocking {
+        fun `directory can get child by name`(): Unit = runBlocking {
             val file = tempDir.resolve("test.txt")
             file.writeText("content")
 
@@ -139,7 +139,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `child returns null for non-existent entry`() = runBlocking {
+        fun `child returns null for non-existent entry`(): Unit = runBlocking {
             val dir = LocalFilesystem.directory(tempDir)
             val child = dir.child("does-not-exist")
 
@@ -147,7 +147,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `directory iterator works correctly`() = runBlocking {
+        fun `directory iterator works correctly`(): Unit = runBlocking {
             tempDir.resolve("a.txt").createFile()
             tempDir.resolve("b.txt").createFile()
             tempDir.resolve("c.txt").createFile()
@@ -167,7 +167,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `empty directory has no children`() = runBlocking {
+        fun `empty directory has no children`(): Unit = runBlocking {
             val emptyDir = tempDir.resolve("empty")
             emptyDir.createDirectories()
 
@@ -181,7 +181,7 @@ class LocalFilesystemTest {
     @Nested
     inner class FileOperations {
         @Test
-        fun `file can be opened for reading`() = runBlocking {
+        fun `file can be opened for reading`(): Unit = runBlocking {
             val file = tempDir.resolve("test.txt")
             file.writeText("Hello, Kopia!")
 
@@ -192,7 +192,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `large file can be read`() = runBlocking {
+        fun `large file can be read`(): Unit = runBlocking {
             val file = tempDir.resolve("large.bin")
             val data = ByteArray(1024 * 1024) { it.toByte() } // 1MB
             file.toFile().writeBytes(data)
@@ -212,7 +212,7 @@ class LocalFilesystemTest {
     @DisabledOnOs(OS.WINDOWS)
     inner class SymlinkOperations {
         @Test
-        fun `symlink readlink returns target path`() = runBlocking {
+        fun `symlink readlink returns target path`(): Unit = runBlocking {
             val target = tempDir.resolve("target.txt")
             target.writeText("target content")
 
@@ -226,7 +226,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `symlink resolve returns target entry`() = runBlocking {
+        fun `symlink resolve returns target entry`(): Unit = runBlocking {
             val target = tempDir.resolve("target.txt")
             target.writeText("target content")
 
@@ -242,7 +242,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `symlink to directory resolves correctly`() = runBlocking {
+        fun `symlink to directory resolves correctly`(): Unit = runBlocking {
             val targetDir = tempDir.resolve("targetdir")
             targetDir.createDirectories()
             targetDir.resolve("child.txt").writeText("child")
@@ -258,7 +258,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `symlink to non-existent target returns null`() = runBlocking {
+        fun `symlink to non-existent target returns null`(): Unit = runBlocking {
             val link = tempDir.resolve("broken-link")
             link.createSymbolicLinkPointingTo(tempDir.resolve("does-not-exist"))
 
@@ -269,7 +269,7 @@ class LocalFilesystemTest {
         }
 
         @Test
-        fun `deeply nested symlinks are resolved`() = runBlocking {
+        fun `deeply nested symlinks are resolved`(): Unit = runBlocking {
             val target = tempDir.resolve("target.txt")
             target.writeText("content")
 
@@ -295,7 +295,7 @@ class LocalFilesystemTest {
     @Nested
     inner class RecursiveEnumeration {
         @Test
-        fun `can recursively enumerate directory tree`() = runBlocking {
+        fun `can recursively enumerate directory tree`(): Unit = runBlocking {
             // Create nested structure
             tempDir.resolve("a/b/c").createDirectories()
             tempDir.resolve("a/file1.txt").writeText("1")

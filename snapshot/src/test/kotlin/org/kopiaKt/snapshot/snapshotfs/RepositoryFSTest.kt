@@ -80,7 +80,7 @@ class RepositoryFSTest {
     }
 
     @Test
-    fun `RepositoryDirectory iterates children`() = runBlocking {
+    fun `RepositoryDirectory iterates children`(): Unit = runBlocking {
         val children = listOf(
             DirEntry(name = "file1.txt", type = SnapshotEntryType.FILE, fileSize = 100),
             DirEntry(name = "file2.txt", type = SnapshotEntryType.FILE, fileSize = 200),
@@ -110,7 +110,7 @@ class RepositoryFSTest {
     }
 
     @Test
-    fun `RepositoryDirectory finds child by name`() = runBlocking {
+    fun `RepositoryDirectory finds child by name`(): Unit = runBlocking {
         val children = listOf(
             DirEntry(name = "target.txt", type = SnapshotEntryType.FILE, fileSize = 500),
             DirEntry(name = "other.txt", type = SnapshotEntryType.FILE, fileSize = 100),
@@ -139,7 +139,7 @@ class RepositoryFSTest {
     }
 
     @Test
-    fun `RepositoryFile opens and reads content`() = runBlocking {
+    fun `RepositoryFile opens and reads content`(): Unit = runBlocking {
         val content = "File content here"
         // Use valid hex object ID (pabcdef12 = p prefix + abcdef12 hex; 9 chars = odd, so p is prefix)
         val fileObjId = "pabcdef12"
@@ -164,7 +164,7 @@ class RepositoryFSTest {
     }
 
     @Test
-    fun `RepositorySymlink reads target`() = runBlocking {
+    fun `RepositorySymlink reads target`(): Unit = runBlocking {
         val target = "/path/to/target"
         // Use valid hex object ID (p12345678 = p prefix + 12345678 hex; 9 chars = odd, so p is prefix)
         val linkObjId = "p12345678"
@@ -206,7 +206,7 @@ class RepositoryFSTest {
     }
 
     @Test
-    fun `directoryEntry creates directory for object ID`() = runBlocking {
+    fun `directoryEntry creates directory for object ID`(): Unit = runBlocking {
         val children = listOf(
             DirEntry(name = "child.txt", type = SnapshotEntryType.FILE),
         )

@@ -225,7 +225,7 @@ class HomelabSecurityControlsTest {
     }
 
     @Test
-    fun `WebDAV round-trips a large blob through the TLS terminator`() = runTest {
+    fun `WebDAV round-trips a large blob through the TLS terminator`(): Unit = runTest {
         Homelab.requireProfile()
         // Exercises the reverse-proxy path at a realistic pack-blob size: the MOVE/Destination
         // rewrite and the proxy's request-body limits only misbehave on real payloads.

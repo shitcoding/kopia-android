@@ -40,7 +40,7 @@ class IgnoreFSTest {
     @Nested
     inner class BasicFiltering {
         @Test
-        fun `filters files by pattern`() = runBlocking {
+        fun `filters files by pattern`(): Unit = runBlocking {
             // Create test files
             tempDir.resolve("keep.txt").writeText("keep")
             tempDir.resolve("ignore.log").writeText("ignore")
@@ -57,7 +57,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `filters directories by pattern`() = runBlocking {
+        fun `filters directories by pattern`(): Unit = runBlocking {
             tempDir.resolve("keep").createDirectories()
             tempDir.resolve("node_modules").createDirectories()
             tempDir.resolve(".git").createDirectories()
@@ -73,7 +73,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `child returns null for ignored entry`() = runBlocking {
+        fun `child returns null for ignored entry`(): Unit = runBlocking {
             tempDir.resolve("keep.txt").writeText("keep")
             tempDir.resolve("ignore.log").writeText("ignore")
 
@@ -89,7 +89,7 @@ class IgnoreFSTest {
     @Nested
     inner class PatternMatching {
         @Test
-        fun `double star matches nested paths`() = runBlocking {
+        fun `double star matches nested paths`(): Unit = runBlocking {
             tempDir.resolve("src/main/test.log").apply {
                 parent.createDirectories()
                 writeText("log")
@@ -109,7 +109,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `negation pattern un-ignores files`() = runBlocking {
+        fun `negation pattern un-ignores files`(): Unit = runBlocking {
             tempDir.resolve("debug.log").writeText("debug")
             tempDir.resolve("error.log").writeText("error")
             tempDir.resolve("important.log").writeText("important")
@@ -133,7 +133,7 @@ class IgnoreFSTest {
     @Nested
     inner class DotIgnoreFiles {
         @Test
-        fun `loads patterns from kopiaignore file`() = runBlocking {
+        fun `loads patterns from kopiaignore file`(): Unit = runBlocking {
             // Create .kopiaignore
             tempDir.resolve(".kopiaignore").writeText("*.tmp\n*.bak\n")
 
@@ -153,7 +153,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `inherits patterns from parent kopiaignore`() = runBlocking {
+        fun `inherits patterns from parent kopiaignore`(): Unit = runBlocking {
             // Root .kopiaignore
             tempDir.resolve(".kopiaignore").writeText("*.log\n")
 
@@ -175,7 +175,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `subdirectory kopiaignore adds patterns`() = runBlocking {
+        fun `subdirectory kopiaignore adds patterns`(): Unit = runBlocking {
             // Root .kopiaignore
             tempDir.resolve(".kopiaignore").writeText("*.log\n")
 
@@ -201,7 +201,7 @@ class IgnoreFSTest {
     @Nested
     inner class FilesPolicy {
         @Test
-        fun `applies policy ignore rules`() = runBlocking {
+        fun `applies policy ignore rules`(): Unit = runBlocking {
             tempDir.resolve("keep.txt").writeText("keep")
             tempDir.resolve("ignore.log").writeText("ignore")
 
@@ -217,7 +217,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `applies max file size filter`() = runBlocking {
+        fun `applies max file size filter`(): Unit = runBlocking {
             tempDir.resolve("small.txt").writeText("small")
             tempDir.resolve("large.txt").writeText("x".repeat(1000))
 
@@ -233,7 +233,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `combines policy rules with dot ignore files`() = runBlocking {
+        fun `combines policy rules with dot ignore files`(): Unit = runBlocking {
             tempDir.resolve(".kopiaignore").writeText("*.tmp\n")
             tempDir.resolve("keep.txt").writeText("keep")
             tempDir.resolve("ignore.log").writeText("from policy")
@@ -254,7 +254,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `oneFileSystem excludes entries on a different device`() = runBlocking {
+        fun `oneFileSystem excludes entries on a different device`(): Unit = runBlocking {
             val root = MockDirectory(
                 name = "",
                 entries = listOf(
@@ -271,7 +271,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `oneFileSystem off keeps entries on a different device`() = runBlocking {
+        fun `oneFileSystem off keeps entries on a different device`(): Unit = runBlocking {
             val root = MockDirectory(
                 name = "",
                 entries = listOf(
@@ -291,7 +291,7 @@ class IgnoreFSTest {
     @Nested
     inner class NoParentFlags {
         @Test
-        fun `noParentIgnoreRules stops pattern inheritance`() = runBlocking {
+        fun `noParentIgnoreRules stops pattern inheritance`(): Unit = runBlocking {
             // Root .kopiaignore
             tempDir.resolve(".kopiaignore").writeText("*.log\n")
 
@@ -321,7 +321,7 @@ class IgnoreFSTest {
     inner class NestedIgnoreFileAnchoring {
 
         @Test
-        fun `a path-anchored rule in a nested ignore file is relative to that directory`() = runBlocking {
+        fun `a path-anchored rule in a nested ignore file is relative to that directory`(): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.resolve("foo").createDirectories()
             sub.resolve(".kopiaignore").writeText("foo/bar.txt\n")
@@ -336,7 +336,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `a rule anchored with a leading slash resolves against its own directory`() = runBlocking {
+        fun `a rule anchored with a leading slash resolves against its own directory`(): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.createDirectories()
             sub.resolve(".kopiaignore").writeText("/drop.txt\n")
@@ -353,7 +353,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `a nested rule does not apply to an identically named path elsewhere`() = runBlocking {
+        fun `a nested rule does not apply to an identically named path elsewhere`(): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.resolve("foo").createDirectories()
             sub.resolve(".kopiaignore").writeText("foo/bar.txt\n")
@@ -371,7 +371,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `a basename rule in a nested ignore file still matches at any depth below it`() = runBlocking {
+        fun `a basename rule in a nested ignore file still matches at any depth below it`(): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.resolve("deep").createDirectories()
             sub.resolve(".kopiaignore").writeText("*.log\n")
@@ -389,7 +389,7 @@ class IgnoreFSTest {
     @Nested
     inner class EdgeCases {
         @Test
-        fun `empty directory works correctly`() = runBlocking {
+        fun `empty directory works correctly`(): Unit = runBlocking {
             val emptyDir = tempDir.resolve("empty")
             emptyDir.createDirectories()
 
@@ -402,7 +402,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `all files ignored results in empty list`() = runBlocking {
+        fun `all files ignored results in empty list`(): Unit = runBlocking {
             tempDir.resolve("a.log").writeText("a")
             tempDir.resolve("b.log").writeText("b")
 
@@ -416,7 +416,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `no patterns means nothing filtered`() = runBlocking {
+        fun `no patterns means nothing filtered`(): Unit = runBlocking {
             tempDir.resolve("a.txt").writeText("a")
             tempDir.resolve("b.log").writeText("b")
             tempDir.resolve("c").createDirectories()
@@ -430,7 +430,7 @@ class IgnoreFSTest {
         }
 
         @Test
-        fun `deeply nested filtering works`() = runBlocking {
+        fun `deeply nested filtering works`(): Unit = runBlocking {
             // Create deep structure with .kopiaignore at each level
             val path = tempDir.resolve("a/b/c/d")
             path.createDirectories()

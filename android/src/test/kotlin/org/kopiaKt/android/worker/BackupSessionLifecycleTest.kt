@@ -177,7 +177,7 @@ class BackupSessionLifecycleTest {
          */
         @Test
         @DisplayName("the source's ignore rules exclude matching files")
-        fun `the source's ignore rules exclude matching files`() = runBlocking {
+        fun `the source's ignore rules exclude matching files`(): Unit = runBlocking {
             val tempDir = createTempDir("policy-applied")
             Files.write(tempDir.resolve("keep.txt"), "keep".toByteArray())
             Files.write(tempDir.resolve("drop.tmp"), "drop".toByteArray())
@@ -222,7 +222,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("create source then backup produces snapshot")
-        fun `create source then backup produces snapshot`() = runBlocking {
+        fun `create source then backup produces snapshot`(): Unit = runBlocking {
             // Arrange: create a real source via BackupSourceManager
             val sourceManager = BackupSourceManager()
             val tempDir = createTempDir("source-backup")
@@ -259,7 +259,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup multiple sources independently")
-        fun `backup multiple sources independently`() = runBlocking {
+        fun `backup multiple sources independently`(): Unit = runBlocking {
             val sourceManager = BackupSourceManager()
             val dir1 = createTempDir("source-1")
             val dir2 = createTempDir("source-2")
@@ -311,7 +311,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup same source twice creates two snapshots")
-        fun `backup same source twice creates two snapshots`() = runBlocking {
+        fun `backup same source twice creates two snapshots`(): Unit = runBlocking {
             val sourceManager = BackupSourceManager()
             val dir = createTempDir("incremental")
             Files.write(dir.resolve("file1.txt"), "original".toByteArray())
@@ -357,7 +357,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup with tags stores tags in snapshot manifest")
-        fun `backup with tags stores tags in snapshot manifest`() = runBlocking {
+        fun `backup with tags stores tags in snapshot manifest`(): Unit = runBlocking {
             val sourceManager = BackupSourceManager()
             val dir = createTempDir("tagged")
             Files.write(dir.resolve("data.bin"), byteArrayOf(1, 2, 3))
@@ -405,7 +405,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup emits progress events during upload")
-        fun `backup emits progress events during upload`() = runBlocking {
+        fun `backup emits progress events during upload`(): Unit = runBlocking {
             val dir = createTempDir("progress-events")
             Files.write(dir.resolve("file.txt"), "content for hashing".toByteArray())
 
@@ -438,7 +438,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("progress includes file count and byte count")
-        fun `progress includes file count and byte count`() = runBlocking {
+        fun `progress includes file count and byte count`(): Unit = runBlocking {
             val dir = createTempDir("progress-counters")
             val content = "this is test content for byte counting"
             Files.write(dir.resolve("test.txt"), content.toByteArray())
@@ -475,7 +475,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("task manager tracks backup task through completion")
-        fun `task manager tracks backup task through completion`() = runTest {
+        fun `task manager tracks backup task through completion`(): Unit = runTest {
             val tm = createTaskManager()
             val dir = createTempDir("task-tracking")
             Files.write(dir.resolve("f.txt"), "data".toByteArray())
@@ -528,7 +528,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup fails gracefully when source path does not exist")
-        fun `backup fails gracefully when source path does not exist`() = runTest {
+        fun `backup fails gracefully when source path does not exist`(): Unit = runTest {
             val tm = createTaskManager()
             val sourceManager = BackupSourceManager()
             val source = sourceManager.createSource(
@@ -575,7 +575,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup fails when repository is disconnected")
-        fun `backup fails when repository is disconnected`() = runBlocking {
+        fun `backup fails when repository is disconnected`(): Unit = runBlocking {
             val dir = createTempDir("disconnected")
             Files.write(dir.resolve("x.txt"), "x".toByteArray())
 
@@ -603,7 +603,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup cancel during upload stops execution")
-        fun `backup cancel during upload stops execution`() = runBlocking {
+        fun `backup cancel during upload stops execution`(): Unit = runBlocking {
             // Use real dispatchers (not TestScope) so cancellation propagates naturally
             val scope = CoroutineScope(coroutineContext + SupervisorJob())
             val tm = TaskManager(scope)
@@ -657,7 +657,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("checkpoint is saved on the cancellation path despite coroutine cancellation")
-        fun `checkpoint saved when cancelled mid-upload`() = runBlocking {
+        fun `checkpoint saved when cancelled mid-upload`(): Unit = runBlocking {
             // Regression lock for the NonCancellable checkpoint save. On a WorkManager-initiated cancel the
             // coroutine is cancelled while upload() is suspended; run()'s CancellationException handler must
             // still persist a resumable checkpoint. Without withContext(NonCancellable) the save suspends in
@@ -710,7 +710,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("cancel before upload stops the walk before any file is processed")
-        fun `early cancel short-circuits the upload`() = runBlocking {
+        fun `early cancel short-circuits the upload`(): Unit = runBlocking {
             // Cancel arrives before run() -- the uploader does not exist yet, so cancel() only sets the
             // session flag. run()'s replay must forward it to the (sticky) uploader so the tree walk never
             // processes a file. Without the sticky flag + replay, the entire source is uploaded and only
@@ -744,7 +744,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("backup retry after failure works")
-        fun `backup retry after failure works`() = runBlocking {
+        fun `backup retry after failure works`(): Unit = runBlocking {
             val dir = createTempDir("retry")
             Files.write(dir.resolve("r.txt"), "retry-content".toByteArray())
 
@@ -794,7 +794,7 @@ class BackupSessionLifecycleTest {
 
         @Test
         @DisplayName("source state updates during backup lifecycle")
-        fun `source state updates during backup lifecycle`() = runBlocking {
+        fun `source state updates during backup lifecycle`(): Unit = runBlocking {
             val sourceManager = BackupSourceManager()
             val dir = createTempDir("state-tracking")
             Files.write(dir.resolve("s.txt"), "state".toByteArray())

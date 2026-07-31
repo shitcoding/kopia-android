@@ -103,7 +103,7 @@ class SourceIdentityMigrationTest {
     }
 
     @Test
-    fun `the legacy policy is copied, never taken away`() = runBlocking {
+    fun `the legacy policy is copied, never taken away`(): Unit = runBlocking {
         mockkObject(PolicyManager)
         try {
             val repository = mockk<Repository>(relaxed = true)
@@ -127,7 +127,7 @@ class SourceIdentityMigrationTest {
     }
 
     @Test
-    fun `a repository that cannot be read does not stop the user connecting`() = runBlocking {
+    fun `a repository that cannot be read does not stop the user connecting`(): Unit = runBlocking {
         mockkObject(PolicyManager)
         try {
             val repository = mockk<Repository>(relaxed = true)

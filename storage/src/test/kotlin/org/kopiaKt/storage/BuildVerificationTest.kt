@@ -46,7 +46,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `put and get blob works`() = runBlocking {
+    fun `put and get blob works`(): Unit = runBlocking {
         val blobId = BlobId("test-blob-123")
         val data = "Hello, KopiaKt!".toByteArray()
 
@@ -57,7 +57,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `get nonexistent blob throws BlobNotFoundException`() = runBlocking {
+    fun `get nonexistent blob throws BlobNotFoundException`(): Unit = runBlocking {
         val blobId = BlobId("nonexistent")
 
         assertThrows<BlobNotFoundException> {
@@ -66,7 +66,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `getBlobMetadata returns metadata for existing blob`() = runBlocking {
+    fun `getBlobMetadata returns metadata for existing blob`(): Unit = runBlocking {
         val blobId = BlobId("metadata-test")
         val data = ByteArray(1024) { it.toByte() }
 
@@ -79,13 +79,13 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `getBlobMetadata returns null for nonexistent blob`() = runBlocking {
+    fun `getBlobMetadata returns null for nonexistent blob`(): Unit = runBlocking {
         val metadata = storage.getBlobMetadata(BlobId("nonexistent"))
         assertThat(metadata).isNull()
     }
 
     @Test
-    fun `deleteBlob removes blob`() = runBlocking {
+    fun `deleteBlob removes blob`(): Unit = runBlocking {
         val blobId = BlobId("delete-test")
         val data = "to be deleted".toByteArray()
 
@@ -97,7 +97,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `listBlobs returns blobs with matching prefix`() = runBlocking {
+    fun `listBlobs returns blobs with matching prefix`(): Unit = runBlocking {
         storage.putBlob(BlobId("pack-001"), ByteArray(10))
         storage.putBlob(BlobId("pack-002"), ByteArray(20))
         storage.putBlob(BlobId("index-001"), ByteArray(30))
@@ -113,7 +113,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `putBlob with dontOverwrite does not overwrite existing blob`() = runBlocking {
+    fun `putBlob with dontOverwrite does not overwrite existing blob`(): Unit = runBlocking {
         val blobId = BlobId("no-overwrite-test")
         val originalData = "original".toByteArray()
         val newData = "new".toByteArray()
@@ -126,7 +126,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `putBlob without dontOverwrite overwrites existing blob`() = runBlocking {
+    fun `putBlob without dontOverwrite overwrites existing blob`(): Unit = runBlocking {
         val blobId = BlobId("overwrite-test")
         val originalData = "original".toByteArray()
         val newData = "new".toByteArray()
@@ -139,7 +139,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `getBlob with offset and length returns partial data`() = runBlocking {
+    fun `getBlob with offset and length returns partial data`(): Unit = runBlocking {
         val blobId = BlobId("partial-test")
         val data = "Hello, World!".toByteArray()
 
@@ -151,7 +151,7 @@ class BuildVerificationTest {
     }
 
     @Test
-    fun `getBlob with offset and no length returns rest of data`() = runBlocking {
+    fun `getBlob with offset and no length returns rest of data`(): Unit = runBlocking {
         val blobId = BlobId("partial-rest-test")
         val data = "Hello, World!".toByteArray()
 

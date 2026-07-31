@@ -66,7 +66,7 @@ class ObjectManagerTest {
     // ===== Basic Write/Read Tests =====
 
     @Test
-    fun `write and read small object - single content block`() = runBlocking {
+    fun `write and read small object - single content block`(): Unit = runBlocking {
         val data = "Hello, World!".toByteArray()
 
         val objectId = objectManager.writeObject(data)
@@ -81,7 +81,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `writing empty data produces a real object id, as Go does`() = runBlocking {
+    fun `writing empty data produces a real object id, as Go does`(): Unit = runBlocking {
         val objectId = objectManager.writeObject(ByteArray(0))
 
         // Not ObjectId.Empty: Go hashes the empty byte string and stores its content id, and a
@@ -92,13 +92,13 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `the empty object id still reads as empty`() = runBlocking {
+    fun `the empty object id still reads as empty`(): Unit = runBlocking {
         // Snapshots written before the fix carry it; they must keep restoring.
         assertArrayEquals(ByteArray(0), objectManager.readObject(ObjectId.Empty))
     }
 
     @Test
-    fun `write and read exactly one chunk size`() = runBlocking {
+    fun `write and read exactly one chunk size`(): Unit = runBlocking {
         // 128KB is our splitter size
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val data = ByteArray(chunkSize) { (it % 256).toByte() }
@@ -116,7 +116,7 @@ class ObjectManagerTest {
     // ===== Indirect Block Tests =====
 
     @Test
-    fun `write and read object spanning multiple chunks - creates indirect block`() = runBlocking {
+    fun `write and read object spanning multiple chunks - creates indirect block`(): Unit = runBlocking {
         // Create data larger than one chunk (128KB)
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val data = ByteArray(chunkSize * 3) { (it % 256).toByte() }
@@ -132,7 +132,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `streaming an indirect object retains only one chunk at a time`() = runBlocking {
+    fun `streaming an indirect object retains only one chunk at a time`(): Unit = runBlocking {
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val data = ByteArray(chunkSize * 8) { (it % 256).toByte() }
 
@@ -165,7 +165,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `write and read large object with multiple indirect levels`() = runBlocking {
+    fun `write and read large object with multiple indirect levels`(): Unit = runBlocking {
         // Use small chunk size for testing multi-level indirection
         val smallChunkManager = ObjectManager(
             contentManager = contentManager,
@@ -190,7 +190,7 @@ class ObjectManagerTest {
     // ===== Compression Tests =====
 
     @Test
-    fun `write and read with compression enabled`() = runBlocking {
+    fun `write and read with compression enabled`(): Unit = runBlocking {
         // Highly compressible data
         val data = "AAAA".repeat(10000).toByteArray()
 
@@ -210,7 +210,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `write and read without compression for incompressible data`() = runBlocking {
+    fun `write and read without compression for incompressible data`(): Unit = runBlocking {
         // Random-ish data that won't compress well
         val data = ByteArray(1000) { (it * 37 % 256).toByte() }
 
@@ -227,7 +227,7 @@ class ObjectManagerTest {
     // ===== Streaming API Tests =====
 
     @Test
-    fun `write object using streaming writer`() = runBlocking {
+    fun `write object using streaming writer`(): Unit = runBlocking {
         val writer = objectManager.newWriter()
 
         writer.write("Hello, ".toByteArray())
@@ -241,7 +241,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `writer checkpoint returns partial object`() = runBlocking {
+    fun `writer checkpoint returns partial object`(): Unit = runBlocking {
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val writer = objectManager.newWriter()
 
@@ -271,7 +271,7 @@ class ObjectManagerTest {
     // ===== Seek Table / Index Tests =====
 
     @Test
-    fun `indirect object has correct seek table`() = runBlocking {
+    fun `indirect object has correct seek table`(): Unit = runBlocking {
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val data = ByteArray(chunkSize * 3) { (it % 256).toByte() }
 
@@ -300,7 +300,7 @@ class ObjectManagerTest {
     // ===== Deduplication Tests =====
 
     @Test
-    fun `writing same content twice produces same object ID`() = runBlocking {
+    fun `writing same content twice produces same object ID`(): Unit = runBlocking {
         val data = ByteArray(1000) { (it % 256).toByte() }
 
         val objectId1 = objectManager.writeObject(data)
@@ -310,7 +310,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `deduplication works across chunks`() = runBlocking {
+    fun `deduplication works across chunks`(): Unit = runBlocking {
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val repeatingChunk = ByteArray(chunkSize) { (it % 256).toByte() }
 
@@ -344,7 +344,7 @@ class ObjectManagerTest {
     // ===== JSON Format Compatibility Tests =====
 
     @Test
-    fun `indirect object JSON format matches Go implementation`() = runBlocking {
+    fun `indirect object JSON format matches Go implementation`(): Unit = runBlocking {
         val chunkSize = SplitterAlgorithms.SIZE_128K
         val data = ByteArray(chunkSize * 2) { (it % 256).toByte() }
 
@@ -367,7 +367,7 @@ class ObjectManagerTest {
     // ===== Concatenation Tests =====
 
     @Test
-    fun `concatenate two objects`() = runBlocking {
+    fun `concatenate two objects`(): Unit = runBlocking {
         val data1 = "Hello, ".toByteArray()
         val data2 = "World!".toByteArray()
 
@@ -382,7 +382,7 @@ class ObjectManagerTest {
     }
 
     @Test
-    fun `concatenate single object returns same object`() = runBlocking {
+    fun `concatenate single object returns same object`(): Unit = runBlocking {
         val data = "Hello".toByteArray()
         val objectId = objectManager.writeObject(data)
 

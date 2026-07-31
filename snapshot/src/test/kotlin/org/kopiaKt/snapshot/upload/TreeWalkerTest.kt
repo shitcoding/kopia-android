@@ -27,7 +27,7 @@ class TreeWalkerTest {
     inner class BasicWalking {
 
         @Test
-        fun `walks empty directory`(@TempDir tempDir: Path) = runBlocking {
+        fun `walks empty directory`(@TempDir tempDir: Path): Unit = runBlocking {
             val dir = LocalFilesystem.directory(tempDir)
             val processor = TestEntryProcessor()
             val walker = TreeWalker(processor, NullUploadProgress())
@@ -40,7 +40,7 @@ class TreeWalkerTest {
         }
 
         @Test
-        fun `walks directory with files`(@TempDir tempDir: Path) = runBlocking {
+        fun `walks directory with files`(@TempDir tempDir: Path): Unit = runBlocking {
             // Create test files
             tempDir.resolve("file1.txt").writeText("content1")
             tempDir.resolve("file2.txt").writeText("content2")
@@ -58,7 +58,7 @@ class TreeWalkerTest {
         }
 
         @Test
-        fun `walks nested directories`(@TempDir tempDir: Path) = runBlocking {
+        fun `walks nested directories`(@TempDir tempDir: Path): Unit = runBlocking {
             // Create nested structure
             val subDir = tempDir.resolve("subdir").createDirectories()
             tempDir.resolve("root.txt").writeText("root")
@@ -76,7 +76,7 @@ class TreeWalkerTest {
         }
 
         @Test
-        fun `walks deeply nested directories`(@TempDir tempDir: Path) = runBlocking {
+        fun `walks deeply nested directories`(@TempDir tempDir: Path): Unit = runBlocking {
             // Create deep nesting: a/b/c/d/file.txt
             val deepDir = tempDir.resolve("a/b/c/d").createDirectories()
             deepDir.resolve("file.txt").writeText("deep")
@@ -97,7 +97,7 @@ class TreeWalkerTest {
     inner class SymlinkHandling {
 
         @Test
-        fun `processes symlinks`(@TempDir tempDir: Path) = runBlocking {
+        fun `processes symlinks`(@TempDir tempDir: Path): Unit = runBlocking {
             val targetFile = tempDir.resolve("target.txt")
             targetFile.writeText("target content")
             tempDir.resolve("link.txt").createSymbolicLinkPointingTo(targetFile)
@@ -118,7 +118,7 @@ class TreeWalkerTest {
     inner class ErrorHandling {
 
         @Test
-        fun `ignores file errors when policy allows`(@TempDir tempDir: Path) = runBlocking {
+        fun `ignores file errors when policy allows`(@TempDir tempDir: Path): Unit = runBlocking {
             tempDir.resolve("good.txt").writeText("good")
             // Note: We can't easily simulate a file read error in a cross-platform way
             // This test verifies the basic error policy behavior
@@ -152,7 +152,7 @@ class TreeWalkerTest {
     inner class ProgressReporting {
 
         @Test
-        fun `reports progress events`(@TempDir tempDir: Path) = runBlocking {
+        fun `reports progress events`(@TempDir tempDir: Path): Unit = runBlocking {
             tempDir.resolve("file1.txt").writeText("content1")
             tempDir.resolve("file2.txt").writeText("content2")
 
@@ -172,7 +172,7 @@ class TreeWalkerTest {
     inner class Parallelism {
 
         @Test
-        fun `respects parallelism setting`(@TempDir tempDir: Path) = runBlocking {
+        fun `respects parallelism setting`(@TempDir tempDir: Path): Unit = runBlocking {
             // Create multiple files
             repeat(10) { i ->
                 tempDir.resolve("file$i.txt").writeText("content$i")
@@ -192,7 +192,7 @@ class TreeWalkerTest {
     inner class IncrementalReuse {
 
         @Test
-        fun `previous entries are reused below the snapshot root`(@TempDir tempDir: Path) = runBlocking {
+        fun `previous entries are reused below the snapshot root`(@TempDir tempDir: Path): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.createDirectories()
             tempDir.resolve("top.txt").writeText("top")
@@ -242,7 +242,9 @@ class TreeWalkerTest {
         }
 
         @Test
-        fun `an unreadable previous subdirectory manifest just disables reuse`(@TempDir tempDir: Path) = runBlocking {
+        fun `an unreadable previous subdirectory manifest just disables reuse`(
+            @TempDir tempDir: Path,
+        ): Unit = runBlocking {
             val sub = tempDir.resolve("sub")
             sub.createDirectories()
             sub.resolve("nested.txt").writeText("nested")

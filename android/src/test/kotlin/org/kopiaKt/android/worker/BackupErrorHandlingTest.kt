@@ -125,7 +125,7 @@ class BackupErrorHandlingTest {
     inner class SourcePathErrors {
 
         @Test
-        fun `backup with nonexistent source path fails with clear error`() = runBlocking {
+        fun `backup with nonexistent source path fails with clear error`(): Unit = runBlocking {
             val (repo, _) = mockRepository()
             val (checkpointStore, _) = mockCheckpointStore()
 
@@ -151,7 +151,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `backup with empty source directory succeeds with zero files`() = runBlocking {
+        fun `backup with empty source directory succeeds with zero files`(): Unit = runBlocking {
             val tempDir = createTempDir("empty-dir")
             val (repo, writer) = mockRepository()
             val (checkpointStore, _) = mockCheckpointStore()
@@ -183,7 +183,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `backup with file path instead of directory fails`() = runBlocking {
+        fun `backup with file path instead of directory fails`(): Unit = runBlocking {
             val tempDir = createTempDir("file-test")
             val filePath = tempDir.resolve("regular-file.txt")
             Files.write(filePath, "content".toByteArray())
@@ -221,7 +221,7 @@ class BackupErrorHandlingTest {
     inner class ExceptionHandlingAndCheckpoints {
 
         @Test
-        fun `BackupSession result is Failed on exception from writer creation`() = runBlocking {
+        fun `BackupSession result is Failed on exception from writer creation`(): Unit = runBlocking {
             val repo = mockk<DirectRepository>(relaxed = true)
             coEvery { repo.newWriter(any()) } throws IOException("Storage unavailable")
 
@@ -248,7 +248,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `backup saves checkpoint on failure with error info`() = runBlocking {
+        fun `backup saves checkpoint on failure with error info`(): Unit = runBlocking {
             val tempDir = createTempDir("checkpoint-test")
             val (repo, writer) = mockRepository()
             val (checkpointStore, cpStore) = mockCheckpointStore()
@@ -281,7 +281,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `BackupSession result includes checkpointSaved true on failure`() = runBlocking {
+        fun `BackupSession result includes checkpointSaved true on failure`(): Unit = runBlocking {
             val tempDir = createTempDir("cp-flag-test")
             val (repo, writer) = mockRepository()
             val (checkpointStore, _) = mockCheckpointStore()
@@ -317,7 +317,7 @@ class BackupErrorHandlingTest {
     inner class CancellationHandling {
 
         @Test
-        fun `cancelled backup sets isCancelled flag`() = runBlocking {
+        fun `cancelled backup sets isCancelled flag`(): Unit = runBlocking {
             val tempDir = createTempDir("cancel-test")
             Files.write(tempDir.resolve("file1.txt"), "content-1".toByteArray())
             Files.write(tempDir.resolve("file2.txt"), "content-2".toByteArray())
@@ -370,7 +370,7 @@ class BackupErrorHandlingTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `failed backup sets task status to FAILED`() = runTest {
+        fun `failed backup sets task status to FAILED`(): Unit = runTest {
             val tm = createTaskManager()
 
             val taskId = tm.startTask(TaskKind.BACKUP, "failing backup") {
@@ -388,7 +388,7 @@ class BackupErrorHandlingTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `failed backup records error message in task info`() = runTest {
+        fun `failed backup records error message in task info`(): Unit = runTest {
             val tm = createTaskManager()
 
             val taskId = tm.startTask(TaskKind.BACKUP, "error backup") {
@@ -407,7 +407,7 @@ class BackupErrorHandlingTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `cancelled backup sets task status to CANCELED`() = runTest {
+        fun `cancelled backup sets task status to CANCELED`(): Unit = runTest {
             val tm = createTaskManager()
             val started = CompletableDeferred<Unit>()
 
@@ -439,7 +439,7 @@ class BackupErrorHandlingTest {
     inner class CallbackInvocation {
 
         @Test
-        fun `onComplete callback receives Failed result on exception`() = runBlocking {
+        fun `onComplete callback receives Failed result on exception`(): Unit = runBlocking {
             val tempDir = createTempDir("callback-fail")
             val (repo, writer) = mockRepository()
             val (checkpointStore, _) = mockCheckpointStore()
@@ -475,7 +475,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `onComplete callback receives Success for valid empty dir`() = runBlocking {
+        fun `onComplete callback receives Success for valid empty dir`(): Unit = runBlocking {
             val tempDir = createTempDir("callback-success")
             val (repo, writer) = mockRepository()
             val (checkpointStore, _) = mockCheckpointStore()
@@ -533,7 +533,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `BackupWorker returns retry on transient failure at first attempt`() = runBlocking {
+        fun `BackupWorker returns retry on transient failure at first attempt`(): Unit = runBlocking {
             BackupWorker.repositoryProvider = { _ ->
                 throw IOException("Connection reset")
             }
@@ -554,7 +554,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `BackupWorker returns failure after max retries`() = runBlocking {
+        fun `BackupWorker returns failure after max retries`(): Unit = runBlocking {
             BackupWorker.repositoryProvider = { _ ->
                 throw IOException("Persistent network failure")
             }
@@ -576,7 +576,7 @@ class BackupErrorHandlingTest {
         }
 
         @Test
-        fun `BackupWorker failure includes error message in output data`() = runBlocking {
+        fun `BackupWorker failure includes error message in output data`(): Unit = runBlocking {
             BackupWorker.repositoryProvider = { _ ->
                 throw IOException("Disk quota exceeded")
             }

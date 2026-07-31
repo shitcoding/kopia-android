@@ -99,7 +99,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Kotlin-created repo connectable by Go CLI")
-    fun kotlinRepoConnectableByGo() = runTest {
+    fun kotlinRepoConnectableByGo(): Unit = runTest {
         requireGoKopia()
 
         // Create repository using Kotlin with Go-compatible settings
@@ -119,7 +119,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI lists Kotlin-created snapshots")
-    fun goListsKotlinSnapshots() = runTest {
+    fun goListsKotlinSnapshots(): Unit = runTest {
         requireGoKopia()
 
         // Create test source files
@@ -144,7 +144,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI verifies Kotlin-created snapshot")
-    fun goVerifiesKotlinSnapshot() = runTest {
+    fun goVerifiesKotlinSnapshot(): Unit = runTest {
         requireGoKopia()
 
         // Create test source files with known content
@@ -170,7 +170,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores Kotlin-created snapshot with matching content")
-    fun goRestoresKotlinSnapshot() = runTest {
+    fun goRestoresKotlinSnapshot(): Unit = runTest {
         requireGoKopia()
 
         // Create test source files
@@ -213,7 +213,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores Kotlin complex dataset with matching content")
-    fun goRestoresKotlinComplexDataset() = runTest {
+    fun goRestoresKotlinComplexDataset(): Unit = runTest {
         requireGoKopia()
 
         // Create complex test source with various file types and sizes
@@ -259,7 +259,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores Kotlin large dataset with matching content")
-    fun goRestoresKotlinLargeDataset() = runTest {
+    fun goRestoresKotlinLargeDataset(): Unit = runTest {
         requireGoKopia()
 
         // Create large dataset: 50 files, ~10KB average
@@ -300,7 +300,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores Kotlin edge-case names and symlinks")
-    fun goRestoresKotlinEdgeCaseNamesAndSymlinks() = runTest {
+    fun goRestoresKotlinEdgeCaseNamesAndSymlinks(): Unit = runTest {
         requireGoKopia()
 
         // Create edge-case directory with unicode, emoji, special chars, symlinks
@@ -352,7 +352,7 @@ class KotlinToGoCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Kotlin repo format blob matches Go expectations")
-    fun kotlinFormatBlobMatchesGoExpectations() = runTest {
+    fun kotlinFormatBlobMatchesGoExpectations(): Unit = runTest {
         // This test does not require Go CLI - it validates the format blob structure
         val repo = createGoCompatibleKotlinRepo()
         repo.close()

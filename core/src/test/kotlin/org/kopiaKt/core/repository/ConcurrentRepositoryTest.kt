@@ -41,7 +41,7 @@ class ConcurrentRepositoryTest {
     inner class ConcurrentWrites {
 
         @Test
-        fun `should handle concurrent object writes from separate write sessions`() = runTest {
+        fun `should handle concurrent object writes from separate write sessions`(): Unit = runTest {
             val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
 
@@ -86,7 +86,7 @@ class ConcurrentRepositoryTest {
     inner class ConcurrentReadsAndWrites {
 
         @Test
-        fun `should handle concurrent reads while write is in progress`() = runTest {
+        fun `should handle concurrent reads while write is in progress`(): Unit = runTest {
             val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
 
@@ -151,7 +151,7 @@ class ConcurrentRepositoryTest {
     inner class ConcurrentDataIntegrity {
 
         @Test
-        fun `should handle concurrent manifest operations`() = runTest {
+        fun `should handle concurrent manifest operations`(): Unit = runTest {
             val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
 
@@ -198,7 +198,7 @@ class ConcurrentRepositoryTest {
         }
 
         @Test
-        fun `should not corrupt data under concurrent access`() = runTest {
+        fun `should not corrupt data under concurrent access`(): Unit = runTest {
             val (createdRepo, _) = TestRepositoryFactory.createInMemory()
             repo = createdRepo
 

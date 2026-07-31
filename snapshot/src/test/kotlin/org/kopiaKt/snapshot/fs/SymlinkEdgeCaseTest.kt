@@ -43,7 +43,7 @@ class SymlinkEdgeCaseTest {
     inner class BrokenSymlinks {
 
         @Test
-        fun `should handle broken symlink`() = runBlocking {
+        fun `should handle broken symlink`(): Unit = runBlocking {
             // Create a symlink pointing to a target that does not exist
             val link = tempDir.resolve("broken-link")
             link.createSymbolicLinkPointingTo(tempDir.resolve("nonexistent-target"))
@@ -69,7 +69,7 @@ class SymlinkEdgeCaseTest {
     inner class CircularSymlinks {
 
         @Test
-        fun `should detect circular symlink`() = runBlocking {
+        fun `should detect circular symlink`(): Unit = runBlocking {
             // Create circular chain: linkA -> linkB -> linkA
             val linkA = tempDir.resolve("linkA")
             val linkB = tempDir.resolve("linkB")
@@ -100,7 +100,7 @@ class SymlinkEdgeCaseTest {
     inner class ParentDirectorySymlinks {
 
         @Test
-        fun `should handle symlink to parent directory`() = runBlocking {
+        fun `should handle symlink to parent directory`(): Unit = runBlocking {
             // Create subdir/link -> .. (parent directory)
             val subdir = tempDir.resolve("subdir")
             subdir.createDirectories()
@@ -126,7 +126,7 @@ class SymlinkEdgeCaseTest {
     inner class DeeplyNestedChains {
 
         @Test
-        fun `should handle deeply nested symlink chain`() = runBlocking {
+        fun `should handle deeply nested symlink chain`(): Unit = runBlocking {
             // Create: linkA -> linkB -> linkC -> linkD -> realFile
             val realFile = tempDir.resolve("real.txt")
             realFile.writeText("deeply nested content")
@@ -160,7 +160,7 @@ class SymlinkEdgeCaseTest {
     inner class AbsoluteSymlinkTargets {
 
         @Test
-        fun `should handle absolute symlink targets`() = runBlocking {
+        fun `should handle absolute symlink targets`(): Unit = runBlocking {
             val target = tempDir.resolve("abs-target.txt")
             target.writeText("absolute target content")
 
@@ -187,7 +187,7 @@ class SymlinkEdgeCaseTest {
     inner class RelativeSymlinkTargets {
 
         @Test
-        fun `should handle relative symlink targets`() = runBlocking {
+        fun `should handle relative symlink targets`(): Unit = runBlocking {
             // Create subdir/target.txt and a sibling link using a relative path
             val subdir = tempDir.resolve("subdir")
             subdir.createDirectories()

@@ -55,7 +55,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `runCheckpoints invokes all callbacks`() = runBlocking {
+    fun `runCheckpoints invokes all callbacks`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
         val invoked = mutableListOf<String>()
 
@@ -78,7 +78,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `runCheckpoints adds entries from callbacks to builder`() = runBlocking {
+    fun `runCheckpoints adds entries from callbacks to builder`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
 
         registry.addCheckpointCallback("file") {
@@ -92,7 +92,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `runCheckpoints skips null results from callbacks`() = runBlocking {
+    fun `runCheckpoints skips null results from callbacks`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
 
         registry.addCheckpointCallback("null-cb") { null }
@@ -108,7 +108,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `runCheckpoints collects errors from failing callbacks`() = runBlocking {
+    fun `runCheckpoints collects errors from failing callbacks`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
 
         registry.addCheckpointCallback("success") {
@@ -130,7 +130,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `callbacks can be replaced by key`() = runBlocking {
+    fun `callbacks can be replaced by key`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
         val callCount = mutableListOf<Int>()
 
@@ -154,7 +154,7 @@ class CheckpointRegistryTest {
     }
 
     @Test
-    fun `runCheckpoints is thread-safe`() = runBlocking {
+    fun `runCheckpoints is thread-safe`(): Unit = runBlocking {
         val registry = CheckpointRegistry()
         var counter = 0
 

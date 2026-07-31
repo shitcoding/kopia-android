@@ -129,7 +129,7 @@ class SnapshotEstimatorTest {
     inner class BasicCounting {
 
         @Test
-        fun `estimate counts all files`() = runBlocking {
+        fun `estimate counts all files`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(
@@ -147,7 +147,7 @@ class SnapshotEstimatorTest {
         }
 
         @Test
-        fun `estimate sums file sizes`() = runBlocking {
+        fun `estimate sums file sizes`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(
@@ -168,7 +168,7 @@ class SnapshotEstimatorTest {
     inner class ExclusionPolicy {
 
         @Test
-        fun `estimate applies exclusion policy`() = runBlocking {
+        fun `estimate applies exclusion policy`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(
@@ -193,7 +193,7 @@ class SnapshotEstimatorTest {
     inner class EmptyDirectory {
 
         @Test
-        fun `estimate handles empty directory`() = runBlocking {
+        fun `estimate handles empty directory`(): Unit = runBlocking {
             val root = InMemoryDirectory("root", emptyList())
 
             val result = SnapshotEstimator.estimate(root)
@@ -209,7 +209,7 @@ class SnapshotEstimatorTest {
     inner class DeepDirectoryTree {
 
         @Test
-        fun `estimate with deep directory tree`() = runBlocking {
+        fun `estimate with deep directory tree`(): Unit = runBlocking {
             // Build 5-level deep tree: level1/level2/level3/level4/level5/file.txt
             // Each level also has a file
             fun buildLevel(depth: Int): InMemoryDirectory {
@@ -238,7 +238,7 @@ class SnapshotEstimatorTest {
     inner class ProgressReporting {
 
         @Test
-        fun `estimate reports progress`() = runBlocking {
+        fun `estimate reports progress`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(
@@ -268,7 +268,7 @@ class SnapshotEstimatorTest {
     inner class Cancellation {
 
         @Test
-        fun `estimate cancellation stops early`() = runBlocking {
+        fun `estimate cancellation stops early`(): Unit = runBlocking {
             // Create a directory with many slow entries so we have time to cancel
             val entries = (1..100).map { InMemoryFile("file_$it.txt", 100) }
             val root = SlowDirectory("root", entries, delayPerEntry = 50)
@@ -296,7 +296,7 @@ class SnapshotEstimatorTest {
     inner class SymlinkHandling {
 
         @Test
-        fun `estimate skips symlinks`() = runBlocking {
+        fun `estimate skips symlinks`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(
@@ -321,7 +321,7 @@ class SnapshotEstimatorTest {
     inner class ErrorHandling {
 
         @Test
-        fun `estimate handles unreadable files`() = runBlocking {
+        fun `estimate handles unreadable files`(): Unit = runBlocking {
             // For the estimator, we only need to stat files, not read them.
             // An "unreadable" entry in terms of estimation would be an entry
             // that causes an error during iteration. We simulate this with
@@ -350,7 +350,7 @@ class SnapshotEstimatorTest {
         }
 
         @Test
-        fun `estimate counts errors for problematic entries`() = runBlocking {
+        fun `estimate counts errors for problematic entries`(): Unit = runBlocking {
             val errorDir = ErrorThrowingDirectory(
                 "root",
                 entries = listOf(
@@ -374,7 +374,7 @@ class SnapshotEstimatorTest {
     inner class SizeDistribution {
 
         @Test
-        fun `estimate result includes size distribution`() = runBlocking {
+        fun `estimate result includes size distribution`(): Unit = runBlocking {
             val root = InMemoryDirectory(
                 "root",
                 listOf(

@@ -37,7 +37,7 @@ class PackBlobLocalIndexEncryptionTest {
     )
 
     @Test
-    fun `encrypted local index round-trips through recoverIndex only with the decryptor`() = runTest {
+    fun `encrypted local index round-trips through recoverIndex only with the decryptor`(): Unit = runTest {
         val hasher = hasher()
         val encryptor = encryptor()
 
@@ -66,7 +66,7 @@ class PackBlobLocalIndexEncryptionTest {
     }
 
     @Test
-    fun `postamble IV is the repo hash of the decrypted index and length spans the ciphertext`() = runTest {
+    fun `postamble IV is the repo hash of the decrypted index and length spans the ciphertext`(): Unit = runTest {
         val hasher = hasher()
         val encryptor = encryptor()
 
@@ -96,7 +96,7 @@ class PackBlobLocalIndexEncryptionTest {
     }
 
     @Test
-    fun `encryptWithRawId and decryptWithRawId round-trip with an arbitrary IV`() = runTest {
+    fun `encryptWithRawId and decryptWithRawId round-trip with an arbitrary IV`(): Unit = runTest {
         val encryptor = encryptor()
         val iv = randomBytes(16)
         val plaintext = randomBytes(200)

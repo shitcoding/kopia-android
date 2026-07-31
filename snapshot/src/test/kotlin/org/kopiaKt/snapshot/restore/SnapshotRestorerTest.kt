@@ -47,7 +47,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore empty directory`() = runBlocking {
+    fun `restore empty directory`(): Unit = runBlocking {
         val rootDir = MockDirectory(
             name = "",
             entries = emptyList(),
@@ -62,7 +62,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore single file`() = runBlocking {
+    fun `restore single file`(): Unit = runBlocking {
         val fileContent = "Hello, World!"
         val rootDir = MockDirectory(
             name = "",
@@ -82,7 +82,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore nested directories`() = runBlocking {
+    fun `restore nested directories`(): Unit = runBlocking {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
@@ -112,7 +112,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore symlinks`() = runBlocking {
+    fun `restore symlinks`(): Unit = runBlocking {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
@@ -132,7 +132,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore with parallel workers`() = runBlocking {
+    fun `restore with parallel workers`(): Unit = runBlocking {
         val files = (1..10).map { i ->
             MockFile("file$i.txt", "content $i".toByteArray())
         }
@@ -154,7 +154,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore incremental skips existing files`() = runBlocking {
+    fun `restore incremental skips existing files`(): Unit = runBlocking {
         // Pre-create a file
         val existingFile = tempDir.resolve("existing.txt")
         existingFile.writeText("existing content")
@@ -185,7 +185,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore with deleteExtra removes extra files`() = runBlocking {
+    fun `restore with deleteExtra removes extra files`(): Unit = runBlocking {
         // Pre-create an extra file
         val extraFile = tempDir.resolve("extra.txt")
         extraFile.writeText("should be deleted")
@@ -210,7 +210,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore with deleteExtra removes extra directories`() = runBlocking {
+    fun `restore with deleteExtra removes extra directories`(): Unit = runBlocking {
         // Pre-create an extra directory
         Files.createDirectories(tempDir.resolve("extradir"))
         tempDir.resolve("extradir/file.txt").writeText("in extra dir")
@@ -240,7 +240,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore can be cancelled`() = runBlocking {
+    fun `restore can be cancelled`(): Unit = runBlocking {
         // Use slow files to ensure we have time to cancel
         val files = (1..100).map { i ->
             SlowMockFile("file$i.txt", ByteArray(1000) { it.toByte() }, delayMs = 10)
@@ -269,7 +269,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `restore ignores errors when configured`() = runBlocking {
+    fun `restore ignores errors when configured`(): Unit = runBlocking {
         val rootDir = MockDirectory(
             name = "",
             entries = listOf(
@@ -290,7 +290,7 @@ class SnapshotRestorerTest {
     }
 
     @Test
-    fun `progress reports file sizes correctly`() = runBlocking {
+    fun `progress reports file sizes correctly`(): Unit = runBlocking {
         val file1Content = ByteArray(1000) { 1 }
         val file2Content = ByteArray(2000) { 2 }
 
