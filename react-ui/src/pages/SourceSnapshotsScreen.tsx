@@ -257,7 +257,16 @@ const SourceSnapshotsScreen = () => {
                       {formatDateTime(snap.startTimeEpochMs)}
                     </p>
                     {snap.isIncomplete && (
-                      <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
+                      // Since phase 3.1 a cancelled backup keeps the tree it managed to upload, so
+                      // these are now browsable and restorable rather than empty -- which makes it
+                      // matter that the warning says what it means instead of being a bare glyph.
+                      <AlertTriangle
+                        className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                        aria-label="Incomplete snapshot: this backup did not finish"
+                        role="img"
+                      >
+                        <title>Incomplete snapshot: this backup did not finish</title>
+                      </AlertTriangle>
                     )}
                   </div>
 

@@ -155,17 +155,17 @@ class SnapshotUploader(
             // Apply a cancel that landed before the walker existed (see [cancelled]).
             if (cancelled.get()) walker.cancel()
 
-            var rootEntry: DirEntry? = null
-            var incompleteReason: String? = null
-
-            try {
-                // Walk the tree and upload
-                rootEntry = walker.walk(filteredDir, previousRootManifest)
-            } catch (e: TreeWalker.CancelledException) {
-                incompleteReason = "canceled"
-            } catch (e: TreeWalker.FatalErrorException) {
-                incompleteReason = "error: ${e.message}"
-            }
+            // The walk no longer unwinds when it is cancelled or hits a failFast error: it drains,
+            // writing each directory's partial manifest on the way out, and hands back a real root.
+            //
+            // What that buys TODAY is that the partial tree stays reachable: a cancelled snapshot
+            // used to be saved with rootEntry = null, so everything it had uploaded was unreferenced
+            // and GC-eligible, and the retry re-uploaded it. Now it is referenced, retention's
+            // incomplete rules keep it, and the retry dedups against it. Reading that tree back as a
+            // base -- resuming rather than restarting -- needs findPreviousSnapshot to stop skipping
+            // incomplete manifests, which is phase 3.2's multi-manifest work, not this.
+            val rootEntry: DirEntry? = walker.walk(filteredDir, previousRootManifest)
+            val incompleteReason: String? = walker.incompleteReason()
 
             val endTime = Instant.now()
 

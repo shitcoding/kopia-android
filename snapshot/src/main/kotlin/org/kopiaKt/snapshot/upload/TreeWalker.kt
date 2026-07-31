@@ -101,15 +101,9 @@ class TreeWalker(
     private val semaphore = Semaphore(parallelism)
     private val cancelled = AtomicBoolean(false)
 
-    /**
-     * Exception thrown when an upload operation is cancelled.
-     */
-    class CancelledException : Exception("Upload cancelled")
-
-    /**
-     * Exception thrown when a fatal error occurs and failFast is enabled.
-     */
-    class FatalErrorException(message: String, cause: Throwable) : Exception(message, cause)
+    /** Set when failFast stops the walk, so the reason names the entry rather than saying "canceled". */
+    @Volatile
+    private var failFastReason: String? = null
 
     /**
      * A directory whose contents could not be listed. Carried up one level so the parent records it
@@ -126,6 +120,21 @@ class TreeWalker(
     fun cancel() {
         cancelled.set(true)
     }
+
+    /**
+     * Why the tree is incomplete, or null while it is still whole.
+     *
+     * Go's `Uploader.incompleteReason()`: this is stamped onto every directory manifest written
+     * after the walk stops, and the caller puts it on the snapshot.
+     *
+     * A user cancel is "canceled", the string Go writes. failFast names the entry that stopped the
+     * run instead, which is a **deliberate divergence** — Go's `reportErrorAndMaybeCancel` just
+     * calls `Cancel()`, so Go says "canceled" there too. Nothing keys on the exact text: every
+     * consumer, in Kotlin and in desktop Go alike, only asks whether a reason is present. Naming the
+     * entry costs nothing and is the difference between "something went wrong" and a place to look.
+     * Concurrent failFast errors can therefore stamp different reasons within one run.
+     */
+    fun incompleteReason(): String? = if (cancelled.get()) failFastReason ?: "canceled" else null
 
     /**
      * Checks if the walk has been cancelled.
@@ -157,23 +166,28 @@ class TreeWalker(
         relativePath: String,
         previousManifest: DirManifest?,
     ): DirEntry {
-        if (cancelled.get()) {
-            throw CancelledException()
-        }
-
+        // Deliberately no cancellation check here. Go does not unwind on cancel: every directory
+        // level swallows it and still builds and writes what it has (upload.go:1183), so an
+        // already-cancelled level writes an empty-but-real manifest rather than vanishing. Throwing
+        // would take the DirManifestBuilder with it, which is the state a resume reads.
         val dirPath = if (relativePath.isEmpty()) dir.name else relativePath
         progress.startedDirectory(dirPath)
 
         val builder = DirManifestBuilder()
 
-        try {
-            // Build previous entries lookup map
-            val previousEntries = previousManifest?.entries
-                ?.associateBy { it.name }
-                ?: emptyMap()
+        val previousEntries = previousManifest?.entries
+            ?.associateBy { it.name }
+            ?: emptyMap()
 
-            // Collect all entries first
-            val entries = mutableListOf<Entry>()
+        // ONLY the listing is a directory-read failure. Go draws exactly this line: processSingle
+        // maps `dirReadError` to record-and-continue and lets everything else return "unable to
+        // process directory", which aborts the whole upload (upload.go:896-899, 1301). Wrapping
+        // whatever escaped the walk below would relabel a REPOSITORY-side failure -- a subdirectory
+        // whose manifest could not be written -- as "this folder could not be read", and the parent
+        // would record it, carry on, and save a snapshot marked COMPLETE that is silently missing
+        // that whole subtree. Both reviewers found that; it predates the drain conversion.
+        val entries = mutableListOf<Entry>()
+        try {
             val iterator = dir.iterate()
             try {
                 while (true) {
@@ -183,27 +197,8 @@ class TreeWalker(
             } finally {
                 iterator.close()
             }
-
-            // Process entries in parallel
-            coroutineScope {
-                val jobs = entries.map { entry ->
-                    async {
-                        processEntry(
-                            entry = entry,
-                            parentPath = relativePath,
-                            previousEntry = previousEntries[entry.name],
-                            builder = builder,
-                        )
-                    }
-                }
-                jobs.awaitAll()
-            }
         } catch (e: CancellationException) {
             throw e // never swallow coroutine cancellation
-        } catch (e: CancelledException) {
-            throw e
-        } catch (e: FatalErrorException) {
-            throw e
         } catch (e: Exception) {
             // Go: "always fail if the top level directory can't be read, otherwise a meaningless,
             // empty snapshot is created that can't be restored" (upload.go). A child's read failure
@@ -212,10 +207,27 @@ class TreeWalker(
             throw DirectoryReadException(dirPath, e)
         }
 
+        // Anything escaping here propagates unwrapped, all the way out of the upload.
+        coroutineScope {
+            val jobs = entries.map { entry ->
+                async {
+                    processEntry(
+                        entry = entry,
+                        parentPath = relativePath,
+                        previousEntry = previousEntries[entry.name],
+                        builder = builder,
+                    )
+                }
+            }
+            jobs.awaitAll()
+        }
+
         progress.finishedDirectory(dirPath)
 
-        // Build and upload the directory manifest
-        val manifest = builder.build(dir.modTime, incompleteReason = null)
+        // Every directory written after a cancel says so, exactly as Go stamps u.incompleteReason()
+        // onto each one. A partial directory that claimed to be complete would let the next run
+        // reuse it wholesale and silently lose whatever had not been walked yet.
+        val manifest = builder.build(dir.modTime, incompleteReason = incompleteReason())
         val objectId = processor.uploadDirectoryManifest(manifest)
 
         return DirEntry(
@@ -261,8 +273,10 @@ class TreeWalker(
         previousEntry: DirEntry?,
         builder: DirManifestBuilder,
     ) {
+        // Once cancelled, every remaining entry is simply skipped and the level builds what it has.
+        // This is Go's processDirectoryEntries returning errCanceled for the caller to swallow.
         if (cancelled.get()) {
-            throw CancelledException()
+            return
         }
 
         val entryPath = joinPath(parentPath, entry.name)
@@ -302,10 +316,6 @@ class TreeWalker(
             dirEntry?.let { builder.addEntry(it) }
         } catch (e: CancellationException) {
             throw e // never swallow coroutine cancellation
-        } catch (e: CancelledException) {
-            throw e
-        } catch (e: FatalErrorException) {
-            throw e
         } catch (e: Exception) {
             handleEntryFailure(entry, entryPath, e, builder)
         }
@@ -356,9 +366,16 @@ class TreeWalker(
         builder.addFailedEntry(path, isIgnored, error)
 
         // Recorded, and the walk continues -- the entry counts against the snapshot's
-        // fatalErrorCount and the caller decides what to make of that. Only failFast unwinds.
+        // fatalErrorCount and the caller decides what to make of that.
+        //
+        // failFast stops the walk the same way a user's cancel does: Go's reportErrorAndMaybeCancel
+        // calls u.Cancel() rather than returning an error, so the tree still drains and still writes
+        // its partial manifests. Throwing here would have unwound past every builder and thrown away
+        // the work already uploaded -- for a run that failed, which is precisely when the next
+        // attempt most wants to skip re-doing it.
         if (failFast && !isIgnored) {
-            throw FatalErrorException("Fatal error at $path", error)
+            failFastReason = "error: $path"
+            cancel()
         }
     }
 

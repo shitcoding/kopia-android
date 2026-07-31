@@ -146,6 +146,48 @@ class TreeWalkerTest {
             walker.cancel()
             assertTrue(walker.isCancelled())
         }
+
+        @Test
+        fun `a cancelled walk still writes the tree it got through`(@TempDir tempDir: Path): Unit = runBlocking {
+            // Go never unwinds on cancel. processChildren returns errCanceled, every directory level
+            // SWALLOWS it (upload.go:1183) and then builds and writes its partial manifest on the way
+            // out, so the partial root falls out of normal control flow. Throwing instead unwinds past
+            // every DirManifestBuilder and destroys exactly the state a resume needs -- which is why a
+            // cancelled snapshot used to be saved with rootEntry = null and the next run re-hashed the
+            // whole tree.
+            tempDir.resolve("a.txt").writeText("a")
+            tempDir.resolve("b.txt").writeText("b")
+            val dir = LocalFilesystem.directory(tempDir)
+
+            // Cancel before the walk starts: the most hostile version of mid-tree, and no timing race.
+            val processor = TestEntryProcessor()
+            val walker = TreeWalker(processor, NullUploadProgress())
+            walker.cancel()
+
+            val root = walker.walk(dir)
+
+            assertEquals(EntryType.DIRECTORY, root.type)
+            assertNotNull(root.objectId)
+            // The root manifest was written, which is what a resume reads.
+            assertEquals(1, processor.dirManifestCount.get())
+            assertEquals("canceled", processor.lastManifest?.summary?.incompleteReason)
+        }
+
+        @Test
+        fun `a cancelled walk marks every directory it wrote incomplete`(@TempDir tempDir: Path): Unit = runBlocking {
+            tempDir.resolve("nested").createDirectories().resolve("c.txt").writeText("c")
+            val dir = LocalFilesystem.directory(tempDir)
+
+            val processor = TestEntryProcessor()
+            val walker = TreeWalker(processor, NullUploadProgress())
+            walker.cancel()
+
+            walker.walk(dir)
+
+            // Nothing that a resume could mistake for a finished directory.
+            assertTrue(processor.manifests.isNotEmpty())
+            assertTrue(processor.manifests.all { it.summary?.incompleteReason == "canceled" })
+        }
     }
 
     @Nested
@@ -283,6 +325,12 @@ class TreeWalkerTest {
         /** Relative path -> the previousEntry the walker supplied for it. Written from parallel workers. */
         val previousEntrySeen = java.util.concurrent.ConcurrentHashMap<String, String>()
 
+        /** Every directory manifest handed to the walker's uploader, in the order it was written. */
+        val manifests = java.util.concurrent.CopyOnWriteArrayList<DirManifest>()
+
+        /** The last one, which for a tree walk is always the root. */
+        val lastManifest: DirManifest? get() = manifests.lastOrNull()
+
         private var nextObjectId = AtomicInteger(1)
 
         override suspend fun loadDirManifest(objectId: String): DirManifest? = previousManifests[objectId]
@@ -321,6 +369,7 @@ class TreeWalkerTest {
 
         override suspend fun uploadDirectoryManifest(manifest: DirManifest): String {
             dirManifestCount.incrementAndGet()
+            manifests.add(manifest)
             return "dir${nextObjectId.getAndIncrement()}"
         }
     }

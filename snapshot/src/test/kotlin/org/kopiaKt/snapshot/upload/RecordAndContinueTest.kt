@@ -15,6 +15,7 @@ import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
 import java.time.Instant
+import kotlin.io.path.createDirectories
 import kotlin.io.path.setPosixFilePermissions
 import kotlin.io.path.writeText
 
@@ -66,12 +67,21 @@ class RecordAndContinueTest {
     }
 
     @Test
-    fun `failFast still stops on the first error`(@TempDir tempDir: Path) {
-        val walker = TreeWalker(CountingProcessor(), NullUploadProgress(), failFast = true)
+    fun `failFast stops the walk by cancelling it, not by unwinding`(@TempDir tempDir: Path): Unit = runBlocking {
+        // Go's reportErrorAndMaybeCancel calls u.Cancel() rather than returning an error, so a
+        // failFast run still drains: each directory writes the partial manifest it had built. Phase
+        // 3.1 converted Kotlin to match -- unwinding threw away everything already uploaded, for a
+        // run that failed, which is exactly when the next attempt most wants to skip redoing it.
+        val processor = CountingProcessor()
+        val walker = TreeWalker(processor, NullUploadProgress(), failFast = true)
 
-        assertThrows<TreeWalker.FatalErrorException> {
-            runBlocking { walker.walk(LocalFilesystem.directory(oneGoodOneUnreadable(tempDir))) }
-        }
+        walker.walk(LocalFilesystem.directory(oneGoodOneUnreadable(tempDir)))
+
+        assertThat(walker.isCancelled()).isTrue()
+        // The reason names the entry that stopped it rather than reading as a user cancel, and the
+        // tree that WAS written is marked incomplete so no later run mistakes it for a whole one.
+        assertThat(walker.incompleteReason()).startsWith("error:")
+        assertThat(processor.lastManifest?.summary?.incompleteReason).startsWith("error:")
     }
 
     @Test
@@ -130,6 +140,34 @@ class RecordAndContinueTest {
         assertThat(root?.entries?.map { it.name }).containsExactly("keep.txt")
         assertThat(root?.summary?.failedEntries?.map { it.entryPath }).containsExactly("locked")
         locked.setPosixFilePermissions(setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE))
+    }
+
+    /**
+     * Go maps only a directory READ failure to record-and-continue; anything else escaping a
+     * subdirectory returns "unable to process directory" and the upload saves nothing
+     * (upload.go:896-899, 1301).
+     */
+    @Test
+    fun `a repository failure deep in the tree aborts instead of being recorded as unreadable`(
+        @TempDir tempDir: Path,
+    ) {
+        // root/a/b/file.txt -- deep enough that the failure has a grandparent to be mislabelled by.
+        tempDir.resolve("a/b").createDirectories().resolve("file.txt").writeText("data")
+
+        // Fails writing the manifest for the DEEPEST directory: a repository-side failure, not a
+        // source one. Wrapping it as "a could not be read" let the root record it, carry on, and
+        // save a snapshot marked COMPLETE while silently missing the whole subtree.
+        val processor = object : EntryProcessor by CountingProcessor() {
+            override suspend fun uploadDirectoryManifest(manifest: DirManifest): String {
+                if (manifest.entries.any { it.name == "file.txt" }) error("blob store is full")
+                return "dir"
+            }
+        }
+        val walker = TreeWalker(processor, NullUploadProgress())
+
+        assertThrows<IllegalStateException> {
+            runBlocking { walker.walk(LocalFilesystem.directory(tempDir)) }
+        }
     }
 
     private fun oneGoodOneUnreadable(tempDir: Path): Path {

@@ -518,19 +518,14 @@ class SnapshotUploadIntegrationTest {
                 progress = progress,
             )
 
-            // Strategy: Use a CancellingDirectory with no children that fires
-            // the cancel during its iterate() call. Place a sibling directory
-            // after it. Because entries are processed in launch order and
-            // the coroutines share a single-threaded dispatcher (runBlocking),
-            // the sibling directory's walkDirectory will be entered after
-            // the cancel flag is already set, causing CancelledException.
+            // Strategy: a CancellingDirectory with no children fires the cancel during its
+            // iterate(), with a sibling directory sorted after it. The root's children are iterated
+            // all at once and each processEntry is launched in order; under runBlocking's
+            // single-threaded dispatch they run sequentially, so the sibling is reached with the
+            // cancel flag already set and is skipped.
             //
-            // The root dir's children are iterated all at once, then each
-            // processEntry async is launched. Under single-threaded dispatch,
-            // they execute sequentially. The cancel trigger finishes first
-            // (its walkDirectory returns since it has no entries), then the
-            // sibling's processEntry calls walkDirectory which checks
-            // cancelled.get() at the top and throws.
+            // Since phase 3.1 that skip is a drain rather than an unwind: the walk still returns,
+            // and every level writes the partial manifest it had built.
             val cancelTrigger = CancellingDirectory(
                 // Name sorts before "zz_sibling" to ensure it's processed first
                 "aa_trigger",
@@ -554,6 +549,12 @@ class SnapshotUploadIntegrationTest {
                 "Cancelled upload should be incomplete",
             )
             assertEquals("canceled", result.incompleteReason)
+            // The point of the drain: a cancelled snapshot now carries a real tree, so what it
+            // uploaded stays referenced instead of becoming garbage the retry has to re-upload.
+            // (Reading it back as a base is phase 3.2 -- findPreviousSnapshot still skips
+            // incomplete manifests.)
+            assertNotNull(result.manifest.rootEntry, "a cancelled snapshot must still carry its partial tree")
+            assertEquals("canceled", result.manifest.rootEntry?.dirSummary?.incompleteReason)
         }
     }
 
