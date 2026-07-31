@@ -194,7 +194,11 @@ class RetentionYearBoundaryTest {
 
             val now = Instant.parse("2024-03-10T12:00:00Z")
 
-            val policy = RetentionPolicy(keepLatest = 0, keepDaily = 5)
+            // keepDaily has to reach back past Feb 28 for this to be a test of day bucketing at all:
+            // Go's daily cutoff is the newest complete snapshot minus keepDaily CALENDAR days, so
+            // with 5 the cutoff lands exactly on feb29 and feb28 expires for being six days old --
+            // which says nothing about leap years. Seven admits both boundary days.
+            val policy = RetentionPolicy(keepLatest = 0, keepDaily = 7)
             val result = computeRetention(listOf(feb28, feb29, anchor), policy, now, zone)
 
             val dailyKept = result.filter { r ->

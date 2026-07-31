@@ -8,6 +8,7 @@ import org.kopiaKt.snapshot.policy.RetentionPolicy
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 import java.util.TimeZone
 
 class RetentionComputationTest {
@@ -247,6 +248,113 @@ class RetentionComputationTest {
         assertThat(result.shouldDelete).isTrue()
         assertThat(result.retentionReasons).isEmpty()
         assertThat(result.snapshot).isEqualTo(snapshot)
+    }
+
+    @Test
+    fun `weekly and monthly period ids share one namespace, as they do in Go`() {
+        // Go keeps ONE `ids` map across every period type. A weekly id is "YYYY-WW" and a monthly id
+        // is "YYYY-MM", so for ISO weeks 01-12 they are the same string -- and monthly is evaluated
+        // first, which BLOCKS the weekly grant and leaves the weekly slot free for an older
+        // snapshot. Give each tracker its own bucket set instead and the newest snapshot takes both
+        // reasons, the older one gets nothing, and the phone reaps a snapshot desktop Kopia keeps.
+        val newer = createSnapshot("newer", Instant.parse("2026-01-02T12:00:00Z")) // ISO week 1 -> "2026-01"
+        val older = createSnapshot("older", Instant.parse("2025-12-28T12:00:00Z")) // ISO week 52 -> "2025-52"
+        val policy = RetentionPolicy(keepLatest = 1, keepWeekly = 1, keepMonthly = 1)
+
+        val result = computeRetention(listOf(newer, older), policy, Instant.parse("2026-01-02T13:00:00Z"), zone)
+
+        assertThat(result.first { it.snapshot.id == "newer" }.retentionReasons)
+            .containsExactly("latest-1", "monthly-1")
+        assertThat(result.first { it.snapshot.id == "older" }.retentionReasons)
+            .containsExactly("weekly-1")
+    }
+
+    @Test
+    fun `the shared namespace survives a device locale with non-ASCII digits`() {
+        // The weekly id is built with String.format, which follows the default locale unless told
+        // otherwise. Under fa/ar it would render as Persian or Arabic digits while the monthly id
+        // stays ASCII, the two would stop colliding, and the over-deletion above would come back for
+        // those users only -- invisible to every test running under an English locale.
+        val original = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("fa"))
+
+            val newer = createSnapshot("newer", Instant.parse("2026-01-02T12:00:00Z"))
+            val older = createSnapshot("older", Instant.parse("2025-12-28T12:00:00Z"))
+            val policy = RetentionPolicy(keepLatest = 1, keepWeekly = 1, keepMonthly = 1)
+
+            val result = computeRetention(listOf(newer, older), policy, Instant.parse("2026-01-02T13:00:00Z"), zone)
+
+            assertThat(result.first { it.snapshot.id == "older" }.retentionReasons).containsExactly("weekly-1")
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
+
+    @Test
+    fun `a snapshot exactly at the cutoff is kept`() {
+        // Go's guard is a strict `Before`, so the cutoff instant itself is still inside the window.
+        // Nothing else in the suite sits a snapshot exactly on a cutoff, and without this a `<`
+        // turning into a `<=` -- deleting the boundary snapshot -- passes everything.
+        val newest = createSnapshot("newest", Instant.parse("2026-07-28T12:00:00Z"))
+        val onTheEdge = createSnapshot("onTheEdge", Instant.parse("2026-07-21T12:00:00Z")) // exactly 7 days
+        val policy = RetentionPolicy(keepLatest = 1, keepDaily = 7)
+
+        val result = computeRetention(listOf(newest, onTheEdge), policy, Instant.parse("2026-07-28T13:00:00Z"), zone)
+
+        assertThat(result.first { it.snapshot.id == "onTheEdge" }.retentionReasons).containsExactly("daily-2")
+    }
+
+    @Test
+    fun `an absurd keep count neither throws nor overflows into a future cutoff`() {
+        // The policy comes out of the repository and may have been written by any client. keepAnnual
+        // past ~1e9 walks java.time out of range; keepWeekly past ~306 million overflows the
+        // days multiply negative, putting the cutoff in the FUTURE where it refuses every snapshot.
+        val newest = createSnapshot("newest", Instant.parse("2026-07-28T12:00:00Z"))
+        val older = createSnapshot("older", Instant.parse("2020-07-28T12:00:00Z"))
+        val policy = RetentionPolicy(keepLatest = 1, keepWeekly = Int.MAX_VALUE, keepAnnual = Int.MAX_VALUE)
+
+        val result = computeRetention(listOf(newest, older), policy, Instant.parse("2026-07-28T13:00:00Z"), zone)
+
+        assertThat(result.filterNot { it.shouldDelete }.map { it.snapshot.id })
+            .containsExactly("newest", "older")
+    }
+
+    @Test
+    fun `a period reason is refused to snapshots older than Go's cutoff`() {
+        // Go computes a cutoff per period type from the newest COMPLETE snapshot -- keepDaily=7
+        // means "the last seven days", not "seven distinct days however far back they run". Without
+        // it a sparse history hands out daily reasons to month-old snapshots and the phone keeps
+        // far more than the policy says.
+        val newest = createSnapshot("newest", Instant.parse("2026-07-28T12:00:00Z"))
+        val ancient = createSnapshot("ancient", Instant.parse("2026-07-01T12:00:00Z"))
+        val policy = RetentionPolicy(keepLatest = 1, keepDaily = 7)
+
+        val result = computeRetention(listOf(newest, ancient), policy, Instant.parse("2026-07-28T13:00:00Z"), zone)
+
+        assertThat(result.filterNot { it.shouldDelete }.map { it.snapshot.id }).containsExactly("newest")
+    }
+
+    @Test
+    fun `retention reasons come back in Go's display order`() {
+        // Go sorts every snapshot's reasons through SortRetentionTags before storing them:
+        // latest, hourly, daily, weekly, monthly, annual -- not the order the periods are evaluated
+        // in. The snapshot list shows these strings, so the order is user-visible.
+        val only = createSnapshot("only", Instant.parse("2026-07-28T12:00:00Z"))
+        val policy = RetentionPolicy(
+            keepLatest = 1,
+            keepHourly = 1,
+            keepDaily = 1,
+            keepWeekly = 1,
+            keepMonthly = 1,
+            keepAnnual = 1,
+        )
+
+        val result = computeRetention(listOf(only), policy, Instant.parse("2026-07-28T13:00:00Z"), zone)
+
+        assertThat(result.single().retentionReasons)
+            .containsExactly("latest-1", "hourly-1", "daily-1", "weekly-1", "monthly-1", "annual-1")
+            .inOrder()
     }
 
     @Test
