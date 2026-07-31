@@ -66,24 +66,32 @@ androidWebViewHierarchy: devtools
       text: ".*Backup Progress.*"
     timeout: 30000
 
-# Rotation recreates MainActivity (the manifest declares only configChanges="uiMode"), which is
-# exactly what used to take the TaskManager - and with it the running backup - away.
+# Rotation used to recreate MainActivity, which is exactly what took the TaskManager - and with it
+# the running backup - away. task-35 stopped the recreation (the activity now handles orientation
+# itself), so this asks the UI directly rather than working around a welcome screen.
 - setOrientation: LANDSCAPE_LEFT
 - waitForAnimationToEnd
 
-# The WebView reloads on recreation and the React app resets to its first route, so the UI cannot be
-# asked whether the backup survived - it is showing the welcome screen. (A real defect, but a
-# pre-existing one about WebView state restoration, not about backup.) The proof is in the
-# repository: the runner's verify_backup.sh asserts exactly one snapshot landed, which cannot happen
-# if the recreation took the task down with it.
-- extendedWaitUntil:
-    visible: "KopiaKt"
-    timeout: 60000
+# The welcome screen is what a recreated activity produced, every time, whatever the user was doing.
+# Asserting its absence rather than the progress sheet's presence keeps this honest: eight small
+# files can finish uploading before the rotation lands, and a flow that then failed would be
+# reporting a race, not a regression.
+- assertNotVisible: "Connect to Repository"
 
 - setOrientation: PORTRAIT
 - waitForAnimationToEnd
+- assertNotVisible: "Connect to Repository"
 
-# Give the worker time to finish before the verifier pulls the repository.
+# Dismiss the progress sheet and wait for the snapshot itself. A sheet only ever proved a task was
+# created; the snapshot appearing is the proof the task ran to completion across the rotation, and
+# the runner's verify_backup.sh then asserts exactly one landed in the repository.
+- tapOn:
+    point: "50%,15%"
 - extendedWaitUntil:
-    visible: "Connect to Repository"
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 20000
+- tapOn: "Source phone_source"
+- extendedWaitUntil:
+    visible: "Select snapshot 1"
     timeout: 180000

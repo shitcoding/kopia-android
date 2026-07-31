@@ -15,7 +15,7 @@ const SnapshotsScreen = () => {
       userName: source.source.userName,
       path: source.source.path,
     });
-    navigate(`/snapshots/source?${params.toString()}`);
+    navigate(`/snapshots/source?${params.toString()}`, { state: { from: "/snapshots" } });
   };
 
   const isEmpty = !isLoading && !isError && (!sources || sources.length === 0);

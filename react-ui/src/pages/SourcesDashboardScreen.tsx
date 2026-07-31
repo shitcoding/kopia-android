@@ -94,7 +94,7 @@ const SourcesDashboardScreen = () => {
       userName: src.source.userName,
       path: src.source.path,
     });
-    navigate(`/snapshots/source?${params.toString()}`);
+    navigate(`/snapshots/source?${params.toString()}`, { state: { from: "/sources" } });
   };
 
   const isEmpty = sources.length === 0;

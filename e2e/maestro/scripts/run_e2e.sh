@@ -125,6 +125,7 @@ MANIFEST=(
   "backup_task_survives_recreation|backup"
   "backup_cancel|backup"
   "backup_saf_source|backup"
+  "backup_source_snapshots_back|backup"
   "connect_s3_repo|s3"
   "connect_s3_errors|s3"
   "connect_webdav_repo|webdav"

@@ -1,5 +1,6 @@
 # Navigate to the Sources dashboard from anywhere that has a Settings button in its app bar.
-# The source-snapshots screen's Back goes to the all-snapshots list, not here.
+# (Since task-34 the source-snapshots screen's Back returns to whichever screen opened it, so a
+# flow that came from here can simply go Back -- this remains the route in from anywhere else.)
 appId: org.kopiaKt.app
 ---
 - tapOn: "Settings"

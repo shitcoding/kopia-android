@@ -1,0 +1,59 @@
+# E2E Test: Back from a source's snapshots returns to where you opened it from (task-34)
+#
+# The source-snapshots screen is opened from two places -- the all-snapshots list and the Backup
+# Sources dashboard -- and its Back button always navigated to the all-snapshots list. Opening a
+# source from the dashboard therefore left NO way back to the dashboard: the app bar has only
+# Disconnect and Settings beside it, and neither goes there. `flows/_goto_sources.yaml` still carries
+# the note that made this visible ("The source-snapshots screen's Back goes to the all-snapshots
+# list, not here"), and the earlier report of it -- that the app-bar buttons "do not respond to taps"
+# -- was a misreading: the taps land, they just go somewhere else.
+#
+# This flow fails on any build where Back is hardcoded: it lands on "Snapshots" and the assertion for
+# the dashboard times out.
+#
+# Category: backup (setup_backup_env.sh wipes the app and provides the repository).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source"
+
+# _backup_prepare leaves us on the Backup Sources dashboard.
+- assertVisible:
+    text: ".*Backup Sources.*"
+
+# ===== Open the source's snapshots FROM THE DASHBOARD =====
+#
+# Through the options menu rather than the row: the row doubles as a progress-sheet trigger while a
+# backup is running, and this flow should not depend on which of the two it is at this instant.
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "View Snapshots"
+    timeout: 10000
+- tapOn:
+    text: "View Snapshots"
+
+# "No snapshots found for this source" belongs to this screen alone -- the dashboard row also
+# carries the source path, so waiting on that would pass without having navigated anywhere.
+- extendedWaitUntil:
+    visible:
+      text: ".*No snapshots found for this source.*"
+    timeout: 20000
+
+# ===== Back must return to the dashboard, not the all-snapshots list =====
+
+- tapOn: "Back"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000
+# "No snapshots found" is the all-snapshots list's empty state: landing there means Back ignored
+# where we came from, which is the whole defect.
+- assertNotVisible: "No snapshots found"

@@ -66,6 +66,35 @@ class MergedManifestTest {
     }
 
     /**
+     * The whole UI is a React app inside one WebView. Letting Android recreate the activity on a
+     * rotation destroys that WebView, the React app loads again from its entry point, and the user
+     * lands back on the welcome screen — mid-connect, mid-restore, whatever they were doing. Nothing
+     * in this activity depends on being recreated: it builds a FrameLayout with a WebView in it, and
+     * `onConfigurationChanged` already handles the one thing that does need to react (the theme).
+     */
+    @Test
+    fun `the main activity handles rotation itself instead of being recreated`() {
+        val activity = mergedManifestElements("activity").single {
+            it.getAttributeNS(ANDROID_NS, "name") == MAIN_ACTIVITY
+        }
+
+        val handled = activity.getAttributeNS(ANDROID_NS, "configChanges")
+            .split("|")
+            .map { it.trim() }
+            .toSet()
+
+        // orientation alone is not enough on any modern device: a rotation also changes screenSize,
+        // smallestScreenSize and screenLayout, and any one of them left out recreates the activity.
+        assertThat(handled).containsAtLeast(
+            "orientation",
+            "screenSize",
+            "smallestScreenSize",
+            "screenLayout",
+            "uiMode",
+        )
+    }
+
+    /**
      * Shared-preference files excluded under [section] of the named `res/xml` rules file.
      *
      * Both formats take bare attributes (AAPT rejects `android:domain` outright), but read the
@@ -125,6 +154,7 @@ class MergedManifestTest {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
         const val SYSTEM_FOREGROUND_SERVICE = "androidx.work.impl.foreground.SystemForegroundService"
         const val WORK_MANAGER_INITIALIZER = "androidx.work.WorkManagerInitializer"
+        const val MAIN_ACTIVITY = "org.kopiaKt.app.MainActivity"
         const val TEST_CONFIG = "com/android/tools/test_config.properties"
     }
 }

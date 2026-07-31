@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   RefreshCw,
@@ -45,6 +45,18 @@ function getRetentionColor(tag: string): string {
 const SourceSnapshotsScreen = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  // This screen is opened from two places, and Back used to send everyone to the all-snapshots list
+  // -- so opening a source from the Backup Sources dashboard left no way back to it at all. Each
+  // caller marks the entry it pushed, and Back POPS that entry rather than pushing another one on
+  // top: navigating forward to the dashboard would leave the system Back key walking right back into
+  // this screen. Anything arriving without the marker (a reload, a deep link) has no entry to pop,
+  // so it gets the snapshot list.
+  const cameFromInApp = Boolean((location.state as { from?: string } | null)?.from);
+  const goBack = () => {
+    if (cameFromInApp) navigate(-1);
+    else navigate("/snapshots", { replace: true });
+  };
   const { toast } = useToast();
 
   const source: SourceInfo | null = useMemo(() => {
@@ -117,7 +129,7 @@ const SourceSnapshotsScreen = () => {
     <div className="app-container min-h-screen flex flex-col">
       {/* App Bar */}
       <header className="app-bar">
-        <button onClick={() => navigate("/snapshots")} className="btn-icon -ml-2" aria-label="Back">
+        <button onClick={goBack} className="btn-icon -ml-2" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="app-bar-title">Snapshots</h1>
