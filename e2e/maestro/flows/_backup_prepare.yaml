@@ -76,7 +76,7 @@ appId: org.kopiaKt.app
     text: "Next step"
 - extendedWaitUntil:
     visible:
-      text: ".*Configure backup schedule.*"
+      text: ".*Configure this source.*"
     timeout: 10000
 
 # The exclusions box is PREFILLED (*.tmp, .cache/**), so append rather than typing into a blank one.

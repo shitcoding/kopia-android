@@ -85,8 +85,21 @@ androidWebViewHierarchy: devtools
 # Dismiss the progress sheet and wait for the snapshot itself. A sheet only ever proved a task was
 # created; the snapshot appearing is the proof the task ran to completion across the rotation, and
 # the runner's verify_backup.sh then asserts exactly one landed in the repository.
-- tapOn:
-    point: "50%,15%"
+#
+# Conditional, and that is the whole point. This flow deliberately does NOT assert the sheet is
+# visible (see the comment above: eight small files can finish uploading before the rotation lands,
+# and asserting it would report a race as a regression) -- but it then tapped 50%,15% as though the
+# sheet were certainly there. When the backup HAD already finished, that coordinate is not a scrim,
+# it is the app bar's "Add Source": the tap opened the wizard, "Backup Sources" was never going to
+# appear, and the flow failed at this assertion in 3 of 4 runs. The runner reported those as
+# emulator ANR/INFRA, which is why this flow "never went green" rather than being read as broken.
+- runFlow:
+    when:
+      visible:
+        text: ".*Backup Progress.*"
+    commands:
+      - tapOn:
+          point: "50%,15%"
 - extendedWaitUntil:
     visible:
       text: ".*Backup Sources.*"
