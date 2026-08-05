@@ -146,6 +146,9 @@ class TestFilesystemBlobStorage(private val rootDir: File) : BlobStorage {
     override fun displayName(): String = "Filesystem: ${rootDir.absolutePath}"
 }
 
+/** Kopia's master key and HMAC secret are both 256-bit. */
+private const val KEY_LENGTH_BYTES = 32
+
 /**
  * Integration tests for reading a repository created by Go Kopia.
  *
@@ -170,51 +173,28 @@ class GoKopiaRepositoryIntegrationTest {
             "Go Kopia test repository not found at $testRepoPath — run create_test_repo.sh first"
         }
 
-        println("DEBUG: Opening repository at ${repoDir.absolutePath}")
-
         val storage = TestFilesystemBlobStorage(repoDir)
 
-        try {
-            // First, manually read the format blob and decrypt to see the masterKey
-            val formatBlob = storage.getBlob(org.kopiaKt.core.blob.BlobId("kopia.repository"), 0, -1)
-            val formatJson = org.kopiaKt.core.format.KopiaRepositoryJson.parse(formatBlob)
-            println("DEBUG: Format uniqueID: ${formatJson.uniqueID.joinToString("") { "%02x".format(it) }}")
-            println("DEBUG: Format keyAlgo: ${formatJson.keyDerivationAlgorithm}")
+        // Read the format blob and unwrap the repository config the same way open() does,
+        // so a break in the key-derivation path is attributed here rather than to open().
+        val formatBlob = storage.getBlob(org.kopiaKt.core.blob.BlobId("kopia.repository"), 0, -1)
+        val formatJson = org.kopiaKt.core.format.KopiaRepositoryJson.parse(formatBlob)
+        assertThat(formatJson.uniqueID).isNotEmpty()
 
-            // Derive the format encryption key
-            val formatEncryptionKey = formatJson.deriveFormatEncryptionKeyFromPassword(testPassword)
-            println("DEBUG: formatEncryptionKey: ${formatEncryptionKey.joinToString("") { "%02x".format(it) }}")
+        val formatEncryptionKey = formatJson.deriveFormatEncryptionKeyFromPassword(testPassword)
+        val config = formatJson.decryptRepositoryConfig(formatEncryptionKey)
+        assertThat(config.masterKey).hasLength(KEY_LENGTH_BYTES)
+        assertThat(config.secret).hasLength(KEY_LENGTH_BYTES)
+        assertThat(config.hash).isNotEmpty()
+        assertThat(config.encryption).isNotEmpty()
 
-            // Decrypt the config
-            val config = formatJson.decryptRepositoryConfig(formatEncryptionKey)
-            println("DEBUG: config.masterKey: ${config.masterKey.joinToString("") { "%02x".format(it) }}")
-            println("DEBUG: config.secret (hmac): ${config.secret.joinToString("") { "%02x".format(it) }}")
-            println("DEBUG: config.hash: ${config.hash}")
-            println("DEBUG: config.encryption: ${config.encryption}")
+        val repo = DirectRepositoryImpl.open(storage, testPassword)
+        repo.refresh()
 
-            val repo = DirectRepositoryImpl.open(storage, testPassword)
-            println("DEBUG: Repository opened successfully")
+        val snapshots = repo.findManifests(mapOf("type" to "snapshot"))
+        assertThat(snapshots).isNotEmpty()
 
-            // Refresh to load manifests
-            repo.refresh()
-            println("DEBUG: Repository refreshed")
-
-            // Find all snapshot manifests
-            val snapshots = repo.findManifests(mapOf("type" to "snapshot"))
-            println("DEBUG: Found ${snapshots.size} snapshot manifests")
-
-            for (snapshot in snapshots) {
-                println("DEBUG: Snapshot ID=${snapshot.id}, labels=${snapshot.labels}, modTime=${snapshot.modTime}")
-            }
-
-            assertThat(snapshots).isNotEmpty()
-
-            repo.close()
-        } catch (e: Exception) {
-            println("DEBUG: Exception: ${e.javaClass.name}: ${e.message}")
-            e.printStackTrace()
-            throw e
-        }
+        repo.close()
     }
 
     @Test
@@ -227,27 +207,18 @@ class GoKopiaRepositoryIntegrationTest {
 
         val storage = TestFilesystemBlobStorage(repoDir)
 
-        try {
-            val repo = DirectRepositoryImpl.open(storage, testPassword)
-            repo.refresh()
+        val repo = DirectRepositoryImpl.open(storage, testPassword)
+        repo.refresh()
 
-            // Find all manifests (empty labels matches all)
-            val allManifests = repo.findManifests(emptyMap())
-            println("DEBUG: Found ${allManifests.size} total manifests")
+        // Find all manifests (empty labels matches all)
+        val allManifests = repo.findManifests(emptyMap())
+        assertThat(allManifests).isNotEmpty()
 
-            // Group by type
-            val byType = allManifests.groupBy { it.labels["type"] }
-            for ((type, manifests) in byType) {
-                println("DEBUG: Type '$type': ${manifests.size} manifests")
-            }
+        // The fixture repository is created by Go kopia, so at least the snapshot type must
+        // round-trip through the manifest labels.
+        val byType = allManifests.groupBy { it.labels["type"] }
+        assertThat(byType.keys).contains("snapshot")
 
-            assertThat(allManifests).isNotEmpty()
-
-            repo.close()
-        } catch (e: Exception) {
-            println("DEBUG: Exception: ${e.javaClass.name}: ${e.message}")
-            e.printStackTrace()
-            throw e
-        }
+        repo.close()
     }
 }

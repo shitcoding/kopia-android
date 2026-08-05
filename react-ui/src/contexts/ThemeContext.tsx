@@ -53,10 +53,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Apply theme to DOM and notify Android
   useEffect(() => {
     const root = document.documentElement;
-    console.log("[ThemeProvider] Applying theme:", effectiveTheme, "current classes:", root.className);
     root.classList.remove("light", "dark");
     root.classList.add(effectiveTheme);
-    console.log("[ThemeProvider] Applied theme:", effectiveTheme, "new classes:", root.className);
 
     // Sync with Android status bar
     kopiaBridge.setStatusBarAppearance(effectiveTheme === "dark");

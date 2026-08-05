@@ -192,7 +192,6 @@ const FileBrowserScreen = () => {
           ? `/${fileName}`
           : `${currentPathStr}/${fileName}`;
 
-        console.log(`Restoring file ${i + 1}/${selectedFiles.length}: ${fileName}`);
 
         // Wait for this file's restore to complete
         await new Promise<void>((resolve, reject) => {
@@ -201,7 +200,6 @@ const FileBrowserScreen = () => {
           // Subscribe to progress for this specific file
           progressUnsubscribe = kopiaBridge.onRestoreProgress((progress) => {
             if (progress.state === "COMPLETED") {
-              console.log(`File ${i + 1}/${selectedFiles.length} restored: ${fileName}`);
               if (progressUnsubscribe) progressUnsubscribe();
               resolve();
             } else if (progress.state === "FAILED") {
@@ -225,7 +223,6 @@ const FileBrowserScreen = () => {
       }
 
       // All files restored successfully
-      console.log(`All ${selectedFiles.length} files restored successfully`);
       setRestoreState("done");
     } catch (error) {
       console.error("Restore failed:", error);
