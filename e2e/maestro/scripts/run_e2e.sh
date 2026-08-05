@@ -715,7 +715,7 @@ validate_manifest
 # the call. HARD aborts unless --force; WARN proceeds (a mid-run ANR is then auto-recovered).
 hh_preflight "$SERIAL"; pf_rc=$?
 if [ "$pf_rc" -eq 2 ] && [ "$FORCE" -ne 1 ]; then
-    die "host memory too low for a reliable emulator run (see [health] HARD above). Free RAM (quit OrbStack/browsers/spare helper apps), or re-run with --force."
+    die "host memory too low for a reliable emulator run (see [health] HARD above). Free RAM (quit containers/browsers), or re-run with --force."
 fi
 
 # Build the queue: requested flows, or the whole manifest in order.

@@ -102,7 +102,7 @@ hh_preflight() {
         hard=1
     fi
     if [ "${swap_used:-0}" -gt "$HH_SWAP_USED_WARN_MB" ]; then
-        echo "[health] WARN: swap used ${swap_used}MB (>${HH_SWAP_USED_WARN_MB}MB) - host has been under memory pressure; the AVD may degrade mid-run. Quit OrbStack/browsers/spare helper processes, and/or restart the AVD periodically."
+        echo "[health] WARN: swap used ${swap_used}MB (>${HH_SWAP_USED_WARN_MB}MB) - host has been under memory pressure; the AVD may degrade mid-run. Quit memory-hungry processes (containers, browsers), and/or restart the AVD periodically."
         warn=1
     fi
     if [ "${swap_free:-99999}" -lt "$HH_SWAP_FREE_WARN_MB" ]; then
