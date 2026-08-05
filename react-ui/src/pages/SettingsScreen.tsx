@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Info, LinkIcon, Loader2, Palette, Check, FolderOpen, ListTodo, Wrench } from "lucide-react";
+import { ArrowLeft, Info, LinkIcon, Loader2, Palette, Check, FolderOpen, ListTodo, Wrench, FileText } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -236,6 +236,22 @@ const SettingsScreen = () => {
               <p className="text-sm text-muted-foreground">Native Kopia client for Android</p>
             </div>
           </div>
+
+          {/* The attribution this app is required to carry with it, not merely to have in its
+              repository -- packaging strips dependency notices. See LicensesScreen. */}
+          <button
+            onClick={() => navigate("/licenses")}
+            className="w-full card-elevated flex items-center gap-4 text-left hover:bg-card transition-colors mt-3"
+            aria-label="Open-source licences"
+          >
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Open-source licences</p>
+              <p className="text-sm text-muted-foreground">Apache-2.0, and the notices of the code this uses</p>
+            </div>
+          </button>
         </div>
 
         {/* Repository Section */}

@@ -133,8 +133,20 @@ tasks.register<Exec>("buildReactAssets") {
     }
 }
 
-tasks.register<Copy>("copyReactAssets") {
+// The Apache-2.0 §4(d) and BSD-2 clause-2 notices have to travel WITH the app, not just live in the
+// repository: packaging strips dependency notices, so a released APK that only pointed at GitHub
+// would be distributing this code without the attribution its licences require. Copied into the
+// React bundle so the in-app Licences screen can fetch them from the same virtual origin.
+tasks.register<Copy>("copyLegalNotices") {
     dependsOn("buildReactAssets")
+    from(rootProject.projectDir) {
+        include("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
+    }
+    into("${rootProject.projectDir}/react-ui/dist/legal")
+}
+
+tasks.register<Copy>("copyReactAssets") {
+    dependsOn("buildReactAssets", "copyLegalNotices")
     from("${rootProject.projectDir}/react-ui/dist")
     into("$projectDir/src/main/assets/react")
 }

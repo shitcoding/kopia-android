@@ -18,6 +18,7 @@ import RestoreScreen from "./pages/RestoreScreen";
 import TaskListScreen from "./pages/TaskListScreen";
 import MaintenanceScreen from "./pages/MaintenanceScreen";
 import SettingsScreen from "./pages/SettingsScreen";
+import LicensesScreen from "./pages/LicensesScreen";
 import NotFound from "./pages/NotFound";
 import { kopiaBridge } from "./services/kopiaBridge";
 
@@ -45,6 +46,7 @@ const App = () => {
               <Route path="/tasks" element={<TaskListScreen />} />
               <Route path="/maintenance" element={<MaintenanceScreen />} />
               <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="/licenses" element={<LicensesScreen />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </HashRouter>
