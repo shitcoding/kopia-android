@@ -58,7 +58,8 @@ hh_qemu_rss_mb() {
     fi
 }
 
-# Count of stray maestro CLI java processes, EXCLUDING the MCP server (which is session infra).
+# Count of stray maestro CLI java processes. The long-running `maestro mcp` server is excluded: it
+# is a deliberate, persistent process, not the leftover of a test run that failed to clean up.
 # `grep -c` always prints a single integer to stdout; `|| true` swallows its exit-1-on-zero-matches so
 # this stays one clean number under set -e / pipefail.
 hh_stale_maestro_count() {
@@ -114,7 +115,7 @@ hh_preflight() {
         warn=1
     fi
     if [ "${stale:-0}" -gt 0 ]; then
-        echo "[health] WARN: ${stale} stale maestro.cli process(es) holding RAM/port 7001 - clear with: pkill -f maestro.cli (the MCP server is excluded from this count)."
+        echo "[health] WARN: ${stale} stale maestro.cli process(es) holding RAM/port 7001 - clear with: pkill -f maestro.cli (the long-running \`maestro mcp\` server is not counted)."
         warn=1
     fi
     [ "$hard" -eq 1 ] && return 2
