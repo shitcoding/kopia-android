@@ -51,7 +51,7 @@ class SourceIdentityMigrationTest {
     fun `policies belonging to other hosts are left alone`() {
         val plan = planPolicyMigration(
             listOf(
-                target("vasiliy", "laptop", "/home/vasiliy/docs"),
+                target("alice", "laptop", "/home/alice/docs"),
                 target("local", "Galaxy S21", "/sdcard/DCIM"),
             ),
             legacy,
