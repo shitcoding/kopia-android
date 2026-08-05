@@ -1,6 +1,11 @@
 package org.kopiaKt.snapshot.upload
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.RepositoryWriter
@@ -13,9 +18,12 @@ import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SnapshotStats
 import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.policy.Policy
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Options for snapshot upload.
@@ -46,7 +54,29 @@ data class UploadOptions(
      * If true, fail immediately on the first error.
      */
     val failFast: Boolean = false,
-)
+
+    /**
+     * How often a partial tree is written into the repository so an interrupted run can resume.
+     *
+     * Go's `DefaultCheckpointInterval` (`upload.go`). Values below
+     * [MIN_CHECKPOINT_INTERVAL] are raised to it: `delay()` returns immediately for a zero or
+     * negative duration, which would spin a tight loop writing checkpoints as fast as the
+     * repository accepts them.
+     */
+    val checkpointInterval: Duration = DEFAULT_CHECKPOINT_INTERVAL,
+) {
+    companion object {
+        /** Go: `DefaultCheckpointInterval = 45 * time.Minute`. */
+        val DEFAULT_CHECKPOINT_INTERVAL: Duration = Duration.ofMinutes(45)
+
+        /** Floor for [checkpointInterval], so a misconfigured zero cannot busy-loop the checkpointer. */
+        val MIN_CHECKPOINT_INTERVAL: Duration = Duration.ofMillis(50)
+    }
+
+    /** [checkpointInterval] clamped to [MIN_CHECKPOINT_INTERVAL]. */
+    val effectiveCheckpointInterval: Duration
+        get() = if (checkpointInterval < MIN_CHECKPOINT_INTERVAL) MIN_CHECKPOINT_INTERVAL else checkpointInterval
+}
 
 /**
  * Result of a snapshot upload operation.
@@ -103,6 +133,9 @@ class SnapshotUploader(
     // pre-walk cancel would let the entire tree walk run to completion.
     private val cancelled = AtomicBoolean(false)
 
+    /** Object id of the last checkpointed root, so an interval that uploaded nothing writes nothing. */
+    private val lastCheckpointRoot = AtomicReference<String?>(null)
+
     /**
      * Cancels the current upload operation. Cooperative: the walk stops at its next entry boundary.
      * Safe to call before [upload] starts -- the request is remembered and applied once the walker exists.
@@ -122,17 +155,20 @@ class SnapshotUploader(
     suspend fun upload(
         rootDir: Directory,
         options: UploadOptions = UploadOptions(),
-    ): UploadResult {
+    ): UploadResult = coroutineScope {
         val startTime = Instant.now()
         progress.uploadStarted()
+
+        val checkpointRegistry = CheckpointRegistry()
+        var checkpointJob: Job? = null
 
         try {
             // Apply ignore rules from policy
             val filteredDir = applyIgnoreRules(rootDir)
 
-            // Find previous snapshot for caching
-            val previousSnapshot = findPreviousSnapshot()
-            val previousRootManifest = previousSnapshot?.let { loadRootManifest(it) }
+            // Trees the walk may reuse: latest complete, then the checkpoints of any interrupted
+            // run that followed it.
+            val previousRootManifests = loadRootManifests(findPreviousManifests())
 
             // Create the file uploader
             val fileUploader = FileUploader(
@@ -155,17 +191,26 @@ class SnapshotUploader(
             // Apply a cancel that landed before the walker existed (see [cancelled]).
             if (cancelled.get()) walker.cancel()
 
-            // The walk no longer unwinds when it is cancelled or hits a failFast error: it drains,
-            // writing each directory's partial manifest on the way out, and hands back a real root.
-            //
-            // What that buys TODAY is that the partial tree stays reachable: a cancelled snapshot
-            // used to be saved with rootEntry = null, so everything it had uploaded was unreferenced
-            // and GC-eligible, and the retry re-uploaded it. Now it is referenced, retention's
-            // incomplete rules keep it, and the retry dedups against it. Reading that tree back as a
-            // base -- resuming rather than restarting -- needs findPreviousSnapshot to stop skipping
-            // incomplete manifests, which is phase 3.2's multi-manifest work, not this.
-            val rootEntry: DirEntry? = walker.walk(filteredDir, previousRootManifest)
+            // Started before the walk, stopped before the snapshot is saved (below).
+            checkpointJob = launch {
+                periodicallyCheckpoint(checkpointRegistry, options, startTime)
+            }
+
+            // The walk does not unwind when it is cancelled or hits a failFast error: it drains,
+            // writing each directory's partial manifest on the way out, and hands back a real root
+            // (phase 3.1). Phase 3.2 is the other half — those partial trees, and the checkpoints
+            // written while the run was alive, are now READ BACK by findPreviousManifests, so an
+            // interrupted backup resumes instead of starting over.
+            val rootEntry: DirEntry? = walker.walk(filteredDir, previousRootManifests, checkpointRegistry)
             val incompleteReason: String? = walker.incompleteReason()
+
+            // Stop checkpointing before the snapshot is saved, as Go's `defer cancelCheckpointer()`
+            // does. Not because a late checkpoint would be misread — its start time is pinned to
+            // startTime-1ns, so it still sorts older than this run and findPreviousManifests still
+            // excludes it — but because it would go on writing objects and flushing through a
+            // `writer` the caller is about to close, racing the one write that must not fail.
+            checkpointJob?.cancelAndJoin()
+            checkpointJob = null
 
             val endTime = Instant.now()
 
@@ -213,7 +258,7 @@ class SnapshotUploader(
 
             progress.uploadFinished()
 
-            return UploadResult(
+            UploadResult(
                 manifestId = manifestId,
                 manifest = manifest,
                 stats = stats,
@@ -221,7 +266,91 @@ class SnapshotUploader(
                 incompleteReason = incompleteReason,
             )
         } finally {
+            checkpointJob?.cancel()
             currentWalker.set(null)
+        }
+    }
+
+    /**
+     * Writes the half-built tree into the repository every [UploadOptions.checkpointInterval].
+     *
+     * This is what turns an interrupted backup from "restarts" into "resumes". Kotlin used to flush
+     * exactly once, at the end of [upload]; on Android the abrupt stop — process death, swipe-away,
+     * the 6h foreground-service cap — is the *common* case, and every one of them threw away the
+     * whole run and left its pack blobs referenced by nothing.
+     *
+     * Go: `periodicallyCheckpoint` / `checkpointRoot` (`upload.go`).
+     */
+    private suspend fun periodicallyCheckpoint(
+        registry: CheckpointRegistry,
+        options: UploadOptions,
+        startTime: Instant,
+    ) {
+        while (true) {
+            delay(options.effectiveCheckpointInterval.toMillis())
+            checkpointRoot(registry, startTime)
+        }
+    }
+
+    /**
+     * Saves one checkpoint: the current partial tree plus an incomplete snapshot manifest naming it.
+     *
+     * The manifest is dated one nanosecond BEFORE the run's own start time, exactly as Go does, so
+     * it sorts older than the snapshot it belongs to and the retention pass that follows a finished
+     * run reaps it. Without that a completed backup would leave its own checkpoints behind forever.
+     *
+     * A failure here is logged and swallowed: the upload is still making progress, the next
+     * checkpoint will retry, and a lost checkpoint costs one interval of resumability. (Go instead
+     * cancels the whole upload; on a handset that trades a recoverable stall for a lost backup.)
+     */
+    private suspend fun checkpointRoot(
+        registry: CheckpointRegistry,
+        startTime: Instant,
+    ) {
+        try {
+            val builder = DirManifestBuilder()
+            registry.runCheckpoints(builder).forEach {
+                logger.log(Level.WARNING, "error while checkpointing", it)
+            }
+
+            // No entry means the walk has not produced anything worth referencing yet. More than one
+            // is structurally impossible — only the root directory registers with this registry —
+            // but Go treats it as an error rather than a checkpoint, and so does this.
+            val entries = builder.build(startTime, incompleteReason = TreeWalker.CHECKPOINT_REASON).entries
+            if (entries.size > 1) {
+                logger.log(Level.WARNING, "checkpoint produced ${entries.size} roots; skipping it")
+                return
+            }
+            val rootEntry = entries.singleOrNull() ?: return
+
+            // Directory manifests are content-addressed, so an unchanged root means the walk has
+            // uploaded nothing since the last checkpoint — for a mostly-cached backup that is most
+            // of them. Saving another identical manifest and forcing another pack/index flush would
+            // just fragment the repository the phone never maintains.
+            if (rootEntry.objectId != null && rootEntry.objectId == lastCheckpointRoot.get()) return
+
+            val manifest = SnapshotManifest(
+                id = ManifestId.generate().value,
+                source = source,
+                // Neither the description nor the caller's tags: Go's checkpoint prototype carries
+                // only the source and start time (plus its own CheckpointLabels, normally empty), and
+                // a checkpoint that answered a tag query would surface a partial tree as if it were
+                // one of the user's real snapshots.
+                startTime = startTime.minusNanos(1),
+                endTime = Instant.now(),
+                incompleteReason = TreeWalker.CHECKPOINT_REASON,
+                rootEntry = rootEntry,
+            )
+            writer.putManifest(ManifestLabels.forSnapshot(source), manifest, SnapshotManifest.serializer())
+
+            // The flush is the point of the whole exercise: it commits the pending pack blob and its
+            // index, so everything the tree above references survives the process dying.
+            writer.flush()
+            lastCheckpointRoot.set(rootEntry.objectId)
+        } catch (e: CancellationException) {
+            throw e // the checkpointer is being stopped; do not report that as a failure
+        } catch (e: Exception) {
+            logger.log(Level.WARNING, "checkpoint failed; the upload continues", e)
         }
     }
 
@@ -231,56 +360,86 @@ class SnapshotUploader(
     private fun applyIgnoreRules(dir: Directory): Directory = IgnoreFS.wrap(dir, policy.filesPolicy)
 
     /**
-     * Finds the most recent COMPLETE previous snapshot for the same source.
+     * The trees the next walk may reuse: the latest COMPLETE snapshot, then the incomplete ones
+     * newer than it. Go's `snapshot.FindPreviousManifests` (`snapshot/manager.go`).
      *
-     * Completeness is the whole point. A cancelled run saves an incomplete manifest whose
-     * `rootEntry` is null; taking simply the newest manifest handed that one back, `loadRootManifest`
-     * then returned null, and the next backup re-hashed the entire tree — so cancelling a backup
-     * used to make the retry as expensive as the first run, exactly when the user least wants that.
+     * Completeness is why the complete one leads. A cancelled run saves an incomplete manifest;
+     * taking simply the newest manifest handed that one back and the next backup re-hashed
+     * everything the older complete snapshot already had.
      *
-     * Go additionally returns the newer incomplete manifests and merges their entries per directory
-     * (`snapshot/manager.go` FindPreviousManifests). That needs a multi-manifest walk API and lands
-     * with the checkpoint work in phase 3; latest-complete is what makes today's behaviour correct.
+     * The newer incompletes are what make a resume a resume. They are the checkpoints of a run that
+     * was interrupted: they hold entries for work the interrupted run had already uploaded, which
+     * the last complete snapshot cannot possibly have — the file may not have existed then. Order
+     * matters and is Go's: a directory's entries are searched complete-first, so an unchanged file
+     * resolves against the settled snapshot and only a *changed* one falls through to the
+     * checkpoint that uploaded it. (Go leaves the incompletes in listing order and never sorts
+     * them; newest-first here is only for determinism, and cannot change which entry is reused —
+     * candidates are gated on metadata, and equal metadata means equal content.)
+     *
+     * Only the newest [MAX_PREVIOUS_INCOMPLETE] incompletes are considered, which Go does not do.
+     * Retention keeps every incomplete under four hours old, and one interrupted run leaves one per
+     * checkpoint interval, so a phone that keeps losing its backup to doze can easily present a few
+     * dozen — and each one costs an extra directory-manifest read per directory, over SAF or the
+     * network. The newest carry the most content, so the tail is where the least is lost.
      */
-    private suspend fun findPreviousSnapshot(): SnapshotManifest? {
+    private suspend fun findPreviousManifests(): List<SnapshotManifest> {
         val labels = ManifestLabels.forSnapshot(source)
 
-        val candidates = writer.findManifests(labels).sortedByDescending { it.modTime }
-        for (candidate in candidates) {
-            val manifest = try {
+        val manifests = writer.findManifests(labels).mapNotNull { candidate ->
+            try {
                 writer.getManifest(candidate.id, SnapshotManifest.serializer()).first
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
                 // Unreadable: skip it rather than give up on reuse entirely (Go does the same).
-                java.util.logging.Logger.getLogger(SnapshotUploader::class.java.name)
-                    .log(java.util.logging.Level.WARNING, "skipping unreadable snapshot manifest ${candidate.id}", e)
-                continue
+                logger.log(Level.WARNING, "skipping unreadable snapshot manifest ${candidate.id}", e)
+                null
             }
-            if (manifest.incompleteReason == null && manifest.rootEntry != null) {
-                return manifest
-            }
-        }
-        return null
+        }.filter { it.rootEntry != null }
+
+        val latestComplete = manifests
+            .filter { it.incompleteReason == null }
+            .maxByOrNull { it.startTime }
+
+        val newerIncompletes = manifests
+            .filter { it.incompleteReason != null }
+            .filter { latestComplete == null || it.startTime.isAfter(latestComplete.startTime) }
+            .sortedByDescending { it.startTime }
+            .take(MAX_PREVIOUS_INCOMPLETE)
+
+        return listOfNotNull(latestComplete) + newerIncompletes
     }
 
     /**
-     * Loads the root directory manifest from a previous snapshot.
+     * Loads the root directory manifest of each previous snapshot, dropping the ones that cannot be
+     * read — a previous tree that will not load only costs a re-hash, never correctness.
+     *
+     * Duplicates are removed by object id: an interrupted run's checkpoint often references exactly
+     * the root the previous complete snapshot did (nothing had changed yet), and walking the same
+     * tree twice per directory would double every cache lookup for no gain.
      */
-    private suspend fun loadRootManifest(snapshot: SnapshotManifest): DirManifest? {
-        val rootObjectId = snapshot.rootEntry?.objectId ?: return null
+    private suspend fun loadRootManifests(snapshots: List<SnapshotManifest>): List<DirManifest> = snapshots
+        .mapNotNull { it.rootEntry?.objectId }
+        .distinct()
+        .mapNotNull { loadRootManifest(it) }
 
-        return try {
-            val data = writer.readObject(ObjectId.parse(rootObjectId))
-            kotlinx.serialization.json.Json.decodeFromString(
-                DirManifest.serializer(),
-                data.toString(Charsets.UTF_8),
-            )
-        } catch (e: CancellationException) {
-            throw e // never swallow coroutine cancellation
-        } catch (e: Exception) {
-            // If we can't load it, proceed without manifest caching
-            null
-        }
+    private suspend fun loadRootManifest(rootObjectId: String): DirManifest? = try {
+        val data = writer.readObject(ObjectId.parse(rootObjectId))
+        // DirManifest.fromJson, not a strict decode: a Go-written root carries fields this model does
+        // not name and writes `"entries": null` for an empty directory, and refusing either would
+        // silently disable reuse against every snapshot desktop Kopia made.
+        DirManifest.fromJson(data.toString(Charsets.UTF_8))
+    } catch (e: CancellationException) {
+        throw e // never swallow coroutine cancellation
+    } catch (e: Exception) {
+        // If we can't load it, proceed without manifest caching
+        null
+    }
+
+    private companion object {
+        private val logger: Logger = Logger.getLogger(SnapshotUploader::class.java.name)
+
+        /** See [findPreviousManifests]: a cap on read amplification, not on correctness. */
+        private const val MAX_PREVIOUS_INCOMPLETE = 8
     }
 }

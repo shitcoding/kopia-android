@@ -525,8 +525,19 @@ class ContentManager(
         val writeEpoch = if (epochsEnabled) discoverCurrentWriteEpoch() else 0
 
         // Group entries by whether they have a prefix (needed for V1 index format
-        // which requires all entries to have the same key size)
-        val entriesByPrefixType = writtenContents.values.groupBy { it.contentId.prefix != null }
+        // which requires all entries to have the same key size).
+        //
+        // Unprefixed FIRST, and that ordering is a data-safety property, not tidiness. Each group is
+        // a separate blob write and a process can die between them. Unprefixed entries are file
+        // content; prefixed ones ('k' directory manifests, 'm' snapshot manifests) are what POINTS
+        // at that content. Writing the pointers first and dying leaves a visible manifest whose
+        // contents are unindexed — a snapshot that looks restorable and is not, and which the next
+        // run happily reuses because reuse matches on metadata, never on whether the content is
+        // still there. This order can only ever leave content indexed but unreferenced, which is
+        // just garbage, and which the next flush or run cleans up.
+        val entriesByPrefixType = writtenContents.values
+            .groupBy { it.contentId.prefix != null }
+            .toSortedMap()
 
         for ((_, entries) in entriesByPrefixType) {
             if (entries.isEmpty()) continue

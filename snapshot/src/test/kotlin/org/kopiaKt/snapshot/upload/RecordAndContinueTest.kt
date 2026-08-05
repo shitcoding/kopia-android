@@ -189,7 +189,8 @@ class RecordAndContinueTest {
         override suspend fun processFile(
             file: org.kopiaKt.snapshot.fs.File,
             relativePath: String,
-            previousEntry: DirEntry?,
+            previousEntries: List<DirEntry>,
+            checkpointRegistry: CheckpointRegistry,
         ): DirEntry {
             file.open().use { it.readBytes() }
             readableFilesProcessed++
@@ -206,7 +207,7 @@ class RecordAndContinueTest {
         override suspend fun processSymlink(
             symlink: org.kopiaKt.snapshot.fs.Symlink,
             relativePath: String,
-            previousEntry: DirEntry?,
+            previousEntries: List<DirEntry>,
         ): DirEntry = DirEntry(
             name = symlink.name,
             type = EntryType.SYMLINK,

@@ -275,7 +275,7 @@ class TreeWalkerTest {
             val processor = TestEntryProcessor()
             processor.previousManifests["previous-sub-manifest"] = DirManifest(entries = listOf(previousNested))
 
-            TreeWalker(processor, NullUploadProgress()).walk(dir, previousRoot)
+            TreeWalker(processor, NullUploadProgress()).walk(dir, listOf(previousRoot))
 
             // Root-level reuse always worked; the nested one is the regression guard. Without the
             // subdirectory manifest lookup, every file below the root was re-read and re-hashed.
@@ -304,10 +304,106 @@ class TreeWalkerTest {
             )
 
             val processor = TestEntryProcessor() // knows no manifests -> loadDirManifest returns null
-            TreeWalker(processor, NullUploadProgress()).walk(LocalFilesystem.directory(tempDir), previousRoot)
+            TreeWalker(processor, NullUploadProgress()).walk(LocalFilesystem.directory(tempDir), listOf(previousRoot))
 
             assertEquals(null, processor.previousEntrySeen["sub/nested.txt"])
             assertEquals(1, processor.fileCount.get())
+        }
+
+        /**
+         * Phase 3.2 hands the walk SEVERAL previous trees — the last complete snapshot, then the
+         * checkpoints of any run interrupted since. Each holds entries the others do not: an
+         * interrupted run never reached the files queued behind whatever it was uploading when it
+         * stopped, and the complete snapshot cannot know about files created after it. Taking one
+         * tree instead of the union re-reads and re-hashes whichever half it dropped.
+         */
+        @Test
+        fun `entries are taken from every previous tree, not just one`(@TempDir tempDir: Path): Unit = runBlocking {
+            tempDir.resolve("settled.txt").writeText("settled")
+            tempDir.resolve("checkpointed.txt").writeText("checkpointed")
+            val dir = LocalFilesystem.directory(tempDir)
+
+            val fromComplete = DirManifest(entries = listOf(entryFor(dir, "settled.txt", "from-complete")))
+            val fromCheckpoint = DirManifest(entries = listOf(entryFor(dir, "checkpointed.txt", "from-checkpoint")))
+
+            val processor = TestEntryProcessor()
+            TreeWalker(processor, NullUploadProgress()).walk(dir, listOf(fromComplete, fromCheckpoint))
+
+            assertEquals("from-complete", processor.previousEntrySeen["settled.txt"])
+            assertEquals("from-checkpoint", processor.previousEntrySeen["checkpointed.txt"])
+        }
+
+        /**
+         * Order is the contract, not an accident: Go's findCachedEntry takes the FIRST candidate
+         * whose metadata still matches, and the caller orders them complete-snapshot-first. Reverse
+         * them and an unchanged file resolves against a checkpoint written by a run that was
+         * interrupted — a strictly less trustworthy source for the same bytes.
+         */
+        @Test
+        fun `candidates arrive most-authoritative first`(@TempDir tempDir: Path): Unit = runBlocking {
+            tempDir.resolve("both.txt").writeText("both")
+            val dir = LocalFilesystem.directory(tempDir)
+
+            val fromComplete = DirManifest(entries = listOf(entryFor(dir, "both.txt", "from-complete")))
+            val fromCheckpoint = DirManifest(entries = listOf(entryFor(dir, "both.txt", "from-checkpoint")))
+
+            val processor = TestEntryProcessor()
+            TreeWalker(processor, NullUploadProgress()).walk(dir, listOf(fromComplete, fromCheckpoint))
+
+            assertEquals("from-complete,from-checkpoint", processor.previousEntrySeen["both.txt"])
+        }
+
+        /**
+         * The same subdirectory usually appears in every previous tree — an interrupted run's
+         * checkpoint holds the half it walked, the complete snapshot the rest — so BOTH must be
+         * carried down. Taking one would re-hash whatever only the other listed.
+         */
+        @Test
+        fun `every previous version of a subdirectory is carried down`(@TempDir tempDir: Path): Unit = runBlocking {
+            val sub = tempDir.resolve("sub").createDirectories()
+            sub.resolve("settled.txt").writeText("settled")
+            sub.resolve("checkpointed.txt").writeText("checkpointed")
+            val dir = LocalFilesystem.directory(tempDir)
+            val subDir = LocalFilesystem.directory(sub)
+
+            val processor = TestEntryProcessor()
+            processor.previousManifests["complete-sub"] =
+                DirManifest(entries = listOf(entryFor(subDir, "settled.txt", "from-complete")))
+            processor.previousManifests["checkpoint-sub"] =
+                DirManifest(entries = listOf(entryFor(subDir, "checkpointed.txt", "from-checkpoint")))
+
+            val subEntry = { oid: String ->
+                DirEntry(
+                    name = "sub",
+                    type = EntryType.DIRECTORY,
+                    permissions = 493,
+                    modTime = subDir.modTime,
+                    objectId = oid,
+                )
+            }
+            TreeWalker(processor, NullUploadProgress()).walk(
+                dir,
+                listOf(
+                    DirManifest(entries = listOf(subEntry("complete-sub"))),
+                    DirManifest(entries = listOf(subEntry("checkpoint-sub"))),
+                ),
+            )
+
+            assertEquals("from-complete", processor.previousEntrySeen["sub/settled.txt"])
+            assertEquals("from-checkpoint", processor.previousEntrySeen["sub/checkpointed.txt"])
+        }
+
+        /** A DirEntry matching the on-disk metadata of [name] inside [dir], so reuse is eligible. */
+        private suspend fun entryFor(dir: org.kopiaKt.snapshot.fs.Directory, name: String, objectId: String): DirEntry {
+            val file = dir.child(name) as File
+            return DirEntry(
+                name = name,
+                type = EntryType.FILE,
+                permissions = file.mode,
+                fileSize = file.size,
+                modTime = file.modTime,
+                objectId = objectId,
+            )
         }
     }
 
@@ -322,7 +418,10 @@ class TreeWalkerTest {
         /** Previous manifests this processor will hand back, keyed by directory objectId. */
         val previousManifests = mutableMapOf<String, DirManifest>()
 
-        /** Relative path -> the previousEntry the walker supplied for it. Written from parallel workers. */
+        /**
+         * Relative path -> the object ids of every previous-snapshot candidate the walker supplied
+         * for it, comma-joined in the order it supplied them. Written from parallel workers.
+         */
         val previousEntrySeen = java.util.concurrent.ConcurrentHashMap<String, String>()
 
         /** Every directory manifest handed to the walker's uploader, in the order it was written. */
@@ -338,9 +437,12 @@ class TreeWalkerTest {
         override suspend fun processFile(
             file: File,
             relativePath: String,
-            previousEntry: DirEntry?,
+            previousEntries: List<DirEntry>,
+            checkpointRegistry: CheckpointRegistry,
         ): DirEntry {
-            previousEntry?.objectId?.let { previousEntrySeen[relativePath] = it }
+            previousEntries
+                .takeIf { it.isNotEmpty() }
+                ?.let { previousEntrySeen[relativePath] = it.joinToString(",") { e -> e.objectId.orEmpty() } }
             fileCount.incrementAndGet()
             return DirEntry(
                 name = file.name,
@@ -355,7 +457,7 @@ class TreeWalkerTest {
         override suspend fun processSymlink(
             symlink: Symlink,
             relativePath: String,
-            previousEntry: DirEntry?,
+            previousEntries: List<DirEntry>,
         ): DirEntry {
             symlinkCount.incrementAndGet()
             return DirEntry(

@@ -21,7 +21,14 @@ private val Context.checkpointDataStore: DataStore<Preferences> by preferencesDa
 )
 
 /**
- * Represents a saved checkpoint state for resuming interrupted backups.
+ * Local bookkeeping for a backup run: how far it got, how many times it has been resumed, and when.
+ *
+ * It is deliberately NOT how a backup resumes. Resuming is repository-side: the uploader checkpoints
+ * a real partial tree into the repository every [org.kopiaKt.snapshot.upload.UploadOptions.checkpointInterval]
+ * and the next run reads it back through `findPreviousManifests` (task-30.16). The three fields that
+ * used to describe a resume point here — the incomplete manifest id and the last completed
+ * directory's object id and path — were written and never read by anything, and a resume driven off
+ * a device-local pointer could not survive the repository being touched by another client anyway.
  */
 @Serializable
 data class BackupCheckpoint(
@@ -33,15 +40,6 @@ data class BackupCheckpoint(
 
     /** Repository connection information (serialized). */
     val repositoryConnectionJson: String,
-
-    /** The manifest ID of the incomplete snapshot, if any. */
-    val incompleteManifestId: String? = null,
-
-    /** Object ID of the last completed directory, for resuming tree walk. */
-    val lastCompletedDirObjectId: String? = null,
-
-    /** Path of the last completed directory, relative to source root. */
-    val lastCompletedDirPath: String? = null,
 
     /** Number of files processed before checkpoint. */
     val processedFiles: Int = 0,

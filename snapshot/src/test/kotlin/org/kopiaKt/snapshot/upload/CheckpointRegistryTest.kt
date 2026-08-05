@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.EntryType
+import java.time.Instant
 
 class CheckpointRegistryTest {
 
@@ -151,6 +152,54 @@ class CheckpointRegistryTest {
         // Only the replacement callback should be invoked
         assertEquals(1, callCount.size)
         assertEquals(2, callCount[0])
+    }
+
+    @Test
+    fun `runCheckpoints randomizes the name of non-directory entries`(): Unit = runBlocking {
+        val registry = CheckpointRegistry()
+        registry.addCheckpointCallback("f1") {
+            DirEntry(name = "f1", type = EntryType.FILE, objectId = "obj1")
+        }
+
+        val builder = DirManifestBuilder()
+        registry.runCheckpoints(builder)
+
+        // Go renames every non-directory checkpoint entry to ".checkpointed.<name>.<uuid>"
+        // explicitly "to prevent the use of checkpointed objects as authoritative on subsequent
+        // runs" — a half-written file must never satisfy the next run's cache lookup for "f1".
+        val name = builder.build(Instant.EPOCH).entries.single().name
+        assertTrue(name.startsWith(".checkpointed.f1."), "expected a randomized name, got $name")
+        assertTrue(name.length > ".checkpointed.f1.".length, "expected a uuid suffix, got $name")
+    }
+
+    @Test
+    fun `runCheckpoints keeps the name of directory entries`(): Unit = runBlocking {
+        val registry = CheckpointRegistry()
+        registry.addCheckpointCallback("sub") {
+            DirEntry(name = "sub", type = EntryType.DIRECTORY, objectId = "obj1")
+        }
+
+        val builder = DirManifestBuilder()
+        registry.runCheckpoints(builder)
+
+        // Directories keep their name: the whole point of a checkpoint is that the next run reads
+        // the tree back, and it addresses directories by name.
+        assertEquals("sub", builder.build(Instant.EPOCH).entries.single().name)
+    }
+
+    @Test
+    fun `runCheckpoints gives each checkpointed file a distinct name`(): Unit = runBlocking {
+        val registry = CheckpointRegistry()
+        val builder = DirManifestBuilder()
+
+        repeat(2) {
+            registry.addCheckpointCallback("f1") {
+                DirEntry(name = "f1", type = EntryType.FILE, objectId = "obj1")
+            }
+            registry.runCheckpoints(builder)
+        }
+
+        assertEquals(2, builder.build(Instant.EPOCH).entries.map { it.name }.toSet().size)
     }
 
     @Test

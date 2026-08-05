@@ -24,6 +24,7 @@ import org.kopiaKt.snapshot.upload.SnapshotUploader
 import org.kopiaKt.snapshot.upload.UploadCounters
 import org.kopiaKt.snapshot.upload.UploadOptions
 import org.kopiaKt.snapshot.upload.UploadResult
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -267,6 +268,13 @@ class BackupSession(
                     tags = config.tags,
                     parallelUploads = config.parallelUploads,
                     forceHashPercentage = config.forceHashPercentage,
+                    // The SAME interval that drives the local bookkeeping loop, not the uploader's
+                    // Go-inherited 45 minutes. Go's default is sized for a desktop that will still
+                    // be running in 45 minutes; on Android the process is killed on someone else's
+                    // schedule, and everything uploaded since the last checkpoint is what a kill
+                    // costs. One knob, so the number a user or a config sees is the one that
+                    // decides how much work an abrupt stop throws away.
+                    checkpointInterval = Duration.ofMillis(config.checkpointOptions.effectiveIntervalMillis),
                 ),
             )
 
@@ -280,7 +288,6 @@ class BackupSession(
             result = if (cancelled.get() || uploadResult.incomplete) {
                 handleCancelledOrIncomplete(uploadResult, repoConnectionJson, sourceInfo)
             } else {
-                applyRetention(sourceInfo)
                 handleSuccess(uploadResult, startTimeValue)
             }
         } catch (e: CancellationException) {
@@ -305,6 +312,17 @@ class BackupSession(
         } finally {
             checkpointJob?.cancel()
             uploaderRef.set(null)
+            // Retention runs on EVERY path out of the upload, which is why it lives here rather
+            // than on the success branch. Go applies it after every checkpoint as well as every
+            // snapshot; doing that mid-upload here would mean a repository refresh and a second
+            // writer session inside a live backup, so it is done once, at the end, for the one
+            // thing that actually needs bounding — the incomplete manifests a run leaves behind.
+            // A run that fails or is cancelled leaves the most of them and used to leave them
+            // forever: it never reached retention at all, and the next attempt only ran retention
+            // if IT succeeded. NonCancellable for the same reason persistCheckpoint is: on the
+            // cancellation path this would otherwise suspend inside an already-cancelled coroutine
+            // and never run.
+            withContext(NonCancellable) { applyRetention(sourceInfo) }
             // Close writer to release resources
             try {
                 writer.close()
@@ -318,12 +336,16 @@ class BackupSession(
     }
 
     /**
-     * Applies the source's retention policy, exactly as Go does after every `snapshot create`.
+     * Applies the source's retention policy, as Go does after every `snapshot create`.
      *
      * Failure ordering matters: the snapshot is already saved and valid, so a retention failure must
      * not undo it or fail the run. It is only reported. The local checkpoint is cleared afterwards
      * by [handleSuccess], so an interrupted retention leaves at worst an over-full snapshot list —
      * never a lost snapshot.
+     *
+     * The incomplete rules are what keep a resume possible: the newest incomplete manifests survive
+     * (Go keeps at least three, plus anything under four hours old) and only the checkpoints of a
+     * run that has since finished are reaped.
      */
     private suspend fun applyRetention(sourceInfo: SourceInfo) {
         try {
@@ -406,12 +428,12 @@ class BackupSession(
     ): BackupSessionResult {
         val counters = currentCounters.get()
 
-        // Save checkpoint with incomplete manifest info
+        // Bookkeeping only: what the next run actually resumes from is the partial tree this run
+        // left in the repository, which findPreviousManifests picks up on its own.
         val checkpoint = BackupCheckpoint(
             sourceId = config.sourceId,
             sourcePath = config.sourcePath,
             repositoryConnectionJson = repoConnectionJson,
-            incompleteManifestId = uploadResult.manifestId.value,
             processedFiles = counters.totalCachedFiles + counters.totalHashedFiles,
             processedBytes = counters.totalCachedBytes + counters.totalHashedBytes,
             startTime = startTime.get()?.toEpochMilli() ?: System.currentTimeMillis(),

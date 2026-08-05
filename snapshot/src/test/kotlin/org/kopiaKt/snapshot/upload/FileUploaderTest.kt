@@ -47,11 +47,50 @@ class FileUploaderTest {
                 content = ByteArray(100),
             )
 
-            val result = uploader.processFile(mockFile, "test.txt", previousEntry)
+            val result = uploader.processFile(mockFile, "test.txt", listOf(previousEntry))
 
             assertEquals("previous-object-id", result.objectId)
             assertEquals(1, progress.snapshot().totalCachedFiles)
             assertEquals(0, progress.snapshot().totalHashedFiles)
+        }
+
+        /**
+         * The walk now offers several candidates per file — one per previous snapshot tree, most
+         * authoritative first. Go's findCachedEntry takes the first whose metadata still MATCHES,
+         * not simply the first: after a file changes, the settled snapshot's entry is stale and only
+         * the checkpoint written by the interrupted run that re-uploaded it is any use.
+         */
+        @Test
+        fun `takes the first candidate whose metadata still matches`(): Unit = runBlocking {
+            val progress = CountingUploadProgress()
+            val uploader = FileUploader(MockRepositoryWriter(), progress)
+
+            val stale = DirEntry(
+                name = "test.txt",
+                type = EntryType.FILE,
+                permissions = 420,
+                fileSize = 40, // the size before the file changed
+                modTime = Instant.parse("2024-01-01T00:00:00Z"),
+                objectId = "stale-object-id",
+            )
+            val fresh = stale.copy(
+                fileSize = 100,
+                modTime = Instant.parse("2025-01-01T00:00:00Z"),
+                objectId = "checkpoint-object-id",
+            )
+
+            val mockFile = MockFile(
+                name = "test.txt",
+                size = 100,
+                modTime = Instant.parse("2025-01-01T00:00:00Z"),
+                mode = 420,
+                content = ByteArray(100),
+            )
+
+            val result = uploader.processFile(mockFile, "test.txt", listOf(stale, fresh))
+
+            assertEquals("checkpoint-object-id", result.objectId)
+            assertEquals(1, progress.snapshot().totalCachedFiles)
         }
 
         @Test
@@ -77,7 +116,7 @@ class FileUploaderTest {
                 content = ByteArray(100),
             )
 
-            val result = uploader.processFile(mockFile, "test.txt", previousEntry)
+            val result = uploader.processFile(mockFile, "test.txt", listOf(previousEntry))
 
             assertNotNull(result.objectId)
             assertTrue(result.objectId != "previous-object-id")
@@ -106,7 +145,7 @@ class FileUploaderTest {
                 content = ByteArray(100),
             )
 
-            val result = uploader.processFile(mockFile, "test.txt", previousEntry)
+            val result = uploader.processFile(mockFile, "test.txt", listOf(previousEntry))
 
             assertNotNull(result.objectId)
             assertTrue(result.objectId != "previous-object-id")
@@ -139,7 +178,7 @@ class FileUploaderTest {
                 content = ByteArray(100),
             )
 
-            val result = uploader.processFile(mockFile, "test.txt", previousEntry)
+            val result = uploader.processFile(mockFile, "test.txt", listOf(previousEntry))
 
             // Should upload even though metadata matches
             assertTrue(result.objectId != "previous-object-id")
@@ -216,7 +255,7 @@ class FileUploaderTest {
                 mode = 511,
             )
 
-            val result = uploader.processSymlink(mockSymlink, "link.txt", null)
+            val result = uploader.processSymlink(mockSymlink, "link.txt", emptyList())
 
             assertEquals("link.txt", result.name)
             assertEquals(EntryType.SYMLINK, result.type)
@@ -248,7 +287,7 @@ class FileUploaderTest {
                 content = ByteArray(100),
             )
 
-            val result = uploader.processFile(mockFile, "test.txt", null)
+            val result = uploader.processFile(mockFile, "test.txt", emptyList())
 
             assertNotNull(result.objectId)
         }

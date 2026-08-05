@@ -47,10 +47,15 @@ class FileUploader(
     override suspend fun processFile(
         file: File,
         relativePath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
+        checkpointRegistry: CheckpointRegistry,
     ): DirEntry {
-        // Check if we can reuse the previous entry (cache hit)
-        if (previousEntry != null && canReuseEntry(file, previousEntry)) {
+        // Cache hit: the first candidate whose metadata still matches the file on disk. Go's
+        // findCachedEntry, and the order is the caller's — latest complete snapshot first, then the
+        // checkpoints of an interrupted run, so a file that CHANGED since the last complete backup
+        // and was already re-uploaded by the interrupted run resolves against the checkpoint.
+        val previousEntry = previousEntries.firstOrNull { canReuseEntry(file, it) }
+        if (previousEntry != null) {
             // Probabilistic re-hashing: sometimes re-hash even if metadata matches
             if (!shouldForceHash()) {
                 progress.cachedFile(relativePath, file.size)
@@ -59,7 +64,7 @@ class FileUploader(
         }
 
         // Upload the file content
-        val objectId = uploadFileContent(file, relativePath)
+        val objectId = uploadFileContent(file, relativePath, checkpointRegistry)
 
         progress.hashedBytes(file.size)
 
@@ -72,10 +77,11 @@ class FileUploader(
     override suspend fun processSymlink(
         symlink: Symlink,
         relativePath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
     ): DirEntry {
-        // Check if we can reuse the previous entry
-        if (previousEntry != null && canReuseSymlinkEntry(symlink, previousEntry)) {
+        // Check if we can reuse a previous entry (see processFile for why this is a list)
+        val previousEntry = previousEntries.firstOrNull { canReuseSymlinkEntry(symlink, it) }
+        if (previousEntry != null) {
             if (!shouldForceHash()) {
                 progress.cachedFile(relativePath, 0)
                 return createDirEntryFromSymlink(symlink, previousEntry.objectId)
@@ -125,7 +131,9 @@ class FileUploader(
                 logger.log(Level.WARNING, "Previous directory manifest $objectId is $length bytes; re-hashing subtree")
                 null
             } else {
-                json.decodeFromString(DirManifest.serializer(), reader.read().decodeToString())
+                // fromJson, not this class's own Json: Go writes `"entries": null` for an empty
+                // directory, which a plain decode rejects — silently disabling reuse for that tree.
+                DirManifest.fromJson(reader.read().decodeToString())
             }
         } finally {
             reader.close()
@@ -193,8 +201,18 @@ class FileUploader(
 
     /**
      * Uploads file content to the repository.
+     *
+     * While the write is in flight the object writer is published to [checkpointRegistry] under the
+     * file's path, so a checkpoint taken mid-file can reference the chunks already written. Without
+     * that, a checkpoint's `flush()` commits those chunks to a pack blob that nothing in the tree
+     * points at — for the one case where this matters most, a multi-gigabyte video on a phone.
+     * The entry is renamed by the registry so it can never be read back as the file itself.
      */
-    private suspend fun uploadFileContent(file: File, relativePath: String): String {
+    private suspend fun uploadFileContent(
+        file: File,
+        relativePath: String,
+        checkpointRegistry: CheckpointRegistry,
+    ): String {
         // Determine compression based on policy
         val compressorName = compressionPolicy.compressorForFile(relativePath, file.size)
         val compression = parseCompression(compressorName)
@@ -204,6 +222,13 @@ class FileUploader(
         // Stream the file content through the object writer
         file.open().use { inputStream ->
             val objectWriter = writer.newObjectWriter(options)
+            checkpointRegistry.addCheckpointCallback(relativePath) {
+                // Empty means nothing has reached a chunk boundary yet: there is no content to
+                // reference, so contributing no entry is the correct answer, not an error.
+                objectWriter.checkpoint()
+                    .takeIf { it != ObjectId.Empty }
+                    ?.let { createDirEntryFromFile(file, it.toString()) }
+            }
             try {
                 val buffer = ByteArray(BUFFER_SIZE)
                 var bytesRead: Int
@@ -220,6 +245,7 @@ class FileUploader(
                 val result = objectWriter.result()
                 return result.toString()
             } finally {
+                checkpointRegistry.removeCheckpointCallback(relativePath)
                 objectWriter.close()
             }
         }

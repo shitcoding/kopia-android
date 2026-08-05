@@ -58,7 +58,7 @@ class FileChangeDuringBackupTest {
                 content = changedContent,
             )
 
-            val result = uploader.processFile(mockFile, "data.bin", previousEntry)
+            val result = uploader.processFile(mockFile, "data.bin", listOf(previousEntry))
 
             // With forceHash=100, the file is always re-uploaded, producing a new objectId
             assertThat(result.objectId).isNotNull()
@@ -99,7 +99,7 @@ class FileChangeDuringBackupTest {
 
             // processFile calls file.open() which throws IOException -- this should propagate
             assertThrows<IOException> {
-                uploader.processFile(deletedFile, "deleted.txt", previousEntry)
+                uploader.processFile(deletedFile, "deleted.txt", listOf(previousEntry))
             }
 
             // Nothing should have been written to the repository
@@ -137,7 +137,7 @@ class FileChangeDuringBackupTest {
                 content = grownContent,
             )
 
-            val result = uploader.processFile(grownFile, "growing.log", previousEntry)
+            val result = uploader.processFile(grownFile, "growing.log", listOf(previousEntry))
 
             // The file should be uploaded successfully with the actual (larger) content
             assertThat(result.objectId).isNotNull()
@@ -172,7 +172,7 @@ class FileChangeDuringBackupTest {
                 content = truncatedContent,
             )
 
-            val result = uploader.processFile(truncatedFile, "truncated.dat", previousEntry)
+            val result = uploader.processFile(truncatedFile, "truncated.dat", listOf(previousEntry))
 
             // The file should be uploaded successfully with the actual (smaller) content
             assertThat(result.objectId).isNotNull()

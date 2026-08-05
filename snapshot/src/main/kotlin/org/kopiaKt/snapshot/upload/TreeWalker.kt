@@ -16,6 +16,8 @@ import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
 import org.kopiaKt.snapshot.policy.ErrorHandlingPolicy
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.logging.Level
+import java.util.logging.Logger
 import org.kopiaKt.snapshot.model.EntryType as ModelEntryType
 
 /**
@@ -30,13 +32,17 @@ interface EntryProcessor {
      *
      * @param file The file to process
      * @param relativePath The relative path from the snapshot root
-     * @param previousEntry Optional previous entry for caching comparison
+     * @param previousEntries Candidate entries from previous snapshots, most authoritative first;
+     *   the first one whose metadata still matches the file on disk may be reused
+     * @param checkpointRegistry Registry to publish the partially-written object to, so a
+     *   checkpoint taken mid-file keeps the bytes uploaded so far referenced by the tree
      * @return DirEntry with objectId populated
      */
     suspend fun processFile(
         file: File,
         relativePath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
+        checkpointRegistry: CheckpointRegistry = CheckpointRegistry(),
     ): DirEntry
 
     /**
@@ -44,13 +50,13 @@ interface EntryProcessor {
      *
      * @param symlink The symlink to process
      * @param relativePath The relative path from the snapshot root
-     * @param previousEntry Optional previous entry for caching comparison
+     * @param previousEntries Candidate entries from previous snapshots, most authoritative first
      * @return DirEntry with objectId populated
      */
     suspend fun processSymlink(
         symlink: Symlink,
         relativePath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
     ): DirEntry
 
     /**
@@ -145,26 +151,33 @@ class TreeWalker(
      * Walks a directory tree and returns the root DirEntry with objectId.
      *
      * @param rootDir The root directory to walk
-     * @param previousManifest Optional previous snapshot for caching
+     * @param previousManifests Previous snapshot trees to reuse entries from, most authoritative
+     *   first (Go: the latest complete snapshot, then the checkpoints of any interrupted run)
+     * @param checkpointRegistry Registry the root directory registers itself with, so a periodic
+     *   checkpointer can write the half-built tree into the repository while the walk is running.
+     *   The default is a private registry nobody polls, i.e. no checkpointing.
      * @return The root DirEntry with objectId pointing to the directory manifest
      */
     suspend fun walk(
         rootDir: Directory,
-        previousManifest: DirManifest? = null,
-    ): DirEntry = walkDirectory(rootDir, "", previousManifest)
+        previousManifests: List<DirManifest> = emptyList(),
+        checkpointRegistry: CheckpointRegistry = CheckpointRegistry(),
+    ): DirEntry = walkDirectory(rootDir, "", previousManifests, checkpointRegistry)
 
     /**
      * Recursively walks a directory.
      *
      * @param dir The directory to walk
      * @param relativePath The relative path from root (empty for root)
-     * @param previousManifest Previous manifest for caching comparison
+     * @param previousManifests Previous manifests for caching comparison, most authoritative first
+     * @param parentRegistry The registry this directory registers its own checkpoint callback with
      * @return DirEntry for the directory with objectId
      */
     private suspend fun walkDirectory(
         dir: Directory,
         relativePath: String,
-        previousManifest: DirManifest?,
+        previousManifests: List<DirManifest>,
+        parentRegistry: CheckpointRegistry,
     ): DirEntry {
         // Deliberately no cancellation check here. Go does not unwind on cancel: every directory
         // level swallows it and still builds and writes what it has (upload.go:1183), so an
@@ -175,9 +188,13 @@ class TreeWalker(
 
         val builder = DirManifestBuilder()
 
-        val previousEntries = previousManifest?.entries
-            ?.associateBy { it.name }
-            ?: emptyMap()
+        // Candidates per name, in manifest order — Go's findCachedEntry walks prevDirs in order and
+        // takes the first whose metadata matches the entry on disk. The union matters: a file the
+        // interrupted run never reached is absent from its checkpoint but still present in the last
+        // complete snapshot, and must stay reusable.
+        val previousEntries: Map<String, List<DirEntry>> = previousManifests
+            .flatMap { it.entries }
+            .groupBy { it.name }
 
         // ONLY the listing is a directory-read failure. Go draws exactly this line: processSingle
         // maps `dirReadError` to record-and-continue and lets everything else return "unable to
@@ -207,29 +224,81 @@ class TreeWalker(
             throw DirectoryReadException(dirPath, e)
         }
 
-        // Anything escaping here propagates unwrapped, all the way out of the upload.
-        coroutineScope {
-            val jobs = entries.map { entry ->
-                async {
-                    processEntry(
-                        entry = entry,
-                        parentPath = relativePath,
-                        previousEntry = previousEntries[entry.name],
-                        builder = builder,
-                    )
+        // Children register their in-flight state here; this directory registers with its parent.
+        // Together the two make one registry per tree level, so a checkpoint that starts at the root
+        // recurses down exactly the branch the walk is currently in and writes a real partial tree.
+        val childRegistry = CheckpointRegistry()
+        parentRegistry.addCheckpointCallback(dir.name) { checkpointDirectory(dir, builder, childRegistry) }
+
+        // Deregistered only once this directory's OWN manifest has been written — Go's
+        // `defer removeCheckpointCallback` fires at function exit, after WriteDirManifest
+        // (upload.go:1162,1181). Dropping it any earlier opens a window in which the directory is
+        // in neither place: its parent has not recorded it yet and its callback is gone, so a
+        // checkpoint taken then omits the whole finished subtree while `flush()` commits its
+        // content — orphaning everything it uploaded until some later checkpoint picks it up.
+        // Writing the manifest is a network round trip, so that window was the wide one.
+        try {
+            // Anything escaping here propagates unwrapped, all the way out of the upload.
+            coroutineScope {
+                val jobs = entries.map { entry ->
+                    async {
+                        processEntry(
+                            entry = entry,
+                            parentPath = relativePath,
+                            previousEntries = previousEntries[entry.name].orEmpty(),
+                            builder = builder,
+                            checkpointRegistry = childRegistry,
+                        )
+                    }
                 }
+                jobs.awaitAll()
             }
-            jobs.awaitAll()
+
+            progress.finishedDirectory(dirPath)
+
+            // Every directory written after a cancel says so, exactly as Go stamps u.incompleteReason()
+            // onto each one. A partial directory that claimed to be complete would let the next run
+            // reuse it wholesale and silently lose whatever had not been walked yet.
+            val manifest = builder.build(dir.modTime, incompleteReason = incompleteReason())
+            val objectId = processor.uploadDirectoryManifest(manifest)
+
+            return DirEntry(
+                name = dir.name,
+                type = ModelEntryType.DIRECTORY,
+                permissions = dir.mode,
+                modTime = dir.modTime,
+                userId = dir.owner.userId,
+                groupId = dir.owner.groupId,
+                objectId = objectId,
+                dirSummary = manifest.summary,
+            )
+        } finally {
+            parentRegistry.removeCheckpointCallback(dir.name)
         }
+    }
 
-        progress.finishedDirectory(dirPath)
-
-        // Every directory written after a cancel says so, exactly as Go stamps u.incompleteReason()
-        // onto each one. A partial directory that claimed to be complete would let the next run
-        // reuse it wholesale and silently lose whatever had not been walked yet.
-        val manifest = builder.build(dir.modTime, incompleteReason = incompleteReason())
-        val objectId = processor.uploadDirectoryManifest(manifest)
-
+    /**
+     * Writes the directory as it stands right now and returns an entry pointing at it.
+     *
+     * Called from the periodic checkpointer while the walk is still running, so it clones the
+     * builder rather than sharing it: the walk keeps adding entries, and a manifest built from a
+     * builder mutating underneath it would be internally inconsistent. Children in flight publish
+     * themselves into the clone through their own registry, so one call at the root writes the
+     * whole branch the walk is currently inside.
+     */
+    private suspend fun checkpointDirectory(
+        dir: Directory,
+        builder: DirManifestBuilder,
+        childRegistry: CheckpointRegistry,
+    ): DirEntry {
+        val checkpointBuilder = builder.clone()
+        // Logged, not propagated: one child that could not be checkpointed costs that subtree a
+        // interval of resumability, and failing the whole checkpoint would cost every other child
+        // the same. Silence would hide a subtree that has quietly stopped being resumable at all.
+        childRegistry.runCheckpoints(checkpointBuilder).forEach {
+            logger.log(Level.WARNING, "error checkpointing a child of ${dir.name}", it)
+        }
+        val manifest = checkpointBuilder.build(dir.modTime, incompleteReason = CHECKPOINT_REASON)
         return DirEntry(
             name = dir.name,
             type = ModelEntryType.DIRECTORY,
@@ -237,7 +306,7 @@ class TreeWalker(
             modTime = dir.modTime,
             userId = dir.owner.userId,
             groupId = dir.owner.groupId,
-            objectId = objectId,
+            objectId = processor.uploadDirectoryManifest(manifest),
             dirSummary = manifest.summary,
         )
     }
@@ -248,11 +317,12 @@ class TreeWalker(
     private suspend fun processFileEntry(
         entry: File,
         entryPath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
+        checkpointRegistry: CheckpointRegistry,
     ): DirEntry? = semaphore.withPermit {
         progress.hashingFile(entryPath)
         try {
-            val result = processor.processFile(entry, entryPath, previousEntry)
+            val result = processor.processFile(entry, entryPath, previousEntries, checkpointRegistry)
             progress.finishedHashingFile(entryPath, entry.size)
             progress.finishedFile(entryPath, null)
             result
@@ -270,8 +340,9 @@ class TreeWalker(
     private suspend fun processEntry(
         entry: Entry,
         parentPath: String,
-        previousEntry: DirEntry?,
+        previousEntries: List<DirEntry>,
         builder: DirManifestBuilder,
+        checkpointRegistry: CheckpointRegistry,
     ) {
         // Once cancelled, every remaining entry is simply skipped and the level builds what it has.
         // This is Go's processDirectoryEntries returning errCanceled for the caller to swallow.
@@ -289,22 +360,25 @@ class TreeWalker(
                 }
 
                 is Directory -> {
-                    // Recurse into the subdirectory, carrying its previous manifest so the entries
-                    // below the root can be reused too. Without this, only root-level files ever had
-                    // a previousEntry and every file deeper in the tree was re-read and re-hashed on
-                    // every backup — over SAF that is one ContentResolver stream per file.
-                    val previousDirManifest = previousEntry
-                        ?.takeIf { it.type == ModelEntryType.DIRECTORY }
-                        ?.objectId
-                        ?.takeIf { it.isNotEmpty() }
-                        ?.let { processor.loadDirManifest(it) }
-                    walkDirectory(entry, entryPath, previousDirManifest)
+                    // Recurse carrying EVERY previous version of this subdirectory, not just one.
+                    // Without this, only root-level files ever had a previous entry and everything
+                    // deeper was re-read and re-hashed on every backup — over SAF that is one
+                    // ContentResolver stream per file. And with checkpoints in play, an interrupted
+                    // run's partial copy of a directory and the last complete copy each hold
+                    // entries the other does not; dropping either re-hashes that half of the
+                    // subtree. Go: uniqueChildDirectories.
+                    val previousDirManifests = previousEntries
+                        .filter { it.type == ModelEntryType.DIRECTORY }
+                        .mapNotNull { it.objectId?.takeIf(String::isNotEmpty) }
+                        .distinct()
+                        .mapNotNull { processor.loadDirManifest(it) }
+                    walkDirectory(entry, entryPath, previousDirManifests, checkpointRegistry)
                 }
 
-                is File -> processFileEntry(entry, entryPath, previousEntry)
+                is File -> processFileEntry(entry, entryPath, previousEntries, checkpointRegistry)
 
                 is Symlink -> {
-                    processor.processSymlink(entry, entryPath, previousEntry)
+                    processor.processSymlink(entry, entryPath, previousEntries)
                 }
 
                 else -> {
@@ -380,6 +454,14 @@ class TreeWalker(
     }
 
     companion object {
+        /**
+         * Go's `IncompleteReasonCheckpoint`. Stamped on every directory manifest a checkpoint
+         * writes, so nothing can mistake a half-walked directory for a finished one.
+         */
+        const val CHECKPOINT_REASON = "checkpoint"
+
+        private val logger: Logger = Logger.getLogger(TreeWalker::class.java.name)
+
         private fun joinPath(parent: String, child: String): String = if (parent.isEmpty()) child else "$parent/$child"
     }
 }

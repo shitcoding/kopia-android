@@ -39,10 +39,15 @@ You start a backup yourself; it holds a foreground-service notification for as l
 it writes is a normal Kopia snapshot: the test suite has desktop Go Kopia restore a phone-written
 snapshot pulled off the device and compare it byte for byte against the original.
 
-**An interrupted backup does not resume.** The run lives in the app's own process — closing the UI is
-fine, the notification keeps it going — but if that process is stopped, by the system reclaiming
-memory or by the phone's own app-killing, the backup ends there. Start it again and it will be cheap:
-everything already uploaded is deduplicated, so the retry re-uses it instead of re-uploading.
+**An interrupted backup resumes; it does not start over.** The run lives in the app's own process —
+closing the UI is fine, the notification keeps it going — but if that process is stopped, by the
+system reclaiming memory or by the phone's own app-killing, the backup ends there. It does not pick
+itself back up: you start it again. What it does not do any more is redo the work. Every few minutes
+the run writes the half-finished directory tree into the repository as an incomplete snapshot, so the
+next attempt reads that back and carries on from it — files already uploaded are not re-read, not
+re-hashed, and not re-uploaded, and neither is the already-transferred part of a large file. Nothing
+partial is ever mistaken for a finished file: checkpointed files are stored under a name no later run
+looks up, and every partial directory is marked as such.
 
 Treat this as a companion to a desktop Kopia install, not a replacement for it — the phone still
 depends on the desktop for maintenance.
@@ -54,8 +59,9 @@ compatibility — see [Compatibility](#compatibility).
 
 | Divergence | What it means for you |
 |---|---|
-| **Backups run only while the app is running and connected.** Starting one with no repository open is refused, and disconnecting cancels pending work. | A backup makes progress only while the app's process is alive — no scheduled or background work picks it up later. It does not resume by itself; you start it again, and deduplication makes the retry cheap. |
-| **The phone never runs repository maintenance.** Desktop Kopia auto-runs maintenance — including garbage collection with deletion — after a snapshot when it owns the repository. KopiaKt never does. | Retention on the phone deletes snapshot *manifests*, never *contents*, and an interrupted run leaves orphaned packs behind. **Run maintenance from desktop Kopia periodically, or repository storage grows.** |
+| **Backups run only while the app is running and connected.** Starting one with no repository open is refused, and disconnecting cancels pending work. | A backup makes progress only while the app's process is alive — no scheduled or background work picks it up later. It does not restart itself; you start it again, and it resumes from the last checkpoint. |
+| **Retention runs after every backup; desktop Kopia also runs it after every checkpoint.** | Checkpoints of one run accumulate until that run ends — at most one every few minutes, and each is a single small manifest. |
+| **The phone never runs repository maintenance.** Desktop Kopia auto-runs maintenance — including garbage collection with deletion — after a snapshot when it owns the repository. KopiaKt never does. | Retention on the phone deletes snapshot *manifests*, never *contents*, so the contents behind a reaped checkpoint — and anything a run uploaded after its last checkpoint — stay behind as orphans. **Run maintenance from desktop Kopia periodically, or repository storage grows.** |
 | **One effective policy per source**, merged source → user → host → global. Desktop Kopia resolves a policy *tree*: a policy set on a parent path applies to sources beneath it, and per-subdirectory policies can change the rules partway through a directory walk. | A policy you set on a parent path from the desktop does not reach a phone source underneath it, and a per-subdirectory policy is ignored. Set the policy on the source itself. |
 | **Scheduled backups are not implemented.** The policy editor's *Schedule* tab and the add-source wizard still write a scheduling policy, but nothing on the phone reads it. | Every backup on the phone is one you start by hand. |
 
