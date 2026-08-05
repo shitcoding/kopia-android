@@ -205,7 +205,10 @@ class BackupSession(
         // Create writer for the session (inside try to handle connection failures)
         val writer: RepositoryWriter
         try {
-            writer = repository.newWriter(WriteSessionOptions())
+            // onUpload is what makes "Uploaded Bytes" the amount that actually left the device --
+            // measured in the content manager, after dedup, compression and encryption. It has to be
+            // handed over here because the write session owns the content manager that reports it.
+            writer = repository.newWriter(WriteSessionOptions(onUpload = { progress.uploadedBytes(it) }))
         } catch (e: Throwable) {
             val counters = currentCounters.get()
             val checkpoint = BackupCheckpoint(
@@ -503,6 +506,35 @@ class BackupSession(
         // whose remaining files are all cache hits, that could be never.
         override fun estimatedDataSize(fileCount: Long, totalBytes: Long) {
             super.estimatedDataSize(fileCount, totalBytes)
+            onUpdate(snapshot())
+        }
+
+        // Every remaining callback that MUTATES a counter publishes too, which is Go's rule
+        // (`uitaskProgress` reports after each one). The ones below were changing numbers the Tasks
+        // screen displays and then waiting for an unrelated event to push them out: a backup whose
+        // remaining work is all exclusions and errors could finish without ever showing either.
+        override fun excludedFile(filename: String, size: Long) {
+            super.excludedFile(filename, size)
+            onUpdate(snapshot())
+        }
+
+        override fun excludedDir(dirname: String) {
+            super.excludedDir(dirname)
+            onUpdate(snapshot())
+        }
+
+        override fun error(path: String, error: Throwable, isIgnored: Boolean) {
+            super.error(path, error, isIgnored)
+            onUpdate(snapshot())
+        }
+
+        override fun startedDirectory(dirname: String) {
+            super.startedDirectory(dirname)
+            onUpdate(snapshot())
+        }
+
+        override fun finishedHashingFile(filename: String, size: Long) {
+            super.finishedHashingFile(filename, size)
             onUpdate(snapshot())
         }
     }

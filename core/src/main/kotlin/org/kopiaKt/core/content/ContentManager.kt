@@ -73,6 +73,21 @@ class ContentManager(
     private val defaultCompression: CompressionAlgorithm = CompressionAlgorithm.NONE,
     private val maxPackSize: Int = DEFAULT_MAX_PACK_SIZE,
     private val epochsEnabled: Boolean = false,
+    /**
+     * Invoked with the number of bytes each blob write actually sends to storage.
+     *
+     * Go's `SharedManager.onUpload`, reported from the same two places: the pack blob and the index
+     * blob. It is deliberately measured HERE and not higher up, because this is the only layer that
+     * knows the real number — after deduplication, after compression, after encryption. A count taken
+     * where the bytes are read would tell a user on a metered connection that an incremental backup
+     * of an unchanged 4 GB photo library cost them 4 GB.
+     *
+     * Called AFTER the write returns, where Go calls before it. Go therefore counts bytes a failed
+     * write never landed; this counts what is actually in the repository. Either is defensible, and
+     * the difference only shows on the failure path — but see [reportUpload]: a progress hook must
+     * never be able to fail a backup, and after-the-write is where that guarantee has to be made.
+     */
+    private val onUpload: ((Long) -> Unit)? = null,
 ) {
     private val hasher: ContentHasher = hasherFactory.create(hashAlgorithm, hashSecret)
     private val encryptor: Encryptor = encryptorFactory.create(encryptionAlgorithm, encryptionKey)
@@ -368,6 +383,25 @@ class ContentManager(
 
     // ===== Private Implementation =====
 
+    /**
+     * Reports bytes written, and never lets that reporting break a write.
+     *
+     * The blob is already in storage by the time this runs, but the in-memory bookkeeping that says
+     * so has not been updated yet. An exception escaping here would leave the repository holding a
+     * pack blob the content manager does not know it wrote — an orphan, and a duplicate on the next
+     * flush. No progress counter is worth that.
+     */
+    private fun reportUpload(numBytes: Long) {
+        val hook = onUpload ?: return
+        try {
+            hook(numBytes)
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            logger.log(Level.WARNING, "upload progress callback failed; the write itself succeeded", e)
+        }
+    }
+
     private fun contentExists(contentId: ContentId): Boolean {
         // Dedup only against a LIVE entry. If the current entry is a tombstone, the caller is
         // re-writing previously-deleted content (e.g. GC removed it, a new snapshot references it
@@ -495,6 +529,7 @@ class ContentManager(
 
         // Write pack blob to storage
         storage.putBlob(packBlobId, packData)
+        reportUpload(packData.size.toLong())
 
         // Move pending to written. The builder stamps one pack-level timestamp on every entry; preserve a
         // higher per-content pending timestamp (a resurrect writes contentWriteTime(tombstone) so its live
@@ -553,6 +588,7 @@ class ContentManager(
 
             // Write encrypted index blob to storage
             storage.putBlob(indexBlobId, encryptedIndexData)
+            reportUpload(encryptedIndexData.size.toLong())
         }
 
         // Move written to committed using the same winner rule as loadCommittedIndexes — a plain

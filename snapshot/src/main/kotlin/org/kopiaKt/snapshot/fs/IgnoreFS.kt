@@ -15,6 +15,21 @@ class IgnoreFS internal constructor(
     private val wrapped: Directory,
     private val context: IgnoreContext,
     private val relativePath: String,
+    /**
+     * Told about every entry these rules filter out, or null to filter silently.
+     *
+     * Go's `ignorefs` takes the same callback and its uploader passes `reportIgnoreStats=false` for
+     * the estimator's wrapper — because the estimator walks the same tree at the same time
+     * (task-30.20), and one shared reporting wrapper would count every excluded entry twice.
+     *
+     * **Reports more than Go does, deliberately.** Go fires its callback only for name-pattern
+     * matches; a file dropped for exceeding `maxFileSize`, or for sitting on another filesystem
+     * under `oneFileSystem`, is skipped silently. Those are still files the user asked to back up
+     * and did not get, and "Excluded Files: 0" next to a missing 5 GB video is the kind of quiet
+     * that makes a backup tool untrustworthy. The count is per ENTRY, so an excluded directory is
+     * one exclusion and its contents are never visited — that part matches Go.
+     */
+    private val onIgnored: ((Entry, String) -> Unit)? = null,
 ) : Directory {
 
     override val name: String = wrapped.name
@@ -32,6 +47,7 @@ class IgnoreFS internal constructor(
 
         // Check if should be ignored
         if (context.shouldIgnore(childPath, entry)) {
+            onIgnored?.invoke(entry, childPath)
             return null
         }
 
@@ -42,6 +58,7 @@ class IgnoreFS internal constructor(
         wrapped.iterate(),
         context,
         relativePath,
+        onIgnored,
     )
 
     override fun supportsMultipleIterations(): Boolean = wrapped.supportsMultipleIterations()
@@ -52,7 +69,7 @@ class IgnoreFS internal constructor(
         is Directory -> {
             // Create child context with patterns from .kopiaignore in this directory
             val childContext = context.childContext(entry, path)
-            IgnoreFS(entry, childContext, path)
+            IgnoreFS(entry, childContext, path, onIgnored)
         }
         else -> entry
     }
@@ -65,11 +82,15 @@ class IgnoreFS internal constructor(
          * @param policy The files policy containing ignore rules
          * @return A filtered directory view
          */
-        fun wrap(dir: Directory, policy: FilesPolicy): Directory {
+        fun wrap(
+            dir: Directory,
+            policy: FilesPolicy,
+            onIgnored: ((Entry, String) -> Unit)? = null,
+        ): Directory {
             // Load patterns from root directory's dotIgnoreFiles
             val rootPatterns = loadIgnoreFiles(dir, policy.dotIgnoreFiles)
             val context = IgnoreContext.create(policy, rootPatterns, dir.device)
-            return IgnoreFS(dir, context, "")
+            return IgnoreFS(dir, context, "", onIgnored)
         }
 
         /**
@@ -134,6 +155,7 @@ private class IgnoreDirectoryIterator(
     private val wrapped: DirectoryIterator,
     private val context: IgnoreContext,
     private val parentPath: String,
+    private val onIgnored: ((Entry, String) -> Unit)? = null,
 ) : DirectoryIterator {
 
     override suspend fun next(): Entry? {
@@ -142,13 +164,14 @@ private class IgnoreDirectoryIterator(
             val entryPath = joinPath(parentPath, entry.name)
 
             if (context.shouldIgnore(entryPath, entry)) {
+                onIgnored?.invoke(entry, entryPath)
                 continue
             }
 
             return when (entry) {
                 is Directory -> {
                     val childContext = context.childContext(entry, entryPath)
-                    IgnoreFS(entry, childContext, entryPath)
+                    IgnoreFS(entry, childContext, entryPath, onIgnored)
                 }
                 else -> entry
             }

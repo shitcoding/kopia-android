@@ -230,8 +230,10 @@ class DirectRepositoryImpl private constructor(
         val writerId = writerIdCounter.incrementAndGet()
         val writerName = "writer-$writerId:${options.purpose}"
 
-        // Create a new content manager for this writer session
-        val writerContentManager = createContentManager(blobStorage, config)
+        // Create a new content manager for this writer session. `onUpload` rides with it because
+        // the bytes it reports are this session's blob writes -- it is what makes "Uploaded Bytes"
+        // on the Tasks screen the amount that actually left the device.
+        val writerContentManager = createContentManager(blobStorage, config, options.onUpload)
 
         // Create new object and manifest managers backed by the writer's content manager
         val writerObjectManager = ObjectManager(
@@ -428,6 +430,7 @@ class DirectRepositoryImpl private constructor(
         private fun createContentManager(
             blobStorage: BlobStorage,
             config: RepositoryConfig,
+            onUpload: ((Long) -> Unit)? = null,
         ): ContentManager {
             val hasherFactory = org.kopiaKt.core.hashing.DefaultContentHasherFactory()
             val encryptorFactory = org.kopiaKt.core.encryption.DefaultEncryptorFactory()
@@ -456,6 +459,7 @@ class DirectRepositoryImpl private constructor(
                 defaultCompression = defaultCompression,
                 maxPackSize = config.maxPackSize,
                 epochsEnabled = config.isEpochIndexEnabled(),
+                onUpload = onUpload,
             )
         }
     }

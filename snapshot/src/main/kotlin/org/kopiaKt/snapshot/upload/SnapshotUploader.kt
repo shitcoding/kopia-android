@@ -11,6 +11,7 @@ import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.snapshot.fs.Directory
+import org.kopiaKt.snapshot.fs.EntryType
 import org.kopiaKt.snapshot.fs.IgnoreFS
 import org.kopiaKt.snapshot.model.DirEntry
 import org.kopiaKt.snapshot.model.DirManifest
@@ -173,7 +174,7 @@ class SnapshotUploader(
 
         try {
             // Apply ignore rules from policy
-            val filteredDir = applyIgnoreRules(rootDir)
+            val filteredDir = applyIgnoreRules(rootDir, reportExclusions = true)
 
             // Trees the walk may reuse: latest complete, then the checkpoints of any interrupted
             // run that followed it.
@@ -205,7 +206,8 @@ class SnapshotUploader(
             checkpointJob = launch {
                 periodicallyCheckpoint(checkpointRegistry, options, startTime)
             }
-            estimateJob = launchEstimate(filteredDir)
+            // Its OWN wrapper, silent: same rules, same result, no double-counted exclusions.
+            estimateJob = launchEstimate(applyIgnoreRules(rootDir))
 
             // The walk does not unwind when it is cancelled or hits a failFast error: it drains,
             // writing each directory's partial manifest on the way out, and hands back a real root
@@ -343,9 +345,9 @@ class SnapshotUploader(
     @Suppress("TooGenericExceptionCaught")
     private suspend fun estimateDataSize(filteredDir: Directory) {
         try {
-            // The walk's OWN filtered root, and therefore its own ignore rules, its own loaded
-            // .kopiaignore files, and no second interpretation of the policy: what is estimated
-            // cannot drift from what is uploaded, because it is the same object.
+            // A wrapper built from the SAME rules as the walk's, but its own instance and silent
+            // (see applyIgnoreRules): sharing the walk's would double-count every exclusion, since
+            // both walk the tree at once.
             //
             // Passing the raw root and the policy instead — which is what Go does — would also turn
             // on the estimator's excluded-entry accounting, and that walks every excluded top-level
@@ -489,8 +491,30 @@ class SnapshotUploader(
 
     /**
      * Applies ignore rules from the files policy to the directory.
+     *
+     * [reportExclusions] is off for the estimator's wrapper. The estimator walks the same tree at
+     * the same time (task-30.20), so one shared reporting wrapper would count every excluded entry
+     * twice and the Tasks screen would say the backup skipped twice what it did. Go draws the same
+     * line with its `reportIgnoreStats` argument.
      */
-    private fun applyIgnoreRules(dir: Directory): Directory = IgnoreFS.wrap(dir, policy.filesPolicy)
+    private fun applyIgnoreRules(dir: Directory, reportExclusions: Boolean = false): Directory = IgnoreFS.wrap(
+        dir,
+        policy.filesPolicy,
+        onIgnored = if (!reportExclusions) {
+            null
+        } else {
+            { entry, path ->
+                // Until this existed, IgnoreFS dropped entries silently and "Excluded Files" /
+                // "Excluded Directories" read 0 on every backup that ever ran -- including the ones
+                // whose whole point was that they excluded something.
+                if (entry.type == EntryType.DIRECTORY) {
+                    progress.excludedDir(path)
+                } else {
+                    progress.excludedFile(path, entry.size)
+                }
+            }
+        },
+    )
 
     /**
      * The trees the next walk may reuse: the latest COMPLETE snapshot, then the incomplete ones

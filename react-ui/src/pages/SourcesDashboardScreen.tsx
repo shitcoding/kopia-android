@@ -150,8 +150,20 @@ const SourcesDashboardScreen = () => {
               // Native's id, never a locally rebuilt user@host:path — see WebSourceStatus.id.
               const sid = src.id;
               const badge = STATUS_BADGE[src.status];
-              const uploadProgress = src.uploadCounters
-                ? Math.round((src.uploadCounters.totalUploadedBytes / Math.max(src.uploadCounters.estimatedBytes, 1)) * 100)
+              // Processed (hashed + cached), not Uploaded, and capped at 99 while the run is live --
+              // the same basis as the Tasks screen and the progress sheet. "Uploaded Bytes" is what
+              // actually went to storage after dedup and compression, so an incremental run that
+              // mostly cached would sit near 0% and then jump to done; and reaching the estimate is
+              // not finishing, because the manifest still has to be written, flushed and retained.
+              const counters = src.uploadCounters;
+              const uploadProgress = counters
+                ? Math.min(
+                    99,
+                    Math.round(
+                      ((counters.totalHashedBytes + counters.totalCachedBytes) /
+                        Math.max(counters.estimatedBytes, 1)) * 100,
+                    ),
+                  )
                 : 0;
 
               return (
@@ -189,7 +201,7 @@ const SourcesDashboardScreen = () => {
                             <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatFileSize(src.uploadCounters.totalUploadedBytes)} / {formatFileSize(src.uploadCounters.estimatedBytes)}
+                            {formatFileSize(src.uploadCounters.totalHashedBytes + src.uploadCounters.totalCachedBytes)} / {formatFileSize(src.uploadCounters.estimatedBytes)}
                           </p>
                         </div>
                       )}
