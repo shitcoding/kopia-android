@@ -110,7 +110,7 @@ androidWebViewHierarchy: devtools
           timeout: 5000
       # UNCHECK "Start first backup immediately" (default ON): a background backup would run a
       # concurrent repo writer session alongside the policy save, and concurrent sessions can lose
-      # the policy manifest (observed live; see the internal troubleshooting notes). This flow tests the
+      # the policy manifest (observed live). This flow tests the
       # policy round-trip, not backup concurrency.
       - tapOn:
           text: "Start first backup immediately"

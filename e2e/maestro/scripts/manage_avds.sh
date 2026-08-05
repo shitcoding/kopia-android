@@ -36,7 +36,7 @@ BASE_PORT=5554
 BOOT_TIMEOUT=120
 
 # Hard cap on concurrent e2e AVDs. >2 AVDs + a hot Gradle build OOM Apple-Silicon
-# machines (see the internal troubleshooting notes). Override deliberately with --force.
+# machines. Override deliberately with --force.
 MAX_AVDS=2
 
 # Set to 1 when --force is passed (parsed in main, below).
@@ -71,7 +71,7 @@ check_avd_cap() {
     if [ "$count" -gt "$MAX_AVDS" ] && [ "$FORCE" -ne 1 ]; then
         echo "ERROR: Refusing $count AVDs - the hard cap is $MAX_AVDS." >&2
         echo "  >$MAX_AVDS AVDs + a hot Gradle build OOM Apple-Silicon machines" >&2
-        echo "  (see the internal troubleshooting notes). Re-run with --force to override at your own risk." >&2
+        echo "  Re-run with --force to override at your own risk." >&2
         return 1
     fi
 }
@@ -254,7 +254,7 @@ cmd_start() {
     echo "  Memory budget: a FRESH cold-booted AVD is ~2.3 GB RSS on Android 36 and grows under E2E load"
     echo "  (up to ~3.7 GB seen). It degrades faster when the host is swapping - the run_e2e.sh pre-flight"
     echo "  gate + ANR auto-recovery handle this. Do NOT run the full Gradle suite while AVDs are hot."
-    echo "  See the internal troubleshooting notes and backlog task-19."
+    echo "  Emulators on Apple Silicon reserve a large virtual address space; see the README."
 
     local pids=()
     local started=0
@@ -465,7 +465,7 @@ cmd_help() {
     echo "  --force          Override the ${MAX_AVDS}-AVD hard cap on create/start/setup (accept OOM risk)."
     echo ""
     echo "HARD CAP: ${MAX_AVDS} AVDs. More than ${MAX_AVDS} + a hot Gradle build OOMs Apple-Silicon"
-    echo "machines (see the internal troubleshooting notes). create/start/setup refuse >${MAX_AVDS} without --force."
+    echo "machines. create/start/setup refuse >${MAX_AVDS} without --force."
     echo ""
     echo "Examples:"
     echo "  $(basename "$0") create 2          # Create 2 AVDs"
