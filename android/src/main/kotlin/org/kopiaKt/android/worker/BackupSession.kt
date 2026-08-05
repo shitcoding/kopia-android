@@ -496,5 +496,14 @@ class BackupSession(
             super.cachedFile(path, size)
             onUpdate(snapshot())
         }
+
+        // The estimate is what turns every progress bar from a spinner into a fraction, and it
+        // arrives once, off the upload's own thread. Without publishing here it would sit in the
+        // counters unseen until the next uploaded chunk happened to push them out -- and for a run
+        // whose remaining files are all cache hits, that could be never.
+        override fun estimatedDataSize(fileCount: Long, totalBytes: Long) {
+            super.estimatedDataSize(fileCount, totalBytes)
+            onUpdate(snapshot())
+        }
     }
 }

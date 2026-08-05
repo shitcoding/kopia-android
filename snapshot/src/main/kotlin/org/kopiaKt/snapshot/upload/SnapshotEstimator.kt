@@ -1,11 +1,14 @@
 package org.kopiaKt.snapshot.upload
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.EntryType
 import org.kopiaKt.snapshot.fs.ErrorEntry
 import org.kopiaKt.snapshot.fs.IgnoreFS
 import org.kopiaKt.snapshot.policy.FilesPolicy
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -149,7 +152,21 @@ object SnapshotEstimator {
                     }
                     entry is Directory -> {
                         state.totalDirectories++
-                        walkDirectory(entry, entry, policy, entryPath, state, onProgress)
+                        // A subdirectory that cannot be listed is one error, not the end of the
+                        // estimate. It used to propagate all the way out, so a single lapsed SAF
+                        // grant anywhere in a photo library threw away the whole count — and since
+                        // the count is what makes a progress bar determinate, the backups that lost
+                        // it were exactly the long ones that needed it. This is what the tree walk
+                        // itself does with the same failure: record it against the parent, carry on.
+                        // The ROOT still aborts, because an estimate of nothing is not an estimate.
+                        try {
+                            walkDirectory(entry, entry, policy, entryPath, state, onProgress)
+                        } catch (e: CancellationException) {
+                            throw e // never swallow coroutine cancellation
+                        } catch (e: Exception) {
+                            logger.log(Level.FINE, "could not estimate $entryPath", e)
+                            state.errorCount++
+                        }
                     }
                     entry.type == EntryType.FILE -> {
                         state.totalFiles++
@@ -214,6 +231,8 @@ object SnapshotEstimator {
     }
 
     private fun joinPath(parent: String, child: String): String = if (parent.isEmpty()) child else "$parent/$child"
+
+    private val logger: Logger = Logger.getLogger(SnapshotEstimator::class.java.name)
 }
 
 /**

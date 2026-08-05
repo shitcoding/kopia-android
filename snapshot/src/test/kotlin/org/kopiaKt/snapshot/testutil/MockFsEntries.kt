@@ -61,7 +61,7 @@ internal class SlowMockFile(
 /**
  * Mock directory containing the given [entries].
  */
-internal class MockDirectory(
+internal open class MockDirectory(
     name: String,
     private val entries: List<Entry>,
     modTime: Instant = Instant.now(),

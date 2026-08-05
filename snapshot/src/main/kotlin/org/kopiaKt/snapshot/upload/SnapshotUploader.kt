@@ -1,6 +1,7 @@
 package org.kopiaKt.snapshot.upload
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -161,6 +162,7 @@ class SnapshotUploader(
 
         val checkpointRegistry = CheckpointRegistry()
         var checkpointJob: Job? = null
+        var estimateJob: Job? = null
 
         try {
             // Apply ignore rules from policy
@@ -195,6 +197,7 @@ class SnapshotUploader(
             checkpointJob = launch {
                 periodicallyCheckpoint(checkpointRegistry, options, startTime)
             }
+            estimateJob = launchEstimate(filteredDir)
 
             // The walk does not unwind when it is cancelled or hits a failFast error: it drains,
             // writing each directory's partial manifest on the way out, and hands back a real root
@@ -211,6 +214,12 @@ class SnapshotUploader(
             // `writer` the caller is about to close, racing the one write that must not fail.
             checkpointJob?.cancelAndJoin()
             checkpointJob = null
+
+            // Go's `defer estimationCtl.Cancel(); estimationCtl.Wait()`. Cancel, not join: on a tree
+            // large enough for the estimate to still be running, waiting for it would hold the
+            // finished backup open for a second full walk that can no longer tell anyone anything.
+            estimateJob?.cancel()
+            estimateJob = null
 
             val endTime = Instant.now()
 
@@ -267,7 +276,63 @@ class SnapshotUploader(
             )
         } finally {
             checkpointJob?.cancel()
+            estimateJob?.cancel()
             currentWalker.set(null)
+        }
+    }
+
+    /**
+     * Counts what this backup is about to do, alongside the backup doing it — or declines to.
+     *
+     * Until this existed, `estimatedDataSize` had no production caller at all: it was declared,
+     * overridden and stored, and every progress bar that reads `estimatedBytes` — the notification,
+     * the Tasks screen, the progress sheet — had no denominator and stayed indeterminate. A
+     * multi-hour first backup showed a spinner for hours.
+     *
+     * Declined in two cases, both of which Go also checks:
+     * - nobody is listening (`NullUploadProgress`), so the walk would cost a full extra enumeration
+     *   and report to no one (`upload.go`: `!u.Progress.Enabled()`);
+     * - the tree cannot be iterated twice (`estimate.go:126`). Nothing implements that today, but
+     *   the guard is not cosmetic: a single-pass directory read by both the estimator and the walk
+     *   at once would have entries consumed out from under the walk, which is data loss, not a bad
+     *   progress bar.
+     */
+    private fun CoroutineScope.launchEstimate(filteredDir: Directory): Job? {
+        if (!progress.enabled() || !filteredDir.supportsMultipleIterations()) return null
+        return launch { estimateDataSize(filteredDir) }
+    }
+
+    /**
+     * Reported ONCE, when the count is finished, exactly as Go's estimator calls back once
+     * (`upload_estimator.go`). Feeding the running subtotal instead would make the denominator grow
+     * under the numerator, and the bar would walk backwards while the backup made progress.
+     *
+     * The estimator reads metadata only — it never opens a file — so alongside a real upload it
+     * costs one extra enumeration per directory and finishes long before the transfer does.
+     *
+     * `Throwable`, not `Exception`: this promises to cost the bar and never the backup, and it is a
+     * child of `upload`'s scope, so anything escaping here would cancel the walk. The estimator
+     * recurses directly rather than through dispatched children, so a pathologically deep tree can
+     * reach it with a `StackOverflowError` — which is exactly the kind of thing that must not take
+     * a running backup down with it.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun estimateDataSize(filteredDir: Directory) {
+        try {
+            // The walk's OWN filtered root, and therefore its own ignore rules, its own loaded
+            // .kopiaignore files, and no second interpretation of the policy: what is estimated
+            // cannot drift from what is uploaded, because it is the same object.
+            //
+            // Passing the raw root and the policy instead — which is what Go does — would also turn
+            // on the estimator's excluded-entry accounting, and that walks every excluded top-level
+            // subtree in full. A user excludes a folder because it is huge; counting it anyway, on
+            // every backup, over SAF, is the opposite of what they asked for.
+            val estimate = SnapshotEstimator.estimate(filteredDir)
+            progress.estimatedDataSize(estimate.totalFiles.toLong(), estimate.totalBytes)
+        } catch (e: CancellationException) {
+            throw e // the backup finished first; there is nothing left to estimate for
+        } catch (e: Throwable) {
+            logger.log(Level.WARNING, "could not estimate the backup size; progress stays indeterminate", e)
         }
     }
 

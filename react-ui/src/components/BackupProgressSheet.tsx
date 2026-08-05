@@ -39,12 +39,14 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const counters = Object.entries(task?.counters ?? {});
   // Processed, not Uploaded: "Uploaded Bytes" is what actually went to the server, so a run that
   // dedups or caches most of its data would crawl towards a total it never reaches. Processed =
-  // hashed + cached is the work done against the estimate.
+  // hashed + cached is the work done against the estimate. Capped at 99 while the task is live, like
+  // the notification: reaching the estimate is not finishing -- the manifest still has to be
+  // written, flushed and retained, and 100% while the app is visibly working reads as a hang.
   const processed = task?.counters?.["Processed Bytes"]?.value;
   const estimated = task?.counters?.["Estimated Bytes"]?.value;
   const progress =
     processed !== undefined && estimated !== undefined && estimated > 0
-      ? Math.min(100, Math.round((processed / estimated) * 100))
+      ? Math.min(99, Math.round((processed / estimated) * 100))
       : null;
 
   const formatCounter = (counter: WebTaskCounter) =>
