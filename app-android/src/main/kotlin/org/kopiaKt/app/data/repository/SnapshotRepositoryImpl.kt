@@ -23,6 +23,7 @@ import org.kopiaKt.app.domain.model.SourceWithStats
 import org.kopiaKt.app.domain.repository.RestoreOptions
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.core.manifest.ManifestId
+import org.kopiaKt.core.manifest.ManifestNotFoundException
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.maintenance.computeRetention
@@ -101,7 +102,15 @@ class SnapshotRepositoryImpl @Inject constructor(
                 SnapshotManifest.serializer(),
             )
             manifest.toSnapshotInfo(snapshotId)
-        } catch (e: Exception) {
+        } catch (@Suppress("SwallowedException") e: ManifestNotFoundException) {
+            // Genuinely absent -- retention deleted it between the list and the tap, say. Null is
+            // the honest answer, and the caller renders "not found".
+            //
+            // Everything else PROPAGATES. Answering null for a failed read tells the caller "this
+            // snapshot is fine", the bridge wraps that as a success, and react-query caches it as
+            // fresh data -- no retry, no error state. The incomplete-snapshot warnings key on this
+            // object, so a transient repository failure would quietly leave them unrendered while
+            // browsing and restoring carried on regardless.
             null
         }
     }
