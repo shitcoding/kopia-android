@@ -375,6 +375,42 @@ class BridgeBackupMethodsTest {
         }
 
         @Test
+        fun `estimateBackup reports an unknown source instead of a not-implemented error`() {
+            // It used to answer "Backup estimation is not yet implemented" for every input, so the
+            // estimation dialog could only ever show its failure state.
+            every { sourceManager.getSource("nope") } returns null
+
+            val result = bridge.estimateBackup(
+                """{"sourceId":"nope"}""",
+            )
+
+            val obj = assertError(result)
+            assertTrue(
+                obj["error"]!!.jsonPrimitive.content.contains("Source not found"),
+                "Expected a source-not-found error, got: $result",
+            )
+        }
+
+        @Test
+        fun `estimateBackup returns a task id the dialog can watch`() {
+            val fakeSource = SourceInfo(
+                id = "src-1",
+                path = "/data",
+                displayName = "Data",
+                createdAt = Instant.now(),
+            )
+            every { sourceManager.getSource("src-1") } returns fakeSource
+            every { taskManager.startTask(any(), any(), any()) } returns "task-est"
+
+            val obj = assertSuccess(bridge.estimateBackup("""{"sourceId":"src-1"}"""))
+
+            assertEquals("task-est", obj["data"]!!.jsonPrimitive.content)
+            // ESTIMATE, not BACKUP: the Tasks screen labels by kind, and an estimate that files
+            // itself as a backup reads as a second backup nobody asked for.
+            verify { taskManager.startTask(TaskKind.ESTIMATE, any(), any()) }
+        }
+
+        @Test
         fun `reports an unknown source rather than starting nothing`() {
             every { sourceManager.getSource("any-source") } returns null
 

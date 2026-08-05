@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, Play } from "lucide-react";
 import { formatFileSize } from "@/lib/format";
-import { useEstimate, useTask, useStartBackup } from "@/hooks/useBackupApi";
+import { useEstimate, useTask, useStartBackup, useCancelTask } from "@/hooks/useBackupApi";
 
 interface EstimationDialogProps {
   sourceId: string;
@@ -11,6 +11,7 @@ interface EstimationDialogProps {
 const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
   const estimate = useEstimate();
   const startBackup = useStartBackup();
+  const cancelTask = useCancelTask();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const { data: task } = useTask(taskId);
@@ -44,15 +45,23 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
     onClose();
   };
 
+  // Closing has to actually stop the walk. An estimate of a SAF tree is a full walk over the
+  // ContentResolver; leaving it running after the user dismissed the dialog burns their battery for
+  // a number nobody will see, and re-opening would start a second one alongside it.
+  const handleClose = () => {
+    if (taskId && isEstimating) cancelTask.mutate(taskId);
+    onClose();
+  };
+
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/50 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/50 animate-fade-in" onClick={handleClose} />
 
       <div className="fixed inset-x-0 bottom-0 z-50 bg-card rounded-t-2xl shadow-xl animate-slide-up max-w-md mx-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground text-sm">Backup Estimation</h3>
-            <button onClick={onClose} className="btn-icon -mr-2">
+            <button onClick={handleClose} className="btn-icon -mr-2">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -62,7 +71,7 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
               <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
               <p className="text-sm text-foreground font-medium">Estimating backup size...</p>
               <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
-              <button onClick={onClose} className="btn-secondary mt-4">Cancel</button>
+              <button onClick={handleClose} className="btn-secondary mt-4">Cancel</button>
             </div>
           ) : isComplete && Object.keys(counters ?? {}).length > 0 ? (
             <div className="space-y-4">
@@ -80,13 +89,13 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
                   <p className="text-lg font-bold text-foreground">{(counter("Excluded Files") ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="card-elevated !p-3">
-                  <p className="text-xs text-muted-foreground">Excluded dirs</p>
-                  <p className="text-lg font-bold text-foreground">{(counter("Excluded Directories") ?? 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Excluded size</p>
+                  <p className="text-lg font-bold text-foreground">{formatFileSize(counter("Excluded Bytes") ?? 0)}</p>
                 </div>
               </div>
 
               <div className="flex gap-3">
-                <button onClick={onClose} className="btn-secondary flex-1">Close</button>
+                <button onClick={handleClose} className="btn-secondary flex-1">Close</button>
                 <button onClick={handleStartBackup} className="btn-primary flex-1">
                   <Play className="w-4 h-4" /> Start Backup
                 </button>
@@ -96,7 +105,7 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
             <div className="flex flex-col items-center py-8">
               <p className="text-sm text-destructive font-medium">Estimation failed</p>
               <p className="text-xs text-muted-foreground mt-1">{task?.error || estimateError || "Unknown error"}</p>
-              <button onClick={onClose} className="btn-secondary mt-4">Close</button>
+              <button onClick={handleClose} className="btn-secondary mt-4">Close</button>
             </div>
           ) : null}
         </div>

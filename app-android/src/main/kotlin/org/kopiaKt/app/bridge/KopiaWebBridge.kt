@@ -35,12 +35,15 @@ import org.kopiaKt.android.worker.BackupWorker
 import org.kopiaKt.android.worker.SourceStatus
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
+import org.kopiaKt.android.worker.backupSourceIdentity
+import org.kopiaKt.android.worker.openBackupSource
 import org.kopiaKt.android.worker.runInteractiveBackup
 import org.kopiaKt.android.worker.toUiTaskCounters
 import org.kopiaKt.app.BuildConfig
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.snapshot.policy.PolicyManager
+import org.kopiaKt.snapshot.upload.SnapshotEstimator
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
@@ -1187,9 +1190,43 @@ class KopiaWebBridge private constructor(
      * @return JSON-encoded WebResult<String> containing the task ID
      */
     @JavascriptInterface
-    fun estimateBackup(requestJson: String): String = json.encodeToString(
-        WebResult.error<String>("Backup estimation is not yet implemented"),
-    )
+    fun estimateBackup(requestJson: String): String = try {
+        val request = json.decodeFromString<WebEstimateBackupRequest>(requestJson)
+        json.encodeToString(WebResult.success(enqueueEstimate(request.sourceId)))
+    } catch (e: Exception) {
+        json.encodeToString(WebResult.error<String>(e.message ?: "Could not estimate the backup"))
+    }
+
+    /**
+     * Walks the source and reports what a backup of it would cover, as a task the dialog watches.
+     *
+     * Runs under the source's own files policy, so the numbers describe the backup the user would
+     * actually get rather than everything on disk -- an estimate that ignored their exclusions would
+     * overstate, which is the direction that makes people abandon a backup they could have afforded.
+     * Without a repository there is no policy to resolve, so it estimates the whole tree and says so
+     * by counting nothing as excluded.
+     */
+    private fun enqueueEstimate(sourceId: String): String {
+        val source = sourceManager.getSource(sourceId)
+            ?: error("Source not found: $sourceId")
+        val ctx = context ?: error("Context not available")
+
+        return taskManager.startTask(TaskKind.ESTIMATE, "Estimating ${source.displayName}") { controller ->
+            val root = openBackupSource(ctx, source.path)
+            // The SAME identity a backup of this source resolves under -- see backupSourceIdentity.
+            // Deriving it freshly here instead would make the estimate describe a different backup
+            // than the one that runs, for any source that outlived the identity it was created with.
+            val identity = backupSourceIdentity(ctx, source.id, source.path)
+            val filesPolicy = repositoryManager.getRepository()?.let { repo ->
+                PolicyManager.getEffectivePolicy(repo, identity).filesPolicy
+            }
+
+            val result = SnapshotEstimator.estimate(root, filesPolicy) { progress ->
+                controller.reportProgress(progress.currentDirectory)
+            }
+            controller.reportCounters(result.toUiTaskCounters())
+        }
+    }
 
     /**
      * Start a backup for the given source.

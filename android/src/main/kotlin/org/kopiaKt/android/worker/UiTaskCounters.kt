@@ -2,6 +2,7 @@ package org.kopiaKt.android.worker
 
 import androidx.work.Data
 import androidx.work.workDataOf
+import org.kopiaKt.snapshot.upload.EstimateResult
 import org.kopiaKt.snapshot.upload.UploadCounters
 
 /**
@@ -99,3 +100,22 @@ fun Data.toUploadCounters(): UploadCounters? {
         currentDirectory = getString(BackupWorker.KEY_PROGRESS_CURRENT_DIR) ?: "",
     )
 }
+
+/**
+ * An estimate in the same named-counter shape, using the names the estimation dialog reads.
+ *
+ * Deliberately the same names a running backup reports its estimates under ("Estimated Files",
+ * "Estimated Bytes"): one vocabulary for "how much is there", whether it was measured before the run
+ * or during it.
+ */
+fun EstimateResult.toUiTaskCounters(): Map<String, TaskCounterValue> = mapOf(
+    "Estimated Files" to TaskCounterValue(value = totalFiles.toLong(), units = ""),
+    "Estimated Bytes" to TaskCounterValue(value = totalBytes, units = "bytes"),
+    "Excluded Files" to TaskCounterValue(value = excludedFiles.toLong(), units = ""),
+    // The estimator counts excluded FILES and their bytes; it has no excluded-DIRECTORY count, so
+    // nothing here emits "Excluded Directories" and the dialog reports excluded bytes instead.
+    // Emitting a zero under that name would have read as "nothing was excluded".
+    "Excluded Bytes" to TaskCounterValue(value = excludedBytes, units = "bytes"),
+    "Directories" to TaskCounterValue(value = totalDirectories.toLong(), units = ""),
+    "Errors" to TaskCounterValue(value = errorCount.toLong(), units = "", level = "error"),
+)

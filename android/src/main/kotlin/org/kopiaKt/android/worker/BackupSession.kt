@@ -1,7 +1,6 @@
 package org.kopiaKt.android.worker
 
 import android.content.Context
-import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -10,14 +9,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.kopiaKt.android.identity.SourceIdentityStore
-import org.kopiaKt.android.storage.SafFilesystem
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.RepositoryWriter
 import org.kopiaKt.core.repository.WriteSessionOptions
 import org.kopiaKt.snapshot.fs.Directory
-import org.kopiaKt.snapshot.fs.LocalFilesystem
 import org.kopiaKt.snapshot.maintenance.MaintenanceRunner
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SourceInfo
@@ -28,7 +24,6 @@ import org.kopiaKt.snapshot.upload.SnapshotUploader
 import org.kopiaKt.snapshot.upload.UploadCounters
 import org.kopiaKt.snapshot.upload.UploadOptions
 import org.kopiaKt.snapshot.upload.UploadResult
-import java.io.File
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -347,35 +342,11 @@ class BackupSession(
      * `config.sourcePath` so the two can never disagree about what was backed up.
      */
     private fun sourceIdentity(): SourceInfo {
-        val parsed = SourceInfo.parse(config.sourceId)
-        val fallback = context?.let { SourceIdentityStore.get(it) }
-        return SourceInfo(
-            host = parsed?.host?.takeIf { it.isNotEmpty() } ?: fallback?.host ?: "unknown",
-            userName = parsed?.userName?.takeIf { it.isNotEmpty() } ?: fallback?.userName ?: "local",
-            path = config.sourcePath,
-        )
+        val ctx = context
+        return backupSourceIdentity(ctx, config.sourceId, config.sourcePath)
     }
 
-    private fun openSourceDirectory(): Directory {
-        if (config.sourcePath.startsWith("content://")) {
-            val ctx = context
-                ?: throw IllegalStateException(
-                    "Context is required for SAF URI backup. " +
-                        "Pass context to BackupSession constructor.",
-                )
-            val uri = Uri.parse(config.sourcePath)
-            return SafFilesystem.directory(ctx, uri)
-        }
-
-        val sourceFile = File(config.sourcePath)
-        if (!sourceFile.exists()) {
-            throw IllegalArgumentException("Source path does not exist: ${config.sourcePath}")
-        }
-        if (!sourceFile.isDirectory) {
-            throw IllegalArgumentException("Source path is not a directory: ${config.sourcePath}")
-        }
-        return LocalFilesystem.directory(sourceFile.toPath())
-    }
+    private fun openSourceDirectory(): Directory = openBackupSource(context, config.sourcePath)
 
     private suspend fun runCheckpointLoop(repoConnectionJson: String, sourceInfo: SourceInfo) {
         var lastCheckpointBytes = 0L

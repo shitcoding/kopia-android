@@ -176,6 +176,7 @@ object SnapshotEstimator {
         filteredDir: Directory,
         state: EstimationState,
     ) {
+        coroutineContext.ensureActive()
         val rawEntries = rawDir.readEntries()
         val filteredNames = filteredDir.readEntries().map { it.name }.toSet()
 
@@ -199,6 +200,7 @@ object SnapshotEstimator {
      * Recursively counts files in a directory (for excluded directory totals).
      */
     private suspend fun countFilesRecursive(dir: Directory?): Int {
+        coroutineContext.ensureActive()
         if (dir == null) return 0
         var count = 0
         val entries = dir.readEntries()
