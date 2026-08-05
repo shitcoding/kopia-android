@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import ExitDoorIcon from "@/components/ExitDoorIcon";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useDirectory } from "@/hooks/useKopiaApi";
+import { useDirectory, useSnapshot } from "@/hooks/useKopiaApi";
 import { kopiaBridge } from "@/services/kopiaBridge";
 import { formatFileSize, formatDateTime } from "@/lib/format";
 import type { FileEntry as KopiaFileEntry, FileEntryType } from "@/types/kopia";
@@ -57,6 +57,7 @@ const FileBrowserScreen = () => {
   const currentFolder = path.length > 0 ? path[path.length - 1] : "/";
 
   // Fetch directory contents
+  const { data: snapshot } = useSnapshot(snapshotId);
   const directoryRequest = snapshotId
     ? { snapshotId, path: currentPathStr }
     : null;
@@ -275,6 +276,21 @@ const FileBrowserScreen = () => {
           </button>
         </div>
       </header>
+
+      {snapshot?.isIncomplete && (
+        // These became browsable when a cancelled backup started keeping the tree it got through.
+        // What is listed here is genuinely in the repository -- it is just not all of the folder.
+        <div
+          className="flex items-start gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2.5"
+          role="status"
+          data-testid="incomplete-snapshot-warning"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+          <p className="text-sm text-foreground">
+            This backup did not finish — it holds only what had been copied when it stopped.
+          </p>
+        </div>
+      )}
 
       {/* Selection Toolbar */}
       {selectionModeActive && restoreState === "idle" && (

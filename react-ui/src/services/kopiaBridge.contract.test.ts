@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, pauseSource, BridgeError } from "@/services/kopiaBridge";
+import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, pauseSource, BridgeError, kopiaBridge } from "@/services/kopiaBridge";
 import { sourceId } from "@/lib/format";
 
 // Contract pins for the JS -> Kotlin bridge marshalling. The Kotlin counterpart lives in
@@ -162,6 +162,27 @@ describe("bridge contract: the source id is native's, not rebuilt from the sourc
 
     expect(task.counters?.["Uploaded Bytes"]).toEqual({ value: 1024, units: "bytes" });
     expect(task.counters?.Errors?.level).toBe("error");
+  });
+
+  it("getSnapshot carries isIncomplete, which three warnings depend on", async () => {
+    // A cancelled backup keeps the tree it managed to upload, so those snapshots are browsable and
+    // restorable -- and the only thing telling the user they hold half a folder is this flag. Rename
+    // it on either side and all three warnings silently stop rendering with every gate still green.
+    stubBridge("getSnapshot", () =>
+      ok({
+        id: "snap-1",
+        source: { host: "h", userName: "u", path: "/p" },
+        startTimeEpochMs: 0,
+        endTimeEpochMs: 1,
+        fileCount: 1,
+        totalSize: 2,
+        isIncomplete: true,
+      }),
+    );
+
+    const snapshot = await kopiaBridge.getSnapshot("snap-1");
+
+    expect(snapshot?.isIncomplete).toBe(true);
   });
 
   it("pauseSource forwards the raw id, not a JSON-quoted string", async () => {

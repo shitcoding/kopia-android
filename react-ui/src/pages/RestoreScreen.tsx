@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Folder, Download, Loader2, Check, X, XCircle, Settings } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Download, Folder, Loader2, Settings, X, XCircle } from "lucide-react";
 import { kopiaBridge } from "@/services/kopiaBridge";
 import { useSnapshot } from "@/hooks/useKopiaApi";
 import type { RestoreProgress, RestoreState, SafPickResult } from "@/types/kopia";
@@ -167,6 +167,22 @@ const RestoreScreen = () => {
         {/* State-specific content */}
         <div className="flex-1 flex flex-col items-center justify-center">
           {/* Idle State */}
+          {state === "idle" && snapshot?.isIncomplete && (
+            // A cancelled or failed backup still writes the tree it got through, so these snapshots
+            // are real and restorable -- desktop Kopia restores them too. What must not happen is
+            // restoring half a backup and being told it worked.
+            <div
+              className="mb-6 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-left"
+              role="status"
+              data-testid="incomplete-snapshot-warning"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+              <p className="text-sm text-foreground">
+                This backup did not finish, so it holds only the files it had copied before it
+                stopped. Anything restored from it will be incomplete.
+              </p>
+            </div>
+          )}
           {state === "idle" && (
             <button
               onClick={handleStartRestore}
@@ -234,6 +250,12 @@ const RestoreScreen = () => {
               </div>
               <h2 className="text-2xl font-semibold text-foreground">Restore Complete!</h2>
               <p className="text-muted-foreground">{filesRestored.toLocaleString()} files restored</p>
+              {snapshot?.isIncomplete && (
+                <p className="max-w-xs text-center text-sm text-warning">
+                  From a backup that did not finish — these are the files it had copied, not
+                  everything that was in the folder.
+                </p>
+              )}
               <button onClick={() => navigate(-1)} className="btn-primary mt-4">
                 Done
               </button>
