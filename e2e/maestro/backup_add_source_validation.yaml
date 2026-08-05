@@ -120,7 +120,7 @@ androidWebViewHierarchy: devtools
 
 # The form must NOT advance to step 2 (schedule config) without a valid path.
 - assertNotVisible:
-    text: ".*Configure backup schedule.*"
+    text: ".*Configure this source.*"
 
 # ===== Phase 4: A valid path advances the wizard (positive control) =====
 # This makes the empty-path assertion above meaningful: the gate must respond to path PRESENCE,
@@ -139,5 +139,5 @@ androidWebViewHierarchy: devtools
 
 - extendedWaitUntil:
     visible:
-      text: ".*Configure backup schedule.*"
+      text: ".*Configure this source.*"
     timeout: 5000

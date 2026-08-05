@@ -32,7 +32,7 @@ KopiaKt reads, restores, and backs up — **on demand, while the app is running*
 | Edit retention / compression / ignore-rule policies | Works |
 | **Run a backup from the phone** | **Works**, on demand — see [Divergences](#divergences-from-desktop-kopia) |
 | Apply retention after a backup | Works — deletes snapshot manifests only, never contents |
-| Automatic / scheduled backups | **Not implemented.** The schedule UI writes a policy nothing on the phone acts on |
+| Automatic / scheduled backups | **Not implemented**, and the UI no longer offers it |
 | Repository maintenance / garbage collection | Not run on the phone; use desktop Kopia |
 
 You start a backup yourself; it holds a foreground-service notification for as long as it runs. What
@@ -63,7 +63,7 @@ compatibility — see [Compatibility](#compatibility).
 | **Retention runs after every backup; desktop Kopia also runs it after every checkpoint.** | Checkpoints of one run accumulate until that run ends — at most one every few minutes, and each is a single small manifest. |
 | **The phone never runs repository maintenance.** Desktop Kopia auto-runs maintenance — including garbage collection with deletion — after a snapshot when it owns the repository. KopiaKt never does. | Retention on the phone deletes snapshot *manifests*, never *contents*, so the contents behind a reaped checkpoint — and anything a run uploaded after its last checkpoint — stay behind as orphans. **Run maintenance from desktop Kopia periodically, or repository storage grows.** |
 | **One effective policy per source**, merged source → user → host → global. Desktop Kopia resolves a policy *tree*: a policy set on a parent path applies to sources beneath it, and per-subdirectory policies can change the rules partway through a directory walk. | A policy you set on a parent path from the desktop does not reach a phone source underneath it, and a per-subdirectory policy is ignored. Set the policy on the source itself. |
-| **Scheduled backups are not implemented.** The policy editor's *Schedule* tab and the add-source wizard still write a scheduling policy, but nothing on the phone reads it. | Every backup on the phone is one you start by hand. |
+| **Scheduled backups are not implemented.** The policy editor's *Schedule* tab and the add-source wizard show the setting as unavailable, and neither writes a scheduling policy any more. The scheduling machinery exists but nothing wires it up, and a scheduled run would have to reconnect the repository by itself — which needs the stored password and a design for what happens when it is not there. | Every backup on the phone is one you start by hand. A schedule you set from desktop Kopia is passed through untouched by the phone, and the desktop still acts on it. |
 
 ## Usage
 

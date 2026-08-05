@@ -99,7 +99,7 @@ androidWebViewHierarchy: devtools
           text: "Next step"
       - extendedWaitUntil:
           visible:
-            text: ".*Configure backup schedule.*"
+            text: ".*Configure this source.*"
           timeout: 5000
       - scroll
       - tapOn:
@@ -263,7 +263,7 @@ androidWebViewHierarchy: devtools
           text: "Next step"
       - extendedWaitUntil:
           visible:
-            text: ".*Configure backup schedule.*"
+            text: ".*Configure this source.*"
           timeout: 5000
       - scroll
       - tapOn:

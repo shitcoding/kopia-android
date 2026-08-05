@@ -122,10 +122,10 @@ androidWebViewHierarchy: devtools
 - tapOn:
     text: "Next step"
 
-# Step 2: Configure policy (keep defaults: auto backup every 24 hours, ZSTD)
+# Step 2: Configure policy (keep defaults (automatic backups are unavailable; see task-30.21), ZSTD)
 - extendedWaitUntil:
     visible:
-      text: ".*Configure backup schedule.*"
+      text: ".*Configure this source.*"
     timeout: 5000
 
 # Verify default settings are visible
@@ -150,8 +150,11 @@ androidWebViewHierarchy: devtools
 # Verify summary shows correct values
 - assertVisible:
     text: ".*Download.*"
+# Manual only, always: task-30.21 disabled the schedule the wizard used to default ON, because
+# nothing on the phone has ever acted on one. This assertion is what proves the wizard stopped
+# offering it -- it read ".*Every 24 hours.*" before.
 - assertVisible:
-    text: ".*Every 24 hours.*"
+    text: ".*Manual only.*"
 - assertVisible:
     text: ".*ZSTD.*"
 

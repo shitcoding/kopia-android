@@ -199,9 +199,6 @@ const SourcesDashboardScreen = () => {
                         {src.lastBackupTimeEpochMs && (
                           <span>Last: {formatRelativeTime(src.lastBackupTimeEpochMs)}</span>
                         )}
-                        {src.nextBackupTimeEpochMs && src.status !== "PAUSED" && (
-                          <span>Next: {formatRelativeTime(src.nextBackupTimeEpochMs)}</span>
-                        )}
                         <span>{src.snapshotCount} snapshots · {formatFileSize(src.totalFileSize)}</span>
                       </div>
                     </button>

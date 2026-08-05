@@ -27,9 +27,6 @@ const AddSourceScreen = () => {
   const [manualEntry, setManualEntry] = useState(false);
 
   // Step 2: policy
-  const [autoBackup, setAutoBackup] = useState(true);
-  const [intervalValue, setIntervalValue] = useState("24");
-  const [intervalUnit, setIntervalUnit] = useState<"hours" | "days">("hours");
   const [compression, setCompression] = useState("zstd");
   const [exclusions, setExclusions] = useState("*.tmp\n.cache/**");
 
@@ -71,15 +68,6 @@ const AddSourceScreen = () => {
   };
 
   const buildPolicy = (): WebPolicy => {
-    // Guard against a blank/invalid interval: NaN would serialize to null and fail the whole
-    // createSource (Kotlin SchedulingPolicy.intervalSeconds is a non-nullable Long). Undefined is
-    // omitted from the request, leaving the wire default.
-    const parsedInterval = parseInt(intervalValue, 10);
-    const intervalSeconds =
-      autoBackup && Number.isFinite(parsedInterval) && parsedInterval > 0
-        ? parsedInterval * (intervalUnit === "days" ? 86400 : 3600)
-        : undefined;
-
     // Field names are the Kotlin/Go manifest wire format - see WebPolicy in types/kopia.ts.
     // Kotlin createSource applies this policy to the new source (WebCreateSourceRequest.policy),
     // storing it under the source's policy identity so it shows up in the policy editor.
@@ -97,11 +85,11 @@ const AddSourceScreen = () => {
         keepMonthly: 24,
         keepAnnual: 3,
       },
-      scheduling: {
-        manual: !autoBackup,
-        intervalSeconds,
-        runMissed: true,
-      },
+      // No scheduling section at all. Writing one is how the wizard came to promise every new
+      // source automatic backups it has never once run -- and `manual` is a MERGED field, so an
+      // explicit one here would also override whatever a desktop set at the global, host or user
+      // level. An absent section inherits, which is the honest answer for a setting this app has
+      // no opinion about.
       compression: { compressorName: compression },
       files: {
         ignore: exclusions.split("\n").map((l) => l.trim()).filter(Boolean),
@@ -196,39 +184,19 @@ const AddSourceScreen = () => {
         {/* Step 2: Policy */}
         {step === 2 && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Configure backup schedule</p>
+            <p className="text-sm text-muted-foreground">Configure this source</p>
 
-            {/* Auto backup toggle */}
-            <div className="card-elevated flex items-center justify-between">
+            {/* Auto backup toggle -- present but not yet available, see task-30.21 */}
+            <div className="card-elevated flex items-center justify-between opacity-60">
               <div>
                 <p className="font-medium text-foreground text-sm">Automatic backups</p>
-                <p className="text-xs text-muted-foreground">Run backups on a schedule</p>
+                <p className="text-xs text-muted-foreground">Not available yet — you start each backup yourself</p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={autoBackup} onChange={(e) => setAutoBackup(e.target.checked)} className="sr-only peer" aria-label="Automatic backups" />
-                <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+              <label className="relative inline-flex items-center">
+                <input type="checkbox" checked={false} disabled readOnly className="sr-only peer" aria-label="Automatic backups" />
+                <div className="w-11 h-6 bg-secondary rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5" />
               </label>
             </div>
-
-            {autoBackup && (
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground px-1 mb-1">Every</p>
-                  <input
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false} type="text" inputMode="numeric" value={intervalValue} onChange={(e) => setIntervalValue(e.target.value)} className="input-md3" aria-label="Backup interval value" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground px-1 mb-1">Unit</p>
-                  <select value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as "hours" | "days")} className="input-md3" aria-label="Backup interval unit">
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                  </select>
-                </div>
-              </div>
-            )}
 
             <div>
               <p className="text-xs text-muted-foreground px-1 mb-1">Compression</p>
@@ -272,9 +240,7 @@ const AddSourceScreen = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Schedule</p>
-                <p className="text-sm font-medium text-foreground">
-                  {autoBackup ? `Every ${intervalValue} ${intervalUnit}` : "Manual only"}
-                </p>
+                <p className="text-sm font-medium text-foreground">Manual only</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Compression</p>

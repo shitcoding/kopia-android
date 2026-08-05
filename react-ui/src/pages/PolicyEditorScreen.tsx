@@ -16,12 +16,6 @@ const COMPRESSION_OPTIONS = [
   { value: "deflate-default", label: "DEFLATE" },
   { value: "none", label: "NONE" },
 ];
-const INTERVAL_UNITS = [
-  { label: "Minutes", value: 60 },
-  { label: "Hours", value: 3600 },
-  { label: "Days", value: 86400 },
-];
-
 const FILTER_PRESETS: { label: string; patterns: string[] }[] = [
   { label: "Caches", patterns: [".cache/**", "**/cache/**"] },
   { label: "Build outputs", patterns: ["build/**", "dist/**", "out/**"] },
@@ -78,14 +72,6 @@ const PolicyEditorScreen = () => {
   const [keepAnnual, setKeepAnnual] = useState("");
   const [ignoreIdentical, setIgnoreIdentical] = useState(false);
 
-  // Scheduling
-  const [manual, setManual] = useState(false);
-  const [intervalNum, setIntervalNum] = useState("24");
-  const [intervalUnit, setIntervalUnit] = useState(3600);
-  const [runMissed, setRunMissed] = useState(true);
-  const [timesOfDay, setTimesOfDay] = useState<string[]>([]);
-  const [newTime, setNewTime] = useState("09:00");
-
   // Compression
   const [compressor, setCompressor] = useState("zstd");
   const [onlyCompress, setOnlyCompress] = useState("");
@@ -118,17 +104,6 @@ const PolicyEditorScreen = () => {
       setKeepAnnual(r.keepAnnual?.toString() ?? "");
       setIgnoreIdentical(r.ignoreIdenticalSnapshots ?? false);
     }
-    const s = existingPolicy.scheduling;
-    if (s) {
-      setManual(s.manual ?? false);
-      if (s.intervalSeconds) {
-        if (s.intervalSeconds % 86400 === 0) { setIntervalNum(String(s.intervalSeconds / 86400)); setIntervalUnit(86400); }
-        else if (s.intervalSeconds % 3600 === 0) { setIntervalNum(String(s.intervalSeconds / 3600)); setIntervalUnit(3600); }
-        else { setIntervalNum(String(s.intervalSeconds / 60)); setIntervalUnit(60); }
-      }
-      setRunMissed(s.runMissed ?? true);
-      setTimesOfDay((s.timeOfDay ?? []).map((t) => `${String(t.hour).padStart(2, "0")}:${String(t.min).padStart(2, "0")}`));
-    }
     const c = existingPolicy.compression;
     if (c) {
       setCompressor(c.compressorName || "zstd");
@@ -150,13 +125,6 @@ const PolicyEditorScreen = () => {
     }
   }, [existingPolicy]);
 
-  const addTime = () => {
-    if (newTime && !timesOfDay.includes(newTime)) {
-      setTimesOfDay([...timesOfDay, newTime].sort());
-    }
-  };
-
-  const removeTime = (t: string) => setTimesOfDay(timesOfDay.filter((x) => x !== t));
 
   const addPreset = (patterns: string[]) => {
     const current = ignoreRules.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -187,13 +155,12 @@ const PolicyEditorScreen = () => {
         keepWeekly: optInt(keepWeekly), keepMonthly: optInt(keepMonthly), keepAnnual: optInt(keepAnnual),
         ignoreIdenticalSnapshots: ignoreIdentical,
       },
-      scheduling: {
-        ...loaded?.scheduling,
-        manual,
-        intervalSeconds: manual ? undefined : (parseInt(intervalNum, 10) || 24) * intervalUnit,
-        timeOfDay: timesOfDay.map((t) => { const [h, m] = t.split(":"); return { hour: parseInt(h, 10), min: parseInt(m, 10) }; }),
-        runMissed,
-      },
+      // Scheduling is passed through untouched, not rebuilt. This editor no longer collects any of
+      // it, so it has nothing to say -- and saying something anyway is a way to be wrong twice:
+      // forcing `manual: true` alongside the loaded `runMissed` produces a shape Go REJECTS
+      // (`ValidateSchedulingPolicy`: manual cannot be combined with other scheduling policies), so
+      // the next `kopia policy set` from a desktop on this policy would fail outright. The `...loaded`
+      // spread above already carries `scheduling` through; this is only here to say so.
       compression: {
         ...loaded?.compression,
         compressorName: compressor,
@@ -223,8 +190,7 @@ const PolicyEditorScreen = () => {
     // load must not visibly diverge from Reset). The policy_editor E2E only pins keepLatest=10.
     setKeepLatest("10"); setKeepHourly("48"); setKeepDaily("7"); setKeepWeekly("4");
     setKeepMonthly("24"); setKeepAnnual("3"); setIgnoreIdentical(false);
-    setManual(false); setIntervalNum("24"); setIntervalUnit(3600); setRunMissed(true);
-    setTimesOfDay([]); setCompressor("zstd"); setOnlyCompress(""); setNeverCompress("");
+    setCompressor("zstd"); setOnlyCompress(""); setNeverCompress("");
     setMinSize(""); setMaxSize(""); setIgnoreRules("*.tmp\n.cache/**"); setMaxFileSize("");
     toast({ title: "Reset to defaults" });
   };
@@ -271,64 +237,17 @@ const PolicyEditorScreen = () => {
 
           {/* Schedule Tab */}
           <TabsContent value="schedule" className="mt-0 space-y-3">
-            <div className="card-elevated flex items-center justify-between">
+            <div className="card-elevated flex items-center justify-between opacity-60">
               <div>
                 <p className="text-sm font-medium text-foreground">Manual only</p>
-                <p className="text-xs text-muted-foreground">Disable all automatic scheduling</p>
+                <p className="text-xs text-muted-foreground">You start each backup yourself</p>
               </div>
-              <Switch checked={manual} onCheckedChange={setManual} />
+              <Switch checked disabled aria-label="Manual only" />
             </div>
 
-            {!manual && (
-              <>
-                <div className="card-elevated space-y-3">
-                  <p className="text-sm font-medium text-foreground">Interval</p>
-                  <div className="flex gap-2">
-                    <input
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false} type="text" inputMode="numeric" value={intervalNum} onChange={(e) => setIntervalNum(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval value" />
-                    <select value={intervalUnit} onChange={(e) => setIntervalUnit(Number(e.target.value))} className="input-md3 flex-1 text-sm py-2" aria-label="Schedule interval unit">
-                      {INTERVAL_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="card-elevated space-y-3">
-                  <p className="text-sm font-medium text-foreground">Times of day</p>
-                  <div className="flex gap-2">
-                    <input
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false} type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-md3 flex-1 text-sm py-2" aria-label="Time of day" />
-                    <button onClick={addTime} className="btn-secondary text-sm px-4 py-2" aria-label="Add time">Add</button>
-                  </div>
-                  {timesOfDay.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {timesOfDay.map((t) => (
-                        <span key={t} className="inline-flex items-center gap-1 text-xs bg-secondary px-2 py-1 rounded-full">
-                          {t}
-                          <button onClick={() => removeTime(t)} className="text-muted-foreground hover:text-foreground">×</button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="card-elevated flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Run missed backups</p>
-                    <p className="text-xs text-muted-foreground">Catch up on restart</p>
-                  </div>
-                  <Switch checked={runMissed} onCheckedChange={setRunMissed} />
-                </div>
-              </>
-            )}
-
             <p className="text-xs text-muted-foreground px-1">
-              On Android, scheduled backups may be delayed by battery optimization. Exact timing is not guaranteed.
+              Scheduled backups are not implemented yet. Every backup on this phone is one you start
+              yourself — a schedule saved here would not run.
             </p>
           </TabsContent>
 
