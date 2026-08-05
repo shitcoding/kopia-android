@@ -291,7 +291,11 @@ class SnapshotGC(
 
         return manifests.mapNotNull { metadata ->
             try {
+                // The REAL manifest id, not the body's: the body's `id` is a value the uploader
+                // generated before the manifest was ever stored, so the refusal logged below would
+                // name a manifest that does not exist and send whoever reads it hunting a phantom.
                 repository.getManifest(metadata.id, SnapshotManifest.serializer()).first
+                    .copy(id = metadata.id.value)
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {

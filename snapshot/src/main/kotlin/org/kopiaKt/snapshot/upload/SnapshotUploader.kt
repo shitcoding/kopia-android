@@ -107,6 +107,13 @@ data class UploadResult(
      * Reason for incomplete snapshot, if applicable.
      */
     val incompleteReason: String? = null,
+
+    /**
+     * True when nothing had changed and the source's policy asked for no snapshot to be written, so
+     * [manifestId] and [manifest] are the PREVIOUS snapshot — the one that still describes the
+     * source — rather than one this run created.
+     */
+    val identicalToPrevious: Boolean = false,
 )
 
 /**
@@ -170,7 +177,8 @@ class SnapshotUploader(
 
             // Trees the walk may reuse: latest complete, then the checkpoints of any interrupted
             // run that followed it.
-            val previousRootManifests = loadRootManifests(findPreviousManifests())
+            val previousManifests = findPreviousManifests()
+            val previousRootManifests = loadRootManifests(previousManifests)
 
             // Create the file uploader
             val fileUploader = FileUploader(
@@ -257,6 +265,22 @@ class SnapshotUploader(
                 rootEntry = rootEntry,
                 tags = options.tags,
             )
+
+            // Nothing changed, and the source's policy says not to record that as a snapshot.
+            val unchanged = identicalPrevious(previousManifests, rootEntry, incompleteReason)
+            if (unchanged != null) {
+                // Go logs this too. "Why is there no snapshot from today" has to be answerable, and
+                // a silent skip is indistinguishable from a backup that never ran.
+                logger.log(Level.INFO, "not saving a snapshot: nothing has changed since ${unchanged.id}")
+                writer.flush()
+                progress.uploadFinished()
+                return@coroutineScope UploadResult(
+                    manifestId = ManifestId(unchanged.id),
+                    manifest = unchanged,
+                    stats = stats,
+                    identicalToPrevious = true,
+                )
+            }
 
             // Save the manifest
             val labels = ManifestLabels.forSnapshot(source)
@@ -420,6 +444,50 @@ class SnapshotUploader(
     }
 
     /**
+     * The previous snapshot this run turned out to be an exact copy of, or null to save normally.
+     *
+     * Go's `command_snapshot_create.go`: when `RetentionPolicy.IgnoreIdenticalSnapshots` is on and
+     * the new root object id matches the previous snapshot's, the manifest is simply not written.
+     * Kotlin modelled the policy field and then always wrote the manifest anyway, so turning it on
+     * did nothing — and on a phone backing up a photo folder that changes once a week, that is six
+     * snapshots of nothing per week, each of which retention then has to reason about.
+     *
+     * Two tightenings on Go, both in the direction of never losing a record:
+     * - only a COMPLETE run may be skipped. Go tests the root id whatever the run's state; an
+     *   interrupted run's tree differs anyway (every directory it wrote is stamped incomplete), but
+     *   "we decided not to record that your backup was interrupted" is not a sentence this should
+     *   ever be able to produce.
+     * - compared against the latest COMPLETE snapshot only. Go compares against `previous[0]`, which
+     *   is the newest incomplete one when no complete snapshot exists. That is **reachable**, not
+     *   theoretical: `TreeWalker` reads `incompleteReason()` once when it builds the root manifest
+     *   and `upload` reads it again after the walk returns, and `cancel()` arrives from another
+     *   thread — so a cancel landing between those two reads (a window that spans the root
+     *   manifest's upload, a network round trip) saves a manifest marked "canceled" whose root is
+     *   byte-identical to a complete run's. Go has the same two-read shape, so such manifests can
+     *   also arrive from a desktop sharing this repository. Without this guard, a source whose first
+     *   backup was cancelled in that window would match forever and never get a complete snapshot,
+     *   while every run reported success.
+     *
+     * Retention is a third, smaller divergence: Go returns before `ApplyRetentionPolicy` on this
+     * path, while `BackupSession` runs retention on every path out of a backup (task-30.17). Harmless
+     * — the manifest set is unchanged, so retention recomputes the same answer — and it still reaps
+     * stale incompletes from earlier runs.
+     */
+    private fun identicalPrevious(
+        previousManifests: List<SnapshotManifest>,
+        rootEntry: DirEntry?,
+        incompleteReason: String?,
+    ): SnapshotManifest? {
+        if (policy.retentionPolicy.ignoreIdenticalSnapshots != true) return null
+        if (incompleteReason != null) return null
+        val rootObjectId = rootEntry?.objectId ?: return null
+
+        return previousManifests
+            .firstOrNull { it.incompleteReason == null }
+            ?.takeIf { it.rootEntry?.objectId == rootObjectId }
+    }
+
+    /**
      * Applies ignore rules from the files policy to the directory.
      */
     private fun applyIgnoreRules(dir: Directory): Directory = IgnoreFS.wrap(dir, policy.filesPolicy)
@@ -452,7 +520,13 @@ class SnapshotUploader(
 
         val manifests = writer.findManifests(labels).mapNotNull { candidate ->
             try {
+                // Patch in the REAL manifest id, as SnapshotManager.listSnapshots does. The body's
+                // own `id` is a separate value the uploader generated before the manifest was ever
+                // stored, so it never matches the one putManifest assigned -- and anything that
+                // hands this manifest back to a caller as "the snapshot that describes the source"
+                // would be naming a manifest that does not exist.
                 writer.getManifest(candidate.id, SnapshotManifest.serializer()).first
+                    .copy(id = candidate.id.value)
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: Exception) {
