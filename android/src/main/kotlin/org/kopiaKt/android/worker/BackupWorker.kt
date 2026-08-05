@@ -16,6 +16,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Operation
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -34,6 +35,15 @@ import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.upload.UploadCounters
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+
+/**
+ * A failure that retrying cannot fix, because what has to change is outside this worker.
+ *
+ * "Retryable" was never a design: several of the ways a phone backup ends cannot be retried at all,
+ * and a blind `Result.retry()` makes them worse — it burns the backoff schedule re-discovering the
+ * same refusal while the user is shown nothing. The [message] is written for them, not for a log.
+ */
+private class BackupBlocked(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * WorkManager worker for executing backups.
@@ -101,8 +111,21 @@ class BackupWorker(
             // Ensure notification channels exist
             notificationManager.createNotificationChannels()
 
-            // Set foreground with initial notification
-            setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters = null))
+            // Set foreground with initial notification.
+            //
+            // A refusal here is terminal, not transient. From API 31 the system rejects a foreground
+            // service started from the background outright, and after Android 15's six-hour dataSync
+            // cap has fired no further dataSync service starts in that 24-hour window until the user
+            // brings the app forward. In both cases every retry meets exactly the same refusal, so
+            // retrying only spends the backoff schedule finding that out — while the user sees
+            // nothing at all, because there is no notification to see.
+            try {
+                setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters = null))
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
+            } catch (e: Exception) {
+                throw BackupBlocked(FOREGROUND_DENIED_MESSAGE, e)
+            }
 
             // Check for existing checkpoint
             val checkpointResult = checkpointStore.getCheckpoint(sourceId)
@@ -180,12 +203,7 @@ class BackupWorker(
                     )
                 }
 
-                is BackupSessionResult.Cancelled -> {
-                    // Don't show error for cancellation
-                    Result.failure(
-                        workDataOf(KEY_ERROR to "Backup cancelled"),
-                    )
-                }
+                is BackupSessionResult.Cancelled -> reportCancellation(sourceId, sourcePath)
 
                 is BackupSessionResult.Failed -> {
                     // A backup that fails silently is unusable: without this, the only evidence a
@@ -202,9 +220,26 @@ class BackupWorker(
                     }
                 }
             }
+        } catch (e: BackupBlocked) {
+            // Terminal on purpose, and specifically NOT a retry. Backups here are interactive and
+            // awaited (runInteractiveBackup blocks until the work reaches a finished state), so a
+            // pending retry leaves the user's task spinning for the whole backoff schedule with
+            // nothing on screen to explain it; and the unique work is enqueued with
+            // ExistingWorkPolicy.KEEP, so that same pending retry silently swallows the user's next
+            // "Back up now" — the very action the notification is asking them to take.
+            android.util.Log.w(TAG, "backup of $sourcePath is blocked: ${e.message}", e.cause)
+            if (!isStopped) {
+                // A cancel racing the foreground promotion surfaces here as a failed setForeground.
+                // Whoever cancelled does not need to be told Android refused them something.
+                showErrorNotification(sourceId, sourcePath, e.message ?: FOREGROUND_DENIED_MESSAGE)
+            }
+            Result.failure(workDataOf(KEY_ERROR to e.message))
         } catch (e: CancellationException) {
-            // WorkManager cancellation - session should have saved checkpoint
-            Result.failure(workDataOf(KEY_ERROR to "Backup cancelled"))
+            // The session has already checkpointed (its saves are NonCancellable), so the run is
+            // resumable either way. What differs is whether the user is owed an explanation: they
+            // asked for a cancel, or a constraint went away and WorkManager will re-run this itself,
+            // or something only they can lift stopped it.
+            reportCancellation(sourceId, sourcePath)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "backup of $sourcePath threw", e)
             if (runAttemptCount < MAX_RETRY_COUNT) {
@@ -216,6 +251,24 @@ class BackupWorker(
         }
     }
 
+    /**
+     * Ends a cancelled run, saying something only if the user is the one who has to act.
+     *
+     * Reached from two places on purpose. A stop from WorkManager cancels this coroutine, and
+     * `BackupSession.run`'s `coroutineScope` cannot complete normally once its job is cancelled, so
+     * it re-throws and lands in the outer catch. A **cooperative** cancel — the Cancel action on the
+     * notification — leaves the coroutine alive and returns a `Cancelled` result instead. Routing
+     * both here means the answer does not depend on which of those happened, only on the stop
+     * reason, which is what actually decides whether there is anything to say.
+     */
+    private fun reportCancellation(sourceId: String, sourcePath: String): Result {
+        val message = cancellationMessage(stopReason)
+        if (message != null) {
+            showErrorNotification(sourceId, sourcePath, message)
+        }
+        return Result.failure(workDataOf(KEY_ERROR to (message ?: "Backup cancelled")))
+    }
+
     private suspend fun runBackup(
         sourceId: String,
         sourcePath: String,
@@ -225,8 +278,13 @@ class BackupWorker(
         // Get repository from the repository provider
         // Note: In a real implementation, this would come from a RepositoryProvider
         // that handles repository opening/caching. For now, we throw if not configured.
-        val repository = getRepository()
-            ?: throw IllegalStateException("Repository not configured. Call BackupWorker.setRepositoryProvider first.")
+        // Terminal, not retryable. WorkManager re-runs a retried worker in a FRESH process, and
+        // nothing there has reconnected the repository — opening it needs the password, which the
+        // app deliberately does not keep. So every retry meets the same wall, and the old behaviour
+        // spent the entire backoff schedule proving it before failing with "Repository not
+        // configured. Call BackupWorker.setRepositoryProvider first" — a message about an internal
+        // API, shown to someone whose backup has been silently stalled for minutes.
+        val repository = getRepository() ?: throw BackupBlocked(NEEDS_REPOSITORY_MESSAGE)
 
         val sessionConfig = BackupSessionConfig(
             sourcePath = sourcePath,
@@ -438,6 +496,48 @@ class BackupWorker(
         private const val MAX_RETRY_COUNT = 3
         private const val UNIQUE_WORK_PREFIX = "backup_"
         private const val BACKOFF_DELAY_MINUTES = 5L
+
+        // Every one of these ends in "start it again", and none of them says the app will do it for
+        // you. That is deliberate and it is the honest wording: a terminal failure ends the work
+        // item, and nothing re-enqueues it when the user reconnects or opens the app. What IS true,
+        // since task-30.16, is that starting it again resumes from the last checkpoint rather than
+        // beginning the whole backup over -- which is the only reason asking the user to do it is a
+        // reasonable thing to ask.
+
+        /** Shown when a retried worker wakes in a fresh process with no repository open. */
+        const val NEEDS_REPOSITORY_MESSAGE =
+            "Connect to your repository and start this backup again — it carries on from where it stopped"
+
+        /** Shown when the system refuses to let the backup's foreground service start. */
+        const val FOREGROUND_DENIED_MESSAGE =
+            "Android would not let this backup run in the background — open KopiaKt and start it again"
+
+        /** Shown when Android 15's six-hour foreground-service cap stops a run. */
+        const val FOREGROUND_TIMEOUT_MESSAGE =
+            "Backup paused after 6 hours — start it again to carry on from where it stopped"
+
+        /** Shown when the app is under the system's background restriction. */
+        const val BACKGROUND_RESTRICTED_MESSAGE =
+            "Battery settings are blocking backups — allow KopiaKt to run in the background, then start it again"
+
+        /**
+         * What to tell the user about a stopped run, or null to say nothing.
+         *
+         * The distinction that matters is **whether anyone but the user can get it going again**.
+         * WorkManager re-runs work stopped by a lost constraint, a quota, app standby or device
+         * state entirely on its own, and a cancel was the user's own doing — a notification in any
+         * of those cases is the app either duplicating itself or arguing with them.
+         *
+         * The two that need saying are the ones only the user can lift. Android 15's six-hour
+         * `dataSync` cap: no further `dataSync` service may start in the same 24-hour window until
+         * the app is foregrounded. And the system's background restriction, which is worse, because
+         * it blocks every future run too and is exactly what aggressive OEM battery managers apply.
+         */
+        fun cancellationMessage(stopReason: Int): String? = when (stopReason) {
+            WorkInfo.STOP_REASON_FOREGROUND_SERVICE_TIMEOUT -> FOREGROUND_TIMEOUT_MESSAGE
+            WorkInfo.STOP_REASON_BACKGROUND_RESTRICTION -> BACKGROUND_RESTRICTED_MESSAGE
+            else -> null
+        }
 
         /** Minimum interval between foreground progress-notification refreshes (throttle). */
         private const val PROGRESS_UPDATE_INTERVAL_MILLIS = 1000L

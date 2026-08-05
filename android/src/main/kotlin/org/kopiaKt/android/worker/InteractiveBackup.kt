@@ -54,7 +54,13 @@ suspend fun runInteractiveBackup(
 
     val state = info?.state ?: WorkInfo.State.CANCELLED
     if (state != WorkInfo.State.SUCCEEDED) {
-        throw BackupFailedException("Backup ${state.name.lowercase()}")
+        // The worker's own message when it has one — "connect to your repository and start this
+        // backup again", not "backup failed". This is also the ONLY channel that survives
+        // POST_NOTIFICATIONS being denied, which on API 33+ silently drops every notify(): without
+        // it, a backup blocked by a missing repository or a refused foreground service ends with no
+        // evidence anywhere that it ever ran.
+        val reason = info?.outputData?.getString(BackupWorker.KEY_ERROR)
+        throw BackupFailedException(reason ?: "Backup ${state.name.lowercase()}")
     }
     return info?.outputData?.getInt(BackupWorker.KEY_ERROR_COUNT, 0) ?: 0
 }
