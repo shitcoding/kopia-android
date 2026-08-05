@@ -6,7 +6,7 @@
          runtime-entered endpoint. Restricting it here would break those legitimate self-hosted
          setups. The user-facing control is instead at the app layer: the connect/create UI defaults
          to https, warns on a cleartext (http:) endpoint, and the connect layer requires an explicit
-         per-connection opt-in. See the "Cleartext HTTP and TLS posture" ADR (the internal decision records). -->
+         per-connection opt-in. -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />

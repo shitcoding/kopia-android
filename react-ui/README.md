@@ -27,4 +27,4 @@ npm run build
 ```
 
 The built assets are copied into the Android app's `assets/` folder during the Gradle build and
-served from `file:///android_asset/react/`.
+served from `an app-controlled https:// virtual origin (WebViewAssetLoader)`.

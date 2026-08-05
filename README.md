@@ -32,7 +32,7 @@ KopiaKt reads, restores, and backs up — **on demand, while the app is running*
 | Edit retention / compression / ignore-rule policies | Works |
 | **Run a backup from the phone** | **Works**, on demand — see [Divergences](#divergences-from-desktop-kopia) |
 | Apply retention after a backup | Works — deletes snapshot manifests only, never contents |
-| Automatic / scheduled backups | **Not implemented**, and the UI no longer offers it |
+| Automatic / scheduled backups | **Not implemented.** The controls are shown as unavailable and no schedule is stored |
 | Repository maintenance / garbage collection | Not run on the phone; use desktop Kopia |
 
 You start a backup yourself; it holds a foreground-service notification for as long as it runs. What

@@ -67,8 +67,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       # GitHub-hosted ubuntu runners ship a working Docker daemon, and Testcontainers uses it
-      # directly (unlike this project's local OrbStack host, where the Testcontainers/docker-java
-      # API-version mismatch skips these — see the internal troubleshooting notes). This is where the S3 /
-      # SFTP / WebDAV BlobStorage integration tests (incl. the SFTP .shards cross-compat cases) run.
+      # directly. Some local Docker setups (notably OrbStack) advertise an API version the bundled
+      # docker-java client rejects, so these tests skip there and CI is where they actually run:
+      # the S3 / SFTP / WebDAV BlobStorage integration tests, incl. the SFTP .shards cross-compat cases.
       - name: Storage integration tests (Testcontainers)
         run: ./gradlew :storage:integrationTest

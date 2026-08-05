@@ -293,7 +293,7 @@ class BackupNotificationManagerTest {
             // The whole point of the follow-up: BACKUP_COMPLETE / BACKUP_ERROR used to be single fixed IDs
             // shared by ALL sources, so two sources finishing close together overwrote each other's
             // completion/error notification. Every id handed out for source A must differ from every id
-            // for source B (progress, completion, error alike). (task-14, review follow-up)
+            // for source B (progress, completion, error alike).
             val a = "collide-a"
             val b = "collide-b"
             val idsA = setOf(
