@@ -187,6 +187,15 @@ tasks.register<Copy>("copyLegalNotices") {
             .filter { it.isFile && it.name != "DEPENDENCY_LICENSES.md" }
             .sortedBy { it.relativeTo(extracted).path }
             .toList()
+        // Some artifacts declare a licence and ship no licence file, so there is nothing to
+        // extract. Their notices are kept verbatim under legal/notice-overrides/ -- see that
+        // directory's README for why they cannot be reconstructed from a template.
+        val overrideDir = file("${rootProject.projectDir}/legal/notice-overrides")
+        val overrides = overrideDir.listFiles { f: File -> f.isFile && f.name.endsWith(".txt") }
+            ?.filterNot { it.name.startsWith("npm-") }   // those belong to the JavaScript report
+            ?.sortedBy { it.name }
+            .orEmpty()
+
         target.appendText(
             buildString {
                 appendLine()
@@ -205,9 +214,30 @@ tasks.register<Copy>("copyLegalNotices") {
                     appendLine(f.readText().trim())
                     appendLine("```")
                 }
+                if (overrides.isNotEmpty()) {
+                    appendLine()
+                    appendLine("---")
+                    appendLine()
+                    appendLine("# Notices for dependencies that ship no licence file")
+                    appendLine()
+                    appendLine(
+                        "Taken verbatim from each project's own repository, because the published " +
+                            "artifact contains none. ${overrides.size} notices.",
+                    )
+                    overrides.forEach { f ->
+                        appendLine()
+                        appendLine("## ${f.name.removeSuffix(".txt")}")
+                        appendLine()
+                        appendLine("```")
+                        appendLine(f.readText().trim())
+                        appendLine("```")
+                    }
+                }
             },
         )
-        logger.lifecycle("[licenses] inlined ${sidecars.size} dependency licence/notice files")
+        logger.lifecycle(
+            "[licenses] inlined ${sidecars.size} extracted files and ${overrides.size} overrides",
+        )
     }
 }
 
