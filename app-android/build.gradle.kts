@@ -192,7 +192,7 @@ tasks.register<Copy>("copyLegalNotices") {
         // directory's README for why they cannot be reconstructed from a template.
         val overrideDir = file("${rootProject.projectDir}/legal/notice-overrides")
         val overrides = overrideDir.listFiles { f: File -> f.isFile && f.name.endsWith(".txt") }
-            ?.filterNot { it.name.startsWith("npm-") }   // those belong to the JavaScript report
+            ?.filterNot { it.name.startsWith("npm-") } // those belong to the JavaScript report
             ?.sortedBy { it.name }
             .orEmpty()
 
