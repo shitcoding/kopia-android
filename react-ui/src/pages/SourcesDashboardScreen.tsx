@@ -201,7 +201,7 @@ const SourcesDashboardScreen = () => {
                       {src.lastError && (
                         <div className="flex items-start gap-1.5 mt-2 text-xs text-destructive">
                           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
-                          <span className="min-w-0">
+                          <span className="min-w-0 break-words">
                             Last backup failed
                             {src.lastErrorTimeEpochMs ? ` ${formatRelativeTime(src.lastErrorTimeEpochMs)}` : ""}
                             : {src.lastError}
