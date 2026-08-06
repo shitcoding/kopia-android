@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, startBackup, BridgeError, kopiaBridge } from "@/services/kopiaBridge";
-import { sourceId } from "@/lib/format";
+import { sourceId, uploadProgressPercent } from "@/lib/format";
 
 // Contract pins for the JS -> Kotlin bridge marshalling. The Kotlin counterpart lives in
 // app-android/.../bridge/WebModelsTest.kt; both ends must agree on these wire shapes because the
@@ -136,6 +136,34 @@ describe("bridge contract: the source id is native's, not rebuilt from the sourc
     // The dashboard addresses the source by this field. Rebuilding user@host:path locally is what
     // made pauseSource/resumeSource/getSourceStatus answer "Source not found".
     expect(status.id).toBe("local@Pixel 7:/sdcard/DCIM");
+  });
+
+  it("an uploading source carries its task id and that task's counters", async () => {
+    // The dashboard shows a progress bar on the strength of uploadCounters and opens the progress
+    // sheet on currentTaskId. Kotlin populated neither for the whole life of the feature, so the
+    // block rendered nothing; these two names are the join, and a rename on either side would put
+    // it straight back to silent.
+    stubBridge("listAllSources", () =>
+      ok([
+        {
+          id: "local@Pixel 7:/sdcard/DCIM",
+          source: { userName: "local", host: "Pixel 7", path: "/sdcard/DCIM" },
+          status: "UPLOADING",
+          currentTaskId: "task-3",
+          uploadCounters: {
+            "Processed Bytes": { value: 50, units: "bytes" },
+            "Estimated Bytes": { value: 200, units: "bytes" },
+          },
+          snapshotCount: 0,
+          totalFileSize: 0,
+        },
+      ]),
+    );
+
+    const [status] = await getAllSourceStatuses();
+
+    expect(status.currentTaskId).toBe("task-3");
+    expect(uploadProgressPercent(status.uploadCounters)).toBe(25);
   });
 
   it("task counters arrive as Go's named map, keyed by display name", async () => {

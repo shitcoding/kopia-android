@@ -244,8 +244,16 @@ class BridgeBackupMethodsTest {
                 displayName = "Photos",
                 status = SourceStatus.UPLOADING,
                 createdAt = Instant.parse("2026-01-15T10:00:00Z"),
+                currentTaskId = "task-42",
             )
             every { sourceManager.getSource("src-42") } returns fakeSource
+            every { taskManager.getTask("task-42") } returns TaskInfo(
+                id = "task-42",
+                kind = TaskKind.BACKUP,
+                description = "Backing up Photos",
+                status = TaskStatus.RUNNING,
+                startTime = Instant.now(),
+            )
 
             val result = bridge.getSourceStatus("src-42")
             val obj = assertSuccess(result)
@@ -254,6 +262,27 @@ class BridgeBackupMethodsTest {
             val source = data["source"]!!.jsonObject
             assertEquals("/photos", source["path"]!!.jsonPrimitive.content)
             assertEquals("UPLOADING", data["status"]!!.jsonPrimitive.content)
+            assertEquals("task-42", data["currentTaskId"]!!.jsonPrimitive.content)
+        }
+
+        @Test
+        fun `a source claiming to upload with no live task reads as idle`() {
+            // Uploading is a claim about a run in progress. Reported without a task to watch or
+            // cancel, it leaves the dashboard showing a busy row with nothing behind it, polling
+            // for a change that can never arrive.
+            every { sourceManager.getSource("src-42") } returns SourceInfo(
+                id = "src-42",
+                path = "/photos",
+                displayName = "Photos",
+                status = SourceStatus.UPLOADING,
+                createdAt = Instant.parse("2026-01-15T10:00:00Z"),
+                currentTaskId = "task-gone",
+            )
+            every { taskManager.getTask("task-gone") } returns null
+
+            val data = assertSuccess(bridge.getSourceStatus("src-42"))["data"]!!.jsonObject
+
+            assertEquals("IDLE", data["status"]!!.jsonPrimitive.content)
         }
 
         @Test
@@ -283,7 +312,7 @@ class BridgeBackupMethodsTest {
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
             every {
-                taskManager.startTask(TaskKind.BACKUP, any(), any())
+                taskManager.startTask(TaskKind.BACKUP, any(), any(), any())
             } returns "task-42"
 
             val result = bridge.startBackup("src-1")
@@ -306,7 +335,7 @@ class BridgeBackupMethodsTest {
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
             every {
-                taskManager.startTask(any(), any(), any())
+                taskManager.startTask(any(), any(), any(), any())
             } returns "task-7"
 
             val obj = assertSuccess(bridge.startBackup("src-1"))
@@ -340,14 +369,14 @@ class BridgeBackupMethodsTest {
                 createdAt = Instant.now(),
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
-            every { taskManager.startTask(any(), any(), any()) } returns "task-est"
+            every { taskManager.startTask(any(), any(), any(), any()) } returns "task-est"
 
             val obj = assertSuccess(bridge.estimateBackup("""{"sourceId":"src-1"}"""))
 
             assertEquals("task-est", obj["data"]!!.jsonPrimitive.content)
             // ESTIMATE, not BACKUP: the Tasks screen labels by kind, and an estimate that files
             // itself as a backup reads as a second backup nobody asked for.
-            verify { taskManager.startTask(TaskKind.ESTIMATE, any(), any()) }
+            verify { taskManager.startTask(TaskKind.ESTIMATE, any(), any(), any()) }
         }
 
         @Test
@@ -373,12 +402,12 @@ class BridgeBackupMethodsTest {
             )
             every { sourceManager.createSource(any(), "/data", any()) } returns fakeSource
             every { sourceManager.getSource("src-1") } returns fakeSource
-            every { taskManager.startTask(TaskKind.BACKUP, any(), any()) } returns "task-7"
+            every { taskManager.startTask(TaskKind.BACKUP, any(), any(), any()) } returns "task-7"
 
             bridge.createSource("""{"uri":"/data","startBackup":true}""")
 
             // AddSourceScreen has always sent this flag and createSource has always ignored it.
-            verify(exactly = 1) { taskManager.startTask(TaskKind.BACKUP, any(), any()) }
+            verify(exactly = 1) { taskManager.startTask(TaskKind.BACKUP, any(), any(), any()) }
         }
 
         @Test
@@ -393,7 +422,7 @@ class BridgeBackupMethodsTest {
 
             bridge.createSource("""{"uri":"/data"}""")
 
-            verify(exactly = 0) { taskManager.startTask(any(), any(), any()) }
+            verify(exactly = 0) { taskManager.startTask(any(), any(), any(), any()) }
         }
 
         @Test
@@ -406,13 +435,13 @@ class BridgeBackupMethodsTest {
             )
             every { sourceManager.getSource("src-1") } returns fakeSource
             every {
-                taskManager.startTask(TaskKind.BACKUP, any(), any())
+                taskManager.startTask(TaskKind.BACKUP, any(), any(), any())
             } returns "task-1"
 
             bridge.startBackup("src-1")
 
             verify(exactly = 1) {
-                taskManager.startTask(TaskKind.BACKUP, any(), any())
+                taskManager.startTask(TaskKind.BACKUP, any(), any(), any())
             }
         }
     }

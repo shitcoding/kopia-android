@@ -44,6 +44,15 @@ data class SourceInfo(
      */
     val lastError: String? = null,
     val lastErrorTime: Instant? = null,
+    /**
+     * The task tracking this source's running backup, or null when nothing is running.
+     *
+     * Transient like [status], and for the same reason: an id from a process that is gone addresses
+     * no task anyone can watch or cancel, and a persisted one would leave a finished source looking
+     * busy forever. This is the opposite call from [lastError], which is durable precisely because
+     * its whole point is to outlive the run.
+     */
+    val currentTaskId: String? = null,
 )
 
 /** On-disk shape of a source. Separate from [SourceInfo] so `Instant` stays out of the wire format. */
@@ -152,11 +161,33 @@ class BackupSourceManager(private val context: Context? = null) {
     }
 
     /**
-     * Sets the status of a source. No-op if the source ID does not exist.
+     * Sets the status of a source and the task, if any, driving it. No-op for an unknown ID.
+     *
+     * One call for both because they are one fact: "this source is uploading, under that task" —
+     * a status without the id to watch it by is what left the dashboard with a busy row and no way
+     * into it. Use [clearRunningTask] to end a run, not this with IDLE.
      */
-    fun setSourceStatus(id: String, status: SourceStatus) {
+    fun setSourceStatus(id: String, status: SourceStatus, taskId: String? = null) {
         sources.computeIfPresent(id) { _, existing ->
-            existing.copy(status = status)
+            existing.copy(status = status, currentTaskId = taskId)
+        }
+    }
+
+    /**
+     * Ends [taskId]'s claim on a source: back to IDLE, with no running task.
+     *
+     * Only if that task is still the one on record. A run tears itself down after it has already
+     * stopped being the current one — the user can start the next backup of the same folder while a
+     * cancelled run is still unwinding — and an unconditional clear would take the *new* run's
+     * registration with it, leaving the dashboard idle for the whole of a backup that is running.
+     */
+    fun clearRunningTask(id: String, taskId: String) {
+        sources.computeIfPresent(id) { _, existing ->
+            if (existing.currentTaskId == taskId) {
+                existing.copy(status = SourceStatus.IDLE, currentTaskId = null)
+            } else {
+                existing
+            }
         }
     }
 

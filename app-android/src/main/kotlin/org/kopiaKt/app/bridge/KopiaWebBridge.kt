@@ -32,9 +32,11 @@ import kotlinx.serialization.encodeToString
 import org.kopiaKt.android.worker.BackupSourceDeleter
 import org.kopiaKt.android.worker.BackupSourceManager
 import org.kopiaKt.android.worker.BackupWorker
+import org.kopiaKt.android.worker.SourceInfo
 import org.kopiaKt.android.worker.SourceStatus
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.android.worker.TaskManager
+import org.kopiaKt.android.worker.TaskStatus
 import org.kopiaKt.android.worker.backupSourceIdentity
 import org.kopiaKt.android.worker.openBackupSource
 import org.kopiaKt.android.worker.runInteractiveBackup
@@ -1072,9 +1074,29 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun listAllSources(): String = try {
         val sources = sourceManager.listSources()
-        json.encodeToString(WebResult.success(sources.map { it.toWebStatus() }))
+        json.encodeToString(WebResult.success(sources.map { it.withRunningTask() }))
     } catch (e: Exception) {
         json.encodeToString(WebResult.error<List<WebSourceStatus>>(e.message ?: "Error listing sources"))
+    }
+
+    /**
+     * The source's status joined to the task uploading it, if one is.
+     *
+     * The join lives here because the counters live on the task while the source records only its
+     * id, and `toWebStatus` has no TaskManager to resolve one with. A task that has already reached
+     * a terminal state is deliberately reported as no task at all: the dashboard shows a row as busy
+     * and offers a progress sheet on the strength of this id, and a finished run's id would leave it
+     * doing both forever.
+     */
+    private fun SourceInfo.withRunningTask(): WebSourceStatus {
+        val task = currentTaskId
+            ?.let { taskManager.getTask(it) }
+            ?.takeIf { it.status == TaskStatus.RUNNING || it.status == TaskStatus.CANCELING }
+        val web = toWebStatus(task)
+        // Uploading is a claim about a run in progress, so a live task has to back it. Reporting it
+        // without one leaves the row busy with nothing to tap into and the dashboard polling for a
+        // change that will never come.
+        return if (task == null) web.copy(status = SourceStatus.IDLE.name) else web
     }
 
     /**
@@ -1164,7 +1186,7 @@ class KopiaWebBridge private constructor(
                 ?: return json.encodeToString(
                     WebResult.error<WebSourceStatus>("Source not found: $sourceId"),
                 )
-            json.encodeToString(WebResult.success(source.toWebStatus()))
+            json.encodeToString(WebResult.success(source.withRunningTask()))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<WebSourceStatus>(e.message ?: "Error getting source status"))
         }
@@ -1253,8 +1275,19 @@ class KopiaWebBridge private constructor(
         // awaited and never a gate -- a denial costs a notification, not a backup.
         requestNotificationPermissionOnce()
 
-        return taskManager.startTask(TaskKind.BACKUP, "Backing up ${source.displayName}") { controller ->
-            sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING)
+        return taskManager.startTask(
+            TaskKind.BACKUP,
+            "Backing up ${source.displayName}",
+            // Recording the task on the source is what lets the dashboard show this run's progress
+            // and open its sheet; the id startTask returns goes to the caller, and nothing else ever
+            // learned which task was uploading which source. It happens here rather than inside the
+            // block because the block is launched, not run: the dashboard refetches the moment
+            // startBackup returns and only keeps polling if THAT answer already said UPLOADING, so a
+            // status set a beat later can go unseen for the whole run.
+            onStarted = { taskId ->
+                sourceManager.setSourceStatus(source.id, SourceStatus.UPLOADING, taskId)
+            },
+        ) { controller ->
             try {
                 val skipped = runInteractiveBackup(ctx, source.id, source.path) { counters, final ->
                     // The Tasks screen reads these by name; without a producer it had a task with no
@@ -1270,8 +1303,10 @@ class KopiaWebBridge private constructor(
                     controller.reportProgress("Completed with $skipped skipped entr${if (skipped == 1) "y" else "ies"}")
                 }
             } finally {
-                // The dashboard would otherwise show a source uploading forever.
-                sourceManager.setSourceStatus(source.id, SourceStatus.IDLE)
+                // The dashboard would otherwise show a source uploading forever. Guarded by this
+                // run's own id: a teardown that arrives after the user has started the next backup
+                // must not clear that one's registration.
+                sourceManager.clearRunningTask(source.id, controller.taskId)
             }
         }
     }

@@ -4,6 +4,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.kopiaKt.android.worker.TaskInfo
@@ -308,5 +309,30 @@ class WebModelsTest {
 
         assertTrue(out.contains("\"Uploaded Bytes\":{\"value\":1024,\"units\":\"bytes\""), out)
         assertTrue(out.contains("\"level\":\"error\""), out)
+    }
+
+    @Test
+    fun `a run that has reported nothing yet surfaces no counters, not an empty map`() {
+        // A task carries an empty counter map until its first progress publish, which for a backup
+        // is seconds in (foreground promotion, repository open, the first hashed file). The
+        // dashboard renders its progress block on "has counters", so `{}` would draw a full, static
+        // bar captioned "0 B" at the start of every single backup.
+        val source = org.kopiaKt.android.worker.SourceInfo(
+            id = "local@device:/sdcard/DCIM",
+            path = "/sdcard/DCIM",
+            displayName = "DCIM",
+        )
+        val web = source.toWebStatus(
+            TaskInfo(
+                id = "task-1",
+                kind = TaskKind.BACKUP,
+                description = "Backing up DCIM",
+                status = TaskStatus.RUNNING,
+                startTime = Instant.EPOCH,
+            ),
+        )
+
+        assertEquals("task-1", web.currentTaskId)
+        assertNull(web.uploadCounters)
     }
 }

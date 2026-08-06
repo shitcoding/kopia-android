@@ -55,6 +55,15 @@ data class TaskInfo(
  * Mirrors Go Kopia's `uitask.Controller`.
  */
 interface TaskController {
+    /**
+     * The id of the task this controller drives.
+     *
+     * [TaskManager.startTask] returns it only to its caller, so without this a block cannot tell
+     * whether some piece of shared state still refers to *this* run — which is how a backup avoids
+     * clearing the registration of the run that replaced it.
+     */
+    val taskId: String
+
     /** Update the human-readable progress string. */
     fun reportProgress(info: String)
 
@@ -99,12 +108,18 @@ class TaskManager(
      *
      * @param kind     The type of operation.
      * @param description  Human-readable description.
+     * @param onStarted  Runs on the CALLING thread once the task is visible to [getTask], before
+     *   [block] is launched. For a caller that has to publish the new id somewhere — as a backup
+     *   does, to tell the dashboard which task is uploading its source — doing it from inside
+     *   [block] means it happens after this method has already returned to the UI, which can be too
+     *   late to be seen. Keep it cheap: it runs before the caller gets its id back.
      * @param block    The suspending work to perform.
      * @return A unique task ID.
      */
     fun startTask(
         kind: TaskKind,
         description: String,
+        onStarted: (taskId: String) -> Unit = {},
         block: suspend (TaskController) -> Unit,
     ): String {
         val taskId = "task-${nextId.getAndIncrement()}"
@@ -115,6 +130,7 @@ class TaskManager(
             startTime = Instant.now(),
         )
         tasks[taskId] = entry
+        onStarted(taskId)
 
         entry.job = scope.launch {
             val controller = TaskControllerImpl(entry)
@@ -259,6 +275,8 @@ class TaskManager(
     // ------------------------------------------------------------------
 
     private class TaskControllerImpl(private val entry: TaskEntry) : TaskController {
+
+        override val taskId: String get() = entry.id
 
         override fun reportProgress(info: String) {
             entry.updateProgress(info)

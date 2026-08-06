@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sourceId, parseSourceId, isCleartextUrl } from "./format";
+import { sourceId, parseSourceId, isCleartextUrl, uploadProgressPercent } from "./format";
 
 describe("isCleartextUrl", () => {
   it("flags http: endpoints (case/whitespace-insensitive, incl. OkHttp-lenient variants)", () => {
@@ -37,5 +37,24 @@ describe("parseSourceId", () => {
 
   it("throws on a string without the expected separators", () => {
     expect(() => parseSourceId("not-a-source-id")).toThrow();
+  });
+});
+
+describe("uploadProgressPercent", () => {
+  const bytes = (value: number) => ({ value, units: "bytes" });
+
+  it("divides processed by the estimate", () => {
+    expect(uploadProgressPercent({ "Processed Bytes": bytes(50), "Estimated Bytes": bytes(200) })).toBe(25);
+  });
+
+  it("stays below 100 while the run is live — reaching the estimate is not finishing", () => {
+    expect(uploadProgressPercent({ "Processed Bytes": bytes(400), "Estimated Bytes": bytes(200) })).toBe(99);
+  });
+
+  it("is null with nothing to divide by, so the bar renders indeterminate", () => {
+    expect(uploadProgressPercent({ "Processed Bytes": bytes(50) })).toBeNull();
+    expect(uploadProgressPercent({ "Processed Bytes": bytes(50), "Estimated Bytes": bytes(0) })).toBeNull();
+    expect(uploadProgressPercent({ "Estimated Bytes": bytes(200) })).toBeNull();
+    expect(uploadProgressPercent(undefined)).toBeNull();
   });
 });

@@ -209,6 +209,38 @@ class BackupSourceManagerTest {
         }
 
         @Test
+        @DisplayName("the running task is cleared with the status")
+        fun `the running task is cleared with the status`() {
+            val source = manager.createSource("/test/path", "/test/path", "Test")
+
+            manager.setSourceStatus(source.id, SourceStatus.UPLOADING, "task-1")
+            assertThat(manager.getSource(source.id)!!.currentTaskId).isEqualTo("task-1")
+
+            manager.clearRunningTask(source.id, "task-1")
+
+            val updated = manager.getSource(source.id)!!
+            assertThat(updated.status).isEqualTo(SourceStatus.IDLE)
+            assertThat(updated.currentTaskId).isNull()
+        }
+
+        @Test
+        @DisplayName("a finished run does not clear the next run's registration")
+        fun `a finished run does not clear the next run's registration`() {
+            // A cancelled run tears itself down after it has stopped being the current one, and the
+            // user can start the next backup of the same folder in between. An unconditional clear
+            // would leave the dashboard idle for the whole of a backup that is actually running.
+            val source = manager.createSource("/test/path", "/test/path", "Test")
+            manager.setSourceStatus(source.id, SourceStatus.UPLOADING, "task-1")
+            manager.setSourceStatus(source.id, SourceStatus.UPLOADING, "task-2")
+
+            manager.clearRunningTask(source.id, "task-1")
+
+            val updated = manager.getSource(source.id)!!
+            assertThat(updated.status).isEqualTo(SourceStatus.UPLOADING)
+            assertThat(updated.currentTaskId).isEqualTo("task-2")
+        }
+
+        @Test
         @DisplayName("source records last snapshot time")
         fun `source records last snapshot time`() {
             val source = manager.createSource("/test/path", "/test/path", "Test")

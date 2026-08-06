@@ -131,6 +131,9 @@ dependencies {
     testImplementation(libs.bundles.testing.unit)
     testImplementation(libs.robolectric)
     testImplementation(libs.robolectric.junit5)
+    // Lets a bridge test drive a real backup task end to end, with a stand-in worker in place of a
+    // real upload -- the only way to exercise the source -> running-task join the dashboard reads.
+    testImplementation(libs.androidx.work.testing)
     testRuntimeOnly(libs.junit5.engine)
     androidTestImplementation(libs.bundles.testing.android)
 }

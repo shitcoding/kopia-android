@@ -87,3 +87,23 @@ export function isCleartextUrl(value: string): boolean {
   // http:/host (single slash) and http:\host as cleartext. "https:" does not start with "http:".
   return value.trim().toLowerCase().startsWith("http:");
 }
+
+/**
+ * How far a running backup has got, as a whole percentage, or null when there is nothing to divide
+ * by yet — the caller renders an indeterminate bar then.
+ *
+ * Processed (hashed + cached), not Uploaded: "Uploaded Bytes" is what actually went to storage after
+ * dedup and compression, so an incremental run that mostly cached would sit near 0% and then jump to
+ * done. Capped below 100 while the run is live, because reaching the estimate is not finishing — the
+ * manifest still has to be written, flushed and retained, and 100% while the app is visibly working
+ * reads as a hang. Shared by the dashboard row and the progress sheet so the same run cannot show
+ * two different numbers in two places.
+ */
+export function uploadProgressPercent(
+  counters: Record<string, { value: number }> | null | undefined,
+): number | null {
+  const processed = counters?.["Processed Bytes"]?.value;
+  const estimated = counters?.["Estimated Bytes"]?.value;
+  if (processed === undefined || estimated === undefined || estimated <= 0) return null;
+  return Math.min(99, Math.round((processed / estimated) * 100));
+}

@@ -199,22 +199,6 @@ export interface SafPickResult {
 
 // ===== Upload / Source / Task Types =====
 
-/** Upload progress counters */
-export interface WebUploadCounters {
-  totalCachedBytes: number;
-  totalHashedBytes: number;
-  totalUploadedBytes: number;
-  estimatedBytes: number;
-  totalCachedFiles: number;
-  totalHashedFiles: number;
-  totalExcludedFiles: number;
-  totalExcludedDirs: number;
-  fatalErrorCount: number;
-  ignoredErrorCount: number;
-  estimatedFiles: number;
-  currentDirectory: string;
-}
-
 /**
  * One entry of a task's counter map. Kotlin emits Go's shape — an open map of named counters, each
  * with its own unit — rather than a fixed struct, so new counters appear without a wire change.
@@ -241,8 +225,17 @@ export interface WebSourceStatus {
   /** Why the last backup ended without a snapshot; absent when the last one succeeded. */
   lastError?: string;
   lastErrorTimeEpochMs?: number;
-  uploadCounters?: WebUploadCounters;
-  currentTaskId?: string;
+  /**
+   * The counters of the run named by `currentTaskId`, absent until that run has some to report.
+   * Go's named map, the same shape and vocabulary as WebTaskInfo.counters — not a second fixed
+   * struct, which is what this field used to be and why it silently carried nothing.
+   *
+   * Explicitly `| null`: the bridge encodes defaults, so an idle source really does send
+   * `"uploadCounters": null` rather than omitting the key.
+   */
+  uploadCounters?: Record<string, WebTaskCounter> | null;
+  /** The task uploading this source right now; the handle the progress sheet opens on. */
+  currentTaskId?: string | null;
   snapshotCount: number;
   totalFileSize: number;
 }

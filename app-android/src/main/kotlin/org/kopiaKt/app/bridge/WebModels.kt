@@ -3,6 +3,7 @@ package org.kopiaKt.app.bridge
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.kopiaKt.android.worker.TaskCounterValue
 import org.kopiaKt.android.worker.TaskKind
 import org.kopiaKt.app.domain.model.ConnectionConfig
 import org.kopiaKt.app.domain.model.FileEntry
@@ -449,7 +450,14 @@ data class WebSourceStatus(
     val source: WebSourceInfo,
     val status: String,
     val lastBackupTimeEpochMs: Long? = null,
+    /** The task uploading this source right now, for the dashboard to open its progress sheet on. */
     val currentTaskId: String? = null,
+    /**
+     * That task's live counters, in Go's named map — the same vocabulary the Tasks screen and the
+     * progress sheet read, rather than a second fixed struct that would have to be kept in step with
+     * it. Null until a run in progress has counters to report, never an empty map.
+     */
+    val uploadCounters: Map<String, WebTaskCounterValue>? = null,
     val snapshotCount: Int = 0,
     val totalFileSize: Long = 0,
     /** Why the last backup ended without a snapshot; null when the last one succeeded. */
@@ -612,7 +620,15 @@ internal fun localSnapshotSourceInfo(
     )
 }
 
-fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
+/**
+ * @param runningTask the task uploading this source, or null if none is. Not read off [SourceInfo]:
+ *   the source records only the task's id, and resolving it needs the TaskManager this file has no
+ *   access to. Deliberately has no default — the join is the whole point of the field, and a
+ *   forgotten argument would silently go back to a dashboard that shows no progress at all.
+ */
+fun org.kopiaKt.android.worker.SourceInfo.toWebStatus(
+    runningTask: org.kopiaKt.android.worker.TaskInfo?,
+) = WebSourceStatus(
     id = id,
     // Parsed from the id rather than recomputed: the id is what everything else keys on, and
     // rebuilding the triple beside it is how these two drifted apart in the first place.
@@ -622,11 +638,22 @@ fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
         ).toWeb(),
     status = status.name,
     lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
+    currentTaskId = runningTask?.id,
+    // Nothing rather than an empty map: a task reports no counters until its first progress
+    // publish, and the dashboard treats "has counters" as "has something to show" -- an empty map
+    // would draw a full, static bar under a caption reading "0 B" for the opening seconds of every
+    // backup, which reads as finished or stuck rather than as starting.
+    uploadCounters = runningTask?.counters?.takeIf { it.isNotEmpty() }?.toWeb(),
     snapshotCount = 0,
     totalFileSize = 0,
     lastError = lastError,
     lastErrorTimeEpochMs = lastErrorTime?.toEpochMilli(),
 )
+
+/** Go's counter map on the wire. Shared so a source's live counters and a task's cannot diverge. */
+fun Map<String, TaskCounterValue>.toWeb(): Map<String, WebTaskCounterValue> = mapValues { (_, v) ->
+    WebTaskCounterValue(value = v.value, units = v.units, level = v.level)
+}
 
 fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(
     id = id,
@@ -642,9 +669,7 @@ fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(
     description = description,
     status = status.name,
     progressInfo = progressInfo,
-    counters = counters.mapValues { (_, v) ->
-        WebTaskCounterValue(value = v.value, units = v.units, level = v.level)
-    },
+    counters = counters.toWeb(),
     errorMessage = errorMessage,
     startTimeEpochMs = startTime.toEpochMilli(),
     endTimeEpochMs = endTime?.toEpochMilli(),

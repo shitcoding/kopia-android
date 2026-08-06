@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatFileSize, formatRelativeTime } from "@/lib/format";
+import { formatFileSize, formatRelativeTime, uploadProgressPercent } from "@/lib/format";
 import type { WebSourceStatus } from "@/types/kopia";
 import { useSources, useStartBackup, useDeleteSource } from "@/hooks/useBackupApi";
 import BackupProgressSheet from "@/components/BackupProgressSheet";
@@ -135,21 +135,12 @@ const SourcesDashboardScreen = () => {
               // Native's id, never a locally rebuilt user@host:path — see WebSourceStatus.id.
               const sid = src.id;
               const badge = STATUS_BADGE[src.status] ?? UNKNOWN_BADGE;
-              // Processed (hashed + cached), not Uploaded, and capped at 99 while the run is live --
-              // the same basis as the Tasks screen and the progress sheet. "Uploaded Bytes" is what
-              // actually went to storage after dedup and compression, so an incremental run that
-              // mostly cached would sit near 0% and then jump to done; and reaching the estimate is
-              // not finishing, because the manifest still has to be written, flushed and retained.
+              // The same counters, on the same basis, as the Tasks screen and the progress sheet --
+              // one run cannot report two different numbers depending on where you look at it.
               const counters = src.uploadCounters;
-              const uploadProgress = counters
-                ? Math.min(
-                    99,
-                    Math.round(
-                      ((counters.totalHashedBytes + counters.totalCachedBytes) /
-                        Math.max(counters.estimatedBytes, 1)) * 100,
-                    ),
-                  )
-                : 0;
+              const processed = counters?.["Processed Bytes"]?.value ?? 0;
+              const estimated = counters?.["Estimated Bytes"]?.value ?? 0;
+              const uploadProgress = uploadProgressPercent(counters);
 
               return (
                 <div
@@ -180,13 +171,17 @@ const SourcesDashboardScreen = () => {
                       <p className="text-xs text-muted-foreground truncate">{src.source.path}</p>
 
                       {/* Upload progress */}
-                      {src.status === "UPLOADING" && src.uploadCounters && (
+                      {src.status === "UPLOADING" && counters && (
                         <div className="mt-2">
+                          {/* Full width until there is an estimate to divide by, like the sheet:
+                              a run that has not measured itself yet is working, not at 0%. */}
                           <div className="progress-bar">
-                            <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+                            <div className="progress-fill" style={{ width: `${uploadProgress ?? 100}%` }} />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatFileSize(src.uploadCounters.totalHashedBytes + src.uploadCounters.totalCachedBytes)} / {formatFileSize(src.uploadCounters.estimatedBytes)}
+                            {estimated > 0
+                              ? `${formatFileSize(processed)} / ${formatFileSize(estimated)}`
+                              : formatFileSize(processed)}
                           </p>
                         </div>
                       )}
