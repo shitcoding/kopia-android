@@ -86,7 +86,15 @@ class WebDavBlobStorage private constructor(
         ): WebDavBlobStorage = withContext(Dispatchers.IO) {
             requireSupportedOptions(options)
             val client = createClient(options)
-            val shardingParams = loadOrCreateShardingParams(client, options, isCreate)
+            val shardingParams = try {
+                loadOrCreateShardingParams(client, options, isCreate)
+            } catch (t: Throwable) {
+                // Nothing else owns the client on this path, and callers only ever close a storage
+                // they were handed -- so a failure here would strand its connection pool. This is
+                // the wrong-credentials path, which Test Connection invites users to hit repeatedly.
+                client.shutdown()
+                throw t
+            }
             WebDavBlobStorage(client, options, shardingParams, readOnly)
         }
 
@@ -157,12 +165,18 @@ class WebDavBlobStorage private constructor(
                         maxNonShardedLength = options.maxNonShardedLength,
                     )
 
-                    // Try to persist the parameters (may fail if read-only)
-                    try {
-                        val content = json.encodeToString(ShardingParameters.serializer(), params)
-                        client.put(shardsUrl, content.toByteArray(Charsets.UTF_8))
-                    } catch (_: Exception) {
-                        // Ignore errors when persisting - it's not critical
+                    // Persist ONLY when legitimately creating the repository, matching SFTP.
+                    // Opening must not write: the open-time guess is [3,3] and the create-time
+                    // default is [1,3], so persisting it here would silently decide the layout of a
+                    // repository that does not exist yet -- and merely testing a connection would
+                    // leave a file on a server the user may never adopt.
+                    if (isCreate) {
+                        try {
+                            val content = json.encodeToString(ShardingParameters.serializer(), params)
+                            client.put(shardsUrl, content.toByteArray(Charsets.UTF_8))
+                        } catch (_: Exception) {
+                            // Ignore errors when persisting - it's not critical
+                        }
                     }
 
                     params

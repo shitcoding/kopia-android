@@ -140,6 +140,14 @@ class KopiaWebBridge private constructor(
 
         // Safety net so an unreachable backend can't hang the connect/create coroutine indefinitely.
         const val NETWORK_TIMEOUT_MS = 120_000L
+
+        /**
+         * Test Connection gets a tighter budget than connect/create. The user is watching a spinner
+         * and wants to know whether their details are right, so a slow "no" is nearly as useless as
+         * a wrong "yes" -- and the retry wrapper can otherwise spend most of a two-minute budget on
+         * backoff before surfacing anything.
+         */
+        const val TEST_CONNECTION_TIMEOUT_MS = 30_000L
         const val MILLIS_PER_SECOND = 1000L
     }
 
@@ -371,73 +379,93 @@ class KopiaWebBridge private constructor(
     )
 
     /**
-     * Test whether the given storage configuration is reachable and writable.
-     * For local filesystem paths, validates existence, creates the directory if needed,
-     * and performs an actual write/delete test.
+     * Test whether the given storage configuration is usable.
+     *
+     * Returns immediately; the verdict arrives on `window.__kopiaTestConnectionCallback`, the same
+     * shape [connect] uses. This has to be asynchronous: a `@JavascriptInterface` method blocks the
+     * calling JS thread until it returns, and this one now talks to the network — so doing it inline
+     * would freeze the whole WebView for as long as a dead host takes to time out, which is exactly
+     * the case the button exists to detect.
+     *
      * @param configJson JSON-encoded WebConnectionConfig
-     * @return JSON-encoded WebResult<String> ("OK" on success)
+     * @return JSON-encoded WebResult<String> ("testing" — an acknowledgement, not the verdict)
      */
     @JavascriptInterface
     fun testStorageConnection(configJson: String): String {
-        return runBlocking {
-            try {
-                val config = json.decodeFromString<WebConnectionConfig>(configJson)
-                val domainConfig = config.toDomain()
-                when (domainConfig) {
-                    is org.kopiaKt.app.domain.model.ConnectionConfig.LocalFilesystem -> {
-                        val dir = java.io.File(domainConfig.path)
-                        if (!dir.exists()) {
-                            if (!dir.mkdirs()) {
-                                return@runBlocking json.encodeToString(
-                                    WebResult.error<String>("Directory does not exist and cannot be created: ${domainConfig.path}"),
-                                )
-                            }
-                        }
-                        if (!dir.isDirectory) {
-                            return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Path is not a directory: ${domainConfig.path}"),
-                            )
-                        }
-                        if (!dir.canWrite()) {
-                            return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Directory is not writable: ${domainConfig.path}"),
-                            )
-                        }
-                        val testFile = java.io.File(dir, ".kopia-test-${System.currentTimeMillis()}")
-                        try {
-                            testFile.writeText("test")
-                            testFile.delete()
-                        } catch (e: Exception) {
-                            return@runBlocking json.encodeToString(
-                                WebResult.error<String>("Cannot write to directory: ${e.message}"),
-                            )
-                        }
-                        json.encodeToString(WebResult.success("OK"))
-                    }
-                    // Remote backends are not actually contacted here, but the cleartext policy must
-                    // still apply: otherwise Test Connection reports "OK" for an unacknowledged http://
-                    // endpoint that the connect layer will refuse, and the create wizard would wave the
-                    // user past a configuration that leaks credentials.
-                    else -> {
-                        validateRemoteConfig(domainConfig)
-                        json.encodeToString(WebResult.success("OK"))
-                    }
-                }
-            } catch (e: Exception) {
-                json.encodeToString(WebResult.error<String>(e.message ?: "Invalid configuration"))
+        scope.launch(Dispatchers.IO) {
+            val result = probeStorageConnection(configJson)
+            pushCallback("window.__kopiaTestConnectionCallback", json.encodeToString(result))
+        }
+        return json.encodeToString(WebResult.success("testing"))
+    }
+
+    /**
+     * Decides the Test Connection verdict. Separated from [testStorageConnection] so the decision is
+     * reachable by tests without a WebView to push a callback into; the bridge method is only the
+     * async wrapper around it.
+     */
+    internal suspend fun probeStorageConnection(configJson: String): WebResult<String> = try {
+        val config = json.decodeFromString<WebConnectionConfig>(configJson)
+        when (val domainConfig = config.toDomain()) {
+            is org.kopiaKt.app.domain.model.ConnectionConfig.LocalFilesystem ->
+                probeLocalDirectory(domainConfig.path)
+
+            // Remote backends are contacted for real. Config validation alone cannot tell a
+            // working endpoint from a dead one or a good secret key from a typo, and the
+            // wizard gates its Next button on this answer -- so reporting "OK" without
+            // asking the server was telling the user something we had not checked.
+            else -> {
+                validateRemoteConfig(domainConfig)
+                withTimeout(TEST_CONNECTION_TIMEOUT_MS) {
+                    repositoryManager.testConnection(domainConfig)
+                }.fold(
+                    onSuccess = { WebResult.success("OK") },
+                    onFailure = { WebResult.error(it.message ?: "Connection failed") },
+                )
             }
+        }
+    } catch (ignored: TimeoutCancellationException) {
+        // withTimeout's exception IS a CancellationException, so it must be caught before the
+        // rethrow below or the user is told nothing at all.
+        WebResult.error(
+            "Connection timed out after ${TEST_CONNECTION_TIMEOUT_MS / MILLIS_PER_SECOND}s",
+        )
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        WebResult.error(e.message ?: "Invalid configuration")
+    }
+
+    /** A local destination is probed by actually writing and deleting a file in it. */
+    private fun probeLocalDirectory(path: String): WebResult<String> {
+        val dir = java.io.File(path)
+        if (!dir.exists() && !dir.mkdirs()) {
+            return WebResult.error("Directory does not exist and cannot be created: $path")
+        }
+        if (!dir.isDirectory) {
+            return WebResult.error("Path is not a directory: $path")
+        }
+        if (!dir.canWrite()) {
+            return WebResult.error("Directory is not writable: $path")
+        }
+        val testFile = java.io.File(dir, ".kopia-test-${System.currentTimeMillis()}")
+        return try {
+            testFile.writeText("test")
+            testFile.delete()
+            WebResult.success("OK")
+        } catch (e: Exception) {
+            WebResult.error("Cannot write to directory: ${e.message}")
         }
     }
 
     /**
-     * Applies the config-level policies a remote backend must satisfy before Test Connection may report
-     * success. Remote backends are not actually contacted here, so without this the test would report
-     * "OK" for a configuration the connect layer then refuses — waving the create wizard past a
-     * credential-leaking or malformed setup.
+     * Applies the config-level policies a remote backend must satisfy before it is worth contacting.
      *
-     * Checks the cleartext acknowledgment (the same gate the connect layer enforces) and the
-     * well-formedness of any TLS trust material, so a malformed CA or pin is reported here rather than
-     * only surfacing later at connect/create. Non-remote configs are unaffected.
+     * The connect layer enforces the cleartext gate itself, so this is not the only thing standing
+     * between the user and a plaintext endpoint — but running it first means a refusal is reported
+     * as the policy violation it is, rather than as whatever network error came back, and malformed
+     * TLS trust material is named here instead of surfacing as an opaque handshake failure.
+     * Non-remote configs are unaffected.
      */
     private fun validateRemoteConfig(config: org.kopiaKt.app.domain.model.ConnectionConfig) {
         when (config) {

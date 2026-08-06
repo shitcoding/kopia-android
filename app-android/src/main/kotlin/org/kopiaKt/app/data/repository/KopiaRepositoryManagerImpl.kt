@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import org.kopiaKt.android.identity.SourceIdentityStore
 import org.kopiaKt.android.storage.SafBlobStorage
@@ -49,6 +50,13 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     private companion object {
         /** Length in bytes of the repository secret and master key (256-bit). */
         const val REPOSITORY_KEY_SIZE_BYTES = 32
+
+        /**
+         * Prefix used by [testConnection]'s read probe. Only the repository-level blobs
+         * (`kopia.repository`, `kopia.blobcfg`) carry it -- never pack or index blobs -- so listing
+         * it is one cheap round trip whether or not a repository exists at the destination yet.
+         */
+        const val FORMAT_BLOB_PREFIX = "kopia."
     }
 
     /**
@@ -182,6 +190,28 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             throw e
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e.message ?: "Repository creation failed")
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun testConnection(config: ConnectionConfig): Result<Unit> = withContext(Dispatchers.IO) {
+        // Deliberately does NOT touch _connectionState or closeCurrent(): testing a candidate
+        // configuration must not disturb a repository the user already has open.
+        try {
+            val storage = createBlobStorage(config)
+            try {
+                // Constructing the storage already authenticates on every backend, but it does not
+                // prove the credentials carry read access to this bucket/path. One narrow listing
+                // does, and costs a single round trip: `kopia.` matches the format blob and nothing
+                // else, and an empty result is still a successful list.
+                storage.listBlobs(FORMAT_BLOB_PREFIX).firstOrNull()
+            } finally {
+                storage.close()
+            }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

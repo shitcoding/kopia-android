@@ -197,9 +197,9 @@ function callBridgeVoid(method: string, arg?: unknown): void {
  * So a call is refused while one is outstanding, which is also what the UI expects (one connect at a
  * time). Each entry is cleared when its native result arrives.
  */
-const inFlightSingleSlot = new Set<"connect" | "createRepository">();
+const inFlightSingleSlot = new Set<"connect" | "createRepository" | "testStorageConnection">();
 
-function beginSingleSlot(slot: "connect" | "createRepository"): void {
+function beginSingleSlot(slot: "connect" | "createRepository" | "testStorageConnection"): void {
   if (inFlightSingleSlot.has(slot)) {
     throw new BridgeError(`${slot}() is already in progress`);
   }
@@ -478,7 +478,36 @@ export async function createRepository(request: CreateRepositoryRequest): Promis
 }
 
 export async function testStorageConnection(config: ConnectionConfig): Promise<string> {
-  return callBridge<string>("testStorageConnection", config);
+  if (typeof window.KopiaBridge === "undefined") throw new BridgeError("KopiaBridge not available");
+
+  // Callback pattern, not a plain call: the native side now contacts the server, and a
+  // @JavascriptInterface method blocks this thread until it returns -- so calling it directly
+  // would freeze the UI for as long as a dead host takes to time out.
+  return new Promise<string>((resolve, reject) => {
+    beginSingleSlot("testStorageConnection");
+
+    (window as any).__kopiaTestConnectionCallback = (resultJson: string) => {
+      inFlightSingleSlot.delete("testStorageConnection");
+      try {
+        const parsed = JSON.parse(resultJson) as { success: boolean; data?: string; error?: string };
+        if (parsed.success) resolve(parsed.data ?? "OK");
+        else reject(new BridgeError(parsed.error ?? "Connection failed"));
+      } catch (error) {
+        reject(error);
+      } finally {
+        delete (window as any).__kopiaTestConnectionCallback;
+      }
+    };
+
+    try {
+      // Returns an acknowledgement immediately; the verdict arrives on the callback above.
+      window.KopiaBridge!.testStorageConnection(JSON.stringify(config));
+    } catch (error) {
+      inFlightSingleSlot.delete("testStorageConnection");
+      delete (window as any).__kopiaTestConnectionCallback;
+      reject(error);
+    }
+  });
 }
 
 export async function getAllSourceStatuses(): Promise<WebSourceStatus[]> {
