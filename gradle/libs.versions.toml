@@ -130,7 +130,10 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 # AWS S3
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws" }
 aws-url-connection = { module = "software.amazon.awssdk:url-connection-client", version.ref = "aws" }
-stax-api = { module = "javax.xml.stream:stax-api", version = "1.0-2" }
+# Apache-2.0 StAX 1.0 API. Android has no javax.xml.stream and woodstox needs those classes,
+# so this cannot simply be dropped -- but javax.xml.stream:stax-api is dual CDDL-1.0/GPLv2,
+# which has no business in the APK of an Apache-2.0 app. Same package, same API surface.
+stax-api = { module = "org.apache.geronimo.specs:geronimo-stax-api_1.0_spec", version = "1.0.1" }
 woodstox-core = { module = "com.fasterxml.woodstox:woodstox-core", version = "6.7.0" }
 
 # Storage backends
