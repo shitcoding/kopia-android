@@ -44,10 +44,12 @@ closing the UI is fine, the notification keeps it going — but if that process 
 system reclaiming memory or by the phone's own app-killing, the backup ends there. It does not pick
 itself back up: you start it again. What it does not do any more is redo the work. Every few minutes
 the run writes the half-finished directory tree into the repository as an incomplete snapshot, so the
-next attempt reads that back and carries on from it — files already uploaded are not re-read, not
-re-hashed, and not re-uploaded, and neither is the already-transferred part of a large file. Nothing
-partial is ever mistaken for a finished file: checkpointed files are stored under a name no later run
-looks up, and every partial directory is marked as such.
+next attempt reads that back and carries on from it — files already finished are not re-read, not
+re-hashed, and not re-uploaded. A file that was only part-way through when the run died is treated
+less kindly: the next attempt re-reads and re-hashes it from the start, but the chunks that already
+reached the repository are recognised as present and not sent again, so the cost is local work
+rather than upload. Nothing partial is ever mistaken for a finished file: checkpointed files are
+stored under a name no later run looks up, and every partial directory is marked as such.
 
 Treat this as a companion to a desktop Kopia install, not a replacement for it — the phone still
 depends on the desktop for maintenance.
@@ -80,11 +82,15 @@ compatibility — see [Compatibility](#compatibility).
    Android's encrypted preferences so you do not retype it.
 4. **Browse.** Snapshots are grouped by source. Open one to walk its directory tree.
 5. **Restore.** Select files or directories, choose a destination folder through the system picker,
-   and confirm. Progress is reported per file, and the restore can be cancelled.
+   and confirm. Progress is reported as files and bytes completed — not as the name of the file
+   currently being written — and the restore can be cancelled.
 6. **Back up.** Add a source — a folder picked with the system picker, or a path under shared
-   storage — and optionally set its policy. Then pick *Back Up Now* from that source's menu on the
-   dashboard. A notification shows progress and offers *Cancel*. The snapshot is written under the
-   phone's own source identity, and the source's retention policy is applied as soon as it is saved.
+   storage — and optionally set its policy. Note that the wizard pre-fills two exclusions, `*.tmp`
+   and `.cache/**`; they are shown in the editable exclusions box and again on the review step, so
+   clear them there if you want everything backed up. Then pick *Back Up Now* from that source's
+   menu on the dashboard. A notification shows progress and offers *Cancel*. The snapshot is written under the
+   phone's own source identity. Saving a retention policy only records it; it is enforced after each
+   backup of that source, so a policy you tighten takes effect on the next run, not immediately.
 
 ## Features
 
@@ -139,6 +145,9 @@ universal access disabled, navigation confined to the bundled document, and a st
 - Android 8.0+ (API 26)
 - JDK 21 (the `core`/`snapshot`/`storage` modules use a JDK 21 toolchain; Gradle can provision it)
 - Node.js — the React UI is built during the Android build and is not committed
+- The Android SDK, with platform 35 installed, to build the app itself. Point `ANDROID_HOME` at it
+  or put its path in `local.properties` (untracked). The pure-JVM modules (`core`, `snapshot`,
+  `storage`) build and test without it.
 
 ## Build
 
