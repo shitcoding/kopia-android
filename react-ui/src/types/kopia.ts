@@ -235,8 +235,8 @@ export interface WebSourceStatus {
    */
   id: string;
   source: SourceInfo;
-  status: "IDLE" | "UPLOADING" | "PAUSED" | "FAILED" | "SCHEDULED";
-  nextBackupTimeEpochMs?: number;
+  /** Mirrors the native SourceStatus enum exactly; FAILED and SCHEDULED never existed there. */
+  status: "IDLE" | "UPLOADING" | "PAUSED";
   lastBackupTimeEpochMs?: number;
   uploadCounters?: WebUploadCounters;
   currentTaskId?: string;

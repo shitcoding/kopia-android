@@ -6,7 +6,6 @@ import {
   Loader2,
   MoreVertical,
   Play,
-  Pause,
   Eye,
   FileEdit,
   Trash2,
@@ -33,25 +32,26 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { formatFileSize, formatRelativeTime } from "@/lib/format";
 import type { WebSourceStatus } from "@/types/kopia";
-import { useSources, useStartBackup, usePauseSource, useResumeSource, useDeleteSource } from "@/hooks/useBackupApi";
+import { useSources, useStartBackup, useDeleteSource } from "@/hooks/useBackupApi";
 import BackupProgressSheet from "@/components/BackupProgressSheet";
 import EstimationDialog from "@/components/EstimationDialog";
 
+// Only what the native SourceStatus enum can emit. It previously also listed SCHEDULED and FAILED,
+// which no code path could ever produce. PAUSED stays because a source persisted by an older build
+// can still carry it, but nothing sets it any more -- see the Pause control's removal.
 const STATUS_BADGE: Record<WebSourceStatus["status"], { label: string; className: string }> = {
   IDLE: { label: "Idle", className: "bg-muted text-muted-foreground" },
   UPLOADING: { label: "Uploading", className: "bg-primary/15 text-primary" },
-  SCHEDULED: { label: "Scheduled", className: "bg-green-500/15 text-green-700 dark:text-green-300" },
   PAUSED: { label: "Paused", className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300" },
-  FAILED: { label: "Failed", className: "bg-destructive/15 text-destructive" },
 };
+
+const UNKNOWN_BADGE = { label: "Unknown", className: "bg-muted text-muted-foreground" };
 
 const SourcesDashboardScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: sources = [], isLoading } = useSources();
   const startBackup = useStartBackup();
-  const pauseSource = usePauseSource();
-  const resumeSource = useResumeSource();
   const deleteSource = useDeleteSource();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [progressTaskId, setProgressTaskId] = useState<string | null>(null);
@@ -63,20 +63,6 @@ const SourcesDashboardScreen = () => {
       // sheet on it rather than dropping it and showing a toast that says nothing.
       onSuccess: (taskId) => setProgressTaskId(taskId),
       onError: (err) => toast({ title: "Failed to start backup", description: String(err), variant: "destructive" }),
-    });
-  };
-
-  const handlePause = (sid: string) => {
-    pauseSource.mutate(sid, {
-      onSuccess: () => toast({ title: "Source paused" }),
-      onError: (err) => toast({ title: "Failed to pause source", description: String(err), variant: "destructive" }),
-    });
-  };
-
-  const handleResume = (sid: string) => {
-    resumeSource.mutate(sid, {
-      onSuccess: () => toast({ title: "Source resumed" }),
-      onError: (err) => toast({ title: "Failed to resume source", description: String(err), variant: "destructive" }),
     });
   };
 
@@ -149,7 +135,7 @@ const SourcesDashboardScreen = () => {
             {sources.map((src, index) => {
               // Native's id, never a locally rebuilt user@host:path — see WebSourceStatus.id.
               const sid = src.id;
-              const badge = STATUS_BADGE[src.status];
+              const badge = STATUS_BADGE[src.status] ?? UNKNOWN_BADGE;
               // Processed (hashed + cached), not Uploaded, and capped at 99 while the run is live --
               // the same basis as the Tasks screen and the progress sheet. "Uploaded Bytes" is what
               // actually went to storage after dedup and compression, so an incremental run that
@@ -235,15 +221,6 @@ const SourcesDashboardScreen = () => {
                         <DropdownMenuItem onClick={() => setEstimateSourceId(sid)}>
                           <BarChart3 className="w-4 h-4 mr-2" /> Estimate
                         </DropdownMenuItem>
-                        {src.status === "PAUSED" ? (
-                          <DropdownMenuItem onClick={() => handleResume(sid)}>
-                            <Play className="w-4 h-4 mr-2" /> Resume
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handlePause(sid)}>
-                            <Pause className="w-4 h-4 mr-2" /> Pause
-                          </DropdownMenuItem>
-                        )}
                         <DropdownMenuItem onClick={() => setDeleteTarget(sid)} className="text-destructive focus:text-destructive">
                           <Trash2 className="w-4 h-4 mr-2" /> Delete Source
                         </DropdownMenuItem>

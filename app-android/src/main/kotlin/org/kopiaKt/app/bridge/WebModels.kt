@@ -448,7 +448,6 @@ data class WebSourceStatus(
     val id: String,
     val source: WebSourceInfo,
     val status: String,
-    val nextBackupTimeEpochMs: Long? = null,
     val lastBackupTimeEpochMs: Long? = null,
     val currentTaskId: String? = null,
     val snapshotCount: Int = 0,

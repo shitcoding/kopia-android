@@ -119,7 +119,6 @@ MANIFEST=(
   "full_e2e_flow|restore"
   "restore_roundtrip|roundtrip"
   "backup_run_local|backup"
-  "backup_source_controls|backup"
   "backup_policy_ignore|backup"
   "backup_retention|backup"
   "backup_task_survives_recreation|backup"
