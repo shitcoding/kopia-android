@@ -128,17 +128,66 @@ hh_preflight() {
 # grep of THIS attempt's maestro log for "isn't responding"; this is the secondary live probe. EVERY adb
 # call is bounded by $TIMEOUT_BIN because a wedged guest can hang logcat/dumpsys too - if no timeout
 # binary is available we cannot probe safely, so we return 1 and let the caller's log-grep decide.
+# Package of the app under test. ANR evidence from any OTHER process says nothing about this flow.
+: "${HH_APP_ID:=org.kopiaKt.app}"
+
+# Maestro prints "<step description>... FAILED" for the step that actually failed, then explains why.
+# Echoes that step's description, or nothing when the log records no explicit step failure - a run
+# killed mid-flight simply stops, leaving no verdict.
+#
+# Takes the FIRST such line, not the last. Maestro unwinds nested flows outwards, so a failure inside
+# a `runFlow` or `repeat` prints the assertion first and then each enclosing wrapper:
+#     Assert that ".*Backup Progress.*" is visible... FAILED
+#     Repeat 3 times... FAILED
+# Every backup flow is nested like this, so taking the last line would name "Repeat 3 times" or
+# "Run flows/_backup_prepare.yaml" for precisely the flows this exists to diagnose. Maestro stops at
+# the first failure, so the first line is always the deepest and only real one.
+hh_maestro_failing_step() {
+    local logf="${1:-}"
+    [ -f "$logf" ] || return 0
+    # Anchored: a selector string containing "... FAILED" must not be mistaken for a step verdict.
+    grep -aE '\.\.\. FAILED[[:space:]]*$' "$logf" 2>/dev/null | head -1 \
+        | sed -e 's/\.\.\. FAILED[[:space:]]*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+# True when maestro reached a specific step and failed it, with no not-responding dialog in its own
+# log. That is a verdict about the app, and it must NEVER be relabelled as emulator degradation.
+#
+# This is the guard the classifier lacked: a flow could fail the same assertion on every attempt,
+# with no ANR text anywhere, and still be reported "not a code failure" - so the backup category
+# could not surface a red at all, and a flow bug was blamed on a degraded host for two sessions.
+hh_flow_failed_deterministically() {
+    local logf="${1:-}"
+    [ -f "$logf" ] || return 1
+    # The dialog appearing in maestro's own log is direct evidence the guest wedged; the step failure
+    # is then a consequence of it, not a verdict about the app.
+    grep -qiE "isn't responding" "$logf" 2>/dev/null && return 1
+    [ -n "$(hh_maestro_failing_step "$logf")" ]
+}
+
 hh_detect_anr() {
     local serial="$1"
     [ -n "${TIMEOUT_BIN:-}" ] || return 1
-    # 1. Recent, specific ANR markers (tight filter + small window to avoid stale/unrelated noise).
+    # 1. Recent ANR markers FOR THE APP UNDER TEST. Unscoped, this fired on any background process
+    #    the emulator happened to stall - system_server, the launcher, GMS - none of which say
+    #    anything about the flow that just failed.
     "$TIMEOUT_BIN" 8 adb -s "$serial" logcat -d -b events -b system -t 200 2>/dev/null \
-        | grep -qE 'am_anr|ANR in' && return 0
-    # 2. A process explicitly reported not-responding right now.
+        | grep -aE 'am_anr|ANR in' | grep -qF "$HH_APP_ID" && return 0
+    # 2. The app under test explicitly reported not-responding right now.
     "$TIMEOUT_BIN" 8 adb -s "$serial" shell dumpsys activity processes 2>/dev/null \
-        | grep -qi "not responding" && return 0
-    # 3. Live responsiveness probe: wake, then a cheap activity query must answer within the timeout.
-    # Both adb calls are time-boxed (TIMEOUT_BIN is guaranteed set here - see the early return above).
+        | grep -iB2 -A2 "not responding" | grep -qF "$HH_APP_ID" && return 0
+    # 3. Deliberately NOT an ANR check. A `cmd activity top` timeout means the HOST is slow, which a
+    #    loaded emulator does routinely; treating it as an ANR let host load rewrite a genuine test
+    #    failure into "infrastructure". Host slowness is reported by hh_preflight and should widen
+    #    timeouts or re-run - never relabel a result. See hh_host_unresponsive.
+    return 1
+}
+
+# Separate, honest signal: is the guest answering at all? Used for diagnostics and recovery
+# decisions, never to classify a flow's outcome.
+hh_host_unresponsive() {
+    local serial="$1"
+    [ -n "${TIMEOUT_BIN:-}" ] || return 1
     "$TIMEOUT_BIN" 6 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
     "$TIMEOUT_BIN" 6 adb -s "$serial" shell cmd activity top >/dev/null 2>&1 || return 0
     return 1

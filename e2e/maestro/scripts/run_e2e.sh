@@ -481,8 +481,24 @@ backup_verify_args() {
         # it per-attempt means a genuine regression on the FINAL attempt is reported as FAIL even if an
         # earlier attempt ANR'd. Cold-boot before the next retry (within the ANR recovery budget).
         anr_infra=0
-        if [ -z "$EXPECT_FAIL" ] && { grep -qiE "isn't responding" "$logf" 2>/dev/null || hh_detect_anr "$serial"; }; then
+        # A maestro log that names the step it failed on is a VERDICT ABOUT THE APP, and it outranks
+        # every ANR heuristic. Without this the classifier could - and did - relabel a flow that
+        # failed the same assertion on every attempt as "not a code failure", which left the whole
+        # backup category unable to report a red (task-41).
+        if hh_flow_failed_deterministically "$logf"; then
+            log "  $name failed at: $(hh_maestro_failing_step "$logf")"
+        elif [ -z "$EXPECT_FAIL" ] && { grep -qiE "isn't responding" "$logf" 2>/dev/null || hh_detect_anr "$serial"; }; then
             anr_infra=1
+        elif [ -z "$EXPECT_FAIL" ] && hh_host_unresponsive "$serial"; then
+            # The guest is not answering at all, but nothing identified it as an ANR of THIS app, so
+            # the result stays whatever the evidence says (usually a timed-out FAIL). Recovery is a
+            # separate decision from classification: without a cold-boot here every remaining flow
+            # runs against the same corpse. Host slowness must fix the emulator, never the verdict.
+            warn "  $name: guest not responding - cold-booting before the next attempt (result unchanged)."
+            if [ "$i" -lt "$attempts" ] && [ "$RECOVERIES_DONE" -lt "$E2E_MAX_RECOVERIES" ]; then
+                RECOVERIES_DONE=$((RECOVERIES_DONE + 1))
+                restart_avd "$serial" "unresponsive guest during $name" || { warn "  recovery cold-boot failed; emulator likely unusable - stopping retries for $name."; break; }
+            fi
             if [ "$i" -lt "$attempts" ]; then
                 if [ "$RECOVERIES_DONE" -lt "$E2E_MAX_RECOVERIES" ]; then
                     # Count the recovery ATTEMPT against the budget (success or not) so repeated failed
@@ -507,8 +523,9 @@ backup_verify_args() {
         # Mutation mode: the feature is deliberately broken, so we WANT this flow to fail - but only a
         # genuine assertion failure counts. A TIMEOUT (infra) is NOT proof the flow caught the break.
         # Always run a clean baseline pass FIRST and verify the failure reason in the artifacts.
-        local timed_out=0
+        local timed_out=0 mut_step
         case "$rc" in 124|137|143) timed_out=1 ;; esac
+        mut_step="$(hh_maestro_failing_step "$logf")"
         # For restore/roundtrip, the on-disk byte verifier is part of "did the flow pass" - consult it
         # so a mutation that corrupts data (UI still shows "Restore Complete") counts as MUT-OK, not
         # MUT-LEAK. Only when the UI itself passed (rc=0) and it wasn't an infra timeout.
@@ -528,10 +545,19 @@ backup_verify_args() {
             RESULTS+=("$name|MUT-INCONCLUSIVE|timed out$mark - not proof the flow detected the break; rerun")
             capture_artifacts "$serial" "$name"
             warn "MUT-INCONCLUSIVE $name - timed out; confirm a clean baseline first, then rerun."
-        elif [ "$rc" -ne 0 ]; then
-            RESULTS+=("$name|MUT-OK|failed on broken build$mark - verify reason in artifacts")
+        elif [ "$rc" -ne 0 ] && ! hh_flow_failed_deterministically "$logf" \
+             && [ "$cat" != "restore" ] && [ "$cat" != "roundtrip" ] && [ "$cat" != "backup" ]; then
+            # It failed, but maestro never named a step -- an ANR or a crash, not the flow catching
+            # the break. Claiming MUT-OK here would certify a flow as regression-proof on evidence
+            # it never produced. (The byte-verifier categories are exempt: there rc can be set by
+            # the verifier above, with the UI having passed and named nothing.)
+            RESULTS+=("$name|MUT-INCONCLUSIVE|failed with no failing step recorded$mark - ANR/crash, not proof the flow detected the break; rerun")
             capture_artifacts "$serial" "$name"
-            log "MUT-OK $name - flow FAILED on the broken build (confirm the failure reason in artifacts)."
+            warn "MUT-INCONCLUSIVE $name - failed without naming a step; rerun on a healthy emulator."
+        elif [ "$rc" -ne 0 ]; then
+            RESULTS+=("$name|MUT-OK|failed on broken build$mark${mut_step:+ at: $mut_step} - verify reason in artifacts")
+            capture_artifacts "$serial" "$name"
+            log "MUT-OK $name - flow FAILED on the broken build${mut_step:+ at: $mut_step} (confirm the failure reason in artifacts)."
         else
             RESULTS+=("$name|MUT-LEAK|passed on broken build (FALSE PASS!)")
             capture_artifacts "$serial" "$name"
@@ -570,13 +596,17 @@ backup_verify_args() {
     elif [ "$anr_infra" -eq 1 ]; then
         # The guest was wedged (ANR), not the feature broken - record INFRA so degradation never
         # masquerades as a code regression. Recovery was attempted; see health.log + the maestro log.
-        RESULTS+=("$name|INFRA|emulator ANR/degradation (recovered=$RECOVERIES_DONE), not a code failure$mark; see $logf")
+        # The failing step is printed even here so an INFRA row can be told apart from a real failure
+        # without opening the log by hand; if maestro named a step, this row would not be INFRA.
+        local infra_step; infra_step="$(hh_maestro_failing_step "$logf")"
+        RESULTS+=("$name|INFRA|emulator ANR/degradation (recovered=$RECOVERIES_DONE), no failing step recorded$mark; ${infra_step:+failed at: $infra_step; }see $logf")
         capture_artifacts "$serial" "$name"
-        warn "INFRA $name - emulator wedged (ANR), not a code regression$mark - log: $logf"
+        warn "INFRA $name - emulator wedged (ANR) and no failing step was recorded$mark - re-run before trusting this - log: $logf"
     else
-        RESULTS+=("$name|FAIL|rc=$rc$mark; see $logf")
+        local failed_step; failed_step="$(hh_maestro_failing_step "$logf")"
+        RESULTS+=("$name|FAIL|${failed_step:+failed at: $failed_step; }rc=$rc$mark; see $logf")
         capture_artifacts "$serial" "$name"
-        warn "FAIL $name (rc=$rc)$mark - log: $logf"
+        warn "FAIL $name (rc=$rc)$mark${failed_step:+ - failed at: $failed_step} - log: $logf"
     fi
 }
 
@@ -603,7 +633,10 @@ print_summary() {
     echo "----------------------------------------------------"
     echo "pass=$pass  fail=$fail  skip=$skip  infra=$infra  other=$other"
     [ "${#RETRIED[@]}" -gt 0 ] && echo "retried (flaky): ${RETRIED[*]}"
-    [ "$infra" -gt 0 ] && warn "$infra flow(s) ended INFRA - emulator ANR/degradation, NOT a code failure. Free host RAM / restart the AVD and re-run (task-19; see ${HEALTH_LOG:-health.log})."
+    # Deliberately not phrased as "NOT a code failure" any more. INFRA now means only that maestro
+    # never named a failing step; it is a reason to re-run, not evidence the code is fine. Each row
+    # carries the last step reached so the two can be told apart without opening the log.
+    [ "$infra" -gt 0 ] && warn "$infra flow(s) ended INFRA - no failing step was recorded, so this looks like emulator ANR/degradation rather than a code failure. Re-run before trusting it (task-19; see ${HEALTH_LOG:-health.log})."
     echo "artifacts: $ARTIFACT_DIR"
     echo "===================================================="
     [ "$fail" -eq 0 ] && [ "$infra" -eq 0 ] || return 1
