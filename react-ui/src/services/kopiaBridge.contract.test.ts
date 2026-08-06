@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, pauseSource, BridgeError, kopiaBridge } from "@/services/kopiaBridge";
+import { getPolicy, setPolicy, getTask, createRepository, getAllSourceStatuses, startBackup, BridgeError, kopiaBridge } from "@/services/kopiaBridge";
 import { sourceId } from "@/lib/format";
 
 // Contract pins for the JS -> Kotlin bridge marshalling. The Kotlin counterpart lives in
@@ -185,14 +185,17 @@ describe("bridge contract: the source id is native's, not rebuilt from the sourc
     expect(snapshot?.isIncomplete).toBe(true);
   });
 
-  it("pauseSource forwards the raw id, not a JSON-quoted string", async () => {
+  it("a string id is forwarded raw, not JSON-quoted", async () => {
+    // JSON.stringify("abc") arrives at the @JavascriptInterface as '"abc"', which made every
+    // per-source call answer "Source not found". Pinned through startBackup since pauseSource --
+    // the call this originally caught it on -- no longer exists.
     let received: string | undefined;
-    stubBridge("pauseSource", (arg) => {
+    stubBridge("startBackup", (arg) => {
       received = arg;
-      return ok(true);
+      return ok("task-1");
     });
 
-    await pauseSource("local@Pixel 7:/sdcard/DCIM");
+    await startBackup("local@Pixel 7:/sdcard/DCIM");
 
     expect(received).toBe("local@Pixel 7:/sdcard/DCIM");
   });

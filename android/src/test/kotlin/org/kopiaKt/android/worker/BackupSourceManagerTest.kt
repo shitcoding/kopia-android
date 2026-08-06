@@ -209,44 +209,6 @@ class BackupSourceManagerTest {
         }
 
         @Test
-        @DisplayName("source transitions to PAUSED on pause")
-        fun `source transitions to PAUSED on pause`() {
-            val source = manager.createSource("/test/path", "/test/path", "Test")
-
-            manager.pauseSource(source.id)
-
-            val updated = manager.getSource(source.id)
-            assertThat(updated!!.status).isEqualTo(SourceStatus.PAUSED)
-        }
-
-        @Test
-        @DisplayName("source transitions from PAUSED to IDLE on resume")
-        fun `source transitions from PAUSED to IDLE on resume`() {
-            val source = manager.createSource("/test/path", "/test/path", "Test")
-            manager.pauseSource(source.id)
-
-            manager.resumeSource(source.id)
-
-            val updated = manager.getSource(source.id)
-            assertThat(updated!!.status).isEqualTo(SourceStatus.IDLE)
-        }
-
-        @Test
-        @DisplayName("paused source status survives multiple operations")
-        fun `paused source status survives multiple operations`() {
-            val source = manager.createSource("/test/path", "/test/path", "Test")
-            manager.pauseSource(source.id)
-
-            // Perform multiple reads
-            manager.getSource(source.id)
-            manager.listSources()
-            manager.getSource(source.id)
-
-            val retrieved = manager.getSource(source.id)
-            assertThat(retrieved!!.status).isEqualTo(SourceStatus.PAUSED)
-        }
-
-        @Test
         @DisplayName("source records last snapshot time")
         fun `source records last snapshot time`() {
             val source = manager.createSource("/test/path", "/test/path", "Test")
@@ -434,7 +396,7 @@ class BackupSourceManagerTest {
         fun `re-registering an identity keeps its accumulated state`() {
             val id = "local@phone:/test/path"
             val first = manager.createSource(id, "/test/path", "Test")
-            manager.setSourceStatus(id, SourceStatus.PAUSED)
+            manager.setSourceStatus(id, SourceStatus.UPLOADING)
             manager.updateLastSnapshotTime(id, Instant.ofEpochSecond(1000))
 
             val second = manager.createSource(id, "/test/path", "Renamed")
@@ -442,7 +404,7 @@ class BackupSourceManagerTest {
             // Adding the same path twice is the same source, not a second row with a fresh history.
             assertThat(manager.listSources()).hasSize(1)
             assertThat(second.displayName).isEqualTo("Renamed")
-            assertThat(second.status).isEqualTo(SourceStatus.PAUSED)
+            assertThat(second.status).isEqualTo(SourceStatus.UPLOADING)
             assertThat(second.lastSnapshotTime).isEqualTo(Instant.ofEpochSecond(1000))
             assertThat(second.createdAt).isEqualTo(first.createdAt)
         }

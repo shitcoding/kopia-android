@@ -47,13 +47,12 @@ import java.time.Instant
  * Integration tests exercising the full backup session lifecycle pipeline.
  *
  * Unlike the individual component tests (TaskManagerTest, BackupSourceManagerTest,
- * BackupSchedulerTest, BackupErrorHandlingTest), these tests wire multiple
+ * BackupErrorHandlingTest), these tests wire multiple
  * components together:
  *
  *  - BackupSourceManager (real, in-memory)
  *  - TaskManager (real, coroutine-based)
  *  - BackupSession (real, with mocked repository)
- *  - BackupScheduler (real, with mock scheduling port)
  *
  * The repository layer (DirectRepository, RepositoryWriter) is mocked because
  * actual blob storage is out of scope for these lifecycle tests.

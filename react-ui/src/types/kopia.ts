@@ -235,8 +235,8 @@ export interface WebSourceStatus {
    */
   id: string;
   source: SourceInfo;
-  /** Mirrors the native SourceStatus enum exactly; FAILED and SCHEDULED never existed there. */
-  status: "IDLE" | "UPLOADING" | "PAUSED";
+  /** Mirrors the native SourceStatus enum exactly. */
+  status: "IDLE" | "UPLOADING";
   lastBackupTimeEpochMs?: number;
   /** Why the last backup ended without a snapshot; absent when the last one succeeded. */
   lastError?: string;

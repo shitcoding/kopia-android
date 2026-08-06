@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap
 enum class SourceStatus {
     IDLE,
     UPLOADING,
-    PAUSED,
 }
 
 /**
@@ -69,9 +68,9 @@ private data class StoredSource(
  * `runBlocking` around a file read on a UI-adjacent thread for a list that is only ever a handful of
  * entries.
  *
- * **Status is deliberately not persisted.** It describes what is happening right now; a PAUSED flag
- * would be worth keeping, but reloading a source as UPLOADING after the process died would show a
- * backup that is not running. Restored sources come back IDLE.
+ * **Status is deliberately not persisted.** It describes what is happening right now, and reloading
+ * a source as UPLOADING after the process died would show a backup that is not running. Restored
+ * sources come back IDLE. What outlives a process is [SourceInfo.lastError], which is persisted.
  *
  * @param context null in tests that only need the in-memory behaviour.
  */
@@ -187,20 +186,6 @@ class BackupSourceManager(private val context: Context? = null) {
             existing.copy(lastError = message, lastErrorTime = Instant.now())
         }
         persist()
-    }
-
-    /**
-     * Pauses a source (sets status to PAUSED). No-op if the source ID does not exist.
-     */
-    fun pauseSource(id: String) {
-        setSourceStatus(id, SourceStatus.PAUSED)
-    }
-
-    /**
-     * Resumes a paused source (sets status back to IDLE). No-op if the source ID does not exist.
-     */
-    fun resumeSource(id: String) {
-        setSourceStatus(id, SourceStatus.IDLE)
     }
 
     private fun prefs() = context?.applicationContext

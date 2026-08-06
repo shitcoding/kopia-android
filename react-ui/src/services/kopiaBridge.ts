@@ -70,8 +70,6 @@ declare global {
       createSource(json: string): string;
       deleteSource(sourceId: string): string;
       getSourceStatus(sourceId: string): string;
-      pauseSource(sourceId: string): string;
-      resumeSource(sourceId: string): string;
       startBackup(sourceId: string): string;
       estimateBackup(json: string): string;
       getPolicy(requestJson: string): string;
@@ -82,8 +80,6 @@ declare global {
       listTasks(): string;
       getTask(taskId: string): string;
       cancelTask(taskId: string): string;
-      getTaskLogs(taskId: string): string;
-      triggerMaintenance(mode: string): string;
       getMaintenanceStatus(): string;
       listAllSources(): string;
     };
@@ -531,9 +527,6 @@ export async function startBackup(sourceId: string): Promise<string> {
   return callBridge<string>("startBackup", sourceId);
 }
 
-export async function pauseSource(sourceId: string): Promise<void> {
-  callBridge<void>("pauseSource", sourceId);
-}
 
 /**
  * Opens the folder picker for a NEW BACKUP SOURCE and persists the read grant. Throws if a picker is
@@ -547,9 +540,6 @@ export function onBackupSourcePicked(callback: (result: SafPickResult) => void):
   return kopiaBridge.onBackupSourcePicked(callback);
 }
 
-export async function resumeSource(sourceId: string): Promise<void> {
-  callBridge<void>("resumeSource", sourceId);
-}
 
 // ---------- Policy management ----------
 // The Kotlin policy methods decode TYPED requests (WebPolicySourceRequest {host, userName, path};
@@ -593,9 +583,6 @@ export async function cancelTask(taskId: string): Promise<void> {
   callBridge<void>("cancelTask", taskId);
 }
 
-export async function getTaskLogs(taskId: string): Promise<WebTaskLogEntry[]> {
-  return callBridge<WebTaskLogEntry[]>("getTaskLogs", taskId);
-}
 
 // ---------- Backup estimation ----------
 
@@ -607,9 +594,6 @@ export async function estimateBackup(request: EstimateBackupRequest): Promise<st
 
 // ---------- Maintenance ----------
 
-export async function triggerMaintenance(mode: string): Promise<void> {
-  callBridge<void>("triggerMaintenance", mode);
-}
 
 export async function getMaintenanceStatus(): Promise<WebMaintenanceStatus> {
   return callBridge<WebMaintenanceStatus>("getMaintenanceStatus");

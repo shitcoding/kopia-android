@@ -37,14 +37,11 @@ import { useSources, useStartBackup, useDeleteSource } from "@/hooks/useBackupAp
 import BackupProgressSheet from "@/components/BackupProgressSheet";
 import EstimationDialog from "@/components/EstimationDialog";
 
-// Only what the native SourceStatus enum can emit. It previously also listed SCHEDULED and FAILED,
-// which no code path could ever produce. PAUSED is kept because the native enum still has it and the
-// bridge could still return it -- not because a stored source could: BackupSourceManager
-// deliberately does not persist status, so a reloaded source always comes back IDLE.
+// Only what the native SourceStatus enum can emit. It once also listed SCHEDULED, FAILED and
+// PAUSED; no code path could produce any of them, and PAUSED went with the Pause control itself.
 const STATUS_BADGE: Record<WebSourceStatus["status"], { label: string; className: string }> = {
   IDLE: { label: "Idle", className: "bg-muted text-muted-foreground" },
   UPLOADING: { label: "Uploading", className: "bg-primary/15 text-primary" },
-  PAUSED: { label: "Paused", className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300" },
 };
 
 const UNKNOWN_BADGE = { label: "Unknown", className: "bg-muted text-muted-foreground" };

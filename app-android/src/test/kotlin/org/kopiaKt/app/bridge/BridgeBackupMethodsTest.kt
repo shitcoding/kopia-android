@@ -265,66 +265,6 @@ class BridgeBackupMethodsTest {
         }
     }
 
-    @Nested
-    @DisplayName("pauseSource")
-    inner class PauseSourceTests {
-
-        @Test
-        fun `returns success when source exists`() {
-            every { sourceManager.getSource("src-1") } returns SourceInfo(
-                id = "src-1",
-                path = "/data",
-                displayName = "Data",
-                status = SourceStatus.IDLE,
-                createdAt = Instant.now(),
-            )
-
-            val result = bridge.pauseSource("src-1")
-            val obj = assertSuccess(result)
-            assertTrue(obj["data"]!!.jsonPrimitive.boolean)
-
-            verify(exactly = 1) { sourceManager.pauseSource("src-1") }
-        }
-
-        @Test
-        fun `returns error when source not found`() {
-            every { sourceManager.getSource("missing") } returns null
-
-            val result = bridge.pauseSource("missing")
-            assertError(result)
-        }
-    }
-
-    @Nested
-    @DisplayName("resumeSource")
-    inner class ResumeSourceTests {
-
-        @Test
-        fun `returns success when source exists`() {
-            every { sourceManager.getSource("src-1") } returns SourceInfo(
-                id = "src-1",
-                path = "/data",
-                displayName = "Data",
-                status = SourceStatus.PAUSED,
-                createdAt = Instant.now(),
-            )
-
-            val result = bridge.resumeSource("src-1")
-            val obj = assertSuccess(result)
-            assertTrue(obj["data"]!!.jsonPrimitive.boolean)
-
-            verify(exactly = 1) { sourceManager.resumeSource("src-1") }
-        }
-
-        @Test
-        fun `returns error when source not found`() {
-            every { sourceManager.getSource("missing") } returns null
-
-            val result = bridge.resumeSource("missing")
-            assertError(result)
-        }
-    }
-
     // ================================================================
     // Backup Operations Tests
     // ================================================================

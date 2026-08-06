@@ -1170,44 +1170,6 @@ class KopiaWebBridge private constructor(
         }
     }
 
-    /**
-     * Pause a backup source.
-     * @param sourceId The source ID to pause
-     * @return JSON-encoded WebResult<Boolean>
-     */
-    @JavascriptInterface
-    fun pauseSource(sourceId: String): String {
-        return try {
-            val existing = sourceManager.getSource(sourceId)
-                ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Source not found: $sourceId"),
-                )
-            sourceManager.pauseSource(sourceId)
-            json.encodeToString(WebResult.success(true))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error pausing source"))
-        }
-    }
-
-    /**
-     * Resume a paused backup source.
-     * @param sourceId The source ID to resume
-     * @return JSON-encoded WebResult<Boolean>
-     */
-    @JavascriptInterface
-    fun resumeSource(sourceId: String): String {
-        return try {
-            val existing = sourceManager.getSource(sourceId)
-                ?: return json.encodeToString(
-                    WebResult.error<Boolean>("Source not found: $sourceId"),
-                )
-            sourceManager.resumeSource(sourceId)
-            json.encodeToString(WebResult.success(true))
-        } catch (e: Exception) {
-            json.encodeToString(WebResult.error<Boolean>(e.message ?: "Error resuming source"))
-        }
-    }
-
     // ================================================================
     // Backup Operations Methods
     // ================================================================
@@ -1411,16 +1373,6 @@ class KopiaWebBridge private constructor(
     }
 
     /**
-     * Get log entries for a specific task.
-     * @param taskId The task ID
-     * @return JSON-encoded WebResult<List<WebTaskLogEntry>>
-     */
-    @JavascriptInterface
-    fun getTaskLogs(taskId: String): String = json.encodeToString(
-        WebResult.error<List<WebTaskLogEntry>>("Task log storage is not yet implemented"),
-    )
-
-    /**
      * Cancel a running task.
      * @param taskId The task ID to cancel
      * @return JSON-encoded WebResult<Boolean>
@@ -1575,16 +1527,6 @@ class KopiaWebBridge private constructor(
     // ================================================================
     // Maintenance Methods
     // ================================================================
-
-    /**
-     * Trigger a maintenance operation.
-     * @param mode Maintenance mode (e.g. "QUICK", "FULL")
-     * @return JSON-encoded WebResult<String> containing the task ID
-     */
-    @JavascriptInterface
-    fun triggerMaintenance(mode: String): String = json.encodeToString(
-        WebResult.error<String>("Maintenance is not yet implemented"),
-    )
 
     /**
      * Get the current maintenance status based on task history.

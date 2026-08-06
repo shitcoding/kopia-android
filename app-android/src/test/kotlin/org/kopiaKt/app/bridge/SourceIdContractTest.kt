@@ -17,7 +17,7 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 /**
  * The UI can only address a source by the id the bridge hands it. That contract was broken:
  * `WebSourceStatus` carried no id, so the dashboard rebuilt `user@host:path` itself while
- * `BackupSourceManager` keyed on a `UUID` -- every `pauseSource`/`resumeSource`/`getSourceStatus`
+ * `BackupSourceManager` keyed on a `UUID` -- every `getSourceStatus`/`getPolicy`/`startBackup`
  * from the dashboard came back "Source not found".
  *
  * These run against REAL managers, not mocks: mocked delegation tests cannot see a key mismatch.
@@ -49,9 +49,10 @@ class SourceIdContractTest {
         bridge.createSource("""{"uri":"$SOURCE_PATH","displayName":"Camera"}""")
         val id = listedId()
 
+        // pauseSource/resumeSource were asserted here too until they were removed; getSourceStatus
+        // is the surviving per-source call that keys on this id, and every backup E2E flow drives
+        // the other one, startBackup, through the dashboard.
         assertThat(succeeded(bridge.getSourceStatus(id))).isTrue()
-        assertThat(succeeded(bridge.pauseSource(id))).isTrue()
-        assertThat(succeeded(bridge.resumeSource(id))).isTrue()
     }
 
     /**
