@@ -14,6 +14,11 @@ import { ArrowLeft } from "lucide-react";
 const DOCUMENTS = [
   { key: "NOTICE", label: "Notice", file: "NOTICE" },
   { key: "THIRD_PARTY", label: "Third-party notices", file: "THIRD_PARTY_NOTICES.md" },
+  // Generated at build time, not committed: the Gradle report covers the release runtime classpath
+  // (the exact set the APK ships) and the npm report covers the packages compiled into the bundle.
+  // Hand-maintained lists drift from the dependency graph the moment a dependency changes.
+  { key: "DEPENDENCIES", label: "App dependencies", file: "DEPENDENCY_LICENSES.md" },
+  { key: "JS_DEPENDENCIES", label: "Interface dependencies", file: "JS_DEPENDENCY_LICENSES.md" },
   { key: "LICENSE", label: "Apache License 2.0", file: "LICENSE" },
 ] as const;
 

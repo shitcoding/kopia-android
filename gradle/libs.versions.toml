@@ -1,4 +1,5 @@
 [versions]
+license-report = "2.9"
 # Kotlin & JVM
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.27"
@@ -179,4 +180,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+license-report = { id = "com.github.jk1.dependency-license-report", version.ref = "license-report" }
 robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectric-junit5" }

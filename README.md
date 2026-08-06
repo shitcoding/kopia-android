@@ -144,7 +144,8 @@ universal access disabled, navigation confined to the bundled document, and a st
 
 - Android 8.0+ (API 26)
 - JDK 21 (the `core`/`snapshot`/`storage` modules use a JDK 21 toolchain; Gradle can provision it)
-- Node.js — the React UI is built during the Android build and is not committed
+- Node.js 24 or newer — the React UI is built during the Android build and is not committed,
+  and the licence-report generator the build runs requires it
 - The Android SDK, with platform 35 installed, to build the app itself. Point `ANDROID_HOME` at it
   or put its path in `local.properties` (untracked). The pure-JVM modules (`core`, `snapshot`,
   `storage`) build and test without it.
