@@ -1,5 +1,5 @@
 Bouncy Castle (org.bouncycastle:bcprov-jdk18on, bcpkix-jdk18on, bcutil-jdk18on)
-Source: https://github.com/bcgit/bc-java/blob/main/LICENSE.md
+Source: https://github.com/bcgit/bc-java/blob/r1rv79/LICENSE.md (the tag of the shipped 1.79)
 Reproduced here because the published jars contain no licence file, and the MIT permission notice
 must accompany copies of the software.
 

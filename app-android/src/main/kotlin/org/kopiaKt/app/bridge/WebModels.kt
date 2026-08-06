@@ -549,14 +549,6 @@ data class WebMaintenanceGcStats(
 )
 
 @Serializable
-data class WebTaskLogEntry(
-    val timestamp: Long,
-    val level: String,
-    val module: String,
-    val message: String,
-)
-
-@Serializable
 data class WebResolvedPolicy(
     val effective: org.kopiaKt.snapshot.policy.Policy,
     val defined: org.kopiaKt.snapshot.policy.Policy?,

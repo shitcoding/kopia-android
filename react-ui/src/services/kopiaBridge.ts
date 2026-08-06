@@ -25,7 +25,6 @@ import type {
   WebAlgorithms,
   WebSourceStatus,
   WebTaskInfo,
-  WebTaskLogEntry,
   WebPolicy,
   WebResolvedPolicy,
   WebPolicyEntry,

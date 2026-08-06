@@ -261,14 +261,6 @@ export interface WebTaskInfo {
   error?: string;
 }
 
-/** Task log entry */
-export interface WebTaskLogEntry {
-  timestamp: number;
-  level: "debug" | "info" | "warning" | "error";
-  module: string;
-  message: string;
-}
-
 // ===== Policy Types =====
 
 /** Retention policy */
