@@ -1,23 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Wrench, Loader2, CheckCircle2, XCircle, Settings } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Wrench, CheckCircle2, XCircle, Settings } from "lucide-react";
 import { formatDateTime, formatFileSize } from "@/lib/format";
-import { useMaintenanceStatus, useTriggerMaintenance } from "@/hooks/useBackupApi";
+import { useMaintenanceStatus } from "@/hooks/useBackupApi";
 
 const MaintenanceScreen = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { data: status, isLoading } = useMaintenanceStatus();
-  const triggerMaintenance = useTriggerMaintenance();
-
-  const handleRunMaintenance = (mode: string) => {
-    triggerMaintenance.mutate(mode, {
-      onSuccess: () => toast({ title: `${mode} maintenance started` }),
-      onError: (err) => toast({ title: "Maintenance failed", description: String(err), variant: "destructive" }),
-    });
-  };
-
-  const isRunning = triggerMaintenance.isPending;
 
   return (
     <div className="app-container min-h-screen flex flex-col">
@@ -42,7 +30,9 @@ const MaintenanceScreen = () => {
               <div>
                 <p className="font-semibold text-foreground text-sm">Repository Maintenance</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Maintenance cleans up unused data, compacts indexes, and enforces retention policies.
+                  Maintenance cleans up unused data and compacts indexes. This phone does not run
+                  it — use desktop Kopia. Retention is the exception: it is applied here after every
+                  backup, but it deletes snapshot entries only, never the data behind them.
                 </p>
               </div>
             </div>
@@ -91,36 +81,31 @@ const MaintenanceScreen = () => {
           </div>
         )}
 
-        {/* Running state */}
-        {isRunning && (
-          <div className="card-elevated flex flex-col items-center py-6 animate-fade-in">
-            <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
-            <p className="text-sm text-foreground font-medium">Running maintenance...</p>
-            <p className="text-xs text-muted-foreground mt-1">This may take a few minutes</p>
-          </div>
-        )}
-
-        {/* Action buttons */}
+        {/* Actions. Shown as unavailable rather than removed, so the screen still explains what
+            maintenance is and where it happens; tapping either used to fail hard against the
+            native stub, on a repository the user trusts with their backups. */}
         <div className="animate-slide-up space-y-3" style={{ animationDelay: "0.05s" }}>
           <p className="section-header">Actions</p>
           <button
-            onClick={() => handleRunMaintenance("QUICK")}
-            disabled={isRunning}
-            className="btn-secondary w-full"
+            disabled
+            className="btn-secondary w-full opacity-60"
             id="quick-maintenance-button"
             aria-label="Run quick maintenance"
           >
             Run Quick Maintenance
           </button>
           <button
-            onClick={() => handleRunMaintenance("FULL")}
-            disabled={isRunning}
-            className="btn-primary w-full"
+            disabled
+            className="btn-primary w-full opacity-60"
             id="full-maintenance-button"
             aria-label="Run full maintenance"
           >
             Run Full Maintenance
           </button>
+          <p className="text-xs text-muted-foreground px-1">
+            Running maintenance from the phone is not implemented. Run it from desktop Kopia
+            instead — until you do, the repository keeps the data that maintenance would reclaim.
+          </p>
         </div>
       </div>
     </div>

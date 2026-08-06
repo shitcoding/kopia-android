@@ -14,7 +14,6 @@ import {
   setPolicy as setPolicyBridge,
   resolvePolicy as resolvePolicyBridge,
   getMaintenanceStatus as getMaintenanceStatusBridge,
-  triggerMaintenance as triggerMaintenanceBridge,
   estimateBackup as estimateBackupBridge,
   createRepository as createRepositoryBridge,
   testStorageConnection as testStorageConnectionBridge,
@@ -178,17 +177,6 @@ export function useMaintenanceStatus() {
     queryKey: ["maintenance-status"],
     queryFn: () => getMaintenanceStatusBridge(),
     retry: 1,
-  });
-}
-
-export function useTriggerMaintenance() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (mode: string) => Promise.resolve(triggerMaintenanceBridge(mode)),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["maintenance-status"] });
-      qc.invalidateQueries({ queryKey: ["tasks"] });
-    },
   });
 }
 
