@@ -66,7 +66,6 @@ const CreateRepositoryScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [encryption, setEncryption] = useState("AES256-GCM-HMAC-SHA256");
   const [hashing, setHashing] = useState("BLAKE2B-256-128");
-  const [compression, setCompression] = useState("zstd");
   const [description, setDescription] = useState("");
 
   const [isTesting, setIsTesting] = useState(false);
@@ -104,7 +103,6 @@ const CreateRepositoryScreen = () => {
   // does not implement (ChaCha20-Poly1305) fails only at repository creation, after the password.
   const encryptionOptions = algorithms?.encryption ?? ["AES256-GCM-HMAC-SHA256", "NONE"];
   const hashingOptions = algorithms?.hashing ?? ["BLAKE2B-256-128", "BLAKE3-256", "HMAC-SHA256-128"];
-  const compressionOptions = algorithms?.compression ?? ["zstd", "lz4", "gzip", "pgzip", "deflate-default", "none"];
 
   const buildConfig = (): ConnectionConfig => {
     const storageTypeMap: Record<StorageOptionId, StorageType> = {
@@ -148,7 +146,7 @@ const CreateRepositoryScreen = () => {
     const request: CreateRepositoryRequest = {
       config: buildConfig(),
       password,
-      options: { hash: hashing, encryption, compression, description: description || undefined },
+      options: { hash: hashing, encryption, description: description || undefined },
     };
     createRepo.mutate(request, {
       onSuccess: () => {
@@ -364,13 +362,6 @@ const CreateRepositoryScreen = () => {
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs text-muted-foreground px-1">Compression</label>
-              <select value={compression} onChange={(e) => setCompression(e.target.value)} className="input-md3" id="compression-select" aria-label="Compression algorithm">
-                {compressionOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            <div className="space-y-3">
               <label className="text-xs text-muted-foreground px-1">Description (optional)</label>
               <input type="text" placeholder="e.g. Phone backup repo" value={description} onChange={(e) => setDescription(e.target.value)} className="input-md3" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} id="create-description-input" aria-label="Repository description" />
             </div>
@@ -398,10 +389,6 @@ const CreateRepositoryScreen = () => {
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Hashing</span>
                 <span className="text-sm font-medium text-foreground">{hashing}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Compression</span>
-                <span className="text-sm font-medium text-foreground">{compression}</span>
               </div>
               {description && (
                 <div className="flex justify-between">

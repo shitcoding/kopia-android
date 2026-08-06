@@ -512,11 +512,16 @@ data class WebCreateRepositoryRequest(
     val options: WebCreateRepoOptions,
 )
 
+/**
+ * Note there is no compression field. In Kopia, compression is a *policy* setting, not a property of
+ * the repository format, so there is nothing for repository creation to do with one. The wizard used
+ * to collect it and the value was silently dropped; compression is set in the policy editor, and for
+ * a new source by the add-source wizard, both of which write a policy that is actually read.
+ */
 @Serializable
 data class WebCreateRepoOptions(
     val hash: String,
     val encryption: String,
-    val compression: String,
     val description: String = "",
 )
 

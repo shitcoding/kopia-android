@@ -114,18 +114,15 @@ androidWebViewHierarchy: devtools
 # Scroll down to see encryption settings and Review button
 - scroll
 
-# Verify default encryption, hashing, and compression are pre-selected
-# (These are select dropdowns with defaults: AES256-GCM-HMAC-SHA256, BLAKE2B-256-128, zstd)
+# Verify default encryption and hashing are pre-selected
+# (These are select dropdowns with defaults: AES256-GCM-HMAC-SHA256, BLAKE2B-256-128)
 - assertVisible:
     text: ".*AES256-GCM.*"
 - assertVisible:
     text: ".*BLAKE2B-256-128.*"
 
-# Scroll further to reveal zstd dropdown and Review button
+# Scroll further to reveal the Review button
 - scroll
-
-- assertVisible:
-    text: ".*zstd.*"
 
 # Tap Review to go to step 4
 - tapOn:
@@ -144,8 +141,6 @@ androidWebViewHierarchy: devtools
     text: ".*AES256-GCM.*"
 - assertVisible:
     text: ".*BLAKE2B-256-128.*"
-- assertVisible:
-    text: ".*zstd.*"
 
 # Tap Create Repository button (index 1 to skip the app bar title).
 # Text-based taps work for WebView buttons in this flow.

@@ -366,7 +366,6 @@ export interface CreateRepositoryRequest {
   options: {
     hash: string;
     encryption: string;
-    compression: string;
     description?: string;
   };
 }
