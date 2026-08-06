@@ -238,6 +238,9 @@ export interface WebSourceStatus {
   /** Mirrors the native SourceStatus enum exactly; FAILED and SCHEDULED never existed there. */
   status: "IDLE" | "UPLOADING" | "PAUSED";
   lastBackupTimeEpochMs?: number;
+  /** Why the last backup ended without a snapshot; absent when the last one succeeded. */
+  lastError?: string;
+  lastErrorTimeEpochMs?: number;
   uploadCounters?: WebUploadCounters;
   currentTaskId?: string;
   snapshotCount: number;

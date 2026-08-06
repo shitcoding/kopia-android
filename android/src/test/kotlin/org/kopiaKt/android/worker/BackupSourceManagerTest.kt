@@ -30,6 +30,61 @@ class BackupSourceManagerTest {
     }
 
     @Nested
+    @DisplayName("Terminal failure of a background run")
+    inner class LastFailureTests {
+
+        /**
+         * A backup that dies in a background process leaves nothing behind the user can see: the
+         * interactive await is long gone, and the error notification is dropped outright on API 33+
+         * when POST_NOTIFICATIONS was denied. Their belief that the photos are backed up is then
+         * wrong with no signal at all, which is the failure this whole area exists to prevent.
+         */
+        @Test
+        @DisplayName("a recorded failure is readable afterwards")
+        fun `recordFailure is readable`() {
+            val source = manager.createSource("/test/path", "/test/path", "Test")
+
+            manager.recordFailure(source.id, "Connect to a repository before backing up")
+
+            val updated = manager.getSource(source.id)!!
+            assertThat(updated.lastError).isEqualTo("Connect to a repository before backing up")
+            assertThat(updated.lastErrorTime).isNotNull()
+        }
+
+        @Test
+        @DisplayName("a later success clears the failure")
+        fun `success clears the failure`() {
+            val source = manager.createSource("/test/path", "/test/path", "Test")
+            manager.recordFailure(source.id, "Storage permission was refused")
+
+            manager.updateLastSnapshotTime(source.id, Instant.now())
+
+            val updated = manager.getSource(source.id)!!
+            assertThat(updated.lastError).isNull()
+            assertThat(updated.lastErrorTime).isNull()
+        }
+
+        @Test
+        @DisplayName("a second failure replaces the first")
+        fun `later failure replaces the earlier one`() {
+            val source = manager.createSource("/test/path", "/test/path", "Test")
+            manager.recordFailure(source.id, "first")
+
+            manager.recordFailure(source.id, "second")
+
+            assertThat(manager.getSource(source.id)!!.lastError).isEqualTo("second")
+        }
+
+        @Test
+        @DisplayName("recording against an unknown source is a no-op, not a crash")
+        fun `unknown source is a no-op`() {
+            manager.recordFailure("nobody@nowhere:/gone", "boom")
+
+            assertThat(manager.getSource("nobody@nowhere:/gone")).isNull()
+        }
+    }
+
+    @Nested
     @DisplayName("Source CRUD")
     inner class SourceCrudTests {
 

@@ -4,6 +4,7 @@ import {
   Plus,
   FolderX,
   Loader2,
+  AlertTriangle,
   MoreVertical,
   Play,
   Eye,
@@ -190,6 +191,21 @@ const SourcesDashboardScreen = () => {
                           <p className="text-xs text-muted-foreground mt-1">
                             {formatFileSize(src.uploadCounters.totalHashedBytes + src.uploadCounters.totalCachedBytes)} / {formatFileSize(src.uploadCounters.estimatedBytes)}
                           </p>
+                        </div>
+                      )}
+
+                      {/* A backup that died in a background process leaves nothing else behind:
+                          the task the user was watching is long gone, and the error notification is
+                          dropped outright on API 33+ when POST_NOTIFICATIONS was denied. Without
+                          this the row looks exactly like a source that has never failed. */}
+                      {src.lastError && (
+                        <div className="flex items-start gap-1.5 mt-2 text-xs text-destructive">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                          <span className="min-w-0">
+                            Last backup failed
+                            {src.lastErrorTimeEpochMs ? ` ${formatRelativeTime(src.lastErrorTimeEpochMs)}` : ""}
+                            : {src.lastError}
+                          </span>
                         </div>
                       )}
 

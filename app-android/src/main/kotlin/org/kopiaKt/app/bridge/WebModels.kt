@@ -452,6 +452,9 @@ data class WebSourceStatus(
     val currentTaskId: String? = null,
     val snapshotCount: Int = 0,
     val totalFileSize: Long = 0,
+    /** Why the last backup ended without a snapshot; null when the last one succeeded. */
+    val lastError: String? = null,
+    val lastErrorTimeEpochMs: Long? = null,
 )
 
 // ===== Task Models =====
@@ -629,6 +632,8 @@ fun org.kopiaKt.android.worker.SourceInfo.toWebStatus() = WebSourceStatus(
     lastBackupTimeEpochMs = lastSnapshotTime?.toEpochMilli(),
     snapshotCount = 0,
     totalFileSize = 0,
+    lastError = lastError,
+    lastErrorTimeEpochMs = lastErrorTime?.toEpochMilli(),
 )
 
 fun org.kopiaKt.android.worker.TaskInfo.toWeb() = WebTaskInfo(

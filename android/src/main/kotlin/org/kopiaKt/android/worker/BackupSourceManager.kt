@@ -35,6 +35,16 @@ data class SourceInfo(
     val status: SourceStatus = SourceStatus.IDLE,
     val lastSnapshotTime: Instant? = null,
     val createdAt: Instant = Instant.now(),
+    /**
+     * Why this source's last backup ended without a snapshot, or null if the last one succeeded.
+     *
+     * Unlike [status] this IS persisted, and deliberately so: the case it exists for is a run that
+     * died in a background process, where the interactive await is long gone and the error
+     * notification was dropped outright because POST_NOTIFICATIONS was denied. Without something
+     * durable, the user's belief that their files are backed up is wrong with no signal at all.
+     */
+    val lastError: String? = null,
+    val lastErrorTime: Instant? = null,
 )
 
 /** On-disk shape of a source. Separate from [SourceInfo] so `Instant` stays out of the wire format. */
@@ -45,6 +55,8 @@ private data class StoredSource(
     val displayName: String,
     val lastSnapshotTimeEpochMs: Long? = null,
     val createdAtEpochMs: Long,
+    val lastError: String? = null,
+    val lastErrorTimeEpochMs: Long? = null,
 )
 
 /**
@@ -132,7 +144,23 @@ class BackupSourceManager(private val context: Context? = null) {
      */
     fun updateLastSnapshotTime(id: String, time: Instant) {
         sources.computeIfPresent(id) { _, existing ->
-            existing.copy(lastSnapshotTime = time)
+            // Clearing the failure here rather than in a separate call is deliberate: this is the
+            // one place a backup is recorded as having succeeded, so a stale "last backup failed"
+            // cannot outlive the run that fixed it.
+            existing.copy(lastSnapshotTime = time, lastError = null, lastErrorTime = null)
+        }
+        persist()
+    }
+
+    /**
+     * Records why this source's last backup ended without a snapshot, so the app can say so later.
+     *
+     * Safe to call from any process: the manager reloads from SharedPreferences on construction, so
+     * the background worker and the UI converge on the same record. No-op for an unknown source.
+     */
+    fun recordFailure(id: String, message: String) {
+        sources.computeIfPresent(id) { _, existing ->
+            existing.copy(lastError = message, lastErrorTime = Instant.now())
         }
         persist()
     }
@@ -164,6 +192,8 @@ class BackupSourceManager(private val context: Context? = null) {
                     displayName = it.displayName,
                     lastSnapshotTime = it.lastSnapshotTimeEpochMs?.let(Instant::ofEpochMilli),
                     createdAt = Instant.ofEpochMilli(it.createdAtEpochMs),
+                    lastError = it.lastError,
+                    lastErrorTime = it.lastErrorTimeEpochMs?.let(Instant::ofEpochMilli),
                 )
             }
         } catch (e: Exception) {
@@ -181,6 +211,8 @@ class BackupSourceManager(private val context: Context? = null) {
                 displayName = it.displayName,
                 lastSnapshotTimeEpochMs = it.lastSnapshotTime?.toEpochMilli(),
                 createdAtEpochMs = it.createdAt.toEpochMilli(),
+                lastError = it.lastError,
+                lastErrorTimeEpochMs = it.lastErrorTime?.toEpochMilli(),
             )
         }
         // commit(), not apply(): adding and deleting a source are user-visible acts that are

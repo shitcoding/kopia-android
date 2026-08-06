@@ -73,6 +73,31 @@ class BackupWorker(
         CheckpointStore(applicationContext)
     }
 
+    /**
+     * Reloaded from SharedPreferences here rather than shared with the UI's instance: this worker
+     * can be running in a process the UI never started, which is the whole case [recordTerminal]
+     * exists for.
+     */
+    private val sourceManager: BackupSourceManager by lazy {
+        BackupSourceManager(applicationContext)
+    }
+
+    /**
+     * Records a terminal failure against the source and returns the WorkManager result.
+     *
+     * `Result.failure`'s output data is read by the interactive await and by nothing else, and the
+     * error notification is dropped outright on API 33+ when POST_NOTIFICATIONS was denied. So for a
+     * run that dies in the background there was no evidence anywhere that the backup had failed --
+     * the user's belief that their files are backed up simply stayed wrong. This leaves something
+     * durable for the app to show.
+     */
+    private fun recordTerminal(sourceId: String, message: String?): Result {
+        val reason = message ?: "Unknown error"
+        runCatching { sourceManager.recordFailure(sourceId, reason) }
+            .onFailure { android.util.Log.w(TAG, "could not record the failure for $sourceId", it) }
+        return Result.failure(workDataOf(KEY_ERROR to reason))
+    }
+
     // Latest progress, published (cheaply) by the upload callback and read by the throttled foreground
     // loop -- so we never build a Notification per uploaded byte-chunk.
     private val latestCounters = AtomicReference<UploadCounters?>(null)
@@ -214,9 +239,7 @@ class BackupWorker(
                         Result.retry()
                     } else {
                         showErrorNotification(sourceId, sourcePath, result.error.message ?: "Unknown error")
-                        Result.failure(
-                            workDataOf(KEY_ERROR to result.error.message),
-                        )
+                        recordTerminal(sourceId, result.error.message)
                     }
                 }
             }
@@ -233,7 +256,7 @@ class BackupWorker(
                 // Whoever cancelled does not need to be told Android refused them something.
                 showErrorNotification(sourceId, sourcePath, e.message ?: FOREGROUND_DENIED_MESSAGE)
             }
-            Result.failure(workDataOf(KEY_ERROR to e.message))
+            recordTerminal(sourceId, e.message ?: FOREGROUND_DENIED_MESSAGE)
         } catch (e: CancellationException) {
             // The session has already checkpointed (its saves are NonCancellable), so the run is
             // resumable either way. What differs is whether the user is owed an explanation: they
@@ -246,7 +269,7 @@ class BackupWorker(
                 Result.retry()
             } else {
                 showErrorNotification(sourceId, sourcePath, e.message ?: "Unknown error")
-                Result.failure(workDataOf(KEY_ERROR to e.message))
+                recordTerminal(sourceId, e.message)
             }
         }
     }
