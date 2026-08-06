@@ -1,0 +1,26 @@
+# Opens phone_source's snapshot list by tapping its row on the Backup Sources dashboard.
+#
+# The row does double duty: while a backup is running it opens that run's progress sheet instead of
+# navigating. That branch only became live with task-49 -- before it, `currentTaskId` was never
+# populated, so the condition guarding it was always false and the row always navigated. Two flows
+# tapped the row mid-backup and had been getting the snapshot list by accident; they now get the
+# sheet, and the list they wait for never arrives.
+#
+# Waiting for the sheet to close is the honest gate anyway: it closes when the task reaches a
+# terminal state, which is what "the snapshot exists by now" actually depends on.
+appId: org.kopiaKt.app
+---
+- tapOn: "Source phone_source"
+# The sheet is opened by a React state change after the tap, so give it a beat before deciding it
+# did not open -- `when` is evaluated once, not polled.
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: ".*Backup Progress.*"
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            text: ".*Backup Progress.*"
+          timeout: 180000
+      - tapOn: "Source phone_source"

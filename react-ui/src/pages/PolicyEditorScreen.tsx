@@ -223,11 +223,11 @@ const PolicyEditorScreen = () => {
             <p className="text-xs text-muted-foreground">Empty fields inherit from parent policy</p>
             <div className="card-elevated space-y-4">
               <NumberInput label="Keep latest" value={keepLatest} onChange={setKeepLatest} id="keep-latest-input" />
-              <NumberInput label="Keep hourly" value={keepHourly} onChange={setKeepHourly} />
-              <NumberInput label="Keep daily" value={keepDaily} onChange={setKeepDaily} />
-              <NumberInput label="Keep weekly" value={keepWeekly} onChange={setKeepWeekly} />
-              <NumberInput label="Keep monthly" value={keepMonthly} onChange={setKeepMonthly} />
-              <NumberInput label="Keep annual" value={keepAnnual} onChange={setKeepAnnual} />
+              <NumberInput label="Keep hourly" value={keepHourly} onChange={setKeepHourly} id="keep-hourly-input" />
+              <NumberInput label="Keep daily" value={keepDaily} onChange={setKeepDaily} id="keep-daily-input" />
+              <NumberInput label="Keep weekly" value={keepWeekly} onChange={setKeepWeekly} id="keep-weekly-input" />
+              <NumberInput label="Keep monthly" value={keepMonthly} onChange={setKeepMonthly} id="keep-monthly-input" />
+              <NumberInput label="Keep annual" value={keepAnnual} onChange={setKeepAnnual} id="keep-annual-input" />
             </div>
             <div className="card-elevated flex items-center justify-between">
               <span className="text-sm text-foreground">Ignore identical snapshots</span>

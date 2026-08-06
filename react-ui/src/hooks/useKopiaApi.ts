@@ -95,6 +95,15 @@ export function useSnapshotsWithRetention(source: SourceInfo | null) {
     queryFn: () => listSnapshotsWithRetention({ source: source! }),
     enabled: !!source,
     retry: 1,
+    // A snapshot that lands while this screen is open used to never appear: the query was fetched
+    // once per mount, and nothing invalidates it when a backup finishes, so leaving and coming back
+    // was the only way to see it. Polling while the screen is open is what the sources dashboard
+    // already does. Unconditional rather than "only while a backup runs", because the interval
+    // would then be cancelled the moment the run ended - possibly before the fetch that would have
+    // shown its snapshot. It re-reads manifests the repository already holds, so the cost is a
+    // decode rather than a round trip; gate it if a source with hundreds of snapshots ever makes
+    // that matter.
+    refetchInterval: 5000,
   });
 }
 

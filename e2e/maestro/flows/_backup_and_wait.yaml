@@ -1,0 +1,64 @@
+# Runs one backup of the current source and confirms it produced a snapshot before returning.
+# Extracted because getting that gate right is the whole of task-42.
+#
+# The obvious gate -- wait for the progress sheet, then wait for it to go -- is a race the suite
+# lost repeatedly (2026-07-28, 2026-08-05): a run whose files are all cache hits finishes before
+# Maestro's next poll, and the sheet, which closes as soon as its 2s task poll sees a terminal task,
+# is never seen at all. Waiting only for its ABSENCE is no better on its own, because absence is
+# also what "it has not opened yet" looks like -- and then the next tap lands while the run is still
+# going, gets deduped by ExistingWorkPolicy.KEEP, and the flow ends a snapshot short. That is a
+# false PASS for a retention flow, not a flake.
+#
+# The source row's own "Uploading" badge cannot stand in for it: Maestro's WebView hierarchy exposes
+# the row as one button, whose aria-label overrides everything inside it, so the badge is invisible
+# to any selector (verified on device, 2026-08-06).
+#
+# So the gate is the snapshot itself -- a durable post-condition that cannot have "already passed".
+#
+# It CONFIRMS rather than waits, and the difference matters: the snapshot list fetches once when it
+# opens and is never invalidated, so a list opened too early stays empty for as long as you look at
+# it. What makes that sound is the ordering, not the timeout: the sheet closes only once the task is
+# terminal, the task ends only after the worker returns, and the worker returns only after the
+# upload's finally has run retention -- which begins with repository.refresh(). Sheet gone therefore
+# means the manifest is already visible to the app. If that ever stops holding, this gate does not
+# ride it out; it fails loudly, which is the right way round.
+#
+# Assumes a repository holding only this source's snapshots and no incomplete manifests: the row
+# labels are positional ("Select snapshot N" is the Nth row), so anything else in the list shifts
+# them.
+#
+# env:
+#   EXPECT_SNAPSHOT  the number of snapshots this source must have once this run is done.
+appId: org.kopiaKt.app
+---
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+# Cheap first gate: correct whenever it is true, and it keeps the flow off the snapshot screen
+# while the sheet's backdrop would swallow taps.
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 180000
+
+# Through the options menu, not the row: the row doubles as a progress-sheet trigger while a backup
+# is running (see backup_source_snapshots_back.yaml).
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "View Snapshots"
+    timeout: 10000
+- tapOn:
+    text: "View Snapshots"
+- extendedWaitUntil:
+    visible: "Select snapshot ${EXPECT_SNAPSHOT}"
+    timeout: 180000
+
+# Back returns to the dashboard, not the all-snapshots list, since task-34.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000

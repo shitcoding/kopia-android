@@ -53,7 +53,8 @@ androidWebViewHierarchy: devtools
     visible:
       text: ".*Backup Sources.*"
     timeout: 15000
-- tapOn: "Source phone_source"
+- runFlow:
+    file: flows/_open_source_snapshots.yaml
 
 # Uploading 8 small files on a software-GPU emulator; generous, but a hang is a defect.
 - extendedWaitUntil:

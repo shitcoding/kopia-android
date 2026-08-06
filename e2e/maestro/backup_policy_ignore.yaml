@@ -22,7 +22,8 @@ androidWebViewHierarchy: devtools
       SOURCE_PATH: "/sdcard/Download/phone_source"
 
 # Creation started the backup (the wizard's checkbox, left ticked, is wired as of task-30.8).
-- tapOn: "Source phone_source"
+- runFlow:
+    file: flows/_open_source_snapshots.yaml
 - extendedWaitUntil:
     visible: "Select snapshot 1"
     timeout: 180000

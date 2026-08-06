@@ -4,9 +4,17 @@
 # repository, so a phone backing up nightly kept every snapshot it had ever made while the user's
 # policy said otherwise. Go applies retention after every `snapshot create`.
 #
-# Sets keepLatest = 2, runs three backups, and checks both the app's snapshot list and - through
-# verify_backup.sh --expect-snapshots 2 - the repository itself, so a UI that merely pages the list
-# cannot pass this.
+# Three backups build up three snapshots, keepLatest is then set to 2, and a fourth backup must
+# prune the oldest. Watching the count go 3 -> 2 is what makes this a test of retention running:
+# with the policy set first, "two snapshots at the end" is equally what a flow whose build-up ran
+# one backup fewer would produce (task-42).
+#
+# The limit, stated because the header used to overclaim: retention runs in BackupSession's finally,
+# on every path out of the upload, so a FOURTH run that reached that finally without writing a
+# manifest would still prune 3 -> 2 and pass here. The build-up phase is what this flow pins.
+#
+# Checks both the app's snapshot list and - through verify_backup.sh --expect-snapshots 2 - the
+# repository itself, so a UI that merely pages the list cannot pass this.
 #
 # Category: backup. The most expensive flow in the suite; run it in the full pass, not per commit.
 
@@ -20,6 +28,24 @@ androidWebViewHierarchy: devtools
       EXCLUSIONS: ""
       SOURCE_PATH: "/sdcard/Download/phone_source"
 
+# ===== Three snapshots =====
+#
+# The add-source wizard writes Kopia's own default retention onto the new source (keepLatest 10,
+# hourly 48, daily 7, ...), so all three survive the build-up.
+
+- runFlow:
+    file: flows/_backup_and_wait.yaml
+    env:
+      EXPECT_SNAPSHOT: "1"
+- runFlow:
+    file: flows/_backup_and_wait.yaml
+    env:
+      EXPECT_SNAPSHOT: "2"
+- runFlow:
+    file: flows/_backup_and_wait.yaml
+    env:
+      EXPECT_SNAPSHOT: "3"
+
 # ===== keepLatest = 2 =====
 
 - tapOn:
@@ -31,17 +57,58 @@ androidWebViewHierarchy: devtools
       text: ".*Keep latest.*"
     timeout: 20000
 
-# The field selects its contents on focus, so typing replaces the value outright. Erasing is not
+# The editor renders its fields blank and fills them in when the policy load lands, with no loading
+# state of its own to wait on -- so wait for the value itself. Typing before that arrives is
+# overwritten by the populate effect, leaving keepLatest at 10 and nothing to prune.
+- extendedWaitUntil:
+    visible:
+      id: "keep-latest-input"
+      text: "10"
+    timeout: 30000
+
+# The fields select their contents on focus, so typing replaces the value outright. Erasing is not
 # used here: eraseText cannot reliably clear a filled WebView field (see the E2E guide).
+# Dismiss the keyboard between fields by tapping empty space, NOT hideKeyboard: on this screen that
+# lands as a back press and navigates away from the editor before the save can happen.
 - tapOn:
     id: "keep-latest-input"
 - waitForAnimationToEnd
 - inputText: "2"
-
-# Dismiss the keyboard by tapping empty space, NOT hideKeyboard: on this screen that lands as a back
-# press and navigates away from the editor before the save can happen.
 - tapOn:
     point: "50%,58%"
+
+# Zero every other period, because the editor round-trips the values it loaded: keepHourly=48 alone
+# keeps a THIRD snapshot whenever an hour boundary falls between the build-up backups, since
+# retention grants hourly-N to the newest snapshot in each distinct UTC hour. That is a flow that
+# goes red on a healthy build, which is the one thing this rewrite exists to stop. 0 disables a
+# period outright (RetentionComputation.canSpeakFor: used < limit), and keepLatest stays 2 because
+# the fail-safe only triggers when every count is 0.
+- tapOn:
+    id: "keep-hourly-input"
+- inputText: "0"
+- tapOn:
+    point: "50%,58%"
+- tapOn:
+    id: "keep-daily-input"
+- inputText: "0"
+- tapOn:
+    point: "50%,58%"
+- tapOn:
+    id: "keep-weekly-input"
+- inputText: "0"
+- tapOn:
+    point: "50%,58%"
+- tapOn:
+    id: "keep-monthly-input"
+- inputText: "0"
+- tapOn:
+    point: "50%,58%"
+- tapOn:
+    id: "keep-annual-input"
+- inputText: "0"
+- tapOn:
+    point: "50%,58%"
+
 - tapOn:
     id: "save-policy-button"
 # Saving toasts; it does not navigate.
@@ -59,32 +126,37 @@ androidWebViewHierarchy: devtools
       text: ".*Backup Sources.*"
     timeout: 30000
 
-# ===== Three backups =====
+# ===== A fourth backup prunes the oldest =====
+#
+# Retention has already run by the time the sheet closes (it is in the upload's finally, and the
+# task only reaches a terminal state after the worker returns), so the list this opens is the
+# pruned one. Four rows are never on screen.
 
-- repeat:
-    times: 3
-    commands:
-      - tapOn:
-          text: "Source options"
-      - tapOn:
-          text: "Back Up Now"
-      - extendedWaitUntil:
-          visible:
-            text: ".*Backup Progress.*"
-          timeout: 30000
-      # The sheet closes itself when the run reaches a terminal state, which is the signal that the
-      # next tap will start a NEW backup: a second tap while one is running is deduped by
-      # ExistingWorkPolicy.KEEP and would leave this flow one snapshot short.
-      - extendedWaitUntil:
-          notVisible:
-            text: ".*Backup Progress.*"
-          timeout: 180000
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 180000
 
-# ===== Two snapshots survive, not three =====
+- tapOn:
+    text: "Source options"
+- extendedWaitUntil:
+    visible: "View Snapshots"
+    timeout: 10000
+- tapOn:
+    text: "View Snapshots"
 
-- tapOn: "Source phone_source"
+# Wait for a row that must be there, not for the absence of one: "Select snapshot 3 is not visible"
+# is also true of a list that has not loaded yet, and of a screen we have not navigated to - the
+# same not-yet-arrived inversion as the transient state this flow stopped asserting.
 - extendedWaitUntil:
     visible: "Select snapshot 1"
     timeout: 60000
+
+# Two survive, not three: the count is exact, not merely "fewer".
 - assertVisible: "Select snapshot 2"
 - assertNotVisible: "Select snapshot 3"

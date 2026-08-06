@@ -104,7 +104,8 @@ androidWebViewHierarchy: devtools
     visible:
       text: ".*Backup Sources.*"
     timeout: 20000
-- tapOn: "Source phone_source"
+- runFlow:
+    file: flows/_open_source_snapshots.yaml
 - extendedWaitUntil:
     visible: "Select snapshot 1"
     timeout: 180000
