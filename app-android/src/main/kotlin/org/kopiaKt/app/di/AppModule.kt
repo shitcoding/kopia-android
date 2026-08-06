@@ -52,6 +52,9 @@ abstract class AppModule {
         @Singleton
         fun provideBackupSourceManager(
             @ApplicationContext context: Context,
-        ): BackupSourceManager = BackupSourceManager(context)
+            // getInstance, not a fresh object: BackupWorker cannot reach this injector (it lives in
+            // the :android module) and would otherwise hold a second manager whose writes overwrite
+            // this one's with a stale map.
+        ): BackupSourceManager = BackupSourceManager.getInstance(context)
     }
 }

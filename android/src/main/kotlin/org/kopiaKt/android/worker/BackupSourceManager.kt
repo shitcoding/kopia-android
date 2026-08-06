@@ -77,6 +77,29 @@ private data class StoredSource(
  */
 class BackupSourceManager(private val context: Context? = null) {
 
+    companion object {
+        private const val TAG = "BackupSourceManager"
+        private const val PREFS_NAME = "kopia_backup_sources"
+        private const val KEY_SOURCES = "sources"
+        private val json = Json { ignoreUnknownKeys = true }
+
+        @Volatile
+        private var shared: BackupSourceManager? = null
+
+        /**
+         * The one instance per process.
+         *
+         * Every mutation rewrites the whole persisted document from this object's in-memory map, so
+         * a second instance does not merely duplicate work -- it erases the first one's writes with
+         * its own stale copy, and shows stale data until the process restarts. The backup worker and
+         * the UI must therefore share one, and they cannot do it through Hilt: the worker lives in
+         * this module and the injector in `app-android`.
+         */
+        fun getInstance(context: Context): BackupSourceManager = shared ?: synchronized(this) {
+            shared ?: BackupSourceManager(context.applicationContext).also { shared = it }
+        }
+    }
+
     private val sources = ConcurrentHashMap<String, SourceInfo>()
 
     init {
@@ -155,8 +178,9 @@ class BackupSourceManager(private val context: Context? = null) {
     /**
      * Records why this source's last backup ended without a snapshot, so the app can say so later.
      *
-     * Safe to call from any process: the manager reloads from SharedPreferences on construction, so
-     * the background worker and the UI converge on the same record. No-op for an unknown source.
+     * The worker and the UI reach the same record because they share one instance per process
+     * ([getInstance]); a second instance would overwrite this with its own stale map. No-op for an
+     * unknown source.
      */
     fun recordFailure(id: String, message: String) {
         sources.computeIfPresent(id) { _, existing ->
@@ -218,12 +242,5 @@ class BackupSourceManager(private val context: Context? = null) {
         // commit(), not apply(): adding and deleting a source are user-visible acts that are
         // acknowledged immediately, and a delete lost to process death would resurrect the source.
         prefs.edit().putString(KEY_SOURCES, json.encodeToString(stored)).commit()
-    }
-
-    private companion object {
-        const val TAG = "BackupSourceManager"
-        const val PREFS_NAME = "kopia_backup_sources"
-        const val KEY_SOURCES = "sources"
-        val json = Json { ignoreUnknownKeys = true }
     }
 }

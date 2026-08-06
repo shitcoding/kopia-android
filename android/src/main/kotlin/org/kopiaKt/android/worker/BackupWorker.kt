@@ -33,6 +33,7 @@ import org.kopiaKt.android.notification.BackupNotificationManager
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.upload.UploadCounters
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -74,12 +75,12 @@ class BackupWorker(
     }
 
     /**
-     * Reloaded from SharedPreferences here rather than shared with the UI's instance: this worker
-     * can be running in a process the UI never started, which is the whole case [recordTerminal]
-     * exists for.
+     * The same instance the UI holds. A second one would cache its own copy of the whole source map
+     * and overwrite this one's writes on its next save, which is how a recorded failure would be
+     * erased before anyone saw it.
      */
     private val sourceManager: BackupSourceManager by lazy {
-        BackupSourceManager(applicationContext)
+        BackupSourceManager.getInstance(applicationContext)
     }
 
     /**
@@ -186,6 +187,13 @@ class BackupWorker(
             // Handle result
             when (result) {
                 is BackupSessionResult.Success -> {
+                    // Symmetrical with recordTerminal, and required for it to be honest: a run that
+                    // succeeds out here never goes through the interactive bridge, so without this a
+                    // source would keep showing yesterday's failure above a snapshot written minutes
+                    // ago -- the mirror of the bug the failure record exists to fix. Clearing is a
+                    // side effect of recording the success, so the two cannot drift apart.
+                    runCatching { sourceManager.updateLastSnapshotTime(sourceId, Instant.now()) }
+                        .onFailure { android.util.Log.w(TAG, "could not record the success for $sourceId", it) }
                     if (result.completedWithErrors) {
                         // A complete, saved, usable snapshot that skipped entries it could not
                         // read. Not a plain success -- the user should know -- and deliberately not
@@ -255,8 +263,12 @@ class BackupWorker(
                 // A cancel racing the foreground promotion surfaces here as a failed setForeground.
                 // Whoever cancelled does not need to be told Android refused them something.
                 showErrorNotification(sourceId, sourcePath, e.message ?: FOREGROUND_DENIED_MESSAGE)
+                recordTerminal(sourceId, e.message ?: FOREGROUND_DENIED_MESSAGE)
+            } else {
+                // A cancel racing the foreground promotion surfaces here too. Recording it would
+                // leave the user staring at a failure they caused on purpose.
+                Result.failure(workDataOf(KEY_ERROR to e.message))
             }
-            recordTerminal(sourceId, e.message ?: FOREGROUND_DENIED_MESSAGE)
         } catch (e: CancellationException) {
             // The session has already checkpointed (its saves are NonCancellable), so the run is
             // resumable either way. What differs is whether the user is owed an explanation: they
@@ -288,8 +300,14 @@ class BackupWorker(
         val message = cancellationMessage(stopReason)
         if (message != null) {
             showErrorNotification(sourceId, sourcePath, message)
+            // A message here means the stop is one only the user can lift -- the six-hour foreground
+            // cap or a background restriction. The latter blocks every future run too and may never
+            // produce another attempt to report it, so if this is not recorded now there may never
+            // be anything to record. A plain cancel (message null) is not remembered: the user asked
+            // for it.
+            return recordTerminal(sourceId, message)
         }
-        return Result.failure(workDataOf(KEY_ERROR to (message ?: "Backup cancelled")))
+        return Result.failure(workDataOf(KEY_ERROR to "Backup cancelled"))
     }
 
     private suspend fun runBackup(
