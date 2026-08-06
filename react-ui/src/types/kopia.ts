@@ -229,7 +229,7 @@ export interface WebTaskCounter {
 /** Source status */
 export interface WebSourceStatus {
   /**
-   * The handle to pass back to startBackup/pauseSource/resumeSource/getSourceStatus. Native is
+   * The handle to pass back to startBackup and the other per-source bridge calls. Native is
    * authoritative about it — never rebuild it from `source`, which is what used to make every one
    * of those calls answer "Source not found".
    */

@@ -37,8 +37,9 @@ import BackupProgressSheet from "@/components/BackupProgressSheet";
 import EstimationDialog from "@/components/EstimationDialog";
 
 // Only what the native SourceStatus enum can emit. It previously also listed SCHEDULED and FAILED,
-// which no code path could ever produce. PAUSED stays because a source persisted by an older build
-// can still carry it, but nothing sets it any more -- see the Pause control's removal.
+// which no code path could ever produce. PAUSED is kept because the native enum still has it and the
+// bridge could still return it -- not because a stored source could: BackupSourceManager
+// deliberately does not persist status, so a reloaded source always comes back IDLE.
 const STATUS_BADGE: Record<WebSourceStatus["status"], { label: string; className: string }> = {
   IDLE: { label: "Idle", className: "bg-muted text-muted-foreground" },
   UPLOADING: { label: "Uploading", className: "bg-primary/15 text-primary" },

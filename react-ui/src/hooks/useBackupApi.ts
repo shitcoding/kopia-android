@@ -3,8 +3,6 @@ import {
   getAllSourceStatuses,
   getSourceStatus,
   startBackup as startBackupBridge,
-  pauseSource as pauseSourceBridge,
-  resumeSource as resumeSourceBridge,
   deleteSource as deleteSourceBridge,
   createSource as createSourceBridge,
   listTasks,
@@ -74,26 +72,6 @@ export function useStartBackup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (sourceId: string) => Promise.resolve(startBackupBridge(sourceId)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
-  });
-}
-
-export function usePauseSource() {
-  const qc = useQueryClient();
-  return useMutation({
-    // Adopt the bridge's rejection: dropping it made every failure -- "Source not found" included --
-    // resolve, so the UI toasted success while nothing had happened.
-    mutationFn: (sourceId: string) => Promise.resolve(pauseSourceBridge(sourceId)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
-  });
-}
-
-export function useResumeSource() {
-  const qc = useQueryClient();
-  return useMutation({
-    // Adopt the bridge's rejection: dropping it made every failure -- "Source not found" included --
-    // resolve, so the UI toasted success while nothing had happened.
-    mutationFn: (sourceId: string) => Promise.resolve(resumeSourceBridge(sourceId)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["backup-sources"] }),
   });
 }

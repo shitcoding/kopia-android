@@ -33,6 +33,11 @@ const STATUS_BADGE: Record<WebTaskInfo["status"], { label: string; className: st
   CANCELED: { label: "Canceled", className: "bg-muted text-muted-foreground", icon: X },
 };
 
+// Fallbacks for a native kind or status this build does not know. Both tables are keyed by enums
+// that live on the other side of the bridge, so they can gain a value without this file changing.
+const UNKNOWN_KIND_ICON: React.ElementType = Wrench;
+const UNKNOWN_BADGE = { label: "Unknown", className: "bg-muted text-muted-foreground", icon: Clock };
+
 type FilterTab = "all" | "RUNNING" | "SUCCESS" | "FAILED";
 
 const TaskListScreen = () => {
@@ -93,8 +98,11 @@ const TaskListScreen = () => {
           </div>
         ) : (
           tasks.map((task, index) => {
-            const KindIcon = TASK_KIND_ICON[task.kind];
-            const badge = STATUS_BADGE[task.status];
+            // Both tables are keyed by native enums. An unmapped kind makes KindIcon undefined,
+            // which React throws on as an invalid element type -- taking out the whole task list
+            // rather than one row. Same guard the sources dashboard needed.
+            const KindIcon = TASK_KIND_ICON[task.kind] ?? UNKNOWN_KIND_ICON;
+            const badge = STATUS_BADGE[task.status] ?? UNKNOWN_BADGE;
             const isExpanded = expandedId === task.id;
             const isRunning = task.status === "RUNNING" || task.status === "CANCELING";
             // Counters are an open map and a run reports none until it has something to report;

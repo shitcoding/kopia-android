@@ -441,9 +441,9 @@ data class WebBackupSourceInfo(
 @Serializable
 data class WebSourceStatus(
     /**
-     * The handle the UI must pass back to `startBackup`/`pauseSource`/`resumeSource`/
-     * `getSourceStatus`. The native side is authoritative about it; the UI reconstructing
-     * `user@host:path` from [source] is exactly the contract break this field closes.
+     * The handle the UI must pass back to `startBackup` and the other per-source bridge calls. The
+     * native side is authoritative about it; the UI reconstructing `user@host:path` from [source] is
+     * exactly the contract break this field closes.
      */
     val id: String,
     val source: WebSourceInfo,
