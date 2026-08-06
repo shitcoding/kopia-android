@@ -7,7 +7,13 @@
     phone restored from the same cloud backup - write into the original device's source, interleaving
     two devices' snapshots under one retention policy. A new device gets a new identity; the old
     device's snapshots stay browsable and restorable under the old one.
+
+    The stored repository passwords must not travel either. Their values are encrypted, but the key
+    that decrypts them lives in the Android Keystore, which is not part of a backup - so a restored
+    device would receive a credentials file it can never read. Excluding it keeps repository
+    passwords off the backup transport and leaves a new install with a clean slate to re-enter them.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="kopia_source_identity.xml" />
+    <exclude domain="sharedpref" path="kopia_credentials.xml" />
 </full-backup-content>
