@@ -28,6 +28,23 @@ licenseReport {
     outputDir = layout.buildDirectory.dir("reports/licenses").get().asFile.absolutePath
 }
 
+/**
+ * Never reuse a licence report: regenerate it every time.
+ *
+ * The plugin's task inputs do not capture a change of dependency COORDINATES, so its cache key
+ * survives one. CI proved it: `generateLicenseReport` came back FROM-CACHE and produced a report
+ * still naming `javax.xml.stream:stax-api`, the CDDL/GPLv2 jar that task-48 had already replaced
+ * with Geronimo's Apache-2.0 one — a legal document, shipped inside the APK, describing a classpath
+ * the APK does not have. It only became visible because verifyLegalNotices then failed on it.
+ *
+ * Resolving the classpath and rendering the markdown takes about a second; there is nothing here
+ * worth caching against that.
+ */
+tasks.named("generateLicenseReport") {
+    outputs.cacheIf { false }
+    outputs.upToDateWhen { false }
+}
+
 android {
     namespace = "org.kopiaKt.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
