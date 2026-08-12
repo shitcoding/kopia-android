@@ -74,12 +74,14 @@ androidWebViewHierarchy: devtools
 # incomplete manifest behind — and the empty-state text, which this flow used to assert, does not:
 # an "Incomplete" row would make it red for something that is not a regression.
 #
-# What a UI cancel actually leaves was measured for task-57, twice, with the Go binary reading the
-# pulled repository: ZERO manifests, complete or incomplete, while 279 MB of pack blobs from the
-# cancelled run sit in it unreferenced. Both reviewers read the code as writing an incomplete
-# manifest here (stopBackup prefers the cooperative BackupSessionRegistry.cancel, which is
-# documented to drain and save one); the device disagrees, and why is task-58. If a row does start
-# appearing here, that is that gap being closed, not this flow breaking.
+# What a UI cancel leaves was measured for task-57 with the Go binary reading the pulled repository:
+# ZERO manifests, complete or incomplete, while 279 MB of pack blobs sat in it unreferenced. The
+# reason turned out to have nothing to do with cancelling: on this 190 MB source the run dies with
+# an OutOfMemoryError in PackBlobBuilder about 75 seconds in, with or without a cancel, so it never
+# reaches the manifest it would have written (task-59). The cooperative cancel route itself works —
+# instrumented on a device, `stopBackup` reports cooperative=true.
+#
+# So an "Incomplete" row appearing here later is task-59 being fixed, not this flow breaking.
 #
 # The leading space is load-bearing: text is matched as a FULL-match regex, so ".*0 snapshots.*"
 # would also be satisfied by "10 snapshots".
