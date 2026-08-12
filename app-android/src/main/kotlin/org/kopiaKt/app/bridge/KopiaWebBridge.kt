@@ -42,6 +42,7 @@ import org.kopiaKt.android.worker.openBackupSource
 import org.kopiaKt.android.worker.runInteractiveBackup
 import org.kopiaKt.android.worker.toUiTaskCounters
 import org.kopiaKt.app.BuildConfig
+import org.kopiaKt.app.domain.model.SourceWithStats
 import org.kopiaKt.app.domain.repository.KopiaRepositoryManager
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.snapshot.policy.PolicyManager
@@ -88,6 +89,9 @@ class KopiaWebBridge private constructor(
     private val _taskManager: TaskManager?,
     private val _sourceManager: BackupSourceManager?,
     private val _repositoryManager: KopiaRepositoryManager?,
+    // Not `_snapshotRepository`, unlike its neighbours: they predate the lint gate and sit in
+    // detekt's baseline, which a new parameter cannot join (a NEW violation is fixed, not frozen).
+    private val providedSnapshotRepository: SnapshotRepository?,
 ) {
     /**
      * Primary constructor for production use with Android context and Hilt DI.
@@ -105,6 +109,7 @@ class KopiaWebBridge private constructor(
         _taskManager = null,
         _sourceManager = null,
         _repositoryManager = null,
+        providedSnapshotRepository = null,
     )
 
     /**
@@ -116,6 +121,7 @@ class KopiaWebBridge private constructor(
         sourceManager: BackupSourceManager,
         repositoryManager: KopiaRepositoryManager,
         context: Context? = null,
+        snapshotRepository: SnapshotRepository? = null,
     ) : this(
         context = context,
         activity = null,
@@ -124,6 +130,7 @@ class KopiaWebBridge private constructor(
         _taskManager = taskManager,
         _sourceManager = sourceManager,
         _repositoryManager = repositoryManager,
+        providedSnapshotRepository = snapshotRepository,
     )
 
     private companion object {
@@ -162,7 +169,8 @@ class KopiaWebBridge private constructor(
 
     private val repositoryManager: KopiaRepositoryManager
         get() = _repositoryManager ?: entryPoint.repositoryManager()
-    private val snapshotRepository get() = entryPoint.snapshotRepository()
+    private val snapshotRepository: SnapshotRepository
+        get() = providedSnapshotRepository ?: entryPoint.snapshotRepository()
     private val credentialRepository get() = entryPoint.credentialRepository()
 
     internal val taskManager: TaskManager
@@ -1074,9 +1082,65 @@ class KopiaWebBridge private constructor(
     @JavascriptInterface
     fun listAllSources(): String = try {
         val sources = sourceManager.listSources()
-        json.encodeToString(WebResult.success(sources.map { it.withRunningTask() }))
+        val stats = snapshotStatsBySource(sources)
+        json.encodeToString(WebResult.success(sources.map { it.withRunningTask(stats[it.id]) }))
     } catch (e: Exception) {
         json.encodeToString(WebResult.error<List<WebSourceStatus>>(e.message ?: "Error listing sources"))
+    }
+
+    /**
+     * The last per-source snapshot stats read from the repository, keyed by `user@host:path`.
+     *
+     * Kept so a poll that must not touch the repository can still answer with numbers; see
+     * [snapshotStatsBySource] for when that is.
+     */
+    private val lastSnapshotStats = AtomicReference<Map<String, SourceWithStats>>(emptyMap())
+
+    /**
+     * What the repository holds per source, keyed by the same `user@host:path` the sources are.
+     *
+     * One read for the whole dashboard rather than one per row, and the same call the snapshots
+     * screen uses, so the two screens cannot disagree about how many snapshots a source has.
+     *
+     * **Not read while a backup is running.** A `@JavascriptInterface` call blocks its JS caller, and
+     * every manifest read waits on the manifest manager's mutex — which `applyRetention` holds at
+     * the end of every successful backup while `repository.refresh()` reads each manifest blob from
+     * STORAGE. Over a slow WebDAV or SFTP link that is seconds, and the dashboard is polling every
+     * 5s for exactly the duration of that backup, so a poll landing on it would park the WebView's
+     * one bridge thread and everything queued behind it, cancel included. Nothing is lost by
+     * waiting: these numbers cannot change during a run except at its very end, and the poll that
+     * sees the source go IDLE reads them again.
+     *
+     * Empty rather than throwing when the repository cannot be read: the dashboard's first job is to
+     * show that the source exists and when it last ran, and neither should be lost because a count
+     * could not be fetched. The rows then report no numbers at all, which is what they mean.
+     *
+     * The remaining cost is `listSourcesWithStats` decoding every snapshot manifest in the
+     * repository, from memory, on an idle poll. If a repository with thousands of snapshots ever
+     * makes that felt, the fix is to count from the manifest INDEX — whose entries already carry
+     * host/user/path — and decode only each source's newest.
+     */
+    private fun snapshotStatsBySource(sources: List<SourceInfo>): Map<String, SourceWithStats> {
+        if (sources.isEmpty()) return emptyMap()
+        if (sources.any { it.status == SourceStatus.UPLOADING }) return lastSnapshotStats.get()
+        return try {
+            if (repositoryManager.getRepository() == null) {
+                emptyMap()
+            } else {
+                runBlocking { snapshotRepository.listSourcesWithStats() }
+                    .associateBy { it.source.toString() }
+                    .also { lastSnapshotStats.set(it) }
+            }
+        } catch (e: CancellationException) {
+            // Rethrown for the usual reason, though nothing can cancel that runBlocking: it has no
+            // parent job. If that ever changes, listAllSources' own catch turns this into an error
+            // result and the source list disappears -- which is the outcome this method exists to
+            // prevent, so give it a home of its own before making the scope cancellable.
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            android.util.Log.w(TAG, "could not read per-source snapshot stats", e)
+            emptyMap()
+        }
     }
 
     /**
@@ -1088,11 +1152,11 @@ class KopiaWebBridge private constructor(
      * and offers a progress sheet on the strength of this id, and a finished run's id would leave it
      * doing both forever.
      */
-    private fun SourceInfo.withRunningTask(): WebSourceStatus {
+    private fun SourceInfo.withRunningTask(stats: SourceWithStats?): WebSourceStatus {
         val task = currentTaskId
             ?.let { taskManager.getTask(it) }
             ?.takeIf { it.status == TaskStatus.RUNNING || it.status == TaskStatus.CANCELING }
-        val web = toWebStatus(task)
+        val web = toWebStatus(task, stats)
         // Uploading is a claim about a run in progress, so a live task has to back it. Reporting it
         // without one leaves the row busy with nothing to tap into and the dashboard polling for a
         // change that will never come.
@@ -1186,7 +1250,10 @@ class KopiaWebBridge private constructor(
                 ?: return json.encodeToString(
                     WebResult.error<WebSourceStatus>("Source not found: $sourceId"),
                 )
-            json.encodeToString(WebResult.success(source.withRunningTask()))
+            // listOf(source), not every source: this answers for one row, and the guard that keeps a
+            // running backup from being read through is the same either way.
+            val stats = snapshotStatsBySource(listOf(source))[sourceId]
+            json.encodeToString(WebResult.success(source.withRunningTask(stats)))
         } catch (e: Exception) {
             json.encodeToString(WebResult.error<WebSourceStatus>(e.message ?: "Error getting source status"))
         }

@@ -330,6 +330,7 @@ class WebModelsTest {
                 status = TaskStatus.RUNNING,
                 startTime = Instant.EPOCH,
             ),
+            stats = null,
         )
 
         assertEquals("task-1", web.currentTaskId)

@@ -236,8 +236,14 @@ export interface WebSourceStatus {
   uploadCounters?: Record<string, WebTaskCounter> | null;
   /** The task uploading this source right now; the handle the progress sheet opens on. */
   currentTaskId?: string | null;
-  snapshotCount: number;
-  totalFileSize: number;
+  /**
+   * How many snapshots the repository holds for this source, and how much the newest one occupies
+   * after deduplication. Absent when the repository cannot say — not connected, unreadable, or it
+   * holds nothing for this source. They used to be hardcoded to zero on the native side, so every
+   * row read "0 snapshots · 0 B" beside a real "Last backup" time.
+   */
+  snapshotCount?: number | null;
+  totalFileSize?: number | null;
 }
 
 /** Task info */

@@ -138,6 +138,27 @@ describe("bridge contract: the source id is native's, not rebuilt from the sourc
     expect(status.id).toBe("local@Pixel 7:/sdcard/DCIM");
   });
 
+  it("a source whose snapshots native could not count carries no count at all", async () => {
+    // Not zero. The dashboard renders "N snapshots · X" from these, and native omits them when the
+    // repository cannot say — not connected, unreadable, or holding nothing for this source. A 0
+    // beside a real "Last backup" time is a false statement about a source that has been backed up,
+    // which is what the row did for the whole life of the feature.
+    stubBridge("listAllSources", () =>
+      ok([
+        {
+          id: "local@Pixel 7:/sdcard/DCIM",
+          source: { userName: "local", host: "Pixel 7", path: "/sdcard/DCIM" },
+          status: "IDLE",
+        },
+      ]),
+    );
+
+    const [status] = await getAllSourceStatuses();
+
+    expect(status.snapshotCount ?? null).toBeNull();
+    expect(status.totalFileSize ?? null).toBeNull();
+  });
+
   it("an uploading source carries its task id and that task's counters", async () => {
     // The dashboard shows a progress bar on the strength of uploadCounters and opens the progress
     // sheet on currentTaskId. Kotlin populated neither for the whole life of the feature, so the

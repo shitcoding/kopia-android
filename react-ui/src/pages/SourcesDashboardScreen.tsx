@@ -206,7 +206,15 @@ const SourcesDashboardScreen = () => {
                         {src.lastBackupTimeEpochMs && (
                           <span>Last: {formatRelativeTime(src.lastBackupTimeEpochMs)}</span>
                         )}
-                        <span>{src.snapshotCount} snapshots · {formatFileSize(src.totalFileSize)}</span>
+                        {/* Only when native could actually count them. Rendering a bare 0 next to
+                            a real "Last" time states something false about a source that has been
+                            backed up; saying nothing states nothing. */}
+                        {src.snapshotCount != null && (
+                          <span>
+                            {src.snapshotCount} {src.snapshotCount === 1 ? "snapshot" : "snapshots"}
+                            {src.totalFileSize != null ? ` · ${formatFileSize(src.totalFileSize)}` : ""}
+                          </span>
+                        )}
                       </div>
                     </button>
 

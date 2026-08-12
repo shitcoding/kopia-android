@@ -13,6 +13,7 @@ import org.kopiaKt.app.domain.model.RestoreState
 import org.kopiaKt.app.domain.model.SnapshotInfo
 import org.kopiaKt.app.domain.model.SnapshotStats
 import org.kopiaKt.app.domain.model.SourceInfo
+import org.kopiaKt.app.domain.model.SourceWithStats
 import org.kopiaKt.app.domain.repository.RestoreOptions
 
 /**
@@ -458,8 +459,16 @@ data class WebSourceStatus(
      * it. Null until a run in progress has counters to report, never an empty map.
      */
     val uploadCounters: Map<String, WebTaskCounterValue>? = null,
-    val snapshotCount: Int = 0,
-    val totalFileSize: Long = 0,
+    /**
+     * How many snapshots this source has in the repository, and how much the newest one occupies
+     * after deduplication — the same two numbers, from the same place, as the snapshots screen.
+     *
+     * Null when the repository cannot say (not connected, unreadable, or a source it holds nothing
+     * for). They were hardcoded to zero, so every row read "0 snapshots · 0 B" beside a real "Last
+     * backup" time; absent is what lets the UI say nothing rather than something false.
+     */
+    val snapshotCount: Int? = null,
+    val totalFileSize: Long? = null,
     /** Why the last backup ended without a snapshot; null when the last one succeeded. */
     val lastError: String? = null,
     val lastErrorTimeEpochMs: Long? = null,
@@ -628,6 +637,7 @@ internal fun localSnapshotSourceInfo(
  */
 fun org.kopiaKt.android.worker.SourceInfo.toWebStatus(
     runningTask: org.kopiaKt.android.worker.TaskInfo?,
+    stats: SourceWithStats?,
 ) = WebSourceStatus(
     id = id,
     // Parsed from the id rather than recomputed: the id is what everything else keys on, and
@@ -644,8 +654,8 @@ fun org.kopiaKt.android.worker.SourceInfo.toWebStatus(
     // would draw a full, static bar under a caption reading "0 B" for the opening seconds of every
     // backup, which reads as finished or stuck rather than as starting.
     uploadCounters = runningTask?.counters?.takeIf { it.isNotEmpty() }?.toWeb(),
-    snapshotCount = 0,
-    totalFileSize = 0,
+    snapshotCount = stats?.snapshotCount,
+    totalFileSize = stats?.totalFileSize,
     lastError = lastError,
     lastErrorTimeEpochMs = lastErrorTime?.toEpochMilli(),
 )
