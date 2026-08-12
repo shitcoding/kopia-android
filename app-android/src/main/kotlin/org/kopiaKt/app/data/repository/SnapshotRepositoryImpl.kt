@@ -24,6 +24,7 @@ import org.kopiaKt.app.domain.repository.RestoreOptions
 import org.kopiaKt.app.domain.repository.SnapshotRepository
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.manifest.ManifestNotFoundException
+import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.fs.Directory
 import org.kopiaKt.snapshot.fs.Entry
 import org.kopiaKt.snapshot.maintenance.computeRetention
@@ -69,6 +70,8 @@ class SnapshotRepositoryImpl @Inject constructor(
         val repo = repositoryManager.getRepository()
             ?: error("Not connected to repository")
 
+        repo.requireCompleteManifestView()
+
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         source?.let {
             labels[ManifestLabels.HOST] = it.host
@@ -79,15 +82,7 @@ class SnapshotRepositoryImpl @Inject constructor(
         val manifests = repo.findManifests(labels)
 
         manifests.mapNotNull { metadata ->
-            try {
-                val (manifest, _) = repo.getManifest(
-                    metadata.id,
-                    SnapshotManifest.serializer(),
-                )
-                manifest.toSnapshotInfo(metadata.id.value)
-            } catch (e: Exception) {
-                null
-            }
+            repo.loadSnapshot(metadata.id)?.toSnapshotInfo(metadata.id.value)
         }
     }
 
@@ -349,31 +344,32 @@ class SnapshotRepositoryImpl @Inject constructor(
         val repo = repositoryManager.getRepository()
             ?: error("Not connected to repository")
 
+        repo.requireCompleteManifestView()
+
         // Need to load full manifests to get storageStats
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         val metadataList = repo.findManifests(labels)
 
-        val manifestsWithIds = metadataList.mapNotNull { metadata ->
-            try {
-                val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
-                manifest
-            } catch (e: Exception) {
-                null
-            }
-        }
+        val manifests = metadataList.mapNotNull { repo.loadSnapshot(it.id) }
 
-        manifestsWithIds
+        manifests
             .groupBy { SourceInfo(it.source.host, it.source.userName, it.source.path) }
             .map { (source, snapshots) ->
-                val latest = snapshots.maxByOrNull { it.startTime }!!
+                val complete = snapshots.filter { it.incompleteReason == null }
+                val latestComplete = complete.maxByOrNull { it.startTime }
+                // A source with nothing complete in it is still a source, and the screen it feeds
+                // is the only way to reach what the unfinished run did store.
+                val latest = latestComplete ?: snapshots.maxByOrNull { it.startTime }!!
 
                 SourceWithStats(
                     source = source,
-                    snapshotCount = snapshots.size,
+                    snapshotCount = complete.size,
                     latestSnapshotTime = latest.startTime,
-                    totalFileCount = latest.displayFileCount(),
+                    totalFileCount = latestComplete?.displayFileCount() ?: 0,
                     // Use deduplicated storage size (matches Kopia GUI)
-                    totalFileSize = latest.storageStats?.runningTotal?.objectBytes ?: latest.stats?.totalFileSize ?: 0,
+                    totalFileSize = latestComplete?.let {
+                        it.storageStats?.runningTotal?.objectBytes ?: it.stats?.totalFileSize
+                    } ?: 0,
                 )
             }
             .sortedByDescending { it.latestSnapshotTime }
@@ -382,6 +378,8 @@ class SnapshotRepositoryImpl @Inject constructor(
     override suspend fun listSnapshotsWithRetention(source: SourceInfo): List<SnapshotWithRetention> = withContext(Dispatchers.IO) {
         val repo = repositoryManager.getRepository()
             ?: error("Not connected to repository")
+
+        repo.requireCompleteManifestView()
 
         val labels = mutableMapOf(ManifestLabels.TYPE to ManifestLabels.TYPE_SNAPSHOT)
         labels[ManifestLabels.HOST] = source.host
@@ -392,12 +390,7 @@ class SnapshotRepositoryImpl @Inject constructor(
 
         // Load full manifests paired with their manifest IDs
         val manifestsWithIds = metadataList.mapNotNull { metadata ->
-            try {
-                val (manifest, _) = repo.getManifest(metadata.id, SnapshotManifest.serializer())
-                metadata.id.value to manifest
-            } catch (e: Exception) {
-                null
-            }
+            repo.loadSnapshot(metadata.id)?.let { metadata.id.value to it }
         }
 
         // Compute retention using default policy
@@ -438,6 +431,44 @@ class SnapshotRepositoryImpl @Inject constructor(
         } finally {
             writer.close()
         }
+    }
+
+    /**
+     * Refuses to answer from a manifest view the repository itself calls partial.
+     *
+     * [loadSnapshot] only covers manifests that reach `findManifests`. The likelier loss happens
+     * one level up: `ManifestManager` skips a whole manifest content BLOCK it cannot parse — and a
+     * block holds many manifests — so those snapshots never appear in the list at all and there is
+     * no read left to fail. `lastLoadWasComplete()` is how the repository says that happened (the
+     * same signal snapshot GC refuses to delete on, task-9); a count taken over that view is a
+     * number the user would count differently.
+     */
+    private fun DirectRepository.requireCompleteManifestView() = check(lastLoadWasComplete()) {
+        "Repository could not be fully read: some index or manifest data was unreadable, so snapshots may be missing"
+    }
+
+    /**
+     * The snapshot manifest [id] names, or null if it is genuinely gone.
+     *
+     * Only absence answers null. A manifest that cannot be DECODED propagates, because every list
+     * built on this prints its own length as "N snapshots": swallowing one read reports 99
+     * snapshots for a source that has 100, with nothing anywhere saying a manifest could not be
+     * read. In a backup tool that is the wrong direction to fail, and both callers can say so — the
+     * snapshots screen shows its error state, and the dashboard drops the counts while keeping the
+     * source list (`snapshotStatsBySource`).
+     *
+     * A decode failure is the only failure this call has: the payload is already in memory by the
+     * time it is asked for (`ManifestManager.getEntryContent` reads the committed/pending maps, no
+     * storage). Losing the bytes at STORAGE level is the case [requireCompleteManifestView] covers.
+     *
+     * Retention deletes manifests after every backup, so losing one between `findManifests` and
+     * this read is an ordinary race and the one case where leaving it out is the truth. Same rule
+     * as [getSnapshot].
+     */
+    private suspend fun DirectRepository.loadSnapshot(id: ManifestId): SnapshotManifest? = try {
+        getManifest(id, SnapshotManifest.serializer()).first
+    } catch (@Suppress("SwallowedException") e: ManifestNotFoundException) {
+        null
     }
 
     private fun SnapshotManifest.toSnapshotInfo(manifestId: String): SnapshotInfo = SnapshotInfo(

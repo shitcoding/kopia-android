@@ -103,7 +103,13 @@ export function useSnapshotsWithRetention(source: SourceInfo | null) {
     // shown its snapshot. It re-reads manifests the repository already holds, so the cost is a
     // decode rather than a round trip; gate it if a source with hundreds of snapshots ever makes
     // that matter.
-    refetchInterval: 5000,
+    //
+    // Stops once the query has failed, which it now can: a manifest that cannot be read fails the
+    // whole list rather than quietly shortening it. Left polling, a permanently unreadable
+    // repository would re-decode every manifest four times per tick (two retries, each also trying
+    // the no-retention fallback in kopiaBridge.listSnapshotsWithRetention) behind a screen that is
+    // already showing "Failed to load snapshots" and a Retry button.
+    refetchInterval: (query) => (query.state.status === "error" ? false : 5000),
   });
 }
 

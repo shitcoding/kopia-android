@@ -142,7 +142,14 @@ export interface SnapshotInfo {
   tags?: Record<string, string>;
 }
 
-/** Summary of a backup source with aggregated stats from its latest snapshot */
+/**
+ * Summary of a backup source, from its latest COMPLETE snapshot.
+ *
+ * `snapshotCount` counts complete snapshots only — the same rule as Go's `kopia snapshot list`
+ * without `--incomplete`, and the same number SourceSnapshotsScreen prints over the list itself.
+ * An unfinished run (cancelled, or a checkpoint retention keeps) is not a restore point, and its
+ * partial size is not the size of the source.
+ */
 export interface SourceWithStats {
   source: SourceInfo;
   snapshotCount: number;
@@ -237,10 +244,14 @@ export interface WebSourceStatus {
   /** The task uploading this source right now; the handle the progress sheet opens on. */
   currentTaskId?: string | null;
   /**
-   * How many snapshots the repository holds for this source, and how much the newest one occupies
-   * after deduplication. Absent when the repository cannot say — not connected, unreadable, or it
-   * holds nothing for this source. They used to be hardcoded to zero on the native side, so every
-   * row read "0 snapshots · 0 B" beside a real "Last backup" time.
+   * How many COMPLETE snapshots the repository holds for this source, and how much the newest
+   * complete one occupies after deduplication. Absent when the repository cannot say — not
+   * connected, unreadable, or it holds no manifest at all for this source. They used to be
+   * hardcoded to zero on the native side, so every row read "0 snapshots · 0 B" beside a real
+   * "Last backup" time.
+   *
+   * Zero is a different answer from absent: a source whose only run was cancelled has manifests but
+   * nothing complete, and reports 0. The per-source screen is where that is spelled out.
    */
   snapshotCount?: number | null;
   totalFileSize?: number | null;

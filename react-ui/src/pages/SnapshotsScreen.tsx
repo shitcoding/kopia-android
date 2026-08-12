@@ -100,7 +100,7 @@ const SnapshotsScreen = () => {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-                  <span>{src.snapshotCount} snapshots</span>
+                  <span>{src.snapshotCount} {src.snapshotCount === 1 ? "snapshot" : "snapshots"}</span>
                   <span>·</span>
                   <span>{formatFileSize(src.totalFileSize)}</span>
                   <span>·</span>

@@ -27,6 +27,17 @@ data class SnapshotStats(
     val totalDirectoryCount: Int,
 )
 
+/**
+ * @param snapshotCount COMPLETE snapshots only — what Go's `kopia snapshot list` shows without
+ *   `--incomplete`. A cancelled run leaves a manifest behind and retention deliberately keeps up to
+ *   three of them, so counting those would make cancelling a backup look like taking one. The
+ *   per-source list marks incomplete manifests separately, and counts the same way.
+ * @param totalFileCount from the newest COMPLETE snapshot, as are [totalFileSize] and
+ *   [latestSnapshotTime] — a checkpoint's numbers describe however much of the run had been
+ *   uploaded when it stopped, which is not the size of the source. Both are zero when nothing is
+ *   complete; [latestSnapshotTime] then falls back to the newest manifest of any kind, so a source
+ *   whose only run was cancelled still sorts and dates sensibly.
+ */
 data class SourceWithStats(
     val source: SourceInfo,
     val snapshotCount: Int,

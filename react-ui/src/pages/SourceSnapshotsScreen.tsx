@@ -84,6 +84,14 @@ const SourceSnapshotsScreen = () => {
   const isEmpty = !isLoading && !isError && (!snapshots || snapshots.length === 0);
   const hasData = !isLoading && !isError && snapshots && snapshots.length > 0;
 
+  // "N snapshots" means COMPLETE snapshots, here and on the two screens that get the same number
+  // from native (listSourcesWithStats). The unfinished ones are still listed and marked below --
+  // they are simply not restore points, and counting them makes cancelling a backup look like
+  // taking one. Named separately rather than appended to the line above, which is also what the
+  // E2E flows match on.
+  const incompleteCount = snapshots?.filter((s) => s.isIncomplete).length ?? 0;
+  const completeCount = (snapshots?.length ?? 0) - incompleteCount;
+
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -185,10 +193,18 @@ const SourceSnapshotsScreen = () => {
       {!selectionMode && (
         <div className="px-4 py-3 border-b border-border/50">
           <p className="font-semibold text-foreground text-sm break-all">{source.path}</p>
+          {/* Always the plural, unlike the two cards that show the same number: about a dozen
+              Maestro flows wait on this element with `text: ".* snapshots"`, and Maestro matches
+              text as a FULL-match regex, so "1 snapshot" would strand every one of them. */}
           <p className="text-sm text-muted-foreground mt-0.5">
             {source.userName}@{source.host}
-            {snapshots ? ` \u00b7 ${snapshots.length} snapshots` : ""}
+            {snapshots ? ` \u00b7 ${completeCount} snapshots` : ""}
           </p>
+          {incompleteCount > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {incompleteCount} incomplete {incompleteCount === 1 ? "backup" : "backups"} kept, not counted above
+            </p>
+          )}
         </div>
       )}
 

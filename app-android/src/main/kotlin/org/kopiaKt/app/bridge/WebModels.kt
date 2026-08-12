@@ -460,12 +460,20 @@ data class WebSourceStatus(
      */
     val uploadCounters: Map<String, WebTaskCounterValue>? = null,
     /**
-     * How many snapshots this source has in the repository, and how much the newest one occupies
-     * after deduplication — the same two numbers, from the same place, as the snapshots screen.
+     * How many COMPLETE snapshots this source has in the repository, and how much the newest
+     * complete one occupies after deduplication — the same two numbers, from the same place, as
+     * the snapshots screen. An unfinished run is not counted; see [SourceWithStats].
      *
-     * Null when the repository cannot say (not connected, unreadable, or a source it holds nothing
-     * for). They were hardcoded to zero, so every row read "0 snapshots · 0 B" beside a real "Last
-     * backup" time; absent is what lets the UI say nothing rather than something false.
+     * Null when the repository cannot say — not connected, or unreadable, or it holds no manifest
+     * at all for this source. They were hardcoded to zero, so every row read "0 snapshots · 0 B"
+     * beside a real "Last backup" time; absent is what lets the UI say nothing rather than
+     * something false.
+     *
+     * **Zero is a different answer from null**, and one case reaches it: a source whose only run
+     * was cancelled has manifests but nothing complete, so it reports 0 and 0 B while the
+     * repository holds however much that run uploaded. Saying so here would need a third number on
+     * every row for one situation; the per-source screen, which lists those runs and marks them, is
+     * where it is said instead.
      */
     val snapshotCount: Int? = null,
     val totalFileSize: Long? = null,
