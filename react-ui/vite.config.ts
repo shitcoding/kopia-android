@@ -10,6 +10,13 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     assetsDir: "assets",
+    // Pinned, not inherited. This bundle runs in an Android System WebView on a phone with minSdk
+    // 26, and vite's default floor moves with vite: 5 shipped chrome87, 7 raised it to chrome107.
+    // A dependency that starts emitting newer syntax would then white-screen the app on a device
+    // whose WebView has never been updated, with nothing failing at build time to say so. chrome87
+    // is what the app was built and tested against before the vite 7 upgrade; raise it deliberately
+    // and with a device to try it on, or not at all.
+    target: "chrome87",
     // Generate sourcemaps for debugging
     sourcemap: mode === "development",
     // Ensure single CSS file for simpler loading
