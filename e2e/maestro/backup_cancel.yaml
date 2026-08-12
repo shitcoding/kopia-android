@@ -33,7 +33,9 @@ androidWebViewHierarchy: devtools
 - tapOn:
     text: "Cancel Backup"
 - extendedWaitUntil:
-    visible: "Cancel Backup?"
+    # Escaped: Maestro matches text as a full-match regex, so a bare `?` is a quantifier and this
+    # would be satisfied by the sheet's own "Cancel Backup" button without the dialog ever opening.
+    visible: "Cancel Backup\\?"
     timeout: 15000
 # By its own label: the sheet's button, the dialog's title and this button all carry the same text.
 - tapOn:

@@ -72,8 +72,9 @@ mkdir -p "$STATE_DIR/source"
 adb shell "rm -rf $DEVICE_SOURCE" || fail "could not clear $DEVICE_SOURCE"
 adb push "$HOST_SOURCE" "$DEVICE_SOURCE" >/dev/null || fail "could not push the source tree"
 
-# 4b. A larger tree, used only by the cancellation flow: the small one finishes in seconds, so
-#     there would be nothing left running by the time Cancel is tapped.
+# 4b. A larger tree, for the flows that need a backup still running when they act on it: the small
+#     one finishes in seconds, so there would be nothing left to cancel (backup_cancel) and nothing
+#     in flight to rotate during (backup_task_survives_recreation).
 LARGE_SOURCE="/sdcard/Download/phone_source_large"
 adb shell "rm -rf $LARGE_SOURCE" || true
 adb shell "mkdir -p $LARGE_SOURCE" || fail "could not create $LARGE_SOURCE"

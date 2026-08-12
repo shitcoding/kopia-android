@@ -7,7 +7,26 @@
 # the singleton defect is only observable through state that is NOT persisted, which is the in-flight
 # task. So this checks both: the source survives a restart, and a RUNNING backup survives a rotation.
 #
-# Category: backup.
+# It backs up the LARGE tree, like backup_cancel and for the same reason (task-54): the small one is
+# eight tiny files that finish in seconds, so the run this flow needs to still be in flight was
+# usually over before the rotation landed. The flow then had to assert something weaker - that the
+# welcome screen had not appeared - and even getting that far depended on catching a progress sheet
+# that a finished run had already closed, which failed outright on 2026-08-06. With a run that
+# outlives the rotation, the sheet is a reliable signal and this can assert what it is named for:
+# the task is STILL THERE afterwards.
+#
+# What it no longer does is write and verify a snapshot; backup_run_local already backs up the small
+# tree, asserts exactly one snapshot with the right file count, and has the Go binary restore it
+# byte-for-byte. Duplicating that here bought nothing and is what tied this flow to a backup too
+# short to rotate during -- and it could not have been kept anyway, since verify_backup.sh compares
+# against the small tree alone and the large one is generated on the device with no host original.
+#
+# Deliberately NOT covered by anything now: that a backup spanning a rotation runs to COMPLETION. A
+# rotation that stalled the worker without killing the task would leave the sheet up and pass here.
+# That assertion was almost always vacuous before this change too -- the run had usually finished
+# before the rotation landed -- so this records a gap rather than opening one.
+#
+# Category: backup. The run is cancelled at the end, so nothing here waits on 190 MB completing.
 
 appId: org.kopiaKt.app
 androidWebViewHierarchy: devtools
@@ -17,7 +36,7 @@ androidWebViewHierarchy: devtools
     env:
       START_IMMEDIATELY: "false"
       EXCLUSIONS: ""
-      SOURCE_PATH: "/sdcard/Download/phone_source"
+      SOURCE_PATH: "/sdcard/Download/phone_source_large"
 
 # ===== The source survives process death =====
 
@@ -53,7 +72,7 @@ androidWebViewHierarchy: devtools
     file: flows/_goto_sources.yaml
 
 # Still there after the process was killed and the app reconnected.
-- assertVisible: "Source phone_source"
+- assertVisible: "Source phone_source_large"
 
 # ===== A running task survives activity recreation =====
 
@@ -68,44 +87,49 @@ androidWebViewHierarchy: devtools
 
 # Rotation used to recreate MainActivity, which is exactly what took the TaskManager - and with it
 # the running backup - away. task-35 stopped the recreation (the activity now handles orientation
-# itself), so this asks the UI directly rather than working around a welcome screen.
+# itself).
 - setOrientation: LANDSCAPE_LEFT
 - waitForAnimationToEnd
 
-# The welcome screen is what a recreated activity produced, every time, whatever the user was doing.
-# Asserting its absence rather than the progress sheet's presence keeps this honest: eight small
-# files can finish uploading before the rotation lands, and a flow that then failed would be
-# reporting a race, not a regression.
-- assertNotVisible: "Connect to Repository"
-
-- setOrientation: PORTRAIT
-- waitForAnimationToEnd
-- assertNotVisible: "Connect to Repository"
-
-# Dismiss the progress sheet and wait for the snapshot itself. A sheet only ever proved a task was
-# created; the snapshot appearing is the proof the task ran to completion across the rotation, and
-# the runner's verify_backup.sh then asserts exactly one landed in the repository.
-#
-# Conditional, and that is the whole point. This flow deliberately does NOT assert the sheet is
-# visible (see the comment above: eight small files can finish uploading before the rotation lands,
-# and asserting it would report a race as a regression) -- but it then tapped 50%,15% as though the
-# sheet were certainly there. When the backup HAD already finished, that coordinate is not a scrim,
-# it is the app bar's "Add Source": the tap opened the wizard, "Backup Sources" was never going to
-# appear, and the flow failed at this assertion in 3 of 4 runs. The runner reported those as
-# emulator ANR/INFRA, which is why this flow "never went green" rather than being read as broken.
-- runFlow:
-    when:
-      visible:
-        text: ".*Backup Progress.*"
-    commands:
-      - tapOn:
-          point: "50%,15%"
+# The task is still running and still being watched. A recreated activity produced the welcome
+# screen instead, every time, whatever the user was doing - so both assertions describe the same
+# defect, and the sheet is the one that says the TASK survived rather than merely the screen.
 - extendedWaitUntil:
     visible:
-      text: ".*Backup Sources.*"
-    timeout: 20000
-- runFlow:
-    file: flows/_open_source_snapshots.yaml
+      text: ".*Backup Progress.*"
+    timeout: 15000
+- assertNotVisible: "Connect to Repository"
+
+# ===== Leave nothing running =====
+#
+# Not because 190 MB could not finish -- setup measured ~5 MB/s, so it would land inside a minute --
+# but because a run still uploading when the next flow's setup wipes the app is how an emulator ends
+# up wedged, and because letting it complete would put the sheet's self-close back in the way of
+# these steps. The size is load-bearing in both directions: large enough to still be running at the
+# rotation, small enough that the whole flow fits the 600s timeout.
+- tapOn:
+    text: "Cancel Backup"
 - extendedWaitUntil:
-    visible: "Select snapshot 1"
-    timeout: 180000
+    # Escaped: Maestro matches text as a full-match regex, so a bare `?` is a quantifier and this
+    # would be satisfied by the sheet's own "Cancel Backup" button without the dialog ever opening.
+    visible: "Cancel Backup\\?"
+    timeout: 15000
+# By its own label: the sheet's button, the dialog's title and this button all carry the same text.
+- tapOn:
+    id: "confirm-cancel-backup-button"
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 60000
+
+# The sheet closes as soon as the task is cancelled, which says nothing about the WORKER: the cancel
+# reaches it through BackupSessionRegistry and a WorkManager cancel, and backup_cancel.yaml is what
+# proves that landed (it asserts no snapshot was written). Here the point is only to leave the
+# emulator clean, so take the guarantee rather than infer it.
+- stopApp
+
+# Put the device back the way it was found. setup_backup_env.sh forces portrait before each backup
+# flow precisely because this one rotates, but that leaves the device sideways for anything run
+# outside the runner - and it turns the next flow's own startup into a rotation, which is a config
+# change like any other.
+- setOrientation: PORTRAIT

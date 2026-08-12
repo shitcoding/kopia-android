@@ -428,12 +428,14 @@ run_one() {
 # a single fixed invocation could not tell "exactly one snapshot" from "exactly two".
 backup_verify_args() {
     case "$1" in
-        backup_run_local|backup_task_survives_recreation) echo "--expect-snapshots 1" ;;
+        backup_run_local)    echo "--expect-snapshots 1" ;;
         backup_saf_source)   echo "--expect-snapshots 2" ;;
         backup_policy_ignore) echo "--expect-snapshots 1 --expect-absent excluded/secret.txt" ;;
         backup_retention)    echo "--expect-snapshots 2" ;;
-        # backup_cancel asserts NO complete snapshot; verify_backup would fail on an empty repo, so
-        # the flow's own assertions are the check there.
+        # backup_cancel and backup_task_survives_recreation both END on a cancelled run, so there is
+        # no complete snapshot to restore and verify_backup would fail on an empty repo; the flows'
+        # own assertions are the check there. backup_run_local covers the same small tree end to end,
+        # Go oracle included.
         *) echo "" ;;
     esac
 }
