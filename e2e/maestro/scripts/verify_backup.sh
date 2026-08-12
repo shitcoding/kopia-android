@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify_backup.sh <serial> [--expect-snapshots N] [--expect-absent RELPATH]...
+# verify_backup.sh <serial> [--expect-snapshots N] [--expect-absent RELPATH]... [--pull-source DEVICE_PATH]
 #
 # Proves that what the PHONE wrote is a real Kopia repository by making the Go implementation read it:
 # pull the repository off the device, connect with the host `kopia` binary, list the snapshots, restore
@@ -17,10 +17,15 @@ shift
 
 EXPECT_SNAPSHOTS=""
 EXPECT_ABSENT=()
+# Which tree to compare the restore against. The small source is generated on the HOST and pushed,
+# so it is retained there; the large one is generated ON THE DEVICE with dd (pushing 190 MB before
+# every attempt would tax every backup flow), so it has to be pulled back to be compared at all.
+PULL_SOURCE=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --expect-snapshots) EXPECT_SNAPSHOTS="${2:?--expect-snapshots needs a number}"; shift 2 ;;
         --expect-absent)    EXPECT_ABSENT+=("${2:?--expect-absent needs a path}"); shift 2 ;;
+        --pull-source)      PULL_SOURCE="${2:?--pull-source needs a device path}"; shift 2 ;;
         *) echo "verify_backup: unknown argument $1" >&2; exit 2 ;;
     esac
 done
@@ -53,11 +58,19 @@ kopia_cli() {
 command -v adb >/dev/null 2>&1 || fail "adb not found"
 command -v kopia >/dev/null 2>&1 || fail "host 'kopia' not found - the Go oracle IS this test (brew install kopia)"
 command -v cmp >/dev/null 2>&1 || fail "cmp not found"
-[ -d "$ORIGINAL" ] || fail "retained original missing at $ORIGINAL (setup_backup_env.sh did not run)"
 
 # The flow asserted completion before we got here, but force-stop anyway so nothing can be mid-write
 # while we copy the repository off the device.
 adb shell am force-stop "$APP_ID" || true
+
+if [ -n "$PULL_SOURCE" ]; then
+    ORIGINAL="$STATE_DIR/source/$(basename "$PULL_SOURCE")"
+    rm -rf "$ORIGINAL"
+    mkdir -p "$STATE_DIR/source"
+    adb shell "test -d $PULL_SOURCE" || fail "no source tree at $PULL_SOURCE on the device"
+    adb pull "$PULL_SOURCE" "$STATE_DIR/source" >/dev/null 2>&1 || fail "could not pull $PULL_SOURCE"
+fi
+[ -d "$ORIGINAL" ] || fail "original missing at $ORIGINAL (setup_backup_env.sh did not run)"
 
 rm -rf "$WORK" "$RESTORED" "$KOPIA_STATE"
 mkdir -p "$WORK" "$RESTORED" "$KOPIA_STATE"

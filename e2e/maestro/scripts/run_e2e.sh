@@ -119,6 +119,7 @@ MANIFEST=(
   "full_e2e_flow|restore"
   "restore_roundtrip|roundtrip"
   "backup_run_local|backup"
+  "backup_run_local_large|backup"
   "backup_policy_ignore|backup"
   "backup_retention|backup"
   "backup_task_survives_recreation|backup"
@@ -429,6 +430,9 @@ run_one() {
 backup_verify_args() {
     case "$1" in
         backup_run_local)    echo "--expect-snapshots 1" ;;
+        # The large tree is generated on the device, so the original has to be pulled back to be
+        # compared at all; pushing 190 MB before every attempt would tax every flow in this category.
+        backup_run_local_large) echo "--expect-snapshots 1 --pull-source /sdcard/Download/phone_source_large" ;;
         backup_saf_source)   echo "--expect-snapshots 2" ;;
         backup_policy_ignore) echo "--expect-snapshots 1 --expect-absent excluded/secret.txt" ;;
         backup_retention)    echo "--expect-snapshots 2" ;;

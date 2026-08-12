@@ -1,0 +1,74 @@
+# E2E Test: a backup big enough to matter runs to COMPLETION (task-59)
+#
+# The suite could not have caught task-59. Every flow that asserts a backup finishes used the small
+# tree (8 files, a few MB); the two flows that use the 190 MB one either cancel it (backup_cancel)
+# or deliberately do not assert that it completes (backup_task_survives_recreation, recorded in its
+# own header at task-54). So "the app backs up from the phone" had only ever been proven for
+# sources small enough to fit in the churn.
+#
+# It did not fit: ContentManager kept the full bytes of every pack blob it had flushed until the
+# index was written, so the heap grew in step with the bytes hashed and this source died with
+# OutOfMemoryError about 75 seconds in — with WorkManager reporting RETRY, so it re-ran into the
+# same wall. This flow is the guard: 16 files, 192 MiB, and the runner then has the HOST Go kopia
+# binary restore the snapshot and compare it byte-for-byte against the source pulled off the device
+# (--pull-source). That comparison, not the UI, is the assertion.
+#
+# Category: backup. Slower than the rest by design — roughly 100 seconds of hashing on the AVD.
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source_large"
+
+# ===== Back Up Now =====
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+
+# The sheet closes itself when the task reaches a terminal state (task-57), so waiting for it to go
+# is waiting for the run to END — including the OOM ending, which is why the snapshot assertions
+# below still have to be made rather than inferred from it.
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Progress.*"
+    timeout: 30000
+# 300s, deliberately well under the runner's 600s per-flow cap: a build where this backup dies and
+# WorkManager retries it must fail HERE, naming the step, rather than eating the whole budget and
+# reporting MUT-INCONCLUSIVE. A healthy run takes about 100s on the AVD.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 300000
+
+# ===== A real, COMPLETE snapshot exists =====
+
+- extendedWaitUntil:
+    visible: "Idle"
+    timeout: 60000
+- tapOn: "Source phone_source_large"
+- extendedWaitUntil:
+    visible:
+      text: ".*Snapshots.*"
+    timeout: 30000
+
+# One complete snapshot. The header counts COMPLETE snapshots only (task-56), so this is red both
+# when nothing was written and when all that was written is a checkpoint of a run that died.
+- extendedWaitUntil:
+    visible:
+      text: ".* 1 snapshots.*"
+    timeout: 60000
+- assertVisible: "Select snapshot 1"
+- assertNotVisible: "Select snapshot 2"
+
+# All 16 files, from the root directory summary rather than files-hashed-this-run (c002e16).
+- assertVisible:
+    text: ".*16 files.*"

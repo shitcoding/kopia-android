@@ -15,7 +15,6 @@ import org.kopiaKt.core.hashing.ContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.index.IndexBlobEncryption
 import org.kopiaKt.core.pack.PackBlobBuilder
-import org.kopiaKt.core.pack.PackBlobReader
 import org.kopiaKt.core.pack.PackIndex
 import org.kopiaKt.core.pack.PackIndexFactory
 import org.kopiaKt.core.pack.PackIndexV1
@@ -112,8 +111,12 @@ class ContentManager(
     @Volatile
     private var indexLoadComplete = true
 
-    // Written packs (flushed but not yet in committed index)
-    private val writtenPacks = mutableMapOf<BlobId, ByteArray>()
+    // Contents whose pack has been flushed to storage but whose index blob has not been written yet.
+    // Metadata only, deliberately: the pack BYTES used to be kept here too, as a read cache, and a
+    // backup of a few large files retained every 20 MB pack it had written until the index flush --
+    // the heap grew in step with the bytes hashed and a 190 MB source died with OutOfMemoryError
+    // 75 seconds in (task-59). The pack is already durable in storage by then, so a read comes from
+    // there, as a RANGED read of one content rather than a whole pack.
     private val writtenContents = mutableMapOf<ContentId, ContentInfo>()
 
     // Session ID for pack blob naming
@@ -192,10 +195,11 @@ class ContentManager(
             return decryptAndDecompress(pending.encryptedData, contentId, pending.compressionHeaderId)
         }
 
-        // Otherwise the winner lives in a pack blob: in memory (written this session) or in storage
-        // (committed, or an undelete re-pointing a live entry at the original committed pack).
-        val encryptedData = writtenPacks[info.packBlobId]?.let { PackBlobReader.extractContent(it, info) }
-            ?: storage.getBlob(info.packBlobId, info.packOffset.toLong(), info.packedLength.toLong())
+        // Otherwise the winner lives in a pack blob in storage -- committed, written earlier in this
+        // session (flushCurrentPackUnlocked puts the blob before recording the content), or an
+        // undelete re-pointing a live entry at the original committed pack.
+        val encryptedData =
+            storage.getBlob(info.packBlobId, info.packOffset.toLong(), info.packedLength.toLong())
         return decryptAndDecompress(encryptedData, contentId, info.compressionHeaderId)
     }
 
@@ -544,7 +548,6 @@ class ContentManager(
             pendingContents.remove(builderInfo.contentId)
             writtenContents[builderInfo.contentId] = info
         }
-        writtenPacks[packBlobId] = packData
 
         // Reset current pack
         currentPackBuilder = null
@@ -601,7 +604,6 @@ class ContentManager(
             }
         }
         writtenContents.clear()
-        writtenPacks.clear()
     }
 
     /**
