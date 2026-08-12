@@ -81,7 +81,7 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "license-checker-rseidelsohn": "^5.0.1",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.26",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
