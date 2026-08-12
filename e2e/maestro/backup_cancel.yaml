@@ -74,14 +74,14 @@ androidWebViewHierarchy: devtools
 # incomplete manifest behind — and the empty-state text, which this flow used to assert, does not:
 # an "Incomplete" row would make it red for something that is not a regression.
 #
-# What a UI cancel leaves was measured for task-57 with the Go binary reading the pulled repository:
-# ZERO manifests, complete or incomplete, while 279 MB of pack blobs sat in it unreferenced. The
-# reason turned out to have nothing to do with cancelling: on this 190 MB source the run dies with
-# an OutOfMemoryError in PackBlobBuilder about 75 seconds in, with or without a cancel, so it never
-# reaches the manifest it would have written (task-59). The cooperative cancel route itself works —
-# instrumented on a device, `stopBackup` reports cooperative=true.
+# A cancel DOES leave an incomplete manifest, and this flow simply gets here first. Measured with
+# the Go binary reading the pulled repository (task-58): waiting for the WORKER to finish rather
+# than for the UI shows `incomplete: canceled`, 16 files. The UI goes Idle as soon as the task ends,
+# which is the moment `stopBackup` returns — the worker then goes on draining for another minute,
+# writing the directory manifests and finally that snapshot manifest.
 #
-# So an "Incomplete" row appearing here later is task-59 being fixed, not this flow breaking.
+# So the row may or may not be on screen when this flow looks, which is exactly why the assertion
+# above is about COMPLETE snapshots and not about an empty list.
 #
 # The leading space is load-bearing: text is matched as a FULL-match regex, so ".*0 snapshots.*"
 # would also be satisfied by "10 snapshots".
