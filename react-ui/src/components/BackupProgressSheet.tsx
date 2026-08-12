@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { formatFileSize, uploadProgressPercent } from "@/lib/format";
 import { useTask, useCancelTask } from "@/hooks/useBackupApi";
@@ -23,6 +24,7 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const { data: task } = useTask(taskId);
   const cancelTask = useCancelTask();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const qc = useQueryClient();
 
   // Close once the run is over. Leaving a finished backup's progress sheet on screen - with a
   // "Cancel Backup" button under it - reads as though it were still running. The outcome is carried
@@ -30,9 +32,16 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const status = task?.status;
   useEffect(() => {
     if (status === "SUCCESS" || status === "FAILED" || status === "CANCELED") {
+      // This sheet learns the run is over within one 2s task poll; the sources list is polled
+      // separately, every 5s and ONLY while something is UPLOADING. So for up to a poll after this
+      // sheet closes, the dashboard row still claims a run in progress — and a tap on such a row
+      // opens a progress sheet for a task that has already finished, which closes itself again
+      // instantly, instead of opening the source. The tap looks ignored. Refresh the rows from the
+      // one place that already knows the run ended.
+      qc.invalidateQueries({ queryKey: ["backup-sources"] });
       onClose();
     }
-  }, [status, onClose]);
+  }, [status, onClose, qc]);
 
   // Counters are Go's open map of named values, not a fixed struct, and a run reports none until it
   // has something to report. Render whatever arrives; never index into fields that may not exist.
@@ -47,7 +56,12 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
   const handleCancel = () => {
     cancelTask.mutate(taskId);
     setShowCancelDialog(false);
-    onClose();
+    // Deliberately does NOT close: the sheet stays up, showing the wind-down, until the task itself
+    // reports a terminal state and the effect above closes it. Closing here made the sheet vanish
+    // on the tap whether or not the cancel reached anything — and because that unmounted this
+    // component, the effect never saw the terminal status, so the dashboard row went on claiming a
+    // run for up to one 5s poll. A tap on such a row opens a progress sheet for a finished task
+    // (which closes itself instantly) instead of opening the source: the tap looks ignored.
   };
 
   return (

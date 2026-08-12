@@ -43,20 +43,45 @@ androidWebViewHierarchy: devtools
 
 # ===== Nothing complete was written =====
 
-# The sheet closes itself once the task reaches its terminal state, which here means the cancel
-# actually landed on the worker rather than only on the task record.
+# The sheet now closes only when the task itself reports a terminal state, so its disappearance is
+# real evidence that the cancel landed rather than evidence that the button was tapped (task-57:
+# confirming the dialog used to close it unconditionally).
+#
+# The Idle wait below is not redundant with that. The sources list is polled separately, every 5s
+# and only while something is UPLOADING, so the row can go on claiming a run after the sheet has
+# gone — and tapping a row that claims one opens a progress sheet for a finished task, which closes
+# itself instantly, instead of opening the source. That is how this flow failed: the tap looked
+# ignored, with the dashboard still on screen 30s later.
 - extendedWaitUntil:
     notVisible:
       text: ".*Backup Progress.*"
     timeout: 60000
+# Wait for the row to stop claiming a run before tapping it, rather than racing the refetch above.
+# The badge's own aria-label is invisible to Maestro — a source row is ONE button whose label
+# overrides its whole subtree (task-42) — but the badge TEXT is in the hierarchy, and it reads
+# "Uploading" while a run is on.
+- extendedWaitUntil:
+    visible: "Idle"
+    timeout: 30000
 - tapOn: "Source phone_source_large"
 - extendedWaitUntil:
     visible:
       text: ".*Snapshots.*"
     timeout: 30000
 
-# A cancelled run leaves an incomplete manifest, never a complete snapshot the user could restore
-# and believe in. If the cancel had not reached the worker the backup would have finished and a
-# snapshot row would be here.
+# The invariant, and the only one worth asserting: a cancelled run produces NO COMPLETE SNAPSHOT.
+# The header counts complete snapshots (task-56), so this holds whether or not the run left an
+# incomplete manifest behind — and the empty-state text, which this flow used to assert, does not:
+# an "Incomplete" row would make it red for something that is not a regression.
+#
+# What a UI cancel actually leaves was measured for task-57, twice, with the Go binary reading the
+# pulled repository: ZERO manifests, complete or incomplete, while 279 MB of pack blobs from the
+# cancelled run sit in it unreferenced. Both reviewers read the code as writing an incomplete
+# manifest here (stopBackup prefers the cooperative BackupSessionRegistry.cancel, which is
+# documented to drain and save one); the device disagrees, and why is task-58. If a row does start
+# appearing here, that is that gap being closed, not this flow breaking.
+#
+# The leading space is load-bearing: text is matched as a FULL-match regex, so ".*0 snapshots.*"
+# would also be satisfied by "10 snapshots".
 - assertVisible:
-    text: ".*No snapshots found.*"
+    text: ".* 0 snapshots.*"
