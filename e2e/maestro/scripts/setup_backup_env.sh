@@ -86,6 +86,12 @@ for i in $(seq 1 16); do
         || fail "could not generate the large source"
 done
 
+# 4c. And a path that must NOT exist: backup_source_gone asserts what happens when a source's folder
+#     is not there, and a flow whose precondition is an ABSENCE has to have that absence enforced --
+#     otherwise a directory left behind by a developer or a future flow turns it into a backup of a
+#     real folder that quietly tests nothing (caught in review).
+adb shell "rm -rf /sdcard/Download/phone_source_gone" || fail "could not clear the gone-source path"
+
 # 5. Portrait. A flow that rotates the device to force an activity recreation cannot restore it
 #    if it fails mid-way, and every later flow would then run sideways.
 adb shell settings put system accelerometer_rotation 0 >/dev/null 2>&1 || true

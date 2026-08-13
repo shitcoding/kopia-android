@@ -474,7 +474,15 @@ tasks.register<Copy>("copyLegalNotices") {
     }
 }
 
-tasks.register<Copy>("copyReactAssets") {
+// Sync, not Copy: the destination is the APK's asset directory, so a file left behind by an older
+// bundle layout would go on shipping. vite's output names are pinned today, which is exactly what
+// makes it easy to miss -- a renamed chunk, a dropped icon or a legal file that stops being
+// generated would linger with nothing to say so. Sync deletes what the build no longer produces.
+//
+// Safe to delete from: the directory is generated and gitignored, and the legal notices are copied
+// INTO react-ui/dist (this task's source) by copyLegalNotices, which it depends on -- so they are
+// part of what is being synced, not collateral.
+tasks.register<Sync>("copyReactAssets") {
     dependsOn("buildReactAssets", "copyLegalNotices")
     from("${rootProject.projectDir}/react-ui/dist")
     into("$projectDir/src/main/assets/react")

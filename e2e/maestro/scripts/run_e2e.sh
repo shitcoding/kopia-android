@@ -124,6 +124,8 @@ MANIFEST=(
   "backup_retention|backup"
   "backup_task_survives_recreation|backup"
   "backup_cancel|backup"
+  "backup_resume_after_cancel|backup"
+  "backup_source_gone|backup"
   "backup_saf_source|backup"
   "backup_source_snapshots_back|backup"
   "connect_s3_repo|s3"
@@ -433,12 +435,16 @@ backup_verify_args() {
         # The large tree is generated on the device, so the original has to be pulled back to be
         # compared at all; pushing 190 MB before every attempt would tax every flow in this category.
         backup_run_local_large) echo "--expect-snapshots 1 --pull-source /sdcard/Download/phone_source_large" ;;
+        # Cancel, then run it again: one COMPLETE snapshot of the whole tree, whatever the cancelled
+        # run left behind (the incomplete manifest is not counted by `snapshot list` without
+        # --incomplete, which is the same rule the app's own count follows since task-56).
+        backup_resume_after_cancel) echo "--expect-snapshots 1 --pull-source /sdcard/Download/phone_source_large" ;;
         backup_saf_source)   echo "--expect-snapshots 2" ;;
         backup_policy_ignore) echo "--expect-snapshots 1 --expect-absent excluded/secret.txt" ;;
         backup_retention)    echo "--expect-snapshots 2" ;;
-        # backup_cancel and backup_task_survives_recreation both END on a cancelled run, so there is
-        # no complete snapshot to restore and verify_backup would fail on an empty repo; the flows'
-        # own assertions are the check there. backup_run_local covers the same small tree end to end,
+        # backup_cancel, backup_task_survives_recreation and backup_source_gone all END without a
+        # complete snapshot -- two on a cancelled run, one on a source that was never there -- so
+        # verify_backup would fail on an empty repo; the flows' own assertions are the check there. backup_run_local covers the same small tree end to end,
         # Go oracle included.
         *) echo "" ;;
     esac
@@ -551,11 +557,15 @@ backup_verify_args() {
             capture_artifacts "$serial" "$name"
             warn "MUT-INCONCLUSIVE $name - timed out; confirm a clean baseline first, then rerun."
         elif [ "$rc" -ne 0 ] && ! hh_flow_failed_deterministically "$logf" \
-             && [ "$cat" != "restore" ] && [ "$cat" != "roundtrip" ] && [ "$cat" != "backup" ]; then
+             && [ "$cat" != "restore" ] && [ "$cat" != "roundtrip" ] \
+             && ! { [ "$cat" = "backup" ] && [ -n "$(backup_verify_args "$name")" ]; }; then
             # It failed, but maestro never named a step -- an ANR or a crash, not the flow catching
             # the break. Claiming MUT-OK here would certify a flow as regression-proof on evidence
-            # it never produced. (The byte-verifier categories are exempt: there rc can be set by
-            # the verifier above, with the UI having passed and named nothing.)
+            # it never produced. The byte-verifier categories are exempt because there rc can be set
+            # by the verifier above, with the UI having passed and named nothing -- but that only
+            # holds where a verifier actually RUNS. A backup flow with no verify args (backup_cancel,
+            # backup_source_gone, backup_task_survives_recreation) has no such backstop, so the
+            # exemption is now conditional on having them, not on the category (review).
             RESULTS+=("$name|MUT-INCONCLUSIVE|failed with no failing step recorded$mark - ANR/crash, not proof the flow detected the break; rerun")
             capture_artifacts "$serial" "$name"
             warn "MUT-INCONCLUSIVE $name - failed without naming a step; rerun on a healthy emulator."

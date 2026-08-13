@@ -1,0 +1,51 @@
+# E2E Test: a backup that cannot succeed ENDS, instead of retrying for minutes (task-59)
+#
+# A source whose folder is not there is the plainest deterministic failure there is, and until
+# `9e92b1d1` it was answered with Result.retry(): the initial checkpoint is persisted BEFORE the
+# source is opened, so a missing folder satisfied the retry gate and WorkManager re-ran the whole
+# thing up to three times on an exponential backoff. The user saw none of that — their awaited task
+# just span, and because the unique work is ExistingWorkPolicy.KEEP, the pending retry swallowed
+# every "Back Up Now" they tapped in the meantime.
+#
+# The timeout below IS the assertion. A retried run does not reach a terminal WorkInfo state until
+# the backoff schedule is exhausted (minutes), so the failure message cannot appear this quickly
+# unless the run ended the first time it met the missing folder.
+#
+# The folder name has to start with "phone_source": the shared preamble asserts the new row by
+# `Source phone_source.*`, and a row's label is derived from the folder NAME, not the full path.
+#
+# No adb staging needed: the wizard only requires the path to be non-empty (AddSourceScreen's Next
+# is gated on `selectedPath.trim()`, and native createSource only rejects an empty string), so a
+# source can be created for a folder that does not exist.
+#
+# Category: backup. UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source_gone"
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+
+# task-39 persists the terminal failure on the source and the dashboard renders it, which is the
+# only channel that survives POST_NOTIFICATIONS being denied.
+- extendedWaitUntil:
+    visible:
+      text: ".*Last backup failed.*"
+    timeout: 90000
+
+# The sentence is written for a person, and hedged on purpose: this check cannot tell a deleted
+# folder from one it merely cannot read (task-59, both reviewers).
+- assertVisible:
+    text: ".*Could not open this folder.*"
+
+# And the source is idle rather than stuck mid-run: a retry would leave it claiming a backup.
+- assertVisible: "Idle"

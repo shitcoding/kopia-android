@@ -29,9 +29,9 @@ androidWebViewHierarchy: devtools
 #
 # Nothing has run yet: the shared preamble asserted the wizard's checkbox read
 # "Start first backup immediately, off" before creating the source, so any snapshot below is this
-# tap's doing. (Visiting the source's snapshot list to see the empty state would be stronger still,
-# but its app-bar buttons do not respond to taps, so there is no way back to the dashboard from
-# there - filed rather than worked around.)
+# tap's doing. (Visiting the source's snapshot list to see the empty state first would be stronger
+# still, and is now possible -- the app-bar buttons that did not respond when this was written were
+# fixed in task-34/35, and backup_resume_after_cancel taps Back on that very screen.)
 
 - tapOn:
     text: "Source options"
@@ -40,12 +40,24 @@ androidWebViewHierarchy: devtools
 
 # The progress sheet opens on the task id startBackup returned. Dismiss it and watch for the
 # snapshot itself: a sheet appearing only proves a task was created, not that anything was written.
-- extendedWaitUntil:
-    visible:
-      text: ".*Backup Progress.*"
-    timeout: 20000
-- tapOn:
-    point: "50%,15%"
+# The sheet is watched, not asserted: on this small tree the run can finish before Maestro looks, so
+# demanding to SEE it is a race the flow does not need to run -- what it is really testing is that
+# the tap produced a snapshot, which the assertions below and the Go byte comparison prove. If the
+# sheet IS up, wait it out; if it never appeared, carry on.
+- runFlow:
+    when:
+      visible:
+        text: ".*Backup Progress.*"
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            text: ".*Backup Progress.*"
+          timeout: 180000
+
+# (What used to be here was a blind coordinate tap to dismiss the sheet. At 50%,15% it hits the app
+# bar's "Add Source" whenever the sheet has already closed, which is every time the backup finishes
+# first -- it failed exactly that way, on the Add Source screen. The suite has been caught by this
+# tap before, in backup_task_survives_recreation at task-30.16.)
 
 # ===== A real snapshot exists =====
 

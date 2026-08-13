@@ -10,17 +10,21 @@
 # terminal state, which is what "the snapshot exists by now" actually depends on.
 appId: org.kopiaKt.app
 ---
+# Wait for the row to stop claiming a run BEFORE tapping it, so the progress-sheet branch is never
+# taken. The `when: visible: Backup Progress` guard this replaces was evaluated once, not polled, so
+# it lost a race it could not win: a tap on a row whose UPLOADING status is one poll stale opens a
+# sheet for an already-finished task, which closes itself again within a task poll -- often before
+# the guard looked, leaving the flow on the dashboard with no second tap and an assertion about a
+# screen it never reached.
+#
+# The badge's own aria-label is invisible to Maestro (a source row is ONE button whose label
+# overrides its subtree, task-42), but the badge TEXT is in the hierarchy and reads "Uploading"
+# while a run is on. Same gate backup_cancel uses (task-57).
+#
+# Assumes ONE source on the dashboard, which every backup flow has (each attempt starts from
+# `pm clear`). With two, the other row's Idle badge would satisfy this while the source being tapped
+# is still uploading.
+- extendedWaitUntil:
+    visible: "Idle"
+    timeout: 180000
 - tapOn: "Source phone_source"
-# The sheet is opened by a React state change after the tap, so give it a beat before deciding it
-# did not open -- `when` is evaluated once, not polled.
-- waitForAnimationToEnd
-- runFlow:
-    when:
-      visible:
-        text: ".*Backup Progress.*"
-    commands:
-      - extendedWaitUntil:
-          notVisible:
-            text: ".*Backup Progress.*"
-          timeout: 180000
-      - tapOn: "Source phone_source"

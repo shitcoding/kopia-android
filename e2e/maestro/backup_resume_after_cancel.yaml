@@ -1,0 +1,132 @@
+# E2E Test: cancel a backup, run it again, get a complete snapshot (task-30.16 on hardware)
+#
+# Checkpoint/resume is the keystone of task-30 phase 3 and had never been exercised on a device: no
+# flow interrupted a run and started it again. Until task-58 was measured it was not even certain a
+# cancelled run leaves anything to resume FROM — it does, but only once the worker finishes
+# draining, which is a good minute after the UI goes Idle (the task ends when stopBackup returns,
+# the worker keeps writing). That drain is what the wait below is for.
+#
+# What this proves: after a cancel, a second run produces ONE complete snapshot holding the whole
+# tree, byte-identical under the Go binary (the runner's verify_backup, --pull-source). What it does
+# NOT prove is that the second run reused the first one's work rather than redoing it — that is a
+# performance property, covered by the JVM tests, and asserting it here would mean timing a walk on
+# an emulator whose speed varies by the minute.
+#
+# It also covers, for the first time on a device, what task-56 made the count mean: with an
+# incomplete manifest present the header still reads 0 snapshots, because it counts COMPLETE ones.
+#
+# Category: backup. Two backups of the 190 MB tree plus a wind-down; the slowest flow in the suite.
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- runFlow:
+    file: flows/_backup_prepare.yaml
+    env:
+      START_IMMEDIATELY: "false"
+      EXCLUSIONS: ""
+      SOURCE_PATH: "/sdcard/Download/phone_source_large"
+
+# ===== Run it, then cancel it once it is properly under way =====
+
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Progress.*"
+    timeout: 30000
+# The counters grid renders only once the worker has published progress, which is also when a
+# session is registered — so the cancel takes the cooperative route and has something to drain.
+# Timeouts here are deliberately tighter than a "surely enough" number: the runner kills a flow at
+# 600s wall clock, and waits that sum past it turn a hang into a watchdog kill (rc=124, reported as
+# INCONCLUSIVE) instead of an assertion naming the step. A run of this takes about five minutes.
+- extendedWaitUntil:
+    visible:
+      text: ".*Hashed Bytes.*"
+    timeout: 120000
+
+- tapOn:
+    text: "Cancel Backup"
+- extendedWaitUntil:
+    visible: "Cancel Backup\\?"
+    timeout: 15000
+- tapOn:
+    id: "confirm-cancel-backup-button"
+- extendedWaitUntil:
+    notVisible:
+      text: ".*Backup Progress.*"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: "Idle"
+    timeout: 60000
+
+# ===== What the cancelled run left =====
+
+- tapOn: "Source phone_source_large"
+- extendedWaitUntil:
+    visible:
+      text: ".*Snapshots.*"
+    timeout: 30000
+
+# The wind-down outlives the UI, so this is a real wait, not a formality: it ends when the drain's
+# manifest lands, which is a little BEFORE the worker itself finishes (retention and teardown still
+# follow). In that narrow window a second "Back Up Now" is swallowed by ExistingWorkPolicy.KEEP --
+# the tap sequence below normally outlasts it, and when it does not the flow fails loudly rather
+# than passing (review). Matches the row's "Incomplete" badge and the header's count of them.
+- extendedWaitUntil:
+    visible:
+      text: ".*ncomplete.*"
+    timeout: 180000
+
+# Zero COMPLETE snapshots, with an incomplete one on screen: the whole point of task-56's rule, and
+# the first time the two have been asserted together on a device.
+- assertVisible:
+    text: ".* 0 snapshots.*"
+
+# ===== Run it again =====
+
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      text: ".*Backup Sources.*"
+    timeout: 15000
+- tapOn:
+    text: "Source options"
+- tapOn:
+    text: "Back Up Now"
+# Watched, not asserted, unlike the first run: this one has a partial tree to resume from and can
+# finish before Maestro looks — it failed here exactly that way. What the flow needs is that the run
+# ended, which the Idle gate and the snapshot assertions below establish.
+- runFlow:
+    when:
+      visible:
+        text: ".*Backup Progress.*"
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            text: ".*Backup Progress.*"
+          timeout: 200000
+- extendedWaitUntil:
+    visible: "Idle"
+    timeout: 200000
+
+# ===== One complete snapshot, whole =====
+
+- tapOn: "Source phone_source_large"
+- extendedWaitUntil:
+    visible:
+      text: ".*Snapshots.*"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      text: ".* 1 snapshots.*"
+    timeout: 60000
+- assertVisible: "Select snapshot 1"
+# All 16 files, from the root directory summary rather than files-hashed-this-run (c002e16) — which
+# is also what a resumed run would under-report if it counted only what it hashed this time.
+- assertVisible:
+    text: ".*16 files.*"
