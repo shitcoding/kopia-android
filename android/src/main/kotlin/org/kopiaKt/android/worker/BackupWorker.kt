@@ -30,6 +30,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.kopiaKt.android.notification.BackupNotificationIds
 import org.kopiaKt.android.notification.BackupNotificationManager
+import org.kopiaKt.core.blob.HostKeyNotTrustedException
+import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.upload.UploadCounters
@@ -92,6 +94,23 @@ class BackupWorker(
      * the user's belief that their files are backed up simply stayed wrong. This leaves something
      * durable for the app to show.
      */
+    /**
+     * Ends a run: records [message] against the source, then tries to tell the user.
+     *
+     * In that order, and never the other way. Building a Notification allocates, and on the path
+     * this matters most for — an exhausted heap — it is the likelier of the two to throw. Notifying
+     * first cost the durable record the dashboard reads; and because these run inside catch blocks,
+     * where a sibling catch cannot help, a throw from the notification also escaped `doWork`
+     * entirely — or, from the Failed branch, was caught by `catch (e: Exception)` below and turned a
+     * terminal failure into `Result.retry()`. Both reviewers found this.
+     */
+    private fun endRun(sourceId: String, sourcePath: String, message: String): Result {
+        val result = recordTerminal(sourceId, message)
+        runCatching { showErrorNotification(sourceId, sourcePath, message) }
+            .onFailure { android.util.Log.w(TAG, "could not show the failure notification", it) }
+        return result
+    }
+
     private fun recordTerminal(sourceId: String, message: String?): Result {
         val reason = message ?: "Unknown error"
         runCatching { sourceManager.recordFailure(sourceId, reason) }
@@ -242,12 +261,12 @@ class BackupWorker(
                     // A backup that fails silently is unusable: without this, the only evidence a
                     // user or a developer has is a notification with a one-line message.
                     android.util.Log.e(TAG, "backup of $sourcePath failed", result.error)
-                    if (runAttemptCount < MAX_RETRY_COUNT && result.checkpointSaved) {
+                    val retryable = runAttemptCount < MAX_RETRY_COUNT && result.checkpointSaved
+                    if (retryable && !isTerminalFailure(result.error)) {
                         // Retry with checkpoint
                         Result.retry()
                     } else {
-                        showErrorNotification(sourceId, sourcePath, result.error.message ?: "Unknown error")
-                        recordTerminal(sourceId, result.error.message)
+                        endRun(sourceId, sourcePath, terminalMessage(result.error))
                     }
                 }
             }
@@ -262,8 +281,7 @@ class BackupWorker(
             if (!isStopped) {
                 // A cancel racing the foreground promotion surfaces here as a failed setForeground.
                 // Whoever cancelled does not need to be told Android refused them something.
-                showErrorNotification(sourceId, sourcePath, e.message ?: FOREGROUND_DENIED_MESSAGE)
-                recordTerminal(sourceId, e.message ?: FOREGROUND_DENIED_MESSAGE)
+                endRun(sourceId, sourcePath, e.message ?: FOREGROUND_DENIED_MESSAGE)
             } else {
                 // A cancel racing the foreground promotion surfaces here too. Recording it would
                 // leave the user staring at a failure they caused on purpose.
@@ -280,10 +298,58 @@ class BackupWorker(
             if (runAttemptCount < MAX_RETRY_COUNT) {
                 Result.retry()
             } else {
-                showErrorNotification(sourceId, sourcePath, e.message ?: "Unknown error")
-                recordTerminal(sourceId, e.message)
+                endRun(sourceId, sourcePath, e.message ?: "Unknown error")
             }
+        } catch (@Suppress("TooGenericExceptionCaught") e: Error) {
+            // The setup path -- everything before BackupSession.run, which catches Throwable itself.
+            // Uncaught, this escapes doWork and WorkManager fails the work with nothing recorded
+            // anywhere, which is the silence task-39 exists to end. Terminal for the same reason as
+            // [isTerminalFailure]: no retry.
+            android.util.Log.e(TAG, "backup of $sourcePath threw", e)
+            endRun(sourceId, sourcePath, terminalMessage(e))
         }
+    }
+
+    /**
+     * Whether re-running this backup could plausibly end differently.
+     *
+     * A JVM [Error] cannot: the retry does the same work against the same per-app heap ceiling, and
+     * if WorkManager re-runs it in a fresh process instead, nothing there has re-opened the
+     * repository — that needs the password, which the app deliberately does not keep — so the
+     * provider answers null and the retry fails at [NEEDS_REPOSITORY_MESSAGE] without reaching the
+     * backup at all. Measured on a
+     * device before task-59 was fixed — an OutOfMemoryError was answered with RETRY, so the whole
+     * backup ran again and died the same way. The checkpoint does not rescue it either: what a run
+     * actually resumes from is the partial tree in the repository, and a run that died before
+     * writing one has nothing to resume.
+     *
+     * A [SourceUnavailableException] cannot either, and for a plainer reason: the folder is gone or
+     * the grant to read it is. Nor can wrong credentials or an untrusted SFTP host key — and those
+     * two are not a judgement made here: `RetryingBlobStorage.isRetryable` already refuses to retry
+     * them, so retrying the whole backup around them only repeats the refusal more expensively.
+     * Everything else keeps the retry it had. A dropped connection or a busy storage backend is exactly what
+     * the backoff schedule is for, and guessing which other Exceptions are permanent is a taxonomy
+     * nothing here can justify.
+     */
+    private fun isTerminalFailure(error: Throwable): Boolean = error is Error ||
+        error is SourceUnavailableException ||
+        error is InvalidCredentialsException ||
+        error is HostKeyNotTrustedException
+
+    /**
+     * What to tell the user about a failure that ends the backup.
+     *
+     * An Error's own message is an allocator's ("Failed to allocate a 26497240 byte allocation with
+     * 25100288 free bytes"), and since task-39 this string is persisted on the source and rendered
+     * on the dashboard — so for those it has to be written for a person instead.
+     */
+    private fun terminalMessage(error: Throwable): String = when (error) {
+        is OutOfMemoryError ->
+            "Ran out of memory during this backup. " +
+                "Try backing up a smaller folder, or run it again."
+        is Error ->
+            "This backup could not run on this device (${error::class.java.simpleName}). Please report it."
+        else -> error.message ?: "Unknown error"
     }
 
     /**
@@ -399,8 +465,12 @@ class BackupWorker(
                 setForeground(buildProgressForegroundInfo(notificationId, sourcePath, counters))
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                // Best-effort progress update; keep backing up.
+            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Throwable) {
+                // Best-effort progress update; keep backing up. Throwable rather than Exception
+                // because this is a CHILD coroutine: an Error escaping here fails the enclosing
+                // withContext, whose thrown result bypasses every catch in doWork -- so the run
+                // would end with nothing recorded anywhere, which is the one silence the terminal
+                // handling below cannot cover.
             }
         }
     }

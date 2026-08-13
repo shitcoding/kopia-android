@@ -564,7 +564,8 @@ class BackupSessionLifecycleTest {
             val info = tm.getTask(taskId)
             assertThat(info).isNotNull()
             assertThat(info!!.status).isEqualTo(TaskStatus.FAILED)
-            assertThat(info.errorMessage).contains("does not exist")
+            // The user-facing sentence, which is what the dashboard shows (task-39/task-59).
+            assertThat(info.errorMessage).contains("Could not open this folder")
 
             // Source manager still has the source
             assertThat(sourceManager.getSource(source.id)).isNotNull()

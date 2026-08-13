@@ -145,8 +145,8 @@ class BackupErrorHandlingTest {
 
             assertThat(result).isInstanceOf(BackupSessionResult.Failed::class.java)
             val failed = result as BackupSessionResult.Failed
-            assertThat(failed.error).isInstanceOf(IllegalArgumentException::class.java)
-            assertThat(failed.error.message).contains("does not exist")
+            assertThat(failed.error).isInstanceOf(SourceUnavailableException::class.java)
+            assertThat(failed.error.message).contains("Could not open this folder")
             assertThat(failed.error.message).contains("/nonexistent/path/does/not/exist")
         }
 
@@ -207,8 +207,8 @@ class BackupErrorHandlingTest {
 
             assertThat(result).isInstanceOf(BackupSessionResult.Failed::class.java)
             val failed = result as BackupSessionResult.Failed
-            assertThat(failed.error).isInstanceOf(IllegalArgumentException::class.java)
-            assertThat(failed.error.message).contains("not a directory")
+            assertThat(failed.error).isInstanceOf(SourceUnavailableException::class.java)
+            assertThat(failed.error.message).contains("not a folder")
         }
     }
 
@@ -573,6 +573,125 @@ class BackupErrorHandlingTest {
 
             // runAttemptCount (3) >= MAX_RETRY_COUNT (3) -> failure, not retry
             assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+        }
+
+        @Test
+        fun `a failure retrying cannot fix is terminal, however many attempts are left`(): Unit = runBlocking {
+            // Measured on a device (task-59): a backup that ran out of memory was answered with
+            // RETRY, so WorkManager re-ran the identical work against the identical heap ceiling and
+            // it died the same way. Nothing about a JVM Error changes between attempts, and the
+            // checkpoint does not help: what a run resumes from is the partial tree in the
+            // repository, which a run that died before writing one does not have.
+            val tempDir = createTempDir("oom-source")
+            val (repo, writer) = mockRepository()
+            coEvery { writer.findManifests(any()) } throws
+                OutOfMemoryError("Failed to allocate a 26497240 byte allocation")
+            BackupWorker.repositoryProvider = { _ -> repo }
+
+            val worker = TestListenableWorkerBuilder<BackupWorker>(context)
+                .setInputData(
+                    workDataOf(
+                        BackupWorker.KEY_SOURCE_ID to "oom-source",
+                        BackupWorker.KEY_SOURCE_PATH to tempDir.toAbsolutePath().toString(),
+                    ),
+                )
+                .build()
+
+            // First attempt: every retry budget is untouched, so only the KIND of failure can stop it.
+            val result = worker.doWork()
+
+            assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+        }
+
+        @Test
+        fun `an Error on the setup path is recorded rather than escaping the worker`(): Unit = runBlocking {
+            // BackupSession catches Throwable itself, so this covers everything BEFORE it. Uncaught,
+            // an Error escapes doWork and WorkManager fails the work with nothing recorded anywhere,
+            // which is the silence task-39 exists to end.
+            //
+            // Note for whoever mutates this: removing the catch does NOT fail this test cleanly —
+            // the escaping Error takes the Gradle test executor down with it ("failed to execute
+            // tests"), which is itself the argument for catching it.
+            BackupWorker.repositoryProvider = { _ -> throw OutOfMemoryError("no memory to connect") }
+
+            val worker = TestListenableWorkerBuilder<BackupWorker>(context)
+                .setInputData(
+                    workDataOf(
+                        BackupWorker.KEY_SOURCE_ID to "setup-error-source",
+                        BackupWorker.KEY_SOURCE_PATH to "/test/path",
+                    ),
+                )
+                .build()
+
+            val result = worker.doWork()
+
+            assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+            // And it says something a person can act on, not an allocator's arithmetic: this string
+            // is persisted on the source and rendered on the dashboard (task-39).
+            assertThat(result).isEqualTo(
+                ListenableWorker.Result.failure(
+                    workDataOf(
+                        BackupWorker.KEY_ERROR to
+                            "Ran out of memory during this backup. " +
+                            "Try backing up a smaller folder, or run it again.",
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        fun `a source that is gone is terminal, not a retry`(): Unit = runBlocking {
+            // The second deterministic failure, raised independently by both reviewers: the source
+            // is opened AFTER the session is under way, and its Throwable catch saves a checkpoint
+            // on the way out, so a folder the user deleted -- or a SAF grant they withdrew --
+            // satisfied the retry gate (checkpointSaved) and spent the
+            // whole backoff schedule re-discovering that it is still gone, while the awaited task
+            // spun and ExistingWorkPolicy.KEEP swallowed every further "Back Up Now".
+            val (repo, _) = mockRepository()
+            BackupWorker.repositoryProvider = { _ -> repo }
+
+            val worker = TestListenableWorkerBuilder<BackupWorker>(context)
+                .setInputData(
+                    workDataOf(
+                        BackupWorker.KEY_SOURCE_ID to "gone-source",
+                        BackupWorker.KEY_SOURCE_PATH to "/nonexistent/gone/folder",
+                    ),
+                )
+                .build()
+
+            val result = worker.doWork()
+
+            assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+            assertThat(result).isEqualTo(
+                ListenableWorker.Result.failure(
+                    workDataOf(
+                        BackupWorker.KEY_ERROR to
+                            "Could not open this folder: /nonexistent/gone/folder. " +
+                            "Check it still exists and that KopiaKt can read it.",
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        fun `a failure retrying might fix still retries`(): Unit = runBlocking {
+            // The other half of the pair: the change above must not turn every session failure
+            // terminal. A dropped connection is exactly what the backoff schedule is for.
+            val tempDir = createTempDir("transient-source")
+            val (repo, writer) = mockRepository()
+            coEvery { writer.findManifests(any()) } throws IOException("Connection reset by peer")
+            BackupWorker.repositoryProvider = { _ -> repo }
+
+            val worker = TestListenableWorkerBuilder<BackupWorker>(context)
+                .setInputData(
+                    workDataOf(
+                        BackupWorker.KEY_SOURCE_ID to "transient-source",
+                        BackupWorker.KEY_SOURCE_PATH to tempDir.toAbsolutePath().toString(),
+                    ),
+                )
+                .build()
+
+            assertThat(worker.doWork()).isEqualTo(ListenableWorker.Result.retry())
         }
 
         @Test

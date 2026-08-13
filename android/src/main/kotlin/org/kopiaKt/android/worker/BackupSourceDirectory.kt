@@ -21,14 +21,67 @@ fun openBackupSource(context: Context?, sourcePath: String): Directory {
     if (sourcePath.startsWith("content://")) {
         val ctx = context
             ?: error("Context is required for SAF URI backup. Pass context to BackupSession constructor.")
-        return SafFilesystem.directory(ctx, Uri.parse(sourcePath))
+        return openSafSource(ctx, sourcePath)
     }
 
     val sourceFile = File(sourcePath)
-    require(sourceFile.exists()) { "Source path does not exist: $sourcePath" }
-    require(sourceFile.isDirectory) { "Source path is not a directory: $sourcePath" }
+    val problem = when {
+        !sourceFile.exists() ->
+            "Could not open this folder: $sourcePath. Check it still exists and that KopiaKt can " +
+                "read it."
+        !sourceFile.isDirectory -> "This is not a folder: $sourcePath"
+        else -> null
+    }
+    if (problem != null) {
+        throw SourceUnavailableException(problem)
+    }
     return LocalFilesystem.directory(sourceFile.toPath())
 }
+
+/**
+ * Opens a SAF tree, translating the two ways a picked folder stops being readable.
+ *
+ * Both are [SourceUnavailableException] because both need the user, not a retry: an invalid or
+ * non-directory tree URI means the folder is gone or was replaced, and a SecurityException means the
+ * persisted grant was withdrawn.
+ *
+ * The two cannot actually be told apart here, which is why the message hedges. `DocumentFile`
+ * swallows whatever the provider throws and reports `isDirectory == false`, so a cloud provider that
+ * is briefly unreachable — being updated, or crashed — arrives looking exactly like a folder that is
+ * gone, and lands in the IllegalArgumentException branch rather than the SecurityException one.
+ * Ending the run is still the better answer for all of them: the alternative is three attempts over
+ * an exponential backoff during which `ExistingWorkPolicy.KEEP` swallows every "Back Up Now" the
+ * user taps, and a terminal failure leaves them free to tap again immediately.
+ */
+private fun openSafSource(context: Context, sourcePath: String): Directory = try {
+    SafFilesystem.directory(context, Uri.parse(sourcePath))
+} catch (e: IllegalArgumentException) {
+    throw SourceUnavailableException(
+        "Could not open this folder. It may have been moved or deleted, or access to it withdrawn " +
+            "— add it again to keep backing it up.",
+        e,
+    )
+} catch (e: SecurityException) {
+    throw SourceUnavailableException(
+        "Access to this folder was withdrawn. Add it again to keep backing it up.",
+        e,
+    )
+}
+
+/**
+ * The source cannot be opened, and running the backup again will not change that: the folder is
+ * gone, is not a folder any more, or the SAF grant that made it readable has been withdrawn.
+ *
+ * A distinct type because it decides something: [org.kopiaKt.android.worker.BackupWorker] ends a run
+ * that meets this instead of retrying it. The generic failure path would retry three times over an
+ * exponential backoff, re-discovering a folder that is still not there, while the user's awaited
+ * task spins and `ExistingWorkPolicy.KEEP` swallows every further "Back Up Now" they tap (task-59).
+ * What has to change is outside the backup: they restore the folder, or add it again.
+ *
+ * The [message] is shown to the user and persisted on the source (task-39), so it is written for
+ * them rather than for a log.
+ */
+class SourceUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * The identity a source's snapshots and policy live under.
