@@ -59,7 +59,17 @@ internal class ForegroundProtectionWatch {
     }
 
     companion object {
-        private const val CONSECUTIVE_READINGS_BEFORE_REPORTING = 2
+        /**
+         * Readings at 1 Hz, so five seconds of agreement before acting.
+         *
+         * Two was enough while the response was a log line. It is not enough now the response is
+         * real repository work — a tightened checkpoint interval means extra `putManifest` and
+         * `flush` calls — so a transient lifecycle state that reads worse than a foreground service
+         * would cost uploads rather than a wrong log. Both reviewers asked for the wider guard once
+         * the payload became real. The cost of waiting is three more seconds before a genuinely
+         * unprotected run starts checkpointing more often, against a run that has minutes to live.
+         */
+        private const val CONSECUTIVE_READINGS_BEFORE_REPORTING = 5
 
         /**
          * This process's importance. Lower is better: `IMPORTANCE_FOREGROUND` (100) while the app is

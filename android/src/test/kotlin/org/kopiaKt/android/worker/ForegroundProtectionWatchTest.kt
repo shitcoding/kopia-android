@@ -25,6 +25,9 @@ import org.junit.jupiter.api.Test
 @DisplayName("Foreground protection watch (task-60)")
 class ForegroundProtectionWatchTest {
 
+    /** Mirrors the watch's own window; the tests care that it takes several, not what the number is. */
+    private val unprotectedReadings = 5
+
     @Test
     fun `a foregrounded app is protected, promoted or not`() {
         val watch = ForegroundProtectionWatch()
@@ -42,19 +45,23 @@ class ForegroundProtectionWatchTest {
     }
 
     @Test
-    fun `one bad reading is not enough`() {
-        // Leaving the app passes through transitional states; acting on a single sample would call a
-        // healthy run unprotected every time the user switched away.
+    fun `a few bad readings are not enough`() {
+        // Leaving the app passes through transitional states; acting on one sample would call a
+        // healthy run unprotected every time the user switched away. And the response is real
+        // repository work now — extra checkpoint flushes — so a wrong answer costs uploads.
         val watch = ForegroundProtectionWatch()
 
-        assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        repeat(unprotectedReadings - 1) {
+            assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        }
     }
 
     @Test
-    fun `two consecutive bad readings mean the run is unprotected`() {
+    fun `five consecutive bad readings mean the run is unprotected`() {
         val watch = ForegroundProtectionWatch()
 
-        assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        repeat(unprotectedReadings - 1) { watch.observe(IMPORTANCE_SERVICE) }
+
         assertThat(watch.observe(IMPORTANCE_SERVICE)).isTrue()
     }
 
@@ -64,7 +71,8 @@ class ForegroundProtectionWatchTest {
         // the session does. Latching on the READING would drop that report for the rest of the run.
         val watch = ForegroundProtectionWatch()
 
-        assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        repeat(unprotectedReadings - 1) { watch.observe(IMPORTANCE_SERVICE) }
+
         assertThat(watch.observe(IMPORTANCE_SERVICE)).isTrue()
         assertThat(watch.observe(IMPORTANCE_SERVICE)).isTrue()
 
@@ -75,12 +83,16 @@ class ForegroundProtectionWatchTest {
     }
 
     @Test
-    fun `a good reading between two bad ones resets the count`() {
+    fun `a good reading resets the count`() {
         val watch = ForegroundProtectionWatch()
 
-        assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        repeat(unprotectedReadings - 1) { watch.observe(IMPORTANCE_SERVICE) }
         assertThat(watch.observe(IMPORTANCE_FOREGROUND)).isFalse()
-        assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+
+        // Back to the start: the run has to look unprotected for the whole window again.
+        repeat(unprotectedReadings - 1) {
+            assertThat(watch.observe(IMPORTANCE_SERVICE)).isFalse()
+        }
         assertThat(watch.observe(IMPORTANCE_SERVICE)).isTrue()
     }
 
