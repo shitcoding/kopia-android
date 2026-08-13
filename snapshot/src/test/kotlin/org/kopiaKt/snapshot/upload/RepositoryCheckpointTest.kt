@@ -243,4 +243,34 @@ class RepositoryCheckpointTest {
     private companion object {
         const val CHECKPOINT_REASON = "checkpoint"
     }
+
+    @Test
+    fun `the checkpoint interval is re-read, so a run can tighten it mid-flight`(): Unit = runBlocking {
+        // What a kill throws away is everything since the last REPOSITORY checkpoint, and on Android
+        // a run that loses its foreground service becomes killable in minutes rather than hours. The
+        // interval used to be captured once, which is why it had to become a supplier: nothing about
+        // a Duration read at session start can respond to that (task-60).
+        var unprotected = false
+        val options = UploadOptions(
+            checkpointInterval = Duration.ofMinutes(5),
+            checkpointIntervalNow = {
+                if (unprotected) Duration.ofSeconds(75) else Duration.ofMinutes(5)
+            },
+        )
+
+        assertThat(options.effectiveCheckpointInterval()).isEqualTo(Duration.ofMinutes(5))
+
+        unprotected = true
+
+        assertThat(options.effectiveCheckpointInterval()).isEqualTo(Duration.ofSeconds(75))
+    }
+
+    @Test
+    fun `without a supplier the fixed interval is used, and either way it is clamped`(): Unit = runBlocking {
+        assertThat(UploadOptions(checkpointInterval = Duration.ofMinutes(5)).effectiveCheckpointInterval())
+            .isEqualTo(Duration.ofMinutes(5))
+        // A zero from either source would make the checkpoint loop's delay return immediately.
+        assertThat(UploadOptions(checkpointIntervalNow = { Duration.ZERO }).effectiveCheckpointInterval())
+            .isEqualTo(UploadOptions.MIN_CHECKPOINT_INTERVAL)
+    }
 }

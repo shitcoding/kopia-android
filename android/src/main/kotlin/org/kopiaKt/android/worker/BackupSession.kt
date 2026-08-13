@@ -143,9 +143,27 @@ class BackupSession(
     private val context: Context? = null,
 ) {
     private val cancelled = AtomicBoolean(false)
+
+    /**
+     * Set once this run is known to be going without a foreground service (task-60).
+     *
+     * It does not stop the run — that would abandon backups that mostly do finish, and the kill it
+     * is guarding against already converges to a recorded failure the user is told about. It makes
+     * the run cheaper to lose: see [CheckpointOptions.unprotectedIntervalMillis].
+     */
+    private val foregroundProtectionLost = AtomicBoolean(false)
     private val uploaderRef = AtomicReference<SnapshotUploader?>(null)
     private val currentCounters = AtomicReference(UploadCounters())
     private val startTime = AtomicReference<Instant?>(null)
+
+    /**
+     * Reports that this run no longer has a foreground service, so it should checkpoint more often.
+     *
+     * Called by the worker's progress loop, which is the only thing watching. Idempotent.
+     */
+    fun reportForegroundProtectionLost() {
+        foregroundProtectionLost.set(true)
+    }
 
     /**
      * Cancels the backup operation.
@@ -271,13 +289,16 @@ class BackupSession(
                     tags = config.tags,
                     parallelUploads = config.parallelUploads,
                     forceHashPercentage = config.forceHashPercentage,
-                    // The SAME interval that drives the local bookkeeping loop, not the uploader's
+                    // The SAME interval the local bookkeeping loop starts from, not the uploader's
                     // Go-inherited 45 minutes. Go's default is sized for a desktop that will still
                     // be running in 45 minutes; on Android the process is killed on someone else's
                     // schedule, and everything uploaded since the last checkpoint is what a kill
-                    // costs. One knob, so the number a user or a config sees is the one that
-                    // decides how much work an abrupt stop throws away.
+                    // costs. This is THE knob that decides how much an abrupt stop throws away --
+                    // the local record is bookkeeping and a resume never reads it.
                     checkpointInterval = Duration.ofMillis(config.checkpointOptions.effectiveIntervalMillis),
+                    // ...and it is consulted per cycle, so a run that loses its foreground service
+                    // starts checkpointing more often from then on (task-60).
+                    checkpointIntervalNow = { Duration.ofMillis(checkpointIntervalMillis()) },
                 ),
             )
 
@@ -378,6 +399,9 @@ class BackupSession(
 
         while (true) {
             // Clamped interval: a zero/negative config must not turn this into a tight busy-loop (task-14).
+            // Deliberately the FIXED interval, unlike the uploader's: this loop writes the local
+            // bookkeeping record, which a resume never reads, and its minBytesBeforeCheckpoint gate
+            // would swallow a tightening on exactly the slow runs that would want one (task-60).
             delay(config.checkpointOptions.effectiveIntervalMillis)
 
             if (cancelled.get()) break
@@ -391,6 +415,16 @@ class BackupSession(
                 lastCheckpointBytes = totalBytes
             }
         }
+    }
+
+    /**
+     * The interval the UPLOADER should checkpoint at, given whether this run still has a foreground
+     * service. Consulted before every repository checkpoint, which is the one a resume reads back.
+     */
+    internal fun checkpointIntervalMillis(): Long = if (foregroundProtectionLost.get()) {
+        config.checkpointOptions.unprotectedIntervalMillis
+    } else {
+        config.checkpointOptions.effectiveIntervalMillis
     }
 
     private suspend fun saveCheckpoint(repoConnectionJson: String, sourceInfo: SourceInfo): Boolean {

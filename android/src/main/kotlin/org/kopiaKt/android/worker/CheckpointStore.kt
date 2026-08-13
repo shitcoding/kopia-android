@@ -278,12 +278,27 @@ data class CheckpointOptions(
     val effectiveIntervalMillis: Long
         get() = intervalMillis.coerceAtLeast(MIN_CHECKPOINT_INTERVAL_MILLIS)
 
+    /**
+     * The interval to use once a run is known to have no foreground service (task-60).
+     *
+     * Everything since the last checkpoint is what a kill costs, and an unprotected run in the
+     * background is killable within minutes rather than hours — so checkpoint four times as often
+     * while that lasts. Nothing else about the run changes: the alternative, stopping, would abandon
+     * backups that mostly do finish, and a completed one needs no apology.
+     */
+    val unprotectedIntervalMillis: Long
+        get() = (effectiveIntervalMillis / UNPROTECTED_INTERVAL_DIVISOR)
+            .coerceAtLeast(MIN_CHECKPOINT_INTERVAL_MILLIS)
+
     companion object {
         /** Default checkpoint interval (5 minutes). */
         const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 5L * 60 * 1000
 
         /** Floor for the checkpoint interval so a zero/negative config can't busy-loop the delay. */
         const val MIN_CHECKPOINT_INTERVAL_MILLIS = 1000L
+
+        /** How much more often an unprotected run checkpoints; see [unprotectedIntervalMillis]. */
+        private const val UNPROTECTED_INTERVAL_DIVISOR = 4
 
         /** Default minimum bytes before first checkpoint (10 MB). */
         const val DEFAULT_MIN_BYTES_BEFORE_CHECKPOINT = 10L * 1024 * 1024

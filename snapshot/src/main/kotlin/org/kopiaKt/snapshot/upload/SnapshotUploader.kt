@@ -66,6 +66,16 @@ data class UploadOptions(
      * repository accepts them.
      */
     val checkpointInterval: Duration = DEFAULT_CHECKPOINT_INTERVAL,
+
+    /**
+     * The interval to use *right now*, consulted before every checkpoint rather than captured once.
+     *
+     * Exists because a run's circumstances can change while it runs: on Android a backup that loses
+     * its foreground service becomes killable within minutes instead of hours, and everything since
+     * the last checkpoint is what a kill throws away (task-60). Defaults to the fixed
+     * [checkpointInterval], so a caller that has nothing to vary passes nothing.
+     */
+    val checkpointIntervalNow: () -> Duration = { checkpointInterval },
 ) {
     companion object {
         /** Go: `DefaultCheckpointInterval = 45 * time.Minute`. */
@@ -75,9 +85,9 @@ data class UploadOptions(
         val MIN_CHECKPOINT_INTERVAL: Duration = Duration.ofMillis(50)
     }
 
-    /** [checkpointInterval] clamped to [MIN_CHECKPOINT_INTERVAL]. */
-    val effectiveCheckpointInterval: Duration
-        get() = if (checkpointInterval < MIN_CHECKPOINT_INTERVAL) MIN_CHECKPOINT_INTERVAL else checkpointInterval
+    /** [checkpointIntervalNow] clamped to [MIN_CHECKPOINT_INTERVAL]. */
+    fun effectiveCheckpointInterval(): Duration = checkpointIntervalNow()
+        .let { if (it < MIN_CHECKPOINT_INTERVAL) MIN_CHECKPOINT_INTERVAL else it }
 }
 
 /**
@@ -378,7 +388,7 @@ class SnapshotUploader(
         startTime: Instant,
     ) {
         while (true) {
-            delay(options.effectiveCheckpointInterval.toMillis())
+            delay(options.effectiveCheckpointInterval().toMillis())
             checkpointRoot(registry, startTime)
         }
     }

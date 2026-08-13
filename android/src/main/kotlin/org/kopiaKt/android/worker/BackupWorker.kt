@@ -444,6 +444,32 @@ class BackupWorker(
         }
     }
 
+    /**
+     * Notices that this run is going without the foreground service it asked for, and makes it
+     * cheaper to lose (task-60).
+     *
+     * Deliberately not a failure. WorkManager's own service swallows the promotion-stage refusal, so
+     * this is the only way to find out at all — and by the time we know, the run is often most of
+     * the way through. Stopping it would abandon backups that mostly do finish, while the kill this
+     * guards against already ends in a recorded, correctly-worded failure: a killed run's re-run
+     * starts backgrounded, so its `setForeground` throws for real and the user is told to open the
+     * app and start it again. What is left worth doing is bounding what a kill costs, which is
+     * everything since the last checkpoint.
+     */
+    private fun noticeLostForegroundProtection(watch: ForegroundProtectionWatch, sourcePath: String) {
+        if (!watch.observe(ForegroundProtectionWatch.currentImportance())) return
+        val session = inputData.getString(KEY_SOURCE_ID)?.let { BackupSessionRegistry.forSource(it) }
+            // Not registered yet -- this loop starts before the session does. The watch keeps
+            // saying so until it is, rather than losing the report for the rest of the run.
+            ?: return
+        session.reportForegroundProtectionLost()
+        watch.markDelivered()
+        android.util.Log.w(
+            TAG,
+            "backup of $sourcePath is running without a foreground service; checkpointing more often",
+        )
+    }
+
     private fun getRepository(): DirectRepository? = repositoryProvider?.invoke(applicationContext)
 
     /**
@@ -454,8 +480,10 @@ class BackupWorker(
      * not abort the backup.
      */
     private suspend fun runForegroundProgressLoop(notificationId: Int, sourcePath: String) {
+        val protection = ForegroundProtectionWatch()
         while (true) {
             delay(PROGRESS_UPDATE_INTERVAL_MILLIS)
+            noticeLostForegroundProtection(protection, sourcePath)
             val counters = latestCounters.get() ?: continue
             try {
                 // Same cadence as the notification. WorkManager progress is how the counters leave

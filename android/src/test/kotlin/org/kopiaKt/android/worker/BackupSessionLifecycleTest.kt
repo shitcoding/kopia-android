@@ -522,6 +522,38 @@ class BackupSessionLifecycleTest {
     // ==================================================================
 
     @Nested
+    @DisplayName("Foreground protection (task-60)")
+    inner class ForegroundProtection {
+
+        @Test
+        @DisplayName("losing the foreground service makes the run checkpoint more often")
+        fun `losing the foreground service makes the run checkpoint more often`() {
+            // The worker's progress loop is the only thing that can notice -- WorkManager swallows
+            // the promotion-stage refusal -- and this is what it does about it. Not stopping the
+            // run: a kill already ends in a recorded failure, so what is left worth doing is
+            // bounding what a kill costs, which is everything since the last checkpoint.
+            val (repo, _) = mockRepository()
+            val (cpStore, _) = mockCheckpointStore()
+            val session = BackupSession(
+                repository = repo,
+                config = BackupSessionConfig(
+                    sourcePath = createTempDir("fgs-protection").toAbsolutePath().toString(),
+                    sourceId = "fgs-protection",
+                    checkpointOptions = CheckpointOptions(intervalMillis = 5L * 60 * 1000),
+                ),
+                checkpointStore = cpStore,
+                context = context,
+            )
+
+            assertThat(session.checkpointIntervalMillis()).isEqualTo(5L * 60 * 1000)
+
+            session.reportForegroundProtectionLost()
+
+            assertThat(session.checkpointIntervalMillis()).isEqualTo(75L * 1000)
+        }
+    }
+
+    @Nested
     @DisplayName("Failure and Recovery")
     inner class FailureAndRecovery {
 

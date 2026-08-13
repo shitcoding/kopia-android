@@ -33,6 +33,9 @@ object BackupSessionRegistry {
         sessions.remove(sourceId, session)
     }
 
+    /** The session backing up [sourceId], if one is running in this process. */
+    fun forSource(sourceId: String): BackupSession? = sessions[sourceId]
+
     /**
      * Cooperatively cancels the session backing up [sourceId], if one is running and not already
      * cancelled.
