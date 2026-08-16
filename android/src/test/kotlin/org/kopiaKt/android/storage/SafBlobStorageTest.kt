@@ -360,6 +360,32 @@ class SafBlobStorageTest {
     @DisplayName("putBlob")
     inner class PutBlobTests {
 
+        /**
+         * task-65 is a hole SAF does not have, and this pins that.
+         *
+         * On the local and SFTP backends a write recreated the repository root — `createDirectories`
+         * / `mkdirAll` walk up making every missing ancestor — so a repository that had been moved
+         * away was silently rebuilt as an empty blob tree and the backup reported success. SAF
+         * cannot do that: everything is created as a child of the persisted tree `DocumentFile`, and
+         * when that root is gone `createFile` answers null. The write must FAIL, loudly.
+         *
+         * Without this test the SAF path could later be "helpfully" changed to re-resolve the tree
+         * URI on failure, which would import exactly the bug the other two backends just lost.
+         */
+        @Test
+        fun `fails loudly when the tree root is gone instead of rebuilding it`(): Unit = runTest {
+            val blobId = BlobId("new")
+
+            every { mockRootDocument.findFile(any()) } returns null
+            // The granted tree root is gone: SAF answers null rather than creating anything.
+            every { mockRootDocument.createFile(any(), any()) } returns null
+            every { mockRootDocument.createDirectory(any()) } returns null
+
+            assertThrows<IOException> {
+                storage.putBlob(blobId, "content".toByteArray())
+            }
+        }
+
         @Test
         fun `writes blob data with atomic writes`(): Unit = runTest {
             val blobId = BlobId("new")

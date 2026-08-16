@@ -25,6 +25,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.RepositoryWriter
@@ -601,6 +602,50 @@ class BackupErrorHandlingTest {
             val result = worker.doWork()
 
             assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+        }
+
+        @Test
+        fun `a destination that is no longer a repository is terminal, and says so in words`(): Unit = runBlocking {
+            // task-65, measured on a phone: the repository directory was moved away while the app
+            // held it open, the write path's mkdir -p recreated it, and the run wrote 2.34 GB into a
+            // directory Go then refused to open — reported as "Backed up 200 files (2.34 GB)".
+            //
+            // Terminal for the same reason SourceUnavailableException is: what has to change is
+            // outside the backup. Retrying spends three attempts over an exponential backoff while
+            // ExistingWorkPolicy.KEEP swallows every "Back Up Now" the user taps in the meantime, so
+            // it delays the one action that can actually fix this.
+            val tempDir = createTempDir("dest-gone-source")
+            val (repo, writer) = mockRepository()
+            coEvery { writer.findManifests(any()) } throws
+                RepositoryUnavailableException(
+                    "The backup destination is gone: /sdcard/backup_repo. It may have been moved " +
+                        "or deleted — reconnect to it and try again.",
+                )
+            BackupWorker.repositoryProvider = { _ -> repo }
+
+            val worker = TestListenableWorkerBuilder<BackupWorker>(context)
+                .setInputData(
+                    workDataOf(
+                        BackupWorker.KEY_SOURCE_ID to "dest-gone-source",
+                        BackupWorker.KEY_SOURCE_PATH to tempDir.toAbsolutePath().toString(),
+                    ),
+                )
+                .build()
+
+            val result = worker.doWork()
+
+            assertThat(result).isNotEqualTo(ListenableWorker.Result.retry())
+            // The message is persisted on the source and rendered on the dashboard (task-39), so it
+            // has to tell the user what to do rather than name a blob id.
+            assertThat(result).isEqualTo(
+                ListenableWorker.Result.failure(
+                    workDataOf(
+                        BackupWorker.KEY_ERROR to
+                            "The backup destination is gone: /sdcard/backup_repo. It may have been " +
+                            "moved or deleted — reconnect to it and try again.",
+                    ),
+                ),
+            )
         }
 
         @Test

@@ -32,6 +32,7 @@ import org.kopiaKt.android.notification.BackupNotificationIds
 import org.kopiaKt.android.notification.BackupNotificationManager
 import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidCredentialsException
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.snapshot.RepositoryWriteLock
 import org.kopiaKt.snapshot.upload.UploadCounters
@@ -324,7 +325,12 @@ class BackupWorker(
      * writing one has nothing to resume.
      *
      * A [SourceUnavailableException] cannot either, and for a plainer reason: the folder is gone or
-     * the grant to read it is. Nor can wrong credentials or an untrusted SFTP host key — and those
+     * the grant to read it is. A [RepositoryUnavailableException] is the same shape seen from the
+     * other end -- the DESTINATION is gone, moved, replaced, or unmounted (task-65) -- and takes the
+     * same answer for the same reason: what has to change is outside the backup, and retrying three
+     * times over an exponential backoff meanwhile only spins the user's awaited task while
+     * `ExistingWorkPolicy.KEEP` swallows every "Back Up Now" they tap. Nor can wrong credentials or
+     * an untrusted SFTP host key — and those
      * two are not a judgement made here: `RetryingBlobStorage.isRetryable` already refuses to retry
      * them, so retrying the whole backup around them only repeats the refusal more expensively.
      * Everything else keeps the retry it had. A dropped connection or a busy storage backend is exactly what
@@ -333,6 +339,7 @@ class BackupWorker(
      */
     private fun isTerminalFailure(error: Throwable): Boolean = error is Error ||
         error is SourceUnavailableException ||
+        error is RepositoryUnavailableException ||
         error is InvalidCredentialsException ||
         error is HostKeyNotTrustedException
 

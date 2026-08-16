@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobStorageContractTest
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
@@ -67,6 +69,33 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
             assertTrue(shardDir1.exists(), "First shard directory should exist")
             assertTrue(shardDir2.exists(), "Second shard directory should exist")
             assertTrue(longBlobFile.exists(), "Long blob file should exist with sharding")
+        }
+
+        /**
+         * task-65: measured on a phone. The repository directory was moved away while the app held
+         * it open; every subsequent write recreated it, the run wrote 2.34 GB into a directory with
+         * no `kopia.repository.f` in it, and the backup reported SUCCESS. `createDirectories()` is
+         * `mkdir -p`, so it does not just create the shard directory the comment claims — it
+         * recreates every missing ancestor, the repository root included.
+         */
+        @Test
+        fun `putBlob fails instead of recreating a repository root that has gone`(): Unit = runTest {
+            val storage = createStorage() as FilesystemBlobStorage
+
+            storage.putBlob(BlobId("pabc123def456789012345"), "before".toByteArray())
+
+            storageDir!!.deleteRecursively()
+            assertTrue(!storageDir!!.exists(), "precondition: the repository root is gone")
+
+            assertThrows<RepositoryUnavailableException> {
+                storage.putBlob(BlobId("pdef456789012345abcde"), "after".toByteArray())
+            }
+
+            assertTrue(
+                !storageDir!!.exists(),
+                "the repository root must not be recreated — that is what turned a dead write into a " +
+                    "reported success",
+            )
         }
 
         @Test

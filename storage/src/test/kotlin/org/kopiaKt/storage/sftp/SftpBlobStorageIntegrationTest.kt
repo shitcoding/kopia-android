@@ -23,6 +23,7 @@ import org.kopiaKt.core.blob.BlobId
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobStorageContractTest
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
@@ -356,6 +357,52 @@ class SftpBlobStorageIntegrationTest {
         assertThrows<Exception> {
             runBlocking { SftpBlobStorage.create(sftpOptions(path = corruptPath), isCreate = false) }
         }
+    }
+
+    /**
+     * task-65: `mkdirAll` splits the FULL path and walks up from `/`, creating every missing
+     * component — the repository root included. So a repository directory removed on the server was
+     * silently recreated by the next write, and the run carried on filling a directory that is not
+     * a repository and reported success. Measured on the local backend on a phone (2.34 GB written,
+     * no format blob, Go refused to open it); SFTP has the same shape.
+     *
+     * Uses its own path so removing the root cannot disturb the ordered tests above.
+     */
+    @Test
+    @DisplayName("task-65: a write does not recreate a repository root that has gone")
+    fun writeDoesNotRecreateAMissingRepositoryRoot(): Unit = runTest {
+        val rootPath = "/upload/$testPrefix-rootgone"
+        val own = SftpBlobStorage.create(sftpOptions(path = rootPath), isCreate = true)
+        try {
+            // A long blob id, so the write needs a shard directory and therefore goes through
+            // ensureDirectoryExists — the path that used to walk up and recreate the root.
+            own.putBlob(BlobId("pabc123def456789012345"), "before".toByteArray())
+
+            withRawSftp { raw -> removeRemoteTree(raw, rootPath) }
+
+            // Pinned to the type, not just "something threw": being typed is what keeps this out of
+            // the retry machinery (isSftpConnectionError would read a bare IOException as a dropped
+            // connection and force a reconnect + replay; RetryingBlobStorage would then spend ten
+            // attempts with backoff on it, per blob write) and what makes the run terminal rather
+            // than retried three times while ExistingWorkPolicy.KEEP swallows the user's taps.
+            assertThrows<RepositoryUnavailableException> {
+                runBlocking { own.putBlob(BlobId("pdef456789012345abcde"), "after".toByteArray()) }
+            }
+
+            withRawSftp { raw ->
+                assertThrows<Exception>("the repository root must not be recreated") { raw.stat(rootPath) }
+            }
+        } finally {
+            own.close()
+        }
+    }
+
+    /** Deletes a remote directory and everything under it — sshj has no recursive remove. */
+    private fun removeRemoteTree(raw: SFTPClient, path: String) {
+        raw.ls(path).forEach { entry ->
+            if (entry.isDirectory) removeRemoteTree(raw, entry.path) else raw.rm(entry.path)
+        }
+        raw.rmdir(path)
     }
 
     /** Opens a raw sshj SFTP client to the test container to lay down an arbitrary on-disk layout. */

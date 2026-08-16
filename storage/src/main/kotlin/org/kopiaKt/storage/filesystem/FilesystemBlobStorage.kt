@@ -17,6 +17,7 @@ import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -202,7 +203,11 @@ class FilesystemBlobStorage private constructor(
             return@withContext
         }
 
-        // Ensure shard directory exists
+        requireBasePathStillExists()
+
+        // Safe now: basePath was just seen. createDirectories() is
+        // mkdir -p and would otherwise recreate every missing ancestor including basePath itself --
+        // which is how a whole run came to be written into a directory that was not a repository.
         blobPath.parent.createDirectories()
 
         // Write atomically using temp file + rename
@@ -236,6 +241,33 @@ class FilesystemBlobStorage private constructor(
         type = "filesystem",
         config = mapOf("path" to basePath.toString()),
     )
+
+    /**
+     * Refuses a write once the directory this storage was opened on has gone.
+     *
+     * The write path creates directories with `createDirectories()` (`mkdir -p`), which walks up
+     * making every missing ancestor -- so a repository directory that had been moved away was
+     * silently recreated, the run filled it, and the backup reported success. Measured on a phone
+     * (task-65): 2.34 GB written, no format blob in it, and Go answered "repository not initialized
+     * in the provided storage".
+     *
+     * Deliberately checks only that the directory is still there, NOT that it still holds a format
+     * blob. A blob store is a blob store: this class is used as a plain one (the contract test suite
+     * writes to a bare directory), and giving it an opinion about repository format would both break
+     * that and put repository knowledge in the wrong layer. Catching a root that was *replaced*
+     * rather than removed is a repository-level question and is handled there, once per write
+     * session, by `DirectRepositoryImpl.newDirectWriter`.
+     *
+     * `basePath` provably existed at construction (`init` requires it), so a firing guard always
+     * means it vanished afterwards.
+     */
+    private fun requireBasePathStillExists() {
+        if (basePath.isDirectory()) return
+        throw RepositoryUnavailableException(
+            "The backup destination is gone: $basePath. It may have been moved, deleted, or its " +
+                "storage unmounted — reconnect to it and try again.",
+        )
+    }
 
     override fun displayName(): String = basePath.toString()
 

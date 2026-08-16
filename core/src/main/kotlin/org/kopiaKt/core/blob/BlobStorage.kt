@@ -218,6 +218,34 @@ class BlobNotFoundException(blobId: BlobId) : Exception("Blob not found: $blobId
 class BlobAlreadyExistsException(blobId: BlobId) : Exception("Blob already exists: $blobId")
 
 /**
+ * The storage this session is connected to no longer holds the repository it was opened on.
+ *
+ * The repository directory was deleted, moved, or **replaced** — a sync client swapping it, a file
+ * manager, a volume remounted, the user tidying up — while the app held the repository open. This
+ * app keeps one connection for a whole session and reads the format blob only at connect, so
+ * without this nothing notices: measured on a phone (task-65), a run wrote 2.34 GB into a directory
+ * that had been recreated by `mkdir -p` on the write path, reported "Backed up 200 files (2.34 GB)",
+ * and Go then answered "repository not initialized in the provided storage".
+ *
+ * A distinct type because it decides something. It is **terminal** for a backup
+ * (`BackupWorker.isTerminalFailure`), for the same reason
+ * `org.kopiaKt.android.worker.SourceUnavailableException` is: what has to change is outside the
+ * backup — the user restores the folder, remounts the volume, or reconnects — and retrying three
+ * times over an exponential backoff meanwhile only spins their awaited task while
+ * `ExistingWorkPolicy.KEEP` swallows every "Back Up Now" they tap. A terminal failure with a message
+ * written for them leaves them free to act and tap again immediately (task-59's recorded recipe for
+ * extending that list: classify at the source, throw a typed error, write the message for a person).
+ *
+ * Being typed also keeps it out of the retry machinery it would otherwise be ground through: a plain
+ * `IOException` is read by `SftpBlobStorage.isSftpConnectionError` as a dropped connection (forcing a
+ * pointless SSH reconnect and replay) and by `RetryingBlobStorage.isRetryable` as worth ten attempts
+ * with backoff — per blob write.
+ *
+ * @param message written for the user; it is persisted on the source and rendered on the dashboard.
+ */
+class RepositoryUnavailableException(message: String) : Exception(message)
+
+/**
  * Exception thrown when an invalid blob range is requested.
  */
 class InvalidBlobRangeException(message: String) : Exception(message)

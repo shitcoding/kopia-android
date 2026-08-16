@@ -1,9 +1,12 @@
 package org.kopiaKt.core.repository
 
 import kotlinx.coroutines.sync.Mutex
+import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobReader
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.BlobVolume
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.compression.CompressionAlgorithm
 import org.kopiaKt.core.compression.CompressorFactory
 import org.kopiaKt.core.compression.DefaultCompressorFactory
@@ -226,6 +229,7 @@ class DirectRepositoryImpl private constructor(
     override suspend fun newDirectWriter(options: WriteSessionOptions): DirectRepositoryWriter {
         checkNotClosed()
         check(!clientOptions.readOnly) { "Repository is read-only" }
+        requireStorageStillHoldsThisRepository()
 
         val writerId = writerIdCounter.incrementAndGet()
         val writerName = "writer-$writerId:${options.purpose}"
@@ -267,6 +271,45 @@ class DirectRepositoryImpl private constructor(
     override fun supportsPasswordChange(): Boolean = config.enablePasswordChange
 
     // ===== DirectRepositoryWriter Interface =====
+
+    /**
+     * Checks, once per write session, that the storage still holds the repository we opened.
+     *
+     * The format blob is read at connect and never again, while this app keeps one repository
+     * connection for a whole session -- so if the storage is swapped underneath it, nothing notices.
+     * Measured on a phone (task-65): the repository directory was moved away, the write path's
+     * `mkdir -p` recreated it, a run wrote 2.34 GB into it and reported "Backed up 200 files
+     * (2.34 GB)", and Go then said "repository not initialized in the provided storage". The
+     * dashboard afterwards showed that ghost as the source's only snapshot while the real ones
+     * vanished, because retention's `repository.refresh()` re-read from the recreated path.
+     *
+     * Here rather than in each backend, for three reasons:
+     * - It is a repository-level question. A [BlobStorage] is a plain blob store and several are
+     *   used as exactly that; giving them an opinion about repository format breaks that.
+     * - It covers every backend in one place -- including S3, which has no root directory to check
+     *   and so cannot be defended by the backends' own guards.
+     * - It catches the storage being **replaced** as well as removed, which a directory-existence
+     *   check cannot: a sync client swapping in a fresh empty folder leaves a directory there.
+     *
+     * One blob read per write session -- noise beside the packs the session is about to upload, and
+     * it also covers the case where a run writes nothing at all (`ignoreIdenticalSnapshots`), which
+     * would otherwise report success against a repository that is not there.
+     */
+    private suspend fun requireStorageStillHoldsThisRepository() {
+        // Backends differ: some answer null for a missing blob, some throw. Both mean the same here.
+        val present = try {
+            blobStorage.getBlobMetadata(BlobId(KopiaRepositoryJson.FORMAT_BLOB_ID)) != null
+        } catch (@Suppress("SwallowedException") e: BlobNotFoundException) {
+            false
+        }
+        if (!present) {
+            throw RepositoryUnavailableException(
+                "The backup destination is no longer the repository it was connected to. It may " +
+                    "have been moved, deleted, replaced, or its storage unmounted — reconnect to " +
+                    "it and try again.",
+            )
+        }
+    }
 
     override fun blobStorage(): BlobStorage = blobStorage
 

@@ -25,6 +25,7 @@ import org.kopiaKt.core.blob.HostKeyNotTrustedException
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import java.io.ByteArrayOutputStream
@@ -126,7 +127,19 @@ class SftpBlobStorage private constructor(
                     try {
                         sftp.stat(options.path)
                     } catch (e: SFTPException) {
-                        if (isNotExist(e)) mkdirAll(sftp, options.path) else throw e
+                        // Create the root only when legitimately creating the repository — the same
+                        // rule `.shards` follows just below, and for the same reason: merely opening
+                        // (or testing a connection to) a repository must never mutate the server.
+                        // Creating it on open also un-did the guarantee the write path now makes,
+                        // rebuilding the empty ghost directory one reconnect after a run refused to
+                        // write into it (task-65).
+                        if (!isNotExist(e)) throw e
+                        if (!isCreate) {
+                            throw RepositoryUnavailableException(
+                                "There is no repository at ${options.path} on this server.",
+                            )
+                        }
+                        mkdirAll(sftp, options.path)
                     }
 
                     readShardsConfig(sftp, options.path) ?: run {
@@ -650,11 +663,43 @@ class SftpBlobStorage private constructor(
         try {
             sftp.stat(path)
         } catch (e: SFTPException) {
+            if (!isNotExist(e)) throw e
+            requireRepositoryRootExists(sftp)
+            mkdirAll(sftp, path)
+        }
+    }
+
+    /**
+     * Refuses to create shard directories once the root this storage was opened on has gone.
+     *
+     * [mkdirAll] splits the FULL path and walks up from `/`, creating every missing component -- so
+     * without this it recreates the repository directory too, and the run carries on filling a
+     * directory that is not a repository and reports success. Measured on the local backend on a
+     * phone (task-65): 2.34 GB written, no format blob in it, and Go answered "repository not
+     * initialized in the provided storage".
+     *
+     * Checks only that the root is there, not that it still holds a repository -- that is a
+     * repository-level question, answered once per write session by
+     * `DirectRepositoryImpl.newDirectWriter`, which also covers the backends (S3) that have no root
+     * to check. Costs nothing on the happy path: the only caller is already on its stat-failed
+     * branch.
+     *
+     * Typed rather than a plain [IOException] on purpose. `isSftpConnectionError` reads a bare
+     * IOException as a dropped connection and forces a pointless SSH reconnect and replay, and
+     * `RetryingBlobStorage` would then spend ten attempts with backoff on it -- per blob write, for
+     * the rest of the walk. A root that has gone needs the user, not a retry schedule.
+     */
+    private fun requireRepositoryRootExists(sftp: SFTPClient) {
+        try {
+            sftp.stat(options.path)
+        } catch (e: SFTPException) {
             if (isNotExist(e)) {
-                mkdirAll(sftp, path)
-            } else {
-                throw e
+                throw RepositoryUnavailableException(
+                    "The backup destination is gone: ${options.path}. It may have been moved or " +
+                        "deleted on the server -- reconnect to it and try again.",
+                )
             }
+            throw e
         }
     }
 
