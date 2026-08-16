@@ -138,25 +138,74 @@ class ContentManager(
         data: ByteArray,
         prefix: Char? = null,
         compression: CompressionAlgorithm? = null,
-    ): ContentId = mutex.withLock {
-        // Step 1: Hash the content
+    ): ContentId {
+        // Step 1: Hash the content -- OUTSIDE the mutex.
+        //
+        // This is a pure function of the bytes: every ContentHasher here builds its digest per call
+        // (Blake2bHasher, Blake3Hasher, HmacSha256Hasher all construct fresh state), so it touches
+        // no shared state and needs no lock. Inside the lock it serialized the hashing of every
+        // worker, which is most of what a backup does -- measured at 1.13x from four workers instead
+        // of one, i.e. the parallelism was decorative (task-66,
+        // ContentWriteConcurrencyBenchmarkTest). Go hashes outside its equivalent lock too.
+        //
+        // The rest of the pipeline is still serialized; narrowing it further is the remainder of
+        // task-66 and needs more care, because compression, encryption and the pack write are
+        // entangled with the pending/written bookkeeping this mutex protects.
+        // Caller contract, now that hashing and encryption can be separated by a lock wait: [data]
+        // must not be mutated until this returns. Every caller passes exclusively-owned bytes today
+        // -- ObjectWriter copies even FileUploader's reused 64 KB buffer on the way in -- and a
+        // caller that reused a buffer would produce content whose id does not match its bytes.
         val hashBytes = hasher.hashContent(data)
         val contentId = ContentId.fromHash(prefix, hashBytes)
         _stats.hashedBytes.addAndGet(data.size.toLong())
 
-        // Step 2: Check for deduplication
-        if (contentExists(contentId)) {
+        return writeHashedContent(data, contentId, compression)
+    }
+
+    private suspend fun writeHashedContent(
+        data: ByteArray,
+        contentId: ContentId,
+        compression: CompressionAlgorithm?,
+    ): ContentId {
+        // Step 2: Check for deduplication. Under the lock, because the committed/pending/written maps
+        // it reads are the state this mutex protects.
+        val alreadyStored = mutex.withLock { contentExists(contentId) }
+        if (alreadyStored) {
             _stats.deduplicatedContents.incrementAndGet()
             _stats.deduplicatedBytes.addAndGet(data.size.toLong())
             return contentId
         }
 
-        // Step 3: Optionally compress
+        // Steps 3 and 4: compress and encrypt -- OUTSIDE the mutex, like the hashing above.
+        //
+        // Both are pure functions of (bytes, contentId): the compressors are stateless, and every
+        // encryptor builds its Cipher per call (Aes256GcmCipher.encryptRaw). Holding the lock across
+        // them serialized the most expensive CPU work in a backup across all four upload workers.
+        //
+        // The cost of doing this outside is a race: two workers can both miss the dedup check for the
+        // same content and both encrypt it. That is rare (it needs the identical chunk in flight
+        // twice), it wastes CPU rather than corrupting anything -- content is addressed by its hash,
+        // so both produce the same id -- and step 5 re-checks under the lock and drops the loser.
         val compressionToUse = compression ?: defaultCompression
         val (compressedData, actualCompressionHeaderId) = maybeCompress(data, compressionToUse)
-
-        // Step 4: Encrypt
         val encryptedData = encryptor.encrypt(compressedData, contentId)
+
+        return addEncryptedContent(data.size, contentId, encryptedData, actualCompressionHeaderId)
+    }
+
+    private suspend fun addEncryptedContent(
+        originalSize: Int,
+        contentId: ContentId,
+        encryptedData: ByteArray,
+        actualCompressionHeaderId: Int,
+    ): ContentId = mutex.withLock {
+        // Re-check: another worker may have stored this very content while we were encrypting it
+        // outside the lock. Without this the pack would carry the same content twice.
+        if (contentExists(contentId)) {
+            _stats.deduplicatedContents.incrementAndGet()
+            _stats.deduplicatedBytes.addAndGet(originalSize.toLong())
+            return@withLock contentId
+        }
 
         // Step 5: Add to pack blob. If we are resurrecting previously-deleted content (contentExists was
         // false because the current entry is a tombstone), stamp a timestamp strictly greater than that
@@ -168,7 +217,7 @@ class ContentManager(
         } else {
             System.currentTimeMillis() / 1000
         }
-        addToPackUnlocked(contentId, encryptedData, data.size.toUInt(), actualCompressionHeaderId, writeTime)
+        addToPackUnlocked(contentId, encryptedData, originalSize.toUInt(), actualCompressionHeaderId, writeTime)
 
         _stats.writtenContents.incrementAndGet()
         _stats.writtenBytes.addAndGet(encryptedData.size.toLong())
