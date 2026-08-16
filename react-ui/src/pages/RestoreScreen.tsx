@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, Check, Download, Folder, Loader2, Settings, X, XCircle } from "lucide-react";
 import { kopiaBridge } from "@/services/kopiaBridge";
 import { useSnapshot } from "@/hooks/useKopiaApi";
+import { snapshotFailureWarning } from "@/lib/snapshotHealth";
 import type { RestoreProgress, RestoreState, SafPickResult } from "@/types/kopia";
 
 type UIRestoreState = "idle" | "preparing" | "progress" | "complete" | "failed" | "cancelled";
@@ -25,6 +26,7 @@ const RestoreScreen = () => {
   const sourcePath = searchParams.get("path") || "/";
 
   const { data: snapshot } = useSnapshot(snapshotId);
+  const restoreFailureWarning = snapshotFailureWarning(snapshot);
 
   const [state, setState] = useState<UIRestoreState>("idle");
   const [destination, setDestination] = useState<string | null>(null);
@@ -183,6 +185,19 @@ const RestoreScreen = () => {
               </p>
             </div>
           )}
+          {state === "idle" && restoreFailureWarning && (
+            // A DIFFERENT failure from the one above, and it can be true at the same time: this
+            // backup finished, but part of the source could not be read while it ran (task-63), so
+            // what is missing is missing for good rather than "not copied yet".
+            <div
+              className="mb-6 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-left"
+              role="status"
+              data-testid="failed-entries-warning"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+              <p className="text-sm text-foreground">{restoreFailureWarning.detail}</p>
+            </div>
+          )}
           {state === "idle" && (
             <button
               onClick={handleStartRestore}
@@ -254,6 +269,11 @@ const RestoreScreen = () => {
                 <p className="max-w-xs text-center text-sm text-warning">
                   From a backup that did not finish — these are the files it had copied, not
                   everything that was in the folder.
+                </p>
+              )}
+              {restoreFailureWarning && (
+                <p className="max-w-xs text-center text-sm text-warning">
+                  {restoreFailureWarning.restoredDetail}
                 </p>
               )}
               <button onClick={() => navigate(-1)} className="btn-primary mt-4">

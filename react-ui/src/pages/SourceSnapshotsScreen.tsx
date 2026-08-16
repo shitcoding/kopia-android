@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useSnapshotsWithRetention, useDeleteSnapshots } from "@/hooks/useKopiaApi";
 import { formatFileSize, formatDateTime } from "@/lib/format";
+import { snapshotFailureWarning } from "@/lib/snapshotHealth";
 import type { SourceInfo } from "@/types/kopia";
 
 const RETENTION_COLORS: Record<string, string> = {
@@ -314,6 +315,19 @@ const SourceSnapshotsScreen = () => {
                     <div className="flex items-center gap-1.5 mt-2 text-warning">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       <span className="text-xs font-medium">Incomplete</span>
+                    </div>
+                  )}
+
+                  {/* Entries the run could not read (task-63). A DIFFERENT failure from Incomplete,
+                      and both can apply: this backup finished, but part of the source was
+                      unreadable while it ran, so those files are missing for good. Measured on a
+                      phone: 945 of 2004 files, tagged `latest`, with nothing here saying so. */}
+                  {snapshotFailureWarning(snap) && (
+                    <div className="flex items-center gap-1.5 mt-2 text-warning">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium">
+                        {snapshotFailureWarning(snap)!.label}
+                      </span>
                     </div>
                   )}
 

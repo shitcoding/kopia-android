@@ -370,6 +370,7 @@ class SnapshotRepositoryImpl @Inject constructor(
                     totalFileSize = latestComplete?.let {
                         it.storageStats?.runningTotal?.objectBytes ?: it.stats?.totalFileSize
                     } ?: 0,
+                    latestFailedEntryCount = latestComplete?.displayFailedEntryCount() ?: 0,
                 )
             }
             .sortedByDescending { it.latestSnapshotTime }
@@ -485,6 +486,7 @@ class SnapshotRepositoryImpl @Inject constructor(
             )
         },
         isIncomplete = incompleteReason != null,
+        failedEntryCount = displayFailedEntryCount(),
         tags = tags,
     )
 
@@ -514,6 +516,20 @@ class SnapshotRepositoryImpl @Inject constructor(
 internal fun SnapshotManifest.displayFileCount(): Int {
     val summary = rootEntry?.dirSummary
     return summary?.totalFileCount?.toInt() ?: stats?.totalFileCount ?: 0
+}
+
+/**
+ * How many entries the run could not read.
+ *
+ * Recorded in the manifest and, until task-63, read by nothing. A source that becomes unreadable
+ * part way through a walk is handled by record-and-continue -- Go's behaviour, and the right one --
+ * so the snapshot is saved and marked COMPLETE holding whatever was readable. Measured on a phone:
+ * 945 of 2004 files, `numFailed: 1059`, sitting at the top of the list as `latest` with nothing
+ * saying so. Prefers the recursive root summary for the same reason [displayFileCount] does.
+ */
+internal fun SnapshotManifest.displayFailedEntryCount(): Int {
+    val summary = rootEntry?.dirSummary
+    return summary?.fatalErrorCount ?: stats?.errorCount ?: 0
 }
 
 /** Directory count in the snapshot; see [displayFileCount] for why the summary is preferred. */

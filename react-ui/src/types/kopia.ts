@@ -139,6 +139,14 @@ export interface SnapshotInfo {
   description?: string;
   stats?: SnapshotStats;
   isIncomplete?: boolean;
+  /**
+   * Entries the run could not read (`numFailed` in the manifest, task-63). Zero for a healthy one.
+   *
+   * NOT the same as `isIncomplete`: a snapshot with failures is complete — the run finished and
+   * saved what it could read — so nothing keying on `isIncomplete` speaks for it. See
+   * `lib/snapshotHealth`.
+   */
+  failedEntryCount?: number;
   tags?: Record<string, string>;
 }
 
@@ -156,6 +164,11 @@ export interface SourceWithStats {
   latestSnapshotTime: number;
   totalFileCount: number;
   totalFileSize: number;
+  /**
+   * Entries the newest COMPLETE snapshot could not read (task-63) — i.e. the very snapshot the
+   * counts beside it describe. Zero for a healthy source.
+   */
+  latestFailedEntryCount?: number;
 }
 
 /** Snapshot info extended with computed retention reasons */
@@ -255,6 +268,12 @@ export interface WebSourceStatus {
    */
   snapshotCount?: number | null;
   totalFileSize?: number | null;
+  /**
+   * Entries the newest COMPLETE snapshot could not read (task-63) — the snapshot the two counts
+   * above describe. `lastError` cannot cover this: a run that completes with errors is a success and
+   * clears it.
+   */
+  latestFailedEntryCount?: number | null;
 }
 
 /** Task info */

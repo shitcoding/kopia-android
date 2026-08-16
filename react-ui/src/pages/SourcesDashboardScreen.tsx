@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatFileSize, formatRelativeTime, uploadProgressPercent } from "@/lib/format";
+import { sourceFailureWarning } from "@/lib/snapshotHealth";
 import type { WebSourceStatus } from "@/types/kopia";
 import { useSources, useStartBackup, useDeleteSource } from "@/hooks/useBackupApi";
 import BackupProgressSheet from "@/components/BackupProgressSheet";
@@ -216,6 +217,19 @@ const SourcesDashboardScreen = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* A run that finishes with unreadable entries is a SUCCESS, so it clears
+                          lastError above rather than setting it (task-63). Without this the row is
+                          the healthiest-looking thing in the app for a source whose latest backup
+                          lost half its files, once the one notification has been dismissed. */}
+                      {sourceFailureWarning(src) && (
+                        <div className="flex items-start gap-1.5 mt-2 text-xs text-warning">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                          <span className="min-w-0 break-words">
+                            Latest backup: {sourceFailureWarning(src)!.label}
+                          </span>
+                        </div>
+                      )}
                     </button>
 
                     {/* Actions menu */}

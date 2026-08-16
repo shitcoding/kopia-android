@@ -3,6 +3,7 @@ import { RefreshCw, Settings, AlertTriangle, FolderX, Loader2, ChevronRight } fr
 import ExitDoorIcon from "@/components/ExitDoorIcon";
 import { useSourcesWithStats } from "@/hooks/useKopiaApi";
 import { formatFileSize, formatDateTime } from "@/lib/format";
+import { sourceFailureWarning } from "@/lib/snapshotHealth";
 import type { SourceWithStats } from "@/types/kopia";
 
 const SnapshotsScreen = () => {
@@ -110,6 +111,17 @@ const SnapshotsScreen = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   Last: {formatDateTime(src.latestSnapshotTime)}
                 </p>
+
+                {/* The counts above come from the newest COMPLETE snapshot — which may be one that
+                    lost files (task-63). Labelling the number rather than re-picking a cleaner
+                    snapshot: re-picking would describe something that is NOT what "restore latest"
+                    returns. */}
+                {sourceFailureWarning(src) && (
+                  <div className="flex items-center gap-1.5 mt-1 text-warning">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="text-xs font-medium">{sourceFailureWarning(src)!.label}</span>
+                  </div>
+                )}
               </button>
             ))}
           </div>

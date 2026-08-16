@@ -12,6 +12,9 @@ import org.kopiaKt.core.manifest.EntryMetadata
 import org.kopiaKt.core.manifest.ManifestId
 import org.kopiaKt.core.manifest.ManifestNotFoundException
 import org.kopiaKt.core.repository.DirectRepository
+import org.kopiaKt.snapshot.model.DirEntry
+import org.kopiaKt.snapshot.model.DirectorySummary
+import org.kopiaKt.snapshot.model.EntryType
 import org.kopiaKt.snapshot.model.SnapshotManifest
 import org.kopiaKt.snapshot.model.SnapshotStats
 import org.kopiaKt.snapshot.model.SourceInfo
@@ -144,6 +147,54 @@ class SourceStatsSemanticsTest {
         assertThrows<IOException> { runBlocking { snapshots.listSnapshots(null) } }
     }
 
+    /**
+     * task-63: the failure count has to survive the manifest -> domain mapping, not just exist on the
+     * manifest. Measured on a phone — a snapshot marked COMPLETE holding 945 of 2004 files, with
+     * `numFailed: 1059` recorded and read by nothing.
+     *
+     * Asserted through the real `SnapshotRepositoryImpl` rather than on the extension function it
+     * calls: a mutation that hard-codes the mapping to 0 leaves the extension's own tests green.
+     */
+    @Test
+    fun `a snapshot carries how many entries the run could not read`(): Unit = runBlocking {
+        givenManifests(withFailures("a", at = 100, failed = 1059))
+
+        val listed = snapshots.listSnapshotsWithRetention(DomainSourceInfo(HOST, USER, PATH))
+
+        assertEquals(1059, listed.single().snapshot.failedEntryCount)
+        // Complete, which is why no isIncomplete warning speaks for it — that is the defect.
+        assertEquals(false, listed.single().snapshot.isIncomplete)
+    }
+
+    /**
+     * task-63: the dashboard and the source cards print the newest COMPLETE snapshot's file count
+     * and size, so when that snapshot lost entries the headline numbers describe a lossy backup.
+     * They must be labelled — and the count has to come from the SAME snapshot, not from the newest
+     * clean one, or the row would describe something that is not what "restore latest" returns.
+     */
+    @Test
+    fun `a source reports the failures of the very snapshot its headline numbers come from`(): Unit = runBlocking {
+        givenManifests(
+            complete("a", at = 100, size = 500),
+            withFailures("b", at = 200, failed = 1059),
+        )
+
+        val stats = snapshots.listSourcesWithStats().single()
+
+        assertEquals(1059, stats.latestFailedEntryCount)
+        // ...and it is the newest complete one that is described, not the older clean one.
+        assertEquals(945, stats.totalFileCount)
+    }
+
+    @Test
+    fun `a clean snapshot reports no failures`(): Unit = runBlocking {
+        givenManifests(complete("a", at = 100, size = 500))
+
+        val listed = snapshots.listSnapshotsWithRetention(DomainSourceInfo(HOST, USER, PATH))
+
+        assertEquals(0, listed.single().snapshot.failedEntryCount)
+    }
+
     /** Stubs `findManifests` with [manifests] and makes each one readable by its own id. */
     private fun givenManifests(vararg manifests: SnapshotManifest) {
         every { repository.lastLoadWasComplete() } returns true
@@ -166,6 +217,19 @@ class SourceStatsSemanticsTest {
     )
 
     private fun complete(id: String, at: Long, size: Long) = manifest(id, at, size, incomplete = null)
+
+    /** A run that finished but could not read part of its source — complete, and lossy (task-63). */
+    private fun withFailures(id: String, at: Long, failed: Int) = manifest(id, at, size = 500, incomplete = null)
+        .copy(
+            rootEntry = DirEntry(
+                name = "",
+                type = EntryType.DIRECTORY,
+                permissions = 493,
+                modTime = Instant.ofEpochSecond(at),
+                objectId = "kdeadbeef",
+                dirSummary = DirectorySummary(totalFileCount = 945, totalDirCount = 13, fatalErrorCount = failed),
+            ),
+        )
 
     private fun incomplete(id: String, at: Long, size: Long) = manifest(id, at, size, incomplete = "canceled")
 

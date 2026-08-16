@@ -607,6 +607,7 @@ class KopiaWebBridge private constructor(
                     latestSnapshotTime = src.latestSnapshotTime.toEpochMilli(),
                     totalFileCount = src.totalFileCount.toLong(),
                     totalFileSize = src.totalFileSize,
+                    latestFailedEntryCount = src.latestFailedEntryCount,
                 )
             }
             json.encodeToString(WebResult.success(webSources))
@@ -641,6 +642,7 @@ class KopiaWebBridge private constructor(
                     description = result.snapshot.description,
                     stats = result.snapshot.stats?.toWeb(),
                     isIncomplete = result.snapshot.isIncomplete,
+                    failedEntryCount = result.snapshot.failedEntryCount,
                     tags = result.snapshot.tags,
                     retentionReasons = result.retentionReasons,
                 )

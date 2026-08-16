@@ -67,4 +67,36 @@ class SnapshotDisplayCountsTest {
         assertThat(m.displayFileCount()).isEqualTo(0)
         assertThat(m.displayDirectoryCount()).isEqualTo(0)
     }
+
+    /**
+     * task-63, measured on a phone: a source that became unreadable part way through a walk produced
+     * a snapshot marked COMPLETE holding 945 of 2004 files, with `numFailed: 1059` recorded in the
+     * manifest — and nothing in the app ever said so, because that number stopped at the repository.
+     * It was the `latest` snapshot, so it is what "restore the latest backup" hands back.
+     */
+    @Test
+    fun `reports how many entries the run could not read`() {
+        val m = manifest(
+            summary = DirectorySummary(totalFileCount = 945, totalDirCount = 13, fatalErrorCount = 1059),
+            stats = SnapshotStats(totalFileCount = 945, totalDirectoryCount = 13, errorCount = 1059),
+        )
+
+        assertThat(m.displayFailedEntryCount()).isEqualTo(1059)
+    }
+
+    @Test
+    fun `falls back to run stats for the failure count, and reports zero for a clean snapshot`() {
+        assertThat(
+            manifest(summary = null, stats = SnapshotStats(errorCount = 4)).displayFailedEntryCount(),
+        ).isEqualTo(4)
+
+        assertThat(
+            manifest(
+                summary = DirectorySummary(totalFileCount = 2004),
+                stats = SnapshotStats(totalFileCount = 2004),
+            ).displayFailedEntryCount(),
+        ).isEqualTo(0)
+
+        assertThat(manifest(summary = null, stats = null).displayFailedEntryCount()).isEqualTo(0)
+    }
 }

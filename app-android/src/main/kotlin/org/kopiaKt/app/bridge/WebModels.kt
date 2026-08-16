@@ -232,6 +232,13 @@ data class WebSnapshotInfo(
     val description: String,
     val stats: WebSnapshotStats? = null,
     val isIncomplete: Boolean,
+    /**
+     * Entries the run could not read (task-63). Zero for a healthy snapshot.
+     *
+     * Carried separately from [isIncomplete] because a snapshot with failures IS complete — the run
+     * finished and saved what it could read — so nothing keying on [isIncomplete] speaks for it.
+     */
+    val failedEntryCount: Int = 0,
     val tags: Map<String, String>,
 )
 
@@ -284,6 +291,8 @@ data class WebSourceWithStats(
     val latestSnapshotTime: Long,
     val totalFileCount: Long,
     val totalFileSize: Long,
+    /** See [org.kopiaKt.app.domain.model.SourceWithStats.latestFailedEntryCount] (task-63). */
+    val latestFailedEntryCount: Int = 0,
 )
 
 @Serializable
@@ -295,6 +304,9 @@ data class WebSnapshotWithRetention(
     val description: String,
     val stats: WebSnapshotStats? = null,
     val isIncomplete: Boolean,
+    /** See [WebSnapshotInfo.failedEntryCount]. Duplicated because this is a separate DTO, not a
+     *  subtype — which is exactly how it came to be missing here while the other one had it. */
+    val failedEntryCount: Int = 0,
     val tags: Map<String, String>,
     val retentionReasons: List<String>,
 )
@@ -376,6 +388,7 @@ fun SnapshotInfo.toWeb() = WebSnapshotInfo(
     description = description,
     stats = stats?.toWeb(),
     isIncomplete = isIncomplete,
+    failedEntryCount = failedEntryCount,
     tags = tags,
 )
 
@@ -477,6 +490,17 @@ data class WebSourceStatus(
      */
     val snapshotCount: Int? = null,
     val totalFileSize: Long? = null,
+    /**
+     * Entries the newest COMPLETE snapshot could not read (task-63) — the same snapshot
+     * [snapshotCount] and [totalFileSize] describe, so this says whether those numbers belong to a
+     * backup that lost something.
+     *
+     * The dashboard needs its own signal for this because [lastError] cannot serve: a run that
+     * completes with errors is a SUCCESS, so it clears `lastError` rather than setting it. After
+     * the one notification is dismissed, the row would otherwise be the healthiest-looking thing in
+     * the app for a source whose latest backup lost half its files.
+     */
+    val latestFailedEntryCount: Int? = null,
     /** Why the last backup ended without a snapshot; null when the last one succeeded. */
     val lastError: String? = null,
     val lastErrorTimeEpochMs: Long? = null,
@@ -664,6 +688,7 @@ fun org.kopiaKt.android.worker.SourceInfo.toWebStatus(
     uploadCounters = runningTask?.counters?.takeIf { it.isNotEmpty() }?.toWeb(),
     snapshotCount = stats?.snapshotCount,
     totalFileSize = stats?.totalFileSize,
+    latestFailedEntryCount = stats?.latestFailedEntryCount,
     lastError = lastError,
     lastErrorTimeEpochMs = lastErrorTime?.toEpochMilli(),
 )

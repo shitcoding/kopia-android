@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useDirectory, useSnapshot } from "@/hooks/useKopiaApi";
 import { kopiaBridge } from "@/services/kopiaBridge";
 import { formatFileSize, formatDateTime } from "@/lib/format";
+import { snapshotFailureWarning } from "@/lib/snapshotHealth";
 import type { FileEntry as KopiaFileEntry, FileEntryType } from "@/types/kopia";
 
 interface DisplayFileEntry {
@@ -58,6 +59,7 @@ const FileBrowserScreen = () => {
 
   // Fetch directory contents
   const { data: snapshot } = useSnapshot(snapshotId);
+  const browseFailureWarning = snapshotFailureWarning(snapshot);
   const directoryRequest = snapshotId
     ? { snapshotId, path: currentPathStr }
     : null;
@@ -286,6 +288,20 @@ const FileBrowserScreen = () => {
           <p className="text-sm text-foreground">
             This backup did not finish — it holds only what had been copied when it stopped.
           </p>
+        </div>
+      )}
+
+      {browseFailureWarning && (
+        // Complete, but part of the source was unreadable while it ran (task-63) — so what is NOT
+        // listed here is not "still to come", it was lost. Separate from the incomplete banner
+        // above because both can apply to one snapshot.
+        <div
+          className="flex items-start gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2.5"
+          role="status"
+          data-testid="failed-entries-warning"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+          <p className="text-sm text-foreground">{browseFailureWarning.detail}</p>
         </div>
       )}
 

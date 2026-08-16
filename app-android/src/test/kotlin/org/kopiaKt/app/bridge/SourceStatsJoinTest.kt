@@ -71,6 +71,7 @@ class SourceStatsJoinTest {
                 latestSnapshotTime = Instant.EPOCH,
                 totalFileCount = 118,
                 totalFileSize = 4_294_967_296,
+                latestFailedEntryCount = 0,
             ),
         )
 
@@ -129,6 +130,7 @@ class SourceStatsJoinTest {
         latestSnapshotTime = Instant.EPOCH,
         totalFileCount = 1,
         totalFileSize = 1,
+        latestFailedEntryCount = 0,
     )
 
     private fun firstSource(): JsonObject {
