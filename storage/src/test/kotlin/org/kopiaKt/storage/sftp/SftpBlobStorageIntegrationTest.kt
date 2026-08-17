@@ -430,6 +430,33 @@ class SftpBlobStorageIntegrationTest {
         }
     }
 
+    /**
+     * task-69, the read half: listing a root that has gone must fail rather than answer "empty".
+     *
+     * `walkDirectory` swallows a not-exist so that a shard directory removed from under the walk
+     * does not fail the whole listing — correct for a shard, wrong for the root, where it turns a
+     * destination that is no longer there into a repository with no blobs. The caller then replaces
+     * its snapshot view with nothing and the user is shown zero snapshots.
+     */
+    @Test
+    @DisplayName("task-69: listing a repository root that has gone fails instead of reporting empty")
+    fun listingAMissingRootFailsRatherThanReportingEmpty(): Unit = runTest {
+        val rootPath = "/upload/$testPrefix-listgone"
+        val own = SftpBlobStorage.create(sftpOptions(path = rootPath), isCreate = true)
+        try {
+            own.putBlob(BlobId("pabc123def456789012345"), "before".toByteArray())
+            assertThat(own.listBlobs("").toList()).isNotEmpty()
+
+            withRawSftp { raw -> removeRemoteTree(raw, rootPath) }
+
+            assertThrows<RepositoryUnavailableException> {
+                runBlocking { own.listBlobs("").toList() }
+            }
+        } finally {
+            own.close()
+        }
+    }
+
     /** Deletes a remote directory and everything under it — sshj has no recursive remove. */
     private fun removeRemoteTree(raw: SFTPClient, path: String) {
         raw.ls(path).forEach { entry ->

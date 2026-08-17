@@ -21,6 +21,7 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.BlobStorage
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidCredentialsException
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.storage.webdav.WebDavException
 import software.amazon.awssdk.services.s3.model.S3Exception
 import java.io.IOException
@@ -50,6 +51,27 @@ class RetryingBlobStorageTest {
     @Nested
     @DisplayName("Successful operations")
     inner class SuccessTests {
+
+        /**
+         * A destination that has gone must fail at once, not over a backoff schedule.
+         *
+         * `RepositoryUnavailableException` is only ever *not* retried by falling through
+         * `isRetryable`'s final default — there is no clause naming it — so nothing has been pinning
+         * the behaviour task-65 and task-69 both depend on. Broadening the IOException or
+         * message-matching heuristics above that default would silently turn a dead destination into
+         * ten backed-off attempts per blob, for the rest of the walk.
+         */
+        @Test
+        fun `a destination that has gone is not retried`(): Unit = runTest {
+            val blobId = BlobId("test-blob")
+            val data = "test data".toByteArray()
+            coEvery { mockDelegate.putBlob(blobId, data, any()) } throws
+                RepositoryUnavailableException("The backup destination is gone: /nowhere")
+
+            assertThrows<RepositoryUnavailableException> { retryingStorage.putBlob(blobId, data) }
+
+            coVerify(exactly = 1) { mockDelegate.putBlob(blobId, data, any()) }
+        }
 
         @Test
         fun `should pass through successful getBlob`(): Unit = runTest {

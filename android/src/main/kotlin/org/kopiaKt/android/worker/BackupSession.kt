@@ -377,7 +377,7 @@ class BackupSession(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "retention failed after a successful snapshot", e)
+            android.util.Log.w(TAG, "retention failed; the run's own result is unaffected", e)
         }
     }
 

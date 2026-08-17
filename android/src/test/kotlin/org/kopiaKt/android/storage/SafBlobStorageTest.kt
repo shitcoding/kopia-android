@@ -77,6 +77,9 @@ class SafBlobStorageTest {
         mockkStatic(DocumentFile::class)
         every { DocumentFile.fromTreeUri(mockContext, testUri) } returns mockRootDocument
         every { mockRootDocument.uri } returns testUri
+        // A reachable tree. `relaxed = true` answers false for exists(), which since task-69 means
+        // "this destination is gone" -- state it rather than inherit the opposite by default.
+        every { mockRootDocument.exists() } returns true
 
         // Create storage instance for testing (skip permission check)
         storage = SafBlobStorage.createForTesting(

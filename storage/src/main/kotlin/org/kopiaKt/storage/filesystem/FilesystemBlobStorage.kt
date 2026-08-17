@@ -162,7 +162,26 @@ class FilesystemBlobStorage private constructor(
         filterPrefix: String,
         currentPrefix: String,
     ) {
-        if (!dir.exists()) return
+        if (!dir.exists()) {
+            // A root that has gone is not an empty repository (task-69).
+            //
+            // This early return exists for a subdirectory that vanishes between being listed and
+            // being descended into. Applied to the ROOT it answered "this repository has no blobs"
+            // as a fact for a destination that is simply no longer there -- and retention runs from
+            // a `finally`, opening with `repository.refresh()`, so the FAILED path reads the
+            // repository too: the empty answer replaced the committed view and every source showed
+            // zero snapshots until the app reconnected. For a backup tool that is indistinguishable
+            // from having lost everything.
+            //
+            // Go answers the same way, which matters more here than the reasoning above: its sharded
+            // ListBlobs propagates the ReadDir error rather than tolerating a missing directory
+            // (`sharded.go`), so answering empty was also a divergence.
+            //
+            // Checked HERE rather than once at the top of listBlobs so there is no window between
+            // the check and the walk, and no extra stat on the happy path.
+            if (dir == basePath) requireBasePathStillExists()
+            return
+        }
 
         val entries = dir.listDirectoryEntries()
 
@@ -243,7 +262,8 @@ class FilesystemBlobStorage private constructor(
     )
 
     /**
-     * Refuses a write once the directory this storage was opened on has gone.
+     * Refuses to go on once the directory this storage was opened on has gone — a write, because
+     * it would recreate the root; a listing, because it would report the root as empty (task-69).
      *
      * The write path creates directories with `createDirectories()` (`mkdir -p`), which walks up
      * making every missing ancestor -- so a repository directory that had been moved away was

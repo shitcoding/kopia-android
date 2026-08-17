@@ -2,6 +2,7 @@
 
 package org.kopiaKt.storage.filesystem
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
@@ -96,6 +97,34 @@ class FilesystemBlobStorageTest : BlobStorageContractTest() {
                 "the repository root must not be recreated — that is what turned a dead write into a " +
                     "reported success",
             )
+        }
+
+        /**
+         * task-69: the read half of the same defect, and the one the user sees.
+         *
+         * `listBlobs` walked the tree with a `if (!dir.exists()) return` that applied to the
+         * repository root exactly as it did to a shard directory, so a root that had gone answered
+         * with an **empty flow** — "this repository has no blobs", stated as a fact. Retention runs
+         * in a `finally` and opens with `repository.refresh()`, so it runs on the FAILED path too:
+         * the refresh read the vanished destination, `ContentManager` replaced its committed view
+         * with nothing, and every source showed zero snapshots until the app reconnected. For a
+         * backup tool that is indistinguishable from having lost everything.
+         *
+         * A missing root is not an empty repository. A missing SHARD directory still is — one can
+         * vanish between being listed and being descended into — so only the root is guarded.
+         * Go agrees about the root: its sharded lister propagates the read error rather than
+         * tolerating a missing directory, so answering empty was a divergence as well.
+         */
+        @Test
+        fun `listBlobs fails instead of reporting a repository root that has gone as empty`(): Unit = runTest {
+            val storage = createStorage() as FilesystemBlobStorage
+            storage.putBlob(BlobId("pabc123def456789012345"), "before".toByteArray())
+            assertTrue(storage.listBlobs("").toList().isNotEmpty(), "precondition: the blob is listed")
+
+            storageDir!!.deleteRecursively()
+            assertTrue(!storageDir!!.exists(), "precondition: the repository root is gone")
+
+            assertThrows<RepositoryUnavailableException> { storage.listBlobs("").toList() }
         }
 
         @Test

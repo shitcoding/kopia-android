@@ -572,10 +572,28 @@ class SftpBlobStorage private constructor(
                 }
             }
         } catch (e: SFTPException) {
-            if (!isNotExist(e)) {
-                throw e
-            }
-            // Directory doesn't exist - that's fine, no blobs to list
+            handleWalkFailure(sftp, e, depth)
+        }
+    }
+
+    /**
+     * What a failed directory listing means, which depends on how deep it was.
+     *
+     * A directory that does not exist is fine below the root -- nothing to list, and one can vanish
+     * between being listed and being descended into. At **depth 0** it is the repository root, so
+     * the same answer means the destination itself has gone, and reporting "no blobs" for it is what
+     * let a failed backup wipe the user's snapshot list (task-69). Go's sharded lister propagates
+     * the read error there rather than tolerating it, so answering empty was a divergence as well.
+     *
+     * Checked here rather than once before the walk so there is no window between the check and the
+     * listing, and no extra round trip on the happy path.
+     */
+    private fun handleWalkFailure(sftp: SFTPClient, e: SFTPException, depth: Int) {
+        if (!isNotExist(e)) {
+            throw e
+        }
+        if (depth == 0) {
+            requireRepositoryRootExists(sftp)
         }
     }
 
@@ -688,7 +706,8 @@ class SftpBlobStorage private constructor(
     }
 
     /**
-     * Refuses to create shard directories once the root this storage was opened on has gone.
+     * Refuses to go on once the root this storage was opened on has gone — on a write, by not
+     * creating shard directories under it; on a listing, by not reporting it as empty (task-69).
      *
      * [mkdirAll] splits the FULL path and walks up from `/`, creating every missing component -- so
      * without this it recreates the repository directory too, and the run carries on filling a
@@ -699,8 +718,9 @@ class SftpBlobStorage private constructor(
      * Checks only that the root is there, not that it still holds a repository -- that is a
      * repository-level question, answered once per write session by
      * `DirectRepositoryImpl.newDirectWriter`, which also covers the backends (S3) that have no root
-     * to check. Costs nothing on the happy path: the only caller is already on its stat-failed
-     * branch.
+     * to check. Costs nothing on the happy path: both callers reach it only on a not-exist branch
+     * -- [ensureDirectoryExists] after its own failed stat, and the listing walk after a
+     * NO_SUCH_FILE at depth 0.
      *
      * Typed rather than a plain [IOException] on purpose. `isSftpConnectionError` reads a bare
      * IOException as a dropped connection and forces a pointless SSH reconnect and replay, and

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.ByteArrayOutputStream
@@ -69,6 +70,11 @@ class SafProviderEdgeCasesTest {
         mockkStatic(DocumentFile::class)
         every { DocumentFile.fromTreeUri(mockContext, testUri) } returns mockRootDocument
         every { mockRootDocument.uri } returns testUri
+        // A reachable tree, which is what every test here means to model. `relaxed = true` answers
+        // false for exists(), i.e. "this destination is gone" -- fine while nothing asked, but
+        // task-69's guard does ask, and a fixture that silently means the opposite of what it says
+        // is worse than a broken one.
+        every { mockRootDocument.exists() } returns true
 
         storage = SafBlobStorage.createForTesting(
             context = mockContext,
@@ -82,6 +88,37 @@ class SafProviderEdgeCasesTest {
     @AfterEach
     fun tearDown() {
         unmockkAll()
+    }
+
+    @Nested
+    @DisplayName("A destination that is no longer available")
+    inner class MissingTreeTests {
+
+        /**
+         * task-69: `DocumentFile.listFiles()` answers with an EMPTY ARRAY for a tree it cannot
+         * reach — an ejected card, a revoked grant — so a listing reported "no blobs" as a fact.
+         * Retention runs from a `finally` and opens with `repository.refresh()`, so the FAILED path
+         * reads the repository too, and that empty answer replaced the user's committed view: every
+         * source showed zero snapshots. On SAF this is the likeliest case of all, because removable
+         * storage is the destination that actually gets unplugged.
+         */
+        @Test
+        @DisplayName("listBlobs fails instead of reporting an unreachable tree as empty")
+        fun listBlobsFailsWhenTheTreeIsGone(): Unit = runTest {
+            every { mockRootDocument.exists() } returns false
+
+            assertThrows<RepositoryUnavailableException> { storage.listBlobs("").toList() }
+        }
+
+        /** The ordinary case still lists: present tree, nothing in it. */
+        @Test
+        @DisplayName("an empty but reachable tree still lists as empty")
+        fun listBlobsIsEmptyForAReachableEmptyTree(): Unit = runTest {
+            every { mockRootDocument.exists() } returns true
+            every { mockRootDocument.listFiles() } returns emptyArray()
+
+            assertThat(storage.listBlobs("").toList()).isEmpty()
+        }
     }
 
     @Nested

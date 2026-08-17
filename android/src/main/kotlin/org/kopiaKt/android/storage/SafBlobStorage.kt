@@ -22,6 +22,7 @@ import org.kopiaKt.core.blob.Capacity
 import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import java.io.IOException
@@ -128,6 +129,23 @@ class SafBlobStorage private constructor(
     }
 
     override suspend fun listBlobs(prefix: String): Flow<BlobMetadata> = flow {
+        // A tree that has gone is not an empty repository (task-69).
+        //
+        // `DocumentFile.listFiles()` answers with an EMPTY ARRAY when the tree is unreachable -- an
+        // ejected SD card, a revoked grant, a provider that has gone away -- so without this the
+        // listing reports "this repository has no blobs" as a fact. Retention runs from a `finally`
+        // and opens with `repository.refresh()`, so the FAILED path reads the repository too: the
+        // empty answer replaced the committed view and every source showed zero snapshots. SAF is
+        // the backend where this matters most, because removable storage is the destination most
+        // likely to actually be unplugged.
+        //
+        // Only the ROOT is checked. A subdirectory answering empty is ordinary.
+        if (!rootDocument.exists()) {
+            throw RepositoryUnavailableException(
+                "The backup destination is no longer available: ${options.treeUri}. The storage may " +
+                    "have been ejected, or the app's access to it revoked -- reconnect to it and try again.",
+            )
+        }
         listBlobsRecursive(rootDocument, prefix, "")
             .collect { emit(it) }
     }.flowOn(Dispatchers.IO)
