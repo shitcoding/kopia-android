@@ -15,7 +15,6 @@ import org.kopiaKt.core.hashing.ContentHasherFactory
 import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.index.IndexBlobEncryption
 import org.kopiaKt.core.pack.PackBlobBuilder
-import org.kopiaKt.core.pack.PackIndex
 import org.kopiaKt.core.pack.PackIndexFactory
 import org.kopiaKt.core.pack.PackIndexV1
 import java.security.SecureRandom
@@ -101,13 +100,22 @@ class ContentManager(
     private var currentPackBuilder: PackBlobBuilder? = null
     private var currentPackBlobId: BlobId? = null
 
-    // Committed indexes (loaded from storage)
-    private val committedIndexes = mutableListOf<PackIndex>()
+    // The committed content view, materialised from the index blobs in storage.
+    //
+    // The PackIndex objects themselves are deliberately NOT kept. They used to be, in a
+    // `committedIndexes` list that nothing ever read -- every lookup goes through this map -- while
+    // each one retained its whole decrypted index blob (PackIndexV1Impl holds `data`) for the
+    // lifetime of the manager. Found by review during task-71; retaining bytes nobody reads is the
+    // shape of task-59's OOM, at metadata scale.
     private val committedContents = mutableMapOf<ContentId, ContentInfo>()
 
-    // Whether the most recent loadCommittedIndexes read every index blob successfully. False if any
-    // index blob was unreadable and skipped — the committed view is then PARTIAL (hidden content),
-    // which a destructive caller (snapshot GC delete) must treat as fail-closed. See [isIndexLoadComplete].
+    // Whether the committed view CURRENTLY IN MEMORY was built from every index blob. False if any
+    // index blob was unreadable and skipped — the view is then PARTIAL (hidden content), which a
+    // destructive caller (snapshot GC delete) must treat as fail-closed. See [isIndexLoadComplete].
+    //
+    // It describes the installed view, NOT the most recent attempt: a refresh that throws leaves both
+    // the view and this flag as they were, because a load that could not run has neither damaged a
+    // complete view nor repaired a partial one (task-71).
     @Volatile
     private var indexLoadComplete = true
 
@@ -748,22 +756,59 @@ class ContentManager(
     }
 
     /**
-     * Whether the most recent index load read every index blob (no blob was skipped as unreadable).
-     * A false result means the committed content view is partial — content may be hidden — so a
-     * destructive caller (snapshot GC delete) MUST NOT act on it. See task-9.
+     * Whether the committed content view currently in memory was built from every index blob. A
+     * false result means it is partial — content may be hidden — so a destructive caller (snapshot GC
+     * delete) MUST NOT act on it. See task-9.
+     *
+     * It answers for the INSTALLED view, not the last attempt to replace it: a [refresh] that throws
+     * leaves this alone, because it neither damaged a complete view nor repaired a partial one
+     * (task-71). Callers that need a fresh view must therefore treat a failed refresh as a failure in
+     * its own right rather than re-reading this flag — snapshot GC does, aborting before its delete.
      */
     fun isIndexLoadComplete(): Boolean = indexLoadComplete
 
     private suspend fun loadCommittedIndexes() {
-        // Clear existing
-        committedIndexes.forEach { it.close() }
-        committedIndexes.clear()
-        committedContents.clear()
+        // Load into fresh collections and swap them in only once the whole load has succeeded.
+        //
+        // This used to clear the committed view IN PLACE and then list, so a failure from the
+        // listing itself -- a dropped connection on a remote backend, a directory that went away --
+        // returned after the clear and before anything was read back, leaving the view EMPTY rather
+        // than stale until some later refresh succeeded. Empty is not a harmless kind of wrong:
+        // every content then looks absent, so dedup stops and the backup re-uploads what it has
+        // already stored; and a TOMBSTONE becomes invisible, which matters more, because the
+        // resurrect path in addEncryptedContent reads the entry it must supersede in order to stamp
+        // a strictly greater timestamp. With the tombstone hidden it falls back to plain `now`,
+        // which usually still wins -- and "usually" is the wrong guarantee for the merge that
+        // decides whether deleted content comes back. (task-71)
+        val loadedContents = mutableMapOf<ContentId, ContentInfo>()
         // Assume complete until an index blob fails to load below.
-        indexLoadComplete = true
+        var loadComplete = true
 
         // Load index blobs from storage
         // Support both old 'n' prefix and new 'x' prefix for backward compatibility
+        loadIndexBlobsInto(loadedContents) { loadComplete = false }
+
+        // Everything listed and read. Swap.
+        committedContents.clear()
+        committedContents.putAll(loadedContents)
+        indexLoadComplete = loadComplete
+    }
+
+    /**
+     * Reads every index blob into [loadedIndexes] / [loadedContents], calling [onPartial] if any one
+     * of them could not be read in full. Split out of [loadCommittedIndexes] so the swap there is
+     * unmistakably all-or-nothing.
+     *
+     * "Could not be read in full" rather than "was skipped", deliberately: a blob that fails to
+     * decrypt or parse contributes nothing, but the index is registered before its entries are
+     * iterated, so an `iterate()` that throws part-way leaves the entries it had already yielded in
+     * [loadedContents]. Either way [onPartial] fires and the view is marked incomplete, which is what
+     * the fail-closed callers act on — but the entries are not always all-or-nothing per blob.
+     */
+    private suspend fun loadIndexBlobsInto(
+        loadedContents: MutableMap<ContentId, ContentInfo>,
+        onPartial: () -> Unit,
+    ) {
         for (prefix in INDEX_BLOB_PREFIXES) {
             storage.listBlobs(prefix).collect { metadata ->
                 // Epoch marker / deletion-watermark blobs (xe<n> / xw<n>) share the "x" uber-prefix but
@@ -779,19 +824,22 @@ class ContentManager(
                     // Decrypt the index blob before parsing
                     val indexData = indexBlobEncryption.decrypt(encryptedIndexData, metadata.blobId)
 
-                    val index = PackIndexFactory.open(indexData, encryptor.overhead.toUInt())
-                    committedIndexes.add(index)
+                    // `use`: the index is drained into loadedContents right here and never looked at
+                    // again, so its retained decrypted bytes are released immediately rather than
+                    // being held for the life of the manager.
+                    PackIndexFactory.open(indexData, encryptor.overhead.toUInt()).use { index ->
 
-                    // Keep the WINNING entry per content id across all index blobs using Go kopia's
-                    // contentInfoGreaterThan rule (see [contentInfoGreaterThan]). The winner MAY be a
-                    // tombstone (deleted=true): getContentInfo filters those out and iterateContentInfos
-                    // surfaces them. The previous "remove on ANY deleted" was load-order-dependent and
-                    // would drop a live entry that a GC undelete wrote with a newer timestamp — a
-                    // data-loss bug once GC can delete/undelete.
-                    index.iterate().forEach { info ->
-                        val existing = committedContents[info.contentId]
-                        if (existing == null || contentInfoGreaterThan(info, existing)) {
-                            committedContents[info.contentId] = info
+                        // Keep the WINNING entry per content id across all index blobs using Go kopia's
+                        // contentInfoGreaterThan rule (see [contentInfoGreaterThan]). The winner MAY be a
+                        // tombstone (deleted=true): getContentInfo filters those out and iterateContentInfos
+                        // surfaces them. The previous "remove on ANY deleted" was load-order-dependent and
+                        // would drop a live entry that a GC undelete wrote with a newer timestamp — a
+                        // data-loss bug once GC can delete/undelete.
+                        index.iterate().forEach { info ->
+                            val existing = loadedContents[info.contentId]
+                            if (existing == null || contentInfoGreaterThan(info, existing)) {
+                                loadedContents[info.contentId] = info
+                            }
                         }
                     }
                 } catch (e: CancellationException) {
@@ -803,7 +851,7 @@ class ContentManager(
                     // make a live snapshot's content look unreferenced to GC). isIndexLoadComplete()
                     // now returns false so a destructive GC delete run fails closed instead of deleting
                     // over a partial view.
-                    indexLoadComplete = false
+                    onPartial()
                     logger.log(
                         Level.WARNING,
                         "Skipping unreadable index blob ${metadata.blobId.value}: ${e.message}",
