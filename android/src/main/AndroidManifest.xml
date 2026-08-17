@@ -26,9 +26,6 @@
     <!-- Request to ignore battery optimizations -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Boot completed for rescheduling backups -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
     <application>
         <!-- Receiver for backup cancellation from notification -->
         <receiver

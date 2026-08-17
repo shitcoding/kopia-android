@@ -612,11 +612,29 @@ class SftpBlobStorage private constructor(
             val tempFile = "$fullPath.tmp.$tempSuffix"
 
             try {
-                // Ensure parent directory exists
+                // Ensure parent directory exists -- including when that parent IS the repository
+                // root, which this used to skip.
+                //
+                // Only SHARDED blob ids have a directory below the root, so a short id (Go's
+                // `kopia.repository` is 16 characters, under the 20-char sharding threshold) went
+                // straight to `sftp.open` on a missing path and surfaced as a bare SFTPException
+                // NO_SUCH_FILE, while a long id in the same repository got the typed terminal
+                // RepositoryUnavailableException from task-65's guard. Same cause, two different
+                // answers, decided by the length of the blob id (task-68).
+                //
+                // Safe against task-65's own bug: [ensureDirectoryExists] calls
+                // requireRepositoryRootExists BEFORE mkdirAll, so a missing root throws there and
+                // mkdirAll is never reached -- the root cannot be recreated.
+                //
+                // Cost is one extra SSH_FXP_STAT, and only on the writes that previously skipped the
+                // check. For a default-sharded repository that is just the config blobs
+                // (kopia.repository, kopia.blobcfg). It is NOT negligible everywhere, though: a FLAT
+                // repository (`.shards` with an empty default, which this backend supports and Go
+                // creates with `--flat`) shards nothing, so every blob write pays it -- roughly a
+                // 25% round-trip increase on the cheapest writes. Worth it for one answer instead of
+                // two, but say so rather than let someone discover it.
                 val fullDirPath = "${this@SftpBlobStorage.options.path}/$dirPath".trimEnd('/')
-                if (fullDirPath != this@SftpBlobStorage.options.path) {
-                    ensureDirectoryExists(sftp, fullDirPath)
-                }
+                ensureDirectoryExists(sftp, fullDirPath)
 
                 // Write to temp file in bounded chunks: a single SSH_FXP_WRITE of a whole large blob
                 // exceeds the SFTP server's max packet and stalls (the contract's 1 MiB blob hung),

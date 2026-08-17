@@ -210,7 +210,10 @@ interface BlobStorage : BlobReader {
 /**
  * Exception thrown when a blob is not found.
  */
-class BlobNotFoundException(blobId: BlobId) : Exception("Blob not found: $blobId")
+class BlobNotFoundException(
+    blobId: BlobId,
+    cause: Throwable? = null,
+) : Exception("Blob not found: $blobId", cause)
 
 /**
  * Exception thrown when a blob already exists (for dontOverwrite option).

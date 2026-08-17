@@ -394,4 +394,5 @@ data class DavResource(
 class WebDavException(
     message: String,
     val statusCode: Int,
-) : RuntimeException("$message (HTTP $statusCode)")
+    cause: Throwable? = null,
+) : RuntimeException("$message (HTTP $statusCode)", cause)

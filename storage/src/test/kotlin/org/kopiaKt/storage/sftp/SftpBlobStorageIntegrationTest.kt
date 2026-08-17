@@ -397,6 +397,39 @@ class SftpBlobStorageIntegrationTest {
         }
     }
 
+    /**
+     * The same missing root, reached by a blob id too short to shard — which used to get a different
+     * answer (task-68).
+     *
+     * `ensureDirectoryExists` was only called when the blob's directory was below the root, so an
+     * unsharded id (Go's own `kopia.repository` is 16 characters, under the 20-char threshold) went
+     * straight to `sftp.open` on a missing path and surfaced as a bare `SFTPException NO_SUCH_FILE`.
+     * Identical cause to the test above, identical user-facing situation, and a different exception
+     * type purely because of how long the blob id happened to be — which decides whether the backup
+     * ends terminally with an explanation or is retried against a destination that is not there.
+     */
+    @Test
+    @DisplayName("task-68: a missing root is reported the same way for an unsharded blob id")
+    fun missingRootIsTypedEvenForAShortBlobId(): Unit = runTest {
+        val rootPath = "/upload/$testPrefix-rootgone-short"
+        val own = SftpBlobStorage.create(sftpOptions(path = rootPath), isCreate = true)
+        try {
+            own.putBlob(BlobId("kopia.repository"), "before".toByteArray())
+
+            withRawSftp { raw -> removeRemoteTree(raw, rootPath) }
+
+            assertThrows<RepositoryUnavailableException> {
+                runBlocking { own.putBlob(BlobId("kopia.repository"), "after".toByteArray()) }
+            }
+
+            withRawSftp { raw ->
+                assertThrows<Exception>("the repository root must not be recreated") { raw.stat(rootPath) }
+            }
+        } finally {
+            own.close()
+        }
+    }
+
     /** Deletes a remote directory and everything under it — sshj has no recursive remove. */
     private fun removeRemoteTree(raw: SFTPClient, path: String) {
         raw.ls(path).forEach { entry ->

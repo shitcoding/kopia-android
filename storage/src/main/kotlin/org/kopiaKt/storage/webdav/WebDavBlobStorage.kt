@@ -434,8 +434,7 @@ class WebDavBlobStorage private constructor(
                         mkdirAll(dirUrl)
                         client.put(writePath, data, CONTENT_TYPE)
                     } catch (retryError: Exception) {
-                        // If still failing after mkdir, throw original error
-                        throw e
+                        throw e.withRepairFailure(retryError)
                     }
                 } else {
                     throw e
@@ -527,20 +526,56 @@ class WebDavBlobStorage private constructor(
                 client.list(currentPath, 0)
             } catch (e: WebDavException) {
                 if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                    // Create directory
-                    try {
-                        client.createDirectory(currentPath)
-                    } catch (createError: WebDavException) {
-                        // Ignore "already exists" errors (409 Conflict)
-                        if (createError.statusCode != HttpURLConnection.HTTP_CONFLICT) {
-                            throw createError
-                        }
-                    }
+                    createCollection(currentPath)
                 } else {
                     throw e
                 }
             }
         }
+    }
+
+    /**
+     * MKCOL on [url], reading its status codes the way RFC 4918 §9.3.1 actually defines them.
+     *
+     * They were the wrong way round here. **405 Method Not Allowed** means the URL is already
+     * MAPPED — MKCOL may only be executed on an unmapped one — while **409 Conflict** means an
+     * intermediate collection does not exist. Strictly, 405 says "mapped to something", not
+     * necessarily to a collection; treating it as already-exists is still right here, because the
+     * retried PUT is what arbitrates. If the URL is mapped to a plain file, or the server simply
+     * does not implement MKCOL, that PUT fails and the write reports it — there is no path on which
+     * a 405 turns a failed write into a silent success. The old code swallowed 409 as already-exists, so the
+     * one status that means the directory could NOT be created was read as success: `mkdirAll`
+     * returned having created nothing and the caller reported its original PUT failure instead of
+     * the reason it could not be repaired. And it rethrew 405, aborting writes into collections that
+     * were simply already present — which is every level of a path that another writer got to first.
+     */
+    private fun createCollection(url: String) {
+        try {
+            client.createDirectory(url)
+        } catch (createError: WebDavException) {
+            when (createError.statusCode) {
+                HttpURLConnection.HTTP_BAD_METHOD -> Unit // already exists; keep walking down
+                HttpURLConnection.HTTP_CONFLICT -> throw WebDavException(
+                    "Cannot create $url: a parent collection does not exist on the server " +
+                        "(MKCOL 409). Check that ${options.url} is still present.",
+                    createError.statusCode,
+                    createError,
+                )
+                else -> throw createError
+            }
+        }
+    }
+
+    /**
+     * Records why a write could not be repaired on the failure actually being reported.
+     *
+     * `putBlob` reports the original write error — that is the operation the caller asked for — but
+     * used to discard the mkdir failure entirely, which is how a missing parent collection surfaced
+     * as an unexplained PUT error (task-68). Self-suppression is an `IllegalArgumentException`, hence
+     * the identity check.
+     */
+    private fun WebDavException.withRepairFailure(repairError: Throwable): WebDavException = apply {
+        if (repairError !== this) addSuppressed(repairError)
     }
 
     /**
@@ -629,7 +664,13 @@ class WebDavBlobStorage private constructor(
 
     private fun handleWebDavException(e: WebDavException, blobId: BlobId): Nothing {
         when (e.statusCode) {
-            HttpURLConnection.HTTP_NOT_FOUND -> throw BlobNotFoundException(blobId)
+            // Carry the original: on a WRITE this conversion is the last thing that happens, so
+            // without it the "a parent collection does not exist" diagnosis that mkdirAll now
+            // attaches (see withRepairFailure) is dropped on the floor for any server dialect that
+            // answers 404 rather than 409 to a PUT into a missing collection. Both reviewers found
+            // this. The TYPE is deliberately unchanged, so retry and terminal classification are
+            // exactly as before.
+            HttpURLConnection.HTTP_NOT_FOUND -> throw BlobNotFoundException(blobId, e)
             HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN ->
                 throw InvalidCredentialsException(e.message ?: "Authentication failed")
             HTTP_RANGE_NOT_SATISFIABLE ->
