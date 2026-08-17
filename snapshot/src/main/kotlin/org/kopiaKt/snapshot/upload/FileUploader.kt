@@ -66,6 +66,13 @@ class FileUploader(
         // Upload the file content
         val objectId = uploadFileContent(file, relativePath, checkpointRegistry)
 
+        // Reported HERE and not by the walker, because only this branch actually hashed anything:
+        // the cache hit above has already returned. Go emits FinishedHashingFile from the hashing
+        // functions too, its cached branch returning before it (task-62). One difference worth
+        // knowing: Go's is a `defer`, so it also fires when the upload FAILS, while this fires only
+        // on success -- an error run therefore counts a failed file as hashed in Go and as nothing
+        // here. That predates this change and is left alone.
+        progress.finishedHashingFile(relativePath, file.size)
         progress.hashedBytes(file.size)
 
         return createDirEntryFromFile(file, objectId)
@@ -97,6 +104,15 @@ class FileUploader(
             ObjectWriterOptions(), // No compression for symlinks
         ).toString()
 
+        // A fresh symlink is deliberately reported to NEITHER counter, and task-62 had this the
+        // wrong way round: it read the silence as the opposite half of the double count and asked
+        // for the symlink to be counted once. Go says otherwise, and it matters because KopiaKt
+        // derives the snapshot's `stats` from these counters where Go keeps a separate tally.
+        // `uploadSymlinkInternal` returns without touching TotalFileCount or TotalFileSize, and the
+        // `fs.Symlink` case never increments NonCachedFiles -- Go reports symlinks through progress
+        // callbacks only. Counting one here would therefore write a fileCount, nonCachedFiles and
+        // totalFileSize into the manifest that a Go-written snapshot of the same tree does not have.
+        // Both reviewers caught the attempt; verified against upload.go before reverting it.
         return createDirEntryFromSymlink(symlink, objectId)
     }
 

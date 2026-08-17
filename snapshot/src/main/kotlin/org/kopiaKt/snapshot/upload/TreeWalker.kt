@@ -323,7 +323,10 @@ class TreeWalker(
         progress.hashingFile(entryPath)
         try {
             val result = processor.processFile(entry, entryPath, previousEntries, checkpointRegistry)
-            progress.finishedHashingFile(entryPath, entry.size)
+            // No finishedHashingFile here: the walker does not know whether the file was hashed or
+            // reused, and reporting it for EVERY file made a cache hit increment both counters --
+            // so a second backup of an unchanged source claimed twice the files it had (task-62).
+            // The uploader reports it, on the path that actually hashes, which is where Go reports it.
             progress.finishedFile(entryPath, null)
             result
         } catch (e: CancellationException) {

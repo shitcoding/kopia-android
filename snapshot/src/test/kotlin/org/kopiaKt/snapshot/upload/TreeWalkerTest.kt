@@ -205,8 +205,15 @@ class TreeWalkerTest {
 
             walker.walk(dir)
 
-            val counters = progress.snapshot()
-            assertEquals(2, counters.totalHashedFiles)
+            // The walker's job is to drive the processor over every entry. It deliberately does NOT
+            // report hashed files any more: it cannot tell a hashed file from a reused one, and
+            // reporting for both made a cache hit increment two counters, so a second backup of an
+            // unchanged source claimed twice the files it had (task-62). This assertion used to be
+            // `totalHashedFiles == 2` and was therefore pinning that defect in place — with a
+            // TestEntryProcessor that hashes nothing at all. Who counts what is covered by
+            // CachedFileCountingTest.
+            assertEquals(2, processor.fileCount.get())
+            assertEquals(0, progress.snapshot().totalHashedFiles)
         }
     }
 
