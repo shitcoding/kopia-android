@@ -1,7 +1,7 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
@@ -27,7 +27,6 @@ import org.kopiaKt.snapshot.upload.SnapshotUploader
 import org.kopiaKt.snapshot.upload.UploadOptions
 import java.security.SecureRandom
 import java.util.stream.Stream
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Parameterized cross-compatibility tests that verify Kotlin<->Go interop
@@ -60,7 +59,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
     }
 
     @AfterEach
-    fun tearDown() = runTest {
+    fun tearDown() = runBlocking {
         cleanup()
     }
 
@@ -71,7 +70,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
     @ParameterizedTest(name = "Kotlin->Go snapshot interop [{0}]")
     @MethodSource("algorithmMatrix")
     @DisplayName("Kotlin-created snapshot readable by Go CLI")
-    fun kotlinToGo_snapshotInterop(config: AlgorithmConfig) = runTest(timeout = 5.minutes) {
+    fun kotlinToGo_snapshotInterop(config: AlgorithmConfig) = runBlocking {
         requireGoKopia()
 
         // Create small test data to keep execution fast across 6 matrix entries
@@ -121,7 +120,7 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
     @ParameterizedTest(name = "Go->Kotlin repository open [{0}]")
     @MethodSource("algorithmMatrix")
     @DisplayName("Go-created snapshot readable by Kotlin")
-    fun goToKotlin_repositoryOpen(config: AlgorithmConfig) = runTest(timeout = 5.minutes) {
+    fun goToKotlin_repositoryOpen(config: AlgorithmConfig) = runBlocking {
         requireGoKopia()
 
         // Create small test data

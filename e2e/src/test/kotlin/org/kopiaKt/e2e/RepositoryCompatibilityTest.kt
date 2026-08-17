@@ -1,7 +1,7 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -24,7 +24,7 @@ import kotlin.io.path.listDirectoryEntries
 class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
     @AfterEach
-    fun tearDown() = runTest {
+    fun tearDown() = runBlocking {
         cleanup()
     }
 
@@ -34,7 +34,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should open repository created by Go Kopia")
-        fun openGoRepository(): Unit = runTest {
+        fun openGoRepository(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -54,7 +54,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should read format blob from Go repository")
-        fun readFormatBlob(): Unit = runTest {
+        fun readFormatBlob(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -71,7 +71,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should handle different hash algorithms")
-        fun differentHashAlgorithms(): Unit = runTest {
+        fun differentHashAlgorithms(): Unit = runBlocking {
             requireGoKopia()
 
             // Test BLAKE3-256
@@ -85,7 +85,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should write and read objects in Go repository")
-        fun writeAndReadObjects(): Unit = runTest {
+        fun writeAndReadObjects(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -119,7 +119,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should create valid repository structure")
-        fun createValidRepository(): Unit = runTest {
+        fun createValidRepository(): Unit = runBlocking {
             // Create with Kotlin
             val repo = createRepositoryWithKotlin()
             repo.use {
@@ -136,7 +136,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should reopen Kotlin-created repository")
-        fun reopenKotlinRepository(): Unit = runTest {
+        fun reopenKotlinRepository(): Unit = runBlocking {
             // Create with Kotlin
             val repo1 = createRepositoryWithKotlin()
             repo1.use {
@@ -160,7 +160,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should write and read objects in Go repository")
-        fun writeReadObjects(): Unit = runTest {
+        fun writeReadObjects(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -181,7 +181,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should persist objects across repository open/close")
-        fun persistObjects(): Unit = runTest {
+        fun persistObjects(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -209,7 +209,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should handle large objects")
-        fun largeObjects(): Unit = runTest {
+        fun largeObjects(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -235,7 +235,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should write and read manifests in Go repository")
-        fun writeReadManifests(): Unit = runTest {
+        fun writeReadManifests(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -271,7 +271,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should find manifests by label")
-        fun findManifestsByLabel(): Unit = runTest {
+        fun findManifestsByLabel(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -304,7 +304,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should fail gracefully with wrong password")
-        fun wrongPassword(): Unit = runTest {
+        fun wrongPassword(): Unit = runBlocking {
             requireGoKopia()
 
             // Create repository with Go
@@ -323,7 +323,7 @@ class RepositoryCompatibilityTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Should fail on non-existent repository")
-        fun nonExistentRepository(): Unit = runTest {
+        fun nonExistentRepository(): Unit = runBlocking {
             // Try to open non-existent repository
             try {
                 openRepositoryWithKotlin()

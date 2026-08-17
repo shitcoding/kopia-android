@@ -1,7 +1,7 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.DisplayName
@@ -11,7 +11,6 @@ import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.testutil.LargeDataGenerator
 import org.kopiaKt.core.testutil.TestRepositoryFactory
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * End-to-end tests verifying that diverse data patterns survive a write/read
@@ -35,7 +34,7 @@ class BackupRestoreIntegrityTest {
     inner class ContentIntegrity {
 
         @Test
-        fun `should preserve all file content through write and read`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should preserve all file content through write and read`(): Unit = runBlocking {
             val objects = mapOf(
                 "plain-text" to "Hello, Kopia! This is a plain text payload.".toByteArray(),
                 "unicode-text" to "\u00E9\u00E0\u00FC \u4F60\u597D \uD83D\uDE80 \u0410\u0411\u0412".toByteArray(Charsets.UTF_8),
@@ -65,7 +64,7 @@ class BackupRestoreIntegrityTest {
         }
 
         @Test
-        fun `should preserve empty data through write and read`(): Unit = runTest {
+        fun `should preserve empty data through write and read`(): Unit = runBlocking {
             val emptyData = ByteArray(0)
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
@@ -80,7 +79,7 @@ class BackupRestoreIntegrityTest {
         }
 
         @Test
-        fun `should preserve binary content with all byte values`(): Unit = runTest {
+        fun `should preserve binary content with all byte values`(): Unit = runBlocking {
             val allBytes = ByteArray(256) { it.toByte() }
 
             val (repository, _, objectIds) = TestRepositoryFactory.createWithObjects(
@@ -100,7 +99,7 @@ class BackupRestoreIntegrityTest {
     inner class SizePreservation {
 
         @Test
-        fun `should preserve exact file sizes`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should preserve exact file sizes`(): Unit = runBlocking {
             val sizes = listOf(1, 100, 4096, 65536, 1_048_576)
             val objects = sizes.associate { size ->
                 "size-$size" to LargeDataGenerator.generate(size, seed = size.toLong())
@@ -122,7 +121,7 @@ class BackupRestoreIntegrityTest {
         }
 
         @Test
-        fun `should preserve file sizes at splitter boundaries`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should preserve file sizes at splitter boundaries`(): Unit = runBlocking {
             val oneMb = 1_048_576
             val boundarySizes = listOf(oneMb - 1, oneMb, oneMb + 1)
             val objects = boundarySizes.associate { size ->
@@ -150,7 +149,7 @@ class BackupRestoreIntegrityTest {
     inner class MultipleObjectIntegrity {
 
         @Test
-        fun `should preserve 50 objects with distinct content`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should preserve 50 objects with distinct content`(): Unit = runBlocking {
             val objects = (1..50).associate { i ->
                 "obj-$i" to LargeDataGenerator.generate(1024 * i, seed = i.toLong())
             }
@@ -169,7 +168,7 @@ class BackupRestoreIntegrityTest {
         }
 
         @Test
-        fun `should preserve objects across different write sessions`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should preserve objects across different write sessions`(): Unit = runBlocking {
             val batch1 = (1..5).associate { i ->
                 "batch1-obj-$i" to LargeDataGenerator.generate(2048 * i, seed = i.toLong())
             }

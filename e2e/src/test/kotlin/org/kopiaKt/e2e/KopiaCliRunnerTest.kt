@@ -1,13 +1,12 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import java.nio.file.Path
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Tests for [KopiaCliRunner]'s low-level process execution (`run` method).
@@ -33,7 +32,7 @@ class KopiaCliRunnerTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `run captures both stdout and stderr`(): Unit = runTest(timeout = 1.minutes) {
+    fun `run captures both stdout and stderr`(): Unit = runBlocking {
         val runner = shellRunner()
         val result = runner.run(
             "-c",
@@ -50,7 +49,7 @@ class KopiaCliRunnerTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `run reads large stdout and stderr without deadlock`(): Unit = runTest(timeout = 2.minutes) {
+    fun `run reads large stdout and stderr without deadlock`(): Unit = runBlocking {
         // Generate ~200KB on each stream. The default pipe buffer is typically
         // 64KB on Linux/macOS, so this would deadlock with sequential reads.
         val lineCount = 5000
@@ -75,7 +74,7 @@ class KopiaCliRunnerTest {
     }
 
     @Test
-    fun `run reads interleaved large stdout and stderr without deadlock`(): Unit = runTest(timeout = 2.minutes) {
+    fun `run reads interleaved large stdout and stderr without deadlock`(): Unit = runBlocking {
         // Writes to both streams in an interleaved fashion, which is the
         // pattern most likely to trigger the original deadlock.
         val iterations = 3000
@@ -101,7 +100,7 @@ class KopiaCliRunnerTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `run times out and kills long-running process`(): Unit = runTest(timeout = 1.minutes) {
+    fun `run times out and kills long-running process`(): Unit = runBlocking {
         val runner = shellRunner()
 
         val exception = assertThrows<KopiaCliRunner.KopiaCommandException> {

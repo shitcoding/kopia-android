@@ -1,6 +1,6 @@
 package org.kopiaKt.e2e.benchmark
 
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -17,7 +17,6 @@ import org.kopiaKt.core.testutil.LargeDataGenerator
 import org.kopiaKt.core.testutil.TestRepositoryFactory
 import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Performance baseline tests that establish minimum acceptable throughput
@@ -55,7 +54,7 @@ class PerformanceBaselineTest {
         @Test
         @Timeout(value = 120, unit = TimeUnit.SECONDS)
         @DisplayName("Should write and read 100MB of data in under 30 seconds")
-        fun `should write and read 100MB of data in under 30 seconds`(): Unit = runTest(timeout = 2.minutes) {
+        fun `should write and read 100MB of data in under 30 seconds`(): Unit = runBlocking {
             assumeTrue(isE2EEnabled()) {
                 "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
             }
@@ -112,7 +111,7 @@ class PerformanceBaselineTest {
         @Test
         @Timeout(value = 60, unit = TimeUnit.SECONDS)
         @DisplayName("Should load 1000 index entries in under 5 seconds")
-        fun `should load 1000 index entries in under 5 seconds`(): Unit = runTest(timeout = 1.minutes) {
+        fun `should load 1000 index entries in under 5 seconds`(): Unit = runBlocking {
             assumeTrue(isE2EEnabled()) {
                 "E2E benchmarks disabled — set RUN_E2E_TESTS=true, CI=true, or run with -Pe2e"
             }

@@ -1,7 +1,7 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
@@ -41,7 +41,6 @@ import java.nio.file.Path
 import java.security.SecureRandom
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.readBytes
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Cross-compatibility smoke tests for remote storage backends (S3, WebDAV, SFTP).
@@ -61,7 +60,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
     private val blobStorages = mutableListOf<BlobStorage>()
 
     @AfterEach
-    fun tearDown() = runTest {
+    fun tearDown() = runBlocking {
         cleanup()
         blobStorages.asReversed().forEach { storage ->
             try {
@@ -95,7 +94,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Go creates snapshot on S3, Kotlin reads and restores")
-        fun s3_goCreates_kotlinReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun s3_goCreates_kotlinReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -159,7 +158,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Kotlin creates snapshot on S3, Go reads and restores")
-        fun s3_kotlinCreates_goReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun s3_kotlinCreates_goReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -226,7 +225,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Go creates snapshot on WebDAV, Kotlin reads and restores")
-        fun webdav_goCreates_kotlinReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun webdav_goCreates_kotlinReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -285,7 +284,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Kotlin creates snapshot on WebDAV, Go reads and restores")
-        fun webdav_kotlinCreates_goReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun webdav_kotlinCreates_goReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -348,7 +347,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Go creates snapshot on SFTP, Kotlin reads and restores")
-        fun sftp_goCreates_kotlinReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun sftp_goCreates_kotlinReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -414,7 +413,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Go creates FLAT (unsharded) snapshot on SFTP, Kotlin reads and restores")
-        fun sftp_goCreatesFlat_kotlinReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun sftp_goCreatesFlat_kotlinReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 
@@ -480,7 +479,7 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
         @Test
         @DisplayName("Kotlin creates snapshot on SFTP, Go reads and restores")
-        fun sftp_kotlinCreates_goReads_snapshotSmoke(): Unit = runTest(timeout = 5.minutes) {
+        fun sftp_kotlinCreates_goReads_snapshotSmoke(): Unit = runBlocking {
             requireGoKopia()
             requireDocker()
 

@@ -1,7 +1,7 @@
 package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
@@ -29,7 +29,7 @@ import org.kopiaKt.snapshot.upload.UploadOptions
 class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @AfterEach
-    fun tearDown() = runTest {
+    fun tearDown() = runBlocking {
         cleanup()
     }
 
@@ -51,7 +51,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI lists a snapshot written by a default (epoch-mode) Kotlin repo")
-    fun goListsKotlinEpochSnapshot(): Unit = runTest {
+    fun goListsKotlinEpochSnapshot(): Unit = runBlocking {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 
@@ -69,7 +69,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go CLI restores a default (epoch-mode) Kotlin snapshot with matching content")
-    fun goRestoresKotlinEpochSnapshot(): Unit = runTest {
+    fun goRestoresKotlinEpochSnapshot(): Unit = runBlocking {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 
@@ -89,7 +89,7 @@ class EpochIndexCrossCompatibilityTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go sees a snapshot Kotlin writes INTO a Go-created epoch repo")
-    fun goSeesKotlinWriteIntoGoEpochRepo(): Unit = runTest {
+    fun goSeesKotlinWriteIntoGoEpochRepo(): Unit = runBlocking {
         requireGoKopia()
         testDataGenerator.createSimpleDirectory(sourceDir)
 

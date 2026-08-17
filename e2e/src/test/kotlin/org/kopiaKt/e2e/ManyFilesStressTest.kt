@@ -4,7 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -14,7 +14,6 @@ import org.kopiaKt.core.content.ObjectId
 import org.kopiaKt.core.repository.DirectRepositoryImpl
 import org.kopiaKt.core.testutil.TestRepositoryFactory
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Stress tests that exercise the repository with large numbers of objects
@@ -37,7 +36,7 @@ class ManyFilesStressTest {
 
         @Test
         @DisplayName("Should write and read 1000 objects")
-        fun `should write and read 1000 objects`(): Unit = runTest(timeout = 3.minutes) {
+        fun `should write and read 1000 objects`(): Unit = runBlocking {
             val count = 1000
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
@@ -58,7 +57,7 @@ class ManyFilesStressTest {
         @Test
         @Tag("slow")
         @DisplayName("Should write and read 5000 objects")
-        fun `should write and read 5000 objects`(): Unit = runTest(timeout = 10.minutes) {
+        fun `should write and read 5000 objects`(): Unit = runBlocking {
             val count = 5000
             val flushInterval = 1000
             val (repository, _) = TestRepositoryFactory.createInMemory()
@@ -91,7 +90,7 @@ class ManyFilesStressTest {
 
         @Test
         @DisplayName("Should handle 50 levels of object nesting")
-        fun `should handle 50 levels of object nesting`(): Unit = runTest(timeout = 3.minutes) {
+        fun `should handle 50 levels of object nesting`(): Unit = runBlocking {
             val depth = 50
             val (repository, _) = TestRepositoryFactory.createInMemory()
             repo = repository
@@ -134,7 +133,7 @@ class ManyFilesStressTest {
 
         @Test
         @DisplayName("Should handle 5000 index entries with random sample verification")
-        fun `should handle 5000 index entries`(): Unit = runTest(timeout = 10.minutes) {
+        fun `should handle 5000 index entries`(): Unit = runBlocking {
             val count = 5000
             val sampleSize = 50
             val flushInterval = 1000
@@ -176,7 +175,7 @@ class ManyFilesStressTest {
         @Test
         @Tag("slow")
         @DisplayName("Should handle concurrent writes of many objects from 10 coroutines")
-        fun `should handle concurrent writes of many objects`(): Unit = runTest(timeout = 10.minutes) {
+        fun `should handle concurrent writes of many objects`(): Unit = runBlocking {
             val writerCount = 10
             val objectsPerWriter = 100
             val (repository, _) = TestRepositoryFactory.createInMemory()

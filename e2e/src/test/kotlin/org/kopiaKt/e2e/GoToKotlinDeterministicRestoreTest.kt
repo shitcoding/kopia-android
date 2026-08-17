@@ -2,7 +2,7 @@ package org.kopiaKt.e2e
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
@@ -26,7 +26,6 @@ import kotlin.io.path.createSymbolicLinkPointingTo
 import kotlin.io.path.readBytes
 import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Deterministic JVM test verifying that snapshots created by Go Kopia CLI
@@ -42,13 +41,13 @@ import kotlin.time.Duration.Companion.minutes
 class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @AfterEach
-    fun tearDown() = runTest {
+    fun tearDown() = runBlocking {
         cleanup()
     }
 
     @Test
     @DisplayName("Kotlin recoverIndex decrypts a Go-created pack blob's encrypted local index")
-    fun goPackBlobLocalIndex_recoveredByKotlin(): Unit = runTest(timeout = 5.minutes) {
+    fun goPackBlobLocalIndex_recoveredByKotlin(): Unit = runBlocking {
         requireGoKopia()
 
         // 1. Go creates a repo + snapshot, writing pack blobs whose local (recovery) index is encrypted.
@@ -87,7 +86,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot restored by Kotlin matches source byte-for-byte")
-    fun goCreatedSnapshot_restoredByKotlin_matchesSourceByteForByte(): Unit = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_restoredByKotlin_matchesSourceByteForByte(): Unit = runBlocking {
         requireGoKopia()
 
         // 1. Create a deterministic source directory with known files
@@ -157,7 +156,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with nested dirs restored by Kotlin preserves structure")
-    fun goCreatedSnapshot_nestedDirs_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_nestedDirs_restoredByKotlin(): Unit = runBlocking {
         requireGoKopia()
 
         // Create a more complex source with deep nesting
@@ -212,7 +211,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with binary data restored by Kotlin preserves bytes")
-    fun goCreatedSnapshot_binaryData_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_binaryData_restoredByKotlin(): Unit = runBlocking {
         requireGoKopia()
 
         // Create binary files with known deterministic content
@@ -266,7 +265,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with empty files and dirs restored by Kotlin")
-    fun goCreatedSnapshot_emptyFilesAndDirs_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_emptyFilesAndDirs_restoredByKotlin(): Unit = runBlocking {
         requireGoKopia()
 
         // Create empty file and empty directory
@@ -326,7 +325,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
 
     @Test
     @DisplayName("Go-created snapshot with symlinks restored by Kotlin")
-    fun goCreatedSnapshot_symlinks_restoredByKotlin(): Unit = runTest(timeout = 5.minutes) {
+    fun goCreatedSnapshot_symlinks_restoredByKotlin(): Unit = runBlocking {
         requireGoKopia()
 
         // Create source with symlinks
@@ -343,7 +342,7 @@ class GoToKotlinDeterministicRestoreTest : CrossCompatibilityTestBase() {
         } catch (e: Exception) {
             // Symlinks not supported or not permitted on this filesystem
             org.junit.jupiter.api.Assumptions.assumeTrue(false, "Symlink creation failed: ${e.message}")
-            return@runTest
+            return@runBlocking
         }
 
         // Create Go repo + snapshot

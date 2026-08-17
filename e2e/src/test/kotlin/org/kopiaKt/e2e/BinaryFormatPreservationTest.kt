@@ -1,6 +1,6 @@
 package org.kopiaKt.e2e
 
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.DisplayName
@@ -45,7 +45,7 @@ class BinaryFormatPreservationTest {
     inner class KnownHeaders {
 
         @Test
-        fun `should preserve file starting with JPEG header FF D8 FF`(): Unit = runTest {
+        fun `should preserve file starting with JPEG header FF D8 FF`(): Unit = runBlocking {
             val header = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
             val body = LargeDataGenerator.generate(4093, seed = 1L)
             val data = header + body
@@ -56,7 +56,7 @@ class BinaryFormatPreservationTest {
         }
 
         @Test
-        fun `should preserve file starting with PDF header 25 50 44 46`(): Unit = runTest {
+        fun `should preserve file starting with PDF header 25 50 44 46`(): Unit = runBlocking {
             val header = byteArrayOf(0x25, 0x50, 0x44, 0x46) // %PDF
             val body = LargeDataGenerator.generate(4092, seed = 2L)
             val data = header + body
@@ -67,7 +67,7 @@ class BinaryFormatPreservationTest {
         }
 
         @Test
-        fun `should preserve file starting with ZIP header 50 4B 03 04`(): Unit = runTest {
+        fun `should preserve file starting with ZIP header 50 4B 03 04`(): Unit = runBlocking {
             val header = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
             val body = LargeDataGenerator.generate(4092, seed = 3L)
             val data = header + body
@@ -83,7 +83,7 @@ class BinaryFormatPreservationTest {
     inner class ByteValueCoverage {
 
         @Test
-        fun `should preserve file with all possible byte values`(): Unit = runTest {
+        fun `should preserve file with all possible byte values`(): Unit = runBlocking {
             val data = ByteArray(256) { it.toByte() }
 
             val readBack = roundTrip("all-bytes", data)
@@ -97,7 +97,7 @@ class BinaryFormatPreservationTest {
     inner class ProblematicPatterns {
 
         @Test
-        fun `should preserve file with long runs of null bytes`(): Unit = runTest {
+        fun `should preserve file with long runs of null bytes`(): Unit = runBlocking {
             val nullPrefix = ByteArray(4096) // 4096 zero bytes
             val suffix = LargeDataGenerator.generate(4096, seed = 4L)
             val data = nullPrefix + suffix
@@ -108,7 +108,7 @@ class BinaryFormatPreservationTest {
         }
 
         @Test
-        fun `should preserve file with alternating FF 00 pattern`(): Unit = runTest {
+        fun `should preserve file with alternating FF 00 pattern`(): Unit = runBlocking {
             val data = ByteArray(4096) { i ->
                 if (i % 2 == 0) 0xFF.toByte() else 0x00.toByte()
             }
