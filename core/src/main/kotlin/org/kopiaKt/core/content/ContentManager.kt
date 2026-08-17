@@ -119,6 +119,11 @@ class ContentManager(
     // there, as a RANGED read of one content rather than a whole pack.
     private val writtenContents = mutableMapOf<ContentId, ContentInfo>()
 
+    // The storage failure that ended this write session, if one has happened. Read and written only
+    // under [mutex]. See [failIfWriteSessionEnded] for why a pack that could not be stored has to
+    // stop the session rather than be skipped.
+    private var packWriteFailure: Throwable? = null
+
     // Session ID for pack blob naming
     private val sessionId = generateSessionId()
 
@@ -169,7 +174,10 @@ class ContentManager(
     ): ContentId {
         // Step 2: Check for deduplication. Under the lock, because the committed/pending/written maps
         // it reads are the state this mutex protects.
-        val alreadyStored = mutex.withLock { contentExists(contentId) }
+        val alreadyStored = mutex.withLock {
+            failIfWriteSessionEnded()
+            contentExists(contentId)
+        }
         if (alreadyStored) {
             _stats.deduplicatedContents.incrementAndGet()
             _stats.deduplicatedBytes.addAndGet(data.size.toLong())
@@ -199,6 +207,21 @@ class ContentManager(
         encryptedData: ByteArray,
         actualCompressionHeaderId: Int,
     ): ContentId = mutex.withLock {
+        // A pack write may have failed while we were encrypting outside the lock.
+        //
+        // Defense in depth, and NOT covered by a test -- said plainly because an untested guard that
+        // reads as load-bearing is worse than one that admits it. Deleting this line leaves the whole
+        // suite green (mutation-checked), because every write that STARTS after the failure is
+        // stopped by the guard on the dedup lock, and a write already past it arrives here with a
+        // full pack, so `addToPackUnlocked`'s size check routes it into `flushCurrentPackUnlocked`
+        // and that guard fires instead. What is left over is the narrow case those two miss: a pack
+        // flushed for a PREFIX CHANGE rather than for size leaves a small spent builder, and a write
+        // caught in the encrypt window would then reach `PackBlobBuilder.addContent` and be told
+        // "Cannot add content after pack has been built" -- task-72's own symptom, by the last door.
+        // One line to close it; the test to prove it needs an encrypt barrier plus a staged prefix
+        // change, which is more fixture than the message quality it buys.
+        failIfWriteSessionEnded()
+
         // Re-check: another worker may have stored this very content while we were encrypting it
         // outside the lock. Without this the pack would carry the same content twice.
         if (contentExists(contentId)) {
@@ -455,6 +478,38 @@ class ContentManager(
         }
     }
 
+    /**
+     * Stops a write session that has already failed to store a pack, re-reporting the storage
+     * failure that ended it. Call under [mutex].
+     *
+     * Skipping the lost pack and carrying on is not an option, and the reason is worth stating: a
+     * pack holds chunks from many files, but only the ONE caller whose write happened to fill it
+     * ever sees the exception. Every other file whose chunks were in that pack was already told its
+     * content was stored, and would go into the snapshot referencing content that is in no pack blob
+     * and no index — a snapshot marked complete that restores to a hole. That is the failure the
+     * unprefixed-first ordering in [flushIndexUnlocked] exists to prevent, arriving by another route.
+     *
+     * Retrying the upload inside this session is deliberately NOT offered (Go keeps a `failedPacks`
+     * queue for that). By the time the exception reaches here it has already been retried where a
+     * retry can change the answer: `RetryingBlobStorage` wraps every REMOTE backend (S3, WebDAV,
+     * SFTP) and has backed off and tried again, and `BackupWorker` can still re-run the whole backup
+     * in a fresh session — up to `MAX_RETRY_COUNT` attempts, when a checkpoint was saved and
+     * `isTerminalFailure` does not veto it. What a `failedPacks` queue would add here is one more
+     * attempt with no new information, keeping ~20 MB alive for it on a device that has already been
+     * OOM-killed once for retaining exactly that (task-59). Note the one backend this leaves thinnest:
+     * SAF and filesystem are deliberately unwrapped (their errors are usually permanent), so a
+     * transient SAF hiccup ends the session with only the worker's re-runs behind it.
+     *
+     * The recorded cause is rethrown as itself rather than wrapped, so that a typed storage failure
+     * still reads as one at the top: `BackupWorker.isTerminalFailure` matches on the exception TYPE
+     * (`RepositoryUnavailableException` for a destination that has gone, task-65), and a wrapper
+     * would quietly turn that terminal case back into three retries against a repository that is
+     * not there.
+     */
+    private fun failIfWriteSessionEnded() {
+        packWriteFailure?.let { throw it }
+    }
+
     private fun contentExists(contentId: ContentId): Boolean {
         // Dedup only against a LIVE entry. If the current entry is a tombstone, the caller is
         // re-writing previously-deleted content (e.g. GC removed it, a new snapshot references it
@@ -572,16 +627,18 @@ class ContentManager(
     }
 
     private suspend fun flushCurrentPackUnlocked() {
+        // Every route that can spend a builder comes through here -- flush(), deleteContent(), and
+        // the auto-flush in addToPackUnlocked when a pack fills or the prefix type changes -- so this
+        // is where the session-ended check belongs. Guarding the callers instead left deleteContent
+        // as a fourth door onto the spent builder, reporting "Pack has already been built" again
+        // (found by review, task-72).
+        failIfWriteSessionEnded()
+
         val builder = currentPackBuilder ?: return
         if (builder.contentCount() == 0) return
 
         val packBlobId = currentPackBlobId!!
-        // Encrypt the local (recovery) index so KopiaKt pack blobs are Go-compatible (task-13):
-        // the IV is the repo hash of the plaintext index and the stored index is ciphertext.
-        val (packData, contentInfos) = builder.buildEncrypted(hasher, encryptor)
-
-        // Write pack blob to storage
-        storage.putBlob(packBlobId, packData)
+        val (packData, contentInfos) = buildAndStorePackUnlocked(builder, packBlobId)
         reportUpload(packData.size.toLong())
 
         // Move pending to written. The builder stamps one pack-level timestamp on every entry; preserve a
@@ -602,6 +659,41 @@ class ContentManager(
         currentPackBuilder = null
         currentPackBlobId = null
         currentPackHasPrefix = null
+    }
+
+    /**
+     * The one step that spends the builder: builds the pack and stores it, recording any failure as
+     * the end of this write session.
+     *
+     * Both halves are inside the guard, not just the upload. `buildEncrypted` sets `built = true` in
+     * `finalizeContents()` **before** it serializes the local index and copies the buffer out, so a
+     * throw from `PackIndexV1.build` (it refuses a non-zero compression header) or an
+     * `OutOfMemoryError` from `toByteArray()` leaves exactly the same spent builder as a failed
+     * `putBlob` — with the failure unrecorded, which is the bug rather than a smaller version of it.
+     *
+     * The local (recovery) index is encrypted so KopiaKt pack blobs are Go-compatible (task-13): the
+     * IV is the repo hash of the plaintext index and the stored index is ciphertext.
+     *
+     * `CancellationException` is deliberately NOT recorded. It means the surrounding scope is going
+     * away and nothing will write again, so there would be no one to tell; and a `CancellationException`
+     * rethrown later from an unrelated call would lie to the coroutine machinery about which scope was
+     * cancelled. This holds only while nothing wraps a write in `withTimeout` or a `supervisorScope`
+     * that outlives it — nothing in the snapshot write path does today.
+     */
+    private suspend fun buildAndStorePackUnlocked(
+        builder: PackBlobBuilder,
+        packBlobId: BlobId,
+    ): Pair<ByteArray, List<ContentInfo>> {
+        try {
+            val built = builder.buildEncrypted(hasher, encryptor)
+            storage.putBlob(packBlobId, built.first)
+            return built
+        } catch (e: CancellationException) {
+            throw e // never swallow coroutine cancellation
+        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            packWriteFailure = e
+            throw e
+        }
     }
 
     private suspend fun flushIndexUnlocked() {
