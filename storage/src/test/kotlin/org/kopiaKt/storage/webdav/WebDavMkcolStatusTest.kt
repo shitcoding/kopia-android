@@ -1,5 +1,6 @@
 package org.kopiaKt.storage.webdav
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.kopiaKt.core.blob.BlobId
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import java.net.HttpURLConnection
 
 /**
@@ -40,6 +42,9 @@ class WebDavMkcolStatusTest {
     fun tearDown() {
         server.shutdown()
     }
+
+    /** Nothing is there at all — no collection, no blobs, no `.shards`. */
+    private fun notFound() = MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND)
 
     private fun options() = WebDavOptions(
         url = server.url("/dav/").toString(),
@@ -92,6 +97,30 @@ class WebDavMkcolStatusTest {
         val storage = WebDavBlobStorage.create(options(), isCreate = false)
         try {
             storage.putBlob(BlobId("pdeadbeefcafe0123456789abcdef0123"), ByteArray(16))
+        } finally {
+            storage.close()
+        }
+    }
+
+    /**
+     * task-75, the read half: a collection that has gone must not list as an empty repository.
+     *
+     * `walkDirectory` swallows a 404 so a collection removed from under the walk does not fail the
+     * listing — right for a subdirectory, wrong for the ROOT, where it turns a destination that is
+     * no longer there into "this repository has no blobs" and the caller replaces its snapshot view
+     * with nothing (task-69, fixed there for filesystem, SFTP and SAF; WebDAV was the one left).
+     *
+     * It also made `Test Connection` answer OK for a WebDAV collection that does not exist, because
+     * the probe lists and treats an empty result as success — where every other backend fails it.
+     */
+    @Test
+    fun `a collection that has gone fails to list instead of reporting empty`(): Unit = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = notFound()
+        }
+        val storage = WebDavBlobStorage.create(options(), isCreate = false)
+        try {
+            assertThrows<RepositoryUnavailableException> { storage.listBlobs("").toList() }
         } finally {
             storage.close()
         }

@@ -13,6 +13,7 @@ import org.kopiaKt.core.blob.ConnectionInfo
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import org.kopiaKt.storage.tls.TlsTrust
 import java.io.InputStream
@@ -372,10 +373,29 @@ class WebDavBlobStorage private constructor(
                 }
             }
         } catch (e: WebDavException) {
-            if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
-                throw e
-            }
-            // Directory doesn't exist - that's fine, no blobs to list
+            handleWalkFailure(e, depth)
+        }
+    }
+
+    /**
+     * What a failed collection listing means, which depends on how deep it was.
+     *
+     * A collection that does not exist is fine below the root -- nothing to list, and one can be
+     * removed from under the walk. At **depth 0** it IS the repository root, so the same 404 means
+     * the destination itself has gone: answering "no blobs" for that let a failed backup replace the
+     * user's snapshot view with nothing (task-69, fixed there for the other three backends), and it
+     * also made Test Connection answer OK for a collection that is not there, where every other
+     * backend fails the same probe (task-75).
+     */
+    private fun handleWalkFailure(e: WebDavException, depth: Int) {
+        if (e.statusCode != HttpURLConnection.HTTP_NOT_FOUND) {
+            throw e
+        }
+        if (depth == 0) {
+            throw RepositoryUnavailableException(
+                "There is no repository at ${options.url}. The collection may have been deleted or " +
+                    "moved on the server -- reconnect to it and try again.",
+            )
         }
     }
 

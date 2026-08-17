@@ -19,6 +19,7 @@ import org.kopiaKt.core.blob.BlobNotFoundException
 import org.kopiaKt.core.blob.InvalidBlobRangeException
 import org.kopiaKt.core.blob.InvalidCredentialsException
 import org.kopiaKt.core.blob.PutBlobOptions
+import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.blob.RetentionMode
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import org.kopiaKt.storage.tls.TestCertificates
@@ -478,14 +479,34 @@ class WebDavBlobStorageTest {
             assertThat(results.map { it.blobId.value }).containsExactly("pack-blob1", "pack-blob2")
         }
 
+        /**
+         * This used to assert the opposite — that a 404 on the ROOT lists as empty — and was
+         * therefore pinning task-69's defect in place: a destination that has gone reported "this
+         * repository has no blobs" as a fact, and the caller replaced the user's snapshot view with
+         * nothing. It also made Test Connection answer OK for a collection that is not there.
+         */
         @Test
-        fun `returns empty list when directory does not exist`(): Unit = runTest {
+        fun `fails instead of reporting a collection that has gone as empty`(): Unit = runTest {
             every { mockClient.list(baseUrl, 1) } throws
                 WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
 
-            val results = storage.listBlobs("anything").toList()
+            assertThrows<RepositoryUnavailableException> { storage.listBlobs("anything").toList() }
+        }
 
-            assertThat(results).isEmpty()
+        /**
+         * The other half of the same rule, and the reason the guard is depth-0 only: a SUBDIRECTORY
+         * that 404s really is nothing to list — it can be removed from under the walk — so it must
+         * still answer empty rather than failing the whole listing.
+         */
+        @Test
+        fun `a subdirectory that has gone still lists as empty`(): Unit = runTest {
+            val rootDir = DavResource(href = baseUrl, isDirectory = true, name = "")
+            val shard = DavResource(href = "${baseUrl}p/", isDirectory = true, name = "p")
+            every { mockClient.list(baseUrl, 1) } returns listOf(rootDir, shard)
+            every { mockClient.list("${baseUrl}p/", 1) } throws
+                WebDavException("Not Found", HttpURLConnection.HTTP_NOT_FOUND)
+
+            assertThat(storage.listBlobs("").toList()).isEmpty()
         }
 
         @Test
