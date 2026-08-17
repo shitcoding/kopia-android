@@ -277,9 +277,12 @@ class BackupE2ETest : AndroidE2ETestBase() {
         // Create test file
         java.io.File(sourceDir, "test.txt").writeText("Test content for hash algorithm testing")
 
+        // Go's names. This said "BLAKE2B-256-256" until task-74, an id Go kopia does not have --
+        // so this test was actively asserting that a repository desktop Kopia can never open is
+        // fine, on a device.
         val hashAlgorithms = listOf(
             "BLAKE2B-256-128",
-            "BLAKE2B-256-256",
+            "BLAKE2B-256",
             "BLAKE3-256",
         )
 

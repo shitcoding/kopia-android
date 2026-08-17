@@ -344,13 +344,33 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         is ConnectionConfig.SAF -> StorageType.SAF
     }
 
+    /**
+     * The hash to create with, refusing anything this build cannot produce.
+     *
+     * `KopiaWebBridge.createRepository` passes `request.options.hash` straight through from the
+     * WebView, and the advertised list in `getSupportedAlgorithms` is the only thing that has ever
+     * kept a bad value out — advisory, not enforced. A string that never came from that list
+     * therefore reached repository creation unchecked, and the repository it produced could be
+     * unopenable: task-74 found `HashAlgorithm` declaring `BLAKE2B-256-256`, an id Go kopia does not
+     * have, and Go refused to open a repository created with it. That id is gone, but the hole it
+     * came through was the missing check, not the typo (task-74).
+     */
+    private fun requireSupportedHash(requested: String?): String {
+        val id = requested ?: return HashAlgorithm.DEFAULT.id
+        require(HashAlgorithm.fromId(id) != null) {
+            "Unsupported hash algorithm \"$id\". This build supports: " +
+                HashAlgorithm.entries.joinToString(", ") { it.id }
+        }
+        return id
+    }
+
     private fun buildRepositoryConfig(options: RepositoryCreateOptions): RepositoryConfig {
         val random = SecureRandom()
         val secret = ByteArray(REPOSITORY_KEY_SIZE_BYTES).also { random.nextBytes(it) }
         val masterKey = ByteArray(REPOSITORY_KEY_SIZE_BYTES).also { random.nextBytes(it) }
 
         return RepositoryConfig(
-            hash = options.hashAlgorithm ?: HashAlgorithm.DEFAULT.id,
+            hash = requireSupportedHash(options.hashAlgorithm),
             encryption = options.encryptionAlgorithm ?: EncryptionAlgorithm.DEFAULT.id,
             secret = secret,
             masterKey = masterKey,

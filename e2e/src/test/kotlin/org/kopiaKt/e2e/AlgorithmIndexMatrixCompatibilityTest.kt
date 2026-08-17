@@ -33,7 +33,7 @@ import java.util.stream.Stream
  * across different hash algorithm and index version combinations.
  *
  * Matrix:
- *   Hash algorithms: BLAKE2B-256-128, BLAKE3-256, BLAKE2B-256-256
+ *   Hash algorithms: BLAKE2B-256-128, BLAKE3-256, BLAKE2B-256
  *   Encryption: AES256-GCM-HMAC-SHA256 (only implemented algorithm)
  *   Index versions: V1, V2
  *
@@ -278,19 +278,14 @@ class AlgorithmIndexMatrixCompatibilityTest : CrossCompatibilityTestBase() {
             AlgorithmConfig(hashAlgorithm = "BLAKE3-256", indexVersion = 1),
             AlgorithmConfig(hashAlgorithm = "BLAKE3-256", indexVersion = 2),
 
-            // BLAKE2B-256-256 was here, and it could never have passed: Go kopia has no such
-            // algorithm. Its accepted set is BLAKE2B-256, BLAKE2B-256-128, BLAKE2S-128, BLAKE2S-256,
-            // BLAKE3-256, BLAKE3-256-128, HMAC-SHA224, HMAC-SHA256, HMAC-SHA256-128, HMAC-SHA3-224,
-            // HMAC-SHA3-256 — the full-length variant is called BLAKE2B-256. Go refuses to create
-            // with the name, and refuses to open a repository Kotlin created with it
-            // ("unknown hash function BLAKE2B-256-256").
-            //
-            // Removed here rather than left red, because this matrix is for combinations that are
-            // SUPPOSED to interoperate, and this one never can. The defect it exposed — that
-            // `HashAlgorithm` declares an id Go does not have, under a KDoc promising the enum
-            // "must match the Go implementation exactly" — is task-74, which also owes the guard
-            // this matrix cannot be: a test asserting every id in `HashAlgorithm.entries` is one
-            // the Go binary accepts.
+            AlgorithmConfig(hashAlgorithm = "BLAKE2B-256", indexVersion = 1),
+            AlgorithmConfig(hashAlgorithm = "BLAKE2B-256", indexVersion = 2),
+
+            // These two were `BLAKE2B-256-256` until task-74 and could never pass: Go has no such
+            // algorithm, and it refused both to create with the name and to open a repository
+            // Kotlin had created with it. Renaming the enum id to Go's `BLAKE2B-256` is all it
+            // needed — the digest was always the same full keyed BLAKE2b-256 — and these four
+            // cases passing in both directions is the proof.
         )
     }
 }

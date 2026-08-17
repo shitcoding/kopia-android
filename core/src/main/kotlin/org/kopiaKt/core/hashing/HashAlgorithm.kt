@@ -12,9 +12,15 @@ enum class HashAlgorithm(val id: String, val outputSize: Int) {
     BLAKE2B_256_128("BLAKE2B-256-128", 16),
 
     /**
-     * Full BLAKE2B-256 (32 bytes).
+     * Full BLAKE2B-256 (32 bytes), untruncated.
+     *
+     * The id was `BLAKE2B-256-256` until task-74, which is not an algorithm Go kopia has — Go calls
+     * this one `BLAKE2B-256`. A repository created under the old id could not be opened by desktop
+     * Kopia at all ("unknown hash function"), which is the compatibility promise this project is
+     * built on. Only the NAME was wrong: the digest is the same full keyed BLAKE2b-256, proven by
+     * putting `BLAKE2B-256` through the cross-compat matrix in both directions.
      */
-    BLAKE2B_256_256("BLAKE2B-256-256", 32),
+    BLAKE2B_256_256("BLAKE2B-256", 32),
 
     /**
      * BLAKE3 with 256-bit output (32 bytes).
