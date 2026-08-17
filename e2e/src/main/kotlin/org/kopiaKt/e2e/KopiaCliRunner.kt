@@ -24,6 +24,12 @@ class KopiaCliRunner(
     companion object {
         private const val DEFAULT_TIMEOUT_SECONDS = 300L
 
+        /** How much of each stream a stalled command reports; enough to see a prompt or an error. */
+        private const val STREAM_TAIL_CHARS = 2000
+
+        /** Flag suffixes whose `=value` must never reach a test report or a CI log. */
+        private val SECRET_FLAGS = listOf("password", "secret-access-key", "access-key-id", "token")
+
         fun defaultKopiaBinary(): Path {
             // Check KOPIA_BINARY environment variable first
             val envPath = System.getenv("KOPIA_BINARY")
@@ -61,7 +67,13 @@ class KopiaCliRunner(
 
         fun requireSuccess(): CommandResult {
             if (!success) {
-                throw KopiaCommandException(exitCode, stderr.ifEmpty { stdout })
+                // Both streams, not stderr-or-stdout: with `--json` kopia puts the payload on stdout
+                // and the reason on stderr, and picking one drops whichever mattered this time.
+                throw KopiaCommandException(
+                    exitCode,
+                    "\n  stdout: ${stdout.trim().ifEmpty { "<empty>" }}" +
+                        "\n  stderr: ${stderr.trim().ifEmpty { "<empty>" }}",
+                )
             }
             return this
         }
@@ -74,6 +86,22 @@ class KopiaCliRunner(
         val exitCode: Int,
         message: String,
     ) : RuntimeException("Kopia command failed with exit code $exitCode: $message")
+
+    /**
+     * The command line with anything secret starred out, for messages that are going into a test
+     * report or a CI log. `--password=` is on almost every invocation here (`repositoryCreate`,
+     * `repositoryConnect`), and the remote-backend runs add credentials.
+     */
+    private fun redactSecrets(command: List<String>): String = command.joinToString(" ") { arg ->
+        val name = arg.substringBefore('=', missingDelimiterValue = "")
+        if (name.isNotEmpty() && SECRET_FLAGS.any { name.endsWith(it) }) "$name=***" else arg
+    }
+
+    /** The tails of both streams, since either can hold the reason and neither is reliably the one. */
+    private fun describeStreams(stdout: String, stderr: String): String {
+        fun tail(s: String) = s.trim().takeLast(STREAM_TAIL_CHARS).ifEmpty { "<empty>" }
+        return "\n  stdout: ${tail(stdout)}\n  stderr: ${tail(stderr)}"
+    }
 
     /**
      * Runs a Kopia command and returns the result.
@@ -124,7 +152,17 @@ class KopiaCliRunner(
             // Wait briefly for reader threads to finish after force-kill
             stdoutThread.join(5_000)
             stderrThread.join(5_000)
-            throw KopiaCommandException(-1, "Command timed out after ${timeoutSeconds}s")
+            // Say WHICH command stalled and what it had managed to say. The bare
+            // "Command timed out" this used to throw sent task-73 looking at the CLI for a hang that
+            // was in the test harness -- a stall that names nothing is a stall nobody can diagnose.
+            // The joins above may themselves have timed out, in which case these two strings are read
+            // without a happens-before edge; that is deliberate and harmless, since a partial or empty
+            // reading is still better than none and nothing else depends on them.
+            throw KopiaCommandException(
+                -1,
+                "timed out after ${timeoutSeconds}s running ${redactSecrets(command)}" +
+                    describeStreams(stdoutResult, stderrResult),
+            )
         }
 
         // Process exited normally; streams will close and threads will finish

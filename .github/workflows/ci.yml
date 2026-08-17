@@ -72,3 +72,37 @@ jobs:
       # the S3 / SFTP / WebDAV BlobStorage integration tests, incl. the SFTP .shards cross-compat cases.
       - name: Storage integration tests (Testcontainers)
         run: ./gradlew :storage:integrationTest
+
+  go-interop:
+    name: Go cross-compatibility (kopia binary)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The whole point of this project is that a repository written by the phone is readable by
+      # desktop Go kopia, and these tests are the only thing that checks it against the real binary.
+      # They were excluded along with the Docker-backed cases and stayed entirely red, undetected,
+      # until task-73 — so they get their own job that needs no Docker, only this binary.
+      - name: Install Go kopia
+        run: |
+          set -euo pipefail
+          curl -fsSL -o kopia.tar.gz \
+            "https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}/kopia-${KOPIA_VERSION}-linux-x64.tar.gz"
+          tar -xzf kopia.tar.gz
+          sudo install -m 0755 "kopia-${KOPIA_VERSION}-linux-x64/kopia" /usr/local/bin/kopia
+          kopia --version
+        env:
+          KOPIA_VERSION: 0.23.1
+
+      - name: Go cross-compatibility tests
+        run: ./gradlew :e2e:goInteropTest

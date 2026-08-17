@@ -5,6 +5,7 @@ package org.kopiaKt.e2e.benchmark
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
@@ -30,6 +31,7 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
+
 /**
  * Performance benchmarks for restore operations.
  *
@@ -257,7 +259,21 @@ class RestoreBenchmarkTest {
     @Nested
     inner class IncrementalRestores {
 
+        /**
+         * Quarantined: it benchmarks an optimisation that does not exist (task-73).
+         *
+         * The test restores once, then restores AGAIN into the same directory expecting the second
+         * pass to skip files that are already there. `FilesystemOutput` has no such comparison — with
+         * the default [org.kopiaKt.snapshot.restore.FilesystemOutputOptions] it refuses outright
+         * ("Non-empty directory already exists and overwrite is disabled"), which is what this has
+         * been failing with. So the failure is the test asserting a feature, not a regression in one.
+         *
+         * Deliberately disabled rather than deleted: "should a restore skip unchanged files" is a
+         * real question for a phone on metered data, and this is where the measurement goes if the
+         * answer is yes. Re-enable together with the feature, not before.
+         */
         @Test
+        @Disabled("Benchmarks a skip-unchanged restore that FilesystemOutput does not implement (task-73)")
         @EnabledIf("org.kopiaKt.e2e.benchmark.RestoreBenchmarkTest#isE2EEnabled")
         fun `benchmark incremental restore - skip unchanged files`() {
             val config = BenchmarkScenarios.MEDIUM_BACKUP

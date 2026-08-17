@@ -33,6 +33,7 @@ import org.kopiaKt.storage.sftp.SftpBlobStorage
 import org.kopiaKt.storage.sftp.SftpOptions
 import org.kopiaKt.storage.webdav.WebDavBlobStorage
 import org.kopiaKt.storage.webdav.WebDavOptions
+import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import java.net.HttpURLConnection
@@ -762,15 +763,21 @@ class RemoteBackendCrossCompatibilitySmokeTest : CrossCompatibilityTestBase() {
 
     companion object {
         /**
-         * Checks whether Docker is available on this machine.
+         * Whether **Testcontainers** can reach a Docker daemon — which is not the same question as
+         * whether a `docker` CLI works.
+         *
+         * This used to shell out to `docker info`, and that answered about the CLI: it honours
+         * `docker context` and picks up an OrbStack or Colima socket that Testcontainers' own
+         * discovery may not find. On a host in exactly that state the assumption passed, the tests
+         * ran, and then `container.start()` threw "Could not find a valid Docker environment" — so
+         * all seven cases reported as FAILURES rather than the counted skips this repo's convention
+         * asks for, and the first failure poisoned the rest with "Previous attempts … Will not
+         * retry". Asking `DockerClientFactory` means the gate and the code under test consult the
+         * same oracle, so the tests either really run or honestly skip. (task-73)
          */
         private fun isDockerAvailable(): Boolean = try {
-            val process = ProcessBuilder("docker", "info")
-                .redirectErrorStream(true)
-                .start()
-            val completed = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
-            completed && process.exitValue() == 0
-        } catch (_: Exception) {
+            DockerClientFactory.instance().isDockerAvailable
+        } catch (_: Throwable) {
             false
         }
     }

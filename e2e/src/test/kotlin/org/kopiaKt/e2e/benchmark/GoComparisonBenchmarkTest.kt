@@ -373,10 +373,13 @@ class GoComparisonBenchmarkTest {
             println("Data: ${testDataSpec.fileCount} files, ${formatBytes(testDataSpec.totalBytes)}")
             println("=".repeat(70))
 
+            // Only what Kotlin actually implements. BLAKE3-256-128 was in this list and threw
+            // "Unknown hash algorithm" every run: Go has it, `HashAlgorithm` does not (it carries 4
+            // of Go's 11). Benchmarking an algorithm this codebase cannot hash measures nothing —
+            // the read-side gap that absence represents is a decision owed under task-74. (task-73)
             val algorithms = listOf(
                 "BLAKE2B-256-128" to "BLAKE2B-256-128",
                 "BLAKE3-256" to "BLAKE3-256",
-                "BLAKE3-256-128" to "BLAKE3-256-128",
             )
 
             for ((algoName, algo) in algorithms) {

@@ -85,6 +85,43 @@ tasks.test {
     }
 }
 
+/**
+ * The Go-interop tests only — the ones that need the `kopia` binary and nothing else.
+ *
+ * This exists so CI can watch the oracle. `:e2e:test` pulls Testcontainers for the S3/SFTP/WebDAV
+ * cases, which is why `ci.yml` excluded the whole module — and that quietly took the non-Docker
+ * cross-compat tests down with it, so the suite sat entirely red for an unknown length of time
+ * without anyone finding out (task-73). Splitting the Docker-free subset out means the byte-level
+ * compatibility promise this project is built on gets checked on every push.
+ *
+ * `remote-backend` is excluded because it needs Docker; `benchmark` because timings on a shared
+ * runner are noise, and it has its own task above.
+ */
+tasks.register<Test>("goInteropTest") {
+    useJUnitPlatform {
+        includeTags("cross-compat")
+        excludeTags("remote-backend", "benchmark")
+    }
+
+    description = "Runs the Go cross-compatibility tests (needs the kopia binary, not Docker)"
+    group = "verification"
+
+    System.getenv("KOPIA_BINARY")?.let { environment("KOPIA_BINARY", it) }
+    systemProperty("e2e", "true")
+
+    // These are integration tests over real files and a real subprocess. They run in seconds now
+    // that they no longer deadlock; a generous cap is a backstop, not a budget.
+    systemProperty("junit.jupiter.execution.timeout.default", "10m")
+    maxHeapSize = "1536m"
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+}
+
 // Dedicated task for running only benchmark tests
 tasks.register<Test>("benchmark") {
     useJUnitPlatform {
