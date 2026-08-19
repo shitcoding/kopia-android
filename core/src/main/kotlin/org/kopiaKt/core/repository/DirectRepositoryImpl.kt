@@ -28,6 +28,8 @@ import org.kopiaKt.core.`object`.ObjectManager
 import org.kopiaKt.core.`object`.ObjectReader
 import org.kopiaKt.core.`object`.ObjectWriter
 import org.kopiaKt.core.`object`.ObjectWriterOptions
+import org.kopiaKt.core.splitter.DefaultSplitterFactory
+import org.kopiaKt.core.splitter.SplitterFactory
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
@@ -243,6 +245,7 @@ class DirectRepositoryImpl private constructor(
         val writerObjectManager = ObjectManager(
             contentManager = writerContentManager,
             compressorFactory = compressorFactory,
+            splitterFactory = splitterFactoryFor(config),
         )
 
         val writerManifestManager = ManifestManager(
@@ -337,6 +340,12 @@ class DirectRepositoryImpl private constructor(
 
     companion object {
         private const val MIN_REPLACE_MANIFEST_TIME_DELTA_MS = 100L
+
+        /**
+         * What an EMPTY splitter in a format blob means. Go's own fallback (`"FIXED"`, which its
+         * splitter package registers as the 4 MiB fixed splitter), not a choice made here.
+         */
+        private const val LEGACY_DEFAULT_SPLITTER = "FIXED"
 
         /**
          * Opens an existing repository with the given password.
@@ -444,6 +453,7 @@ class DirectRepositoryImpl private constructor(
             val objectManager = ObjectManager(
                 contentManager = contentManager,
                 compressorFactory = compressorFactory,
+                splitterFactory = splitterFactoryFor(config),
             )
 
             // Create manifest manager
@@ -467,6 +477,34 @@ class DirectRepositoryImpl private constructor(
                 clock = clock,
                 compressorFactory = compressorFactory,
                 isWriter = false,
+            )
+        }
+
+        /**
+         * The object splitter this repository's format blob declares.
+         *
+         * `ObjectManager` used to be built without this, so every write used the enum default
+         * `DYNAMIC-4M-BUZHASH` no matter what the repository said -- while `objectFormat()`
+         * faithfully reported the real value. A repository desktop Kopia created with `FIXED-1M` was
+         * therefore written with buzhash boundaries: nothing failed, because a splitter is advisory
+         * for writers and readers follow the object ids, but the same bytes chunked two ways share no
+         * content ids, so nothing this app wrote deduplicated against anything Go wrote (task-78).
+         *
+         * Go treats an unknown splitter as an error rather than falling back
+         * (`repo/object/object_manager.go:238`), and so does this: silently using a different
+         * algorithm from the one the repository names is what the defect was.
+         */
+        private fun splitterFactoryFor(config: RepositoryConfig): SplitterFactory {
+            // Go: `splitterID := f.Splitter; if splitterID == "" { splitterID = "FIXED" }`
+            // (`repo/object/object_manager.go:231-234`). An old format blob can carry an empty
+            // splitter, and Go reads that as the legacy 4 MiB fixed one -- so refusing it here would
+            // turn a repository desktop Kopia opens fine into one this app cannot open at all.
+            val declared = config.splitter.ifEmpty { LEGACY_DEFAULT_SPLITTER }
+            DefaultSplitterFactory.getFactory(declared)?.let { return it }
+            throw IllegalArgumentException(
+                "This repository uses the object splitter \"$declared\", which this app " +
+                    "does not implement. It supports: " +
+                    DefaultSplitterFactory.supportedAlgorithms().joinToString(", "),
             )
         }
 

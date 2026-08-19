@@ -45,13 +45,18 @@ class ObjectManager(
      * @return A new ObjectWriter instance
      */
     fun newWriter(options: ObjectWriterOptions = ObjectWriterOptions()): ObjectWriter {
-        // Use custom splitter factory or default
-        val splitFactory = if (options.splitter != null) {
-            DefaultSplitterFactory.getFactory(options.splitter)
-                ?: throw IllegalArgumentException("Unknown splitter: ${options.splitter}")
-        } else {
-            splitterFactory
-        }
+        // A per-write override, else the splitter the repository declares.
+        //
+        // An override naming something unknown falls back rather than throwing, which is Go:
+        // `if opt.Splitter != "" { splitFactory = GetFactory(opt.Splitter) }; if splitFactory == nil
+        // { splitFactory = om.newDefaultSplitter }` (`repo/object/object_manager.go:60-66`). The
+        // override's source is a source's splitter POLICY, and neither Go's policy import nor this
+        // app's `setPolicy` validates that field — so throwing would let one bad policy value fail
+        // every backup of that source, where Go quietly writes with the repository's own splitter.
+        // The repository's OWN splitter is a different matter and does throw (see
+        // `DirectRepositoryImpl.splitterFactoryFor`), because writing with an algorithm other than
+        // the one the repository names is precisely the defect task-78 fixed.
+        val splitFactory = options.splitter?.let { DefaultSplitterFactory.getFactory(it) } ?: splitterFactory
 
         return DefaultObjectWriter(
             contentManager = contentManager,

@@ -233,7 +233,16 @@ class FileUploader(
         val compressorName = compressionPolicy.compressorForFile(relativePath, file.size)
         val compression = parseCompression(compressorName)
 
-        val options = ObjectWriterOptions(compression = compression)
+        // The source's splitter policy, which until task-78 was a constructor parameter this class
+        // never read -- so a user who set one got the repository default regardless. Go passes it
+        // here and only here (`Splitter: pol.SplitterPolicy.SplitterForFile(f)`, upload.go:248 and
+        // :364, on the FILE and STREAMFILE writers); symlink targets and directory manifests
+        // deliberately do not get it. Empty means "no override", and the splitter the repository's
+        // format blob declares applies.
+        val options = ObjectWriterOptions(
+            compression = compression,
+            splitter = splitterPolicy.splitterForFile().ifEmpty { null },
+        )
 
         // Stream the file content through the object writer
         file.open().use { inputStream ->
