@@ -23,6 +23,7 @@ import org.kopiaKt.snapshot.policy.Policy
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -76,6 +77,29 @@ data class UploadOptions(
      * [checkpointInterval], so a caller that has nothing to vary passes nothing.
      */
     val checkpointIntervalNow: () -> Duration = { checkpointInterval },
+
+    /**
+     * Bytes hashed since the last checkpoint that also force one, whatever the timer says. Zero or
+     * negative turns the byte trigger off and leaves the timer alone.
+     *
+     * A deliberate divergence from Go, which checkpoints on elapsed time only. Go's default is
+     * 45 minutes and Android's is 5, but a Nothing Phone (2) hashes 1.44 GiB in about 50 seconds --
+     * measured -- so *no* phone-sized backup ever reached its first checkpoint and the resume
+     * machinery task-30.16 built served almost none of the runs it exists for. What a kill throws
+     * away is bytes, not minutes, and only a byte trigger engages on exactly the runs worth
+     * protecting: a source too small to reach the threshold re-runs in less time than the checkpoint
+     * would have saved. See task-64.
+     *
+     * **Granularity: whole files.** Bytes arrive from `FileUploader`'s single
+     * `progress.hashedBytes(file.size)` call, made once per file after that file is uploaded, so the
+     * count does not advance *within* a file. A source of many files -- the phone case this was
+     * filed for -- is covered; a source that is one very large file is not, and there the timer
+     * remains the only trigger for the mid-file checkpoints task-30.16 built. Moving the report into
+     * the streaming loop would change what a *failed* file contributes to
+     * `SnapshotStats.totalFileSize`, which is a Go-parity question (task-62) and deliberately not
+     * bundled in here.
+     */
+    val checkpointAfterBytes: Long = DEFAULT_CHECKPOINT_AFTER_BYTES,
 ) {
     companion object {
         /** Go: `DefaultCheckpointInterval = 45 * time.Minute`. */
@@ -83,6 +107,30 @@ data class UploadOptions(
 
         /** Floor for [checkpointInterval], so a misconfigured zero cannot busy-loop the checkpointer. */
         val MIN_CHECKPOINT_INTERVAL: Duration = Duration.ofMillis(50)
+
+        /**
+         * How often the checkpoint loop wakes to look at the byte counter.
+         *
+         * The loop cannot sleep the whole interval or the byte trigger would never be observed. A
+         * quarter second is short enough that a 512 MiB threshold is hit within a fraction of the
+         * ~18 seconds it takes to reach, and one atomic read four times a second is nothing beside
+         * the upload it watches. A [checkpointInterval] shorter than this is used unchanged.
+         */
+        val CHECKPOINT_POLL_INTERVAL: Duration = Duration.ofMillis(250)
+
+        /**
+         * Default for [checkpointAfterBytes], chosen against the measurement rather than picked.
+         *
+         * At the ~28 MB/s this app achieved on a Nothing Phone (2) when the number was chosen,
+         * 512 MiB is about 18 seconds of re-hashing, while a 1.4 GB backup that used to checkpoint
+         * zero times now checkpoints twice. Anything a run below the threshold would have saved is
+         * smaller than the re-run it replaces.
+         *
+         * Read 18 seconds as a typical cost, not a bound: because [checkpointAfterBytes] counts
+         * whole files, a source containing one file larger than this passes the threshold without
+         * the trigger noticing.
+         */
+        const val DEFAULT_CHECKPOINT_AFTER_BYTES: Long = 512L * 1024 * 1024
     }
 
     /** [checkpointIntervalNow] clamped to [MIN_CHECKPOINT_INTERVAL]. */
@@ -191,10 +239,14 @@ class SnapshotUploader(
             val previousManifests = findPreviousManifests()
             val previousRootManifests = loadRootManifests(previousManifests)
 
+            // Everything that reports bytes goes through the tally, so the byte-triggered
+            // checkpoint below works whatever reporter the caller supplied.
+            val hashed = HashedByteTally(progress)
+
             // Create the file uploader
             val fileUploader = FileUploader(
                 writer = writer,
-                progress = progress,
+                progress = hashed,
                 compressionPolicy = policy.compressionPolicy,
                 splitterPolicy = policy.splitterPolicy,
                 forceHashPercentage = options.forceHashPercentage,
@@ -203,7 +255,7 @@ class SnapshotUploader(
             // Create and register the tree walker
             val walker = TreeWalker(
                 processor = fileUploader,
-                progress = progress,
+                progress = hashed,
                 errorPolicy = policy.errorHandlingPolicy,
                 parallelism = options.parallelUploads,
                 failFast = options.failFast,
@@ -214,7 +266,7 @@ class SnapshotUploader(
 
             // Started before the walk, stopped before the snapshot is saved (below).
             checkpointJob = launch {
-                periodicallyCheckpoint(checkpointRegistry, options, startTime)
+                periodicallyCheckpoint(checkpointRegistry, options, startTime, hashed)
             }
             // Its OWN wrapper, silent: same rules, same result, no double-counted exclusions.
             estimateJob = launchEstimate(applyIgnoreRules(rootDir))
@@ -386,17 +438,59 @@ class SnapshotUploader(
         registry: CheckpointRegistry,
         options: UploadOptions,
         startTime: Instant,
+        hashed: HashedByteTally,
     ) {
+        var waited: Duration = Duration.ZERO
+        var bytesAtLastCheckpoint = hashed.total.get()
+
         while (true) {
-            delay(options.effectiveCheckpointInterval().toMillis())
-            checkpointRoot(registry, startTime)
+            val interval = options.effectiveCheckpointInterval()
+            // Sleeping the whole interval would make the byte trigger unobservable, so the loop wakes
+            // often enough to notice it. A quarter-second poll that reads one atomic costs nothing
+            // next to the upload it is watching, and `minOf` leaves a shorter interval untouched.
+            val step = minOf(interval, UploadOptions.CHECKPOINT_POLL_INTERVAL)
+            delay(step.toMillis())
+            waited = waited.plus(step)
+
+            val bytes = hashed.total.get()
+            // The zero guard is load-bearing: without it `bytes - bytesAtLastCheckpoint >= 0` is true
+            // on the very first poll and a disabled trigger would checkpoint continuously.
+            val dueByBytes = options.checkpointAfterBytes > 0 &&
+                bytes - bytesAtLastCheckpoint >= options.checkpointAfterBytes
+            if (waited >= interval || dueByBytes) {
+                checkpointRoot(registry, startTime)
+                waited = Duration.ZERO
+                bytesAtLastCheckpoint = bytes
+            }
+        }
+    }
+
+    /**
+     * Counts bytes hashed, so the checkpointer has a progress signal it owns.
+     *
+     * It cannot read [progress] instead: a caller may pass any [UploadProgress] and the default is
+     * [NullUploadProgress], which counts nothing -- so keying the byte trigger on
+     * `progress is CountingUploadProgress` would make a checkpoint the user asked for depend on an
+     * unrelated constructor argument, and fail silently for every caller that passes none.
+     */
+    private class HashedByteTally(private val delegate: UploadProgress) : UploadProgress by delegate {
+        val total = AtomicLong(0)
+
+        override fun hashedBytes(numBytes: Long) {
+            total.addAndGet(numBytes)
+            delegate.hashedBytes(numBytes)
         }
     }
 
     /**
      * Saves one checkpoint: the current partial tree plus an incomplete snapshot manifest naming it.
      *
-     * The manifest is dated one nanosecond BEFORE the run's own start time, exactly as Go does, so
+     * The manifest is dated one nanosecond BEFORE the run's own start time -- which is NOT what Go
+     * does, despite what this comment used to claim: Go's `checkpointRoot` copies the prototype
+     * manifest and sets only `RootEntry`, `EndTime`, `IncompleteReason` and `Tags`
+     * (`snapshot/upload/upload.go:513-545`), leaving `StartTime` exactly equal to the run's. The
+     * offset here is a deliberate local choice and a safe one -- strictly older sorts before the
+     * snapshot it belongs to rather than tying with it -- so
      * it sorts older than the snapshot it belongs to and the retention pass that follows a finished
      * run reaps it. Without that a completed backup would leave its own checkpoints behind forever.
      *
@@ -548,6 +642,16 @@ class SnapshotUploader(
      * checkpoint interval, so a phone that keeps losing its backup to doze can easily present a few
      * dozen — and each one costs an extra directory-manifest read per directory, over SAF or the
      * network. The newest carry the most content, so the tail is where the least is lost.
+     *
+     * **`endTime` breaks the ties, and has to.** Every checkpoint of one run is dated
+     * `startTime − 1ns` — the same instant, deliberately — so ordering by `startTime` alone leaves
+     * them all equal and `take` keeps eight of them in whatever order the manifests happened to be
+     * listed in. That was harmless while the timer was the only trigger and a phone-sized run
+     * produced none; task-64's byte trigger makes more than eight per run ordinary for a large
+     * source, and picking arbitrarily could then discard the very newest — the one carrying the most
+     * reusable content, which is exactly what the sentence above promises not to lose. `endTime` is
+     * `Instant.now()` at each checkpoint, so it distinguishes them. Costs nothing but re-hashing
+     * when it goes wrong; found in review of task-64.
      */
     private suspend fun findPreviousManifests(): List<SnapshotManifest> {
         val labels = ManifestLabels.forSnapshot(source)
@@ -577,7 +681,7 @@ class SnapshotUploader(
         val newerIncompletes = manifests
             .filter { it.incompleteReason != null }
             .filter { latestComplete == null || it.startTime.isAfter(latestComplete.startTime) }
-            .sortedByDescending { it.startTime }
+            .sortedWith(compareByDescending<SnapshotManifest> { it.startTime }.thenByDescending { it.endTime })
             .take(MAX_PREVIOUS_INCOMPLETE)
 
         return listOfNotNull(latestComplete) + newerIncompletes

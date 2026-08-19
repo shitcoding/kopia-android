@@ -273,4 +273,78 @@ class RepositoryCheckpointTest {
         assertThat(UploadOptions(checkpointIntervalNow = { Duration.ZERO }).effectiveCheckpointInterval())
             .isEqualTo(UploadOptions.MIN_CHECKPOINT_INTERVAL)
     }
+
+    // ===== The byte trigger (task-64) =====
+    //
+    // Measured on a Nothing Phone (2): 1.44 GiB in ~50 s. Against a five-minute timer that means no
+    // phone-sized backup ever reaches its first checkpoint, so the whole resume mechanism
+    // (task-30.16) served almost none of the runs it was built for. Bytes, not elapsed time, are
+    // what a kill throws away.
+
+    @Test
+    fun `enough bytes hashed checkpoints a run the timer would never reach`(): Unit = runBlocking {
+        val (repository, _) = TestRepositoryFactory.createInMemory()
+
+        // An hour's timer cannot fire inside this test, so a checkpoint here came from the bytes.
+        val byBytes = UploadOptions(
+            parallelUploads = 1,
+            checkpointInterval = Duration.ofHours(1),
+            checkpointAfterBytes = 4096,
+        )
+        upload(repository, slowTree(), byBytes)
+
+        assertThat(snapshots(repository).filter { it.incompleteReason == CHECKPOINT_REASON }).isNotEmpty()
+        repository.close()
+    }
+
+    @Test
+    fun `a zero byte trigger is off, not a checkpoint on every poll`(): Unit = runBlocking {
+        val (repository, _) = TestRepositoryFactory.createInMemory()
+
+        // `hashed - since >= 0` is true the instant the loop starts, so a disabled trigger has to be
+        // an explicit guard rather than a threshold of zero.
+        val off = UploadOptions(
+            parallelUploads = 1,
+            checkpointInterval = Duration.ofHours(1),
+            checkpointAfterBytes = 0,
+        )
+        upload(repository, slowTree(), off)
+
+        assertThat(snapshots(repository).filter { it.incompleteReason == CHECKPOINT_REASON }).isEmpty()
+        repository.close()
+    }
+
+    @Test
+    fun `the byte trigger counts bytes whatever progress reporter the caller passed`(): Unit = runBlocking {
+        val (repository, _) = TestRepositoryFactory.createInMemory()
+
+        // The uploader's default reporter is NullUploadProgress, which counts nothing. Keying the
+        // trigger on `progress is CountingUploadProgress` would therefore have made a checkpoint the
+        // user asked for depend on an unrelated constructor argument -- and this test, which passes
+        // no reporter at all, is what holds that line.
+        val writer = repository.newWriter(WriteSessionOptions())
+        try {
+            SnapshotUploader(writer = writer, source = source).upload(
+                slowTree(),
+                UploadOptions(
+                    parallelUploads = 1,
+                    checkpointInterval = Duration.ofHours(1),
+                    checkpointAfterBytes = 4096,
+                ),
+            )
+        } finally {
+            writer.close()
+        }
+
+        assertThat(snapshots(repository).filter { it.incompleteReason == CHECKPOINT_REASON }).isNotEmpty()
+        repository.close()
+    }
+
+    @Test
+    fun `the defaults are pinned, because nothing else pins them`(): Unit = runBlocking {
+        // task-64's own criterion. The five-minute Android interval and this threshold were both
+        // chosen against a measurement; a default that no test names drifts without anyone noticing.
+        assertThat(UploadOptions().checkpointAfterBytes).isEqualTo(512L * 1024 * 1024)
+        assertThat(UploadOptions.DEFAULT_CHECKPOINT_AFTER_BYTES).isEqualTo(512L * 1024 * 1024)
+    }
 }
