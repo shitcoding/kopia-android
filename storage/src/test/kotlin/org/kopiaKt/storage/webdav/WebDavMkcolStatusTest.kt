@@ -46,6 +46,25 @@ class WebDavMkcolStatusTest {
     /** Nothing is there at all — no collection, no blobs, no `.shards`. */
     private fun notFound() = MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND)
 
+    /** A PROPFIND answer that says "yes, this collection exists and is empty". */
+    private fun collectionExists() = MockResponse()
+        .setResponseCode(HTTP_MULTI_STATUS)
+        .setHeader("Content-Type", "application/xml; charset=utf-8")
+        .setBody(
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <D:multistatus xmlns:D="DAV:">
+              <D:response>
+                <D:href>/dav/</D:href>
+                <D:propstat>
+                  <D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop>
+                  <D:status>HTTP/1.1 200 OK</D:status>
+                </D:propstat>
+              </D:response>
+            </D:multistatus>
+            """.trimIndent(),
+        )
+
     private fun options() = WebDavOptions(
         url = server.url("/dav/").toString(),
         username = "u",
@@ -154,5 +173,73 @@ class WebDavMkcolStatusTest {
                 explained.contains("intermediate", ignoreCase = true),
             "the failure should name the missing parent collection, but said: $explained",
         )
+    }
+
+    /**
+     * task-75, the write half.
+     *
+     * A destination that goes away **mid-session** — after `newDirectWriter` has already verified
+     * the format blob, which is what makes the start-of-backup case terminal for every backend —
+     * used to surface as a plain `WebDavException`. That type is not in
+     * `BackupWorker.isTerminalFailure`, so the worker answered `Result.retry()` and burned all three
+     * attempts with exponential backoff against a destination only the user can restore, while
+     * `ExistingWorkPolicy.KEEP` swallowed their next "Back Up Now".
+     *
+     * Filesystem and SFTP close this with a cheap local stat before every write
+     * (`requireBasePathStillExists`). Over HTTP that would be a round trip per blob, so WebDAV asks
+     * only once a write has already failed.
+     */
+    @Test
+    fun `a write into a destination that has gone stops instead of being retried`(): Unit = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = notFound()
+        }
+        val storage = WebDavBlobStorage.create(options(), isCreate = false)
+        try {
+            assertThrows<RepositoryUnavailableException> {
+                storage.putBlob(BlobId("pdeadbeefcafe0123456789abcdef0123"), ByteArray(16))
+            }
+        } finally {
+            storage.close()
+        }
+    }
+
+    /**
+     * The control, and the reason the probe asks rather than assumes: a server that is merely
+     * unwell must keep its original failure and therefore its retry. `RetryingBlobStorage`
+     * classifies on the exception TYPE, so promoting every failed write to the terminal
+     * `RepositoryUnavailableException` would make a 503 — the textbook retryable failure — abandon
+     * the backup (task-59 documents that recipe from the other direction).
+     */
+    @Test
+    fun `a write that fails while the collection is still there keeps its own failure`(): Unit = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                // The root collection IS there — this is a working server having a bad minute.
+                request.method == "PROPFIND" && request.path == "/dav/" -> collectionExists()
+                request.method == "PROPFIND" -> notFound()
+                // `.shards` is absent, exactly as in the other fixtures here; answering 503 to it
+                // would fail `create()` and the test would never reach the write it is about.
+                request.method == "GET" -> notFound()
+                else -> MockResponse().setResponseCode(HTTP_SERVICE_UNAVAILABLE)
+            }
+        }
+        val storage = WebDavBlobStorage.create(options(), isCreate = false)
+        try {
+            val failure = assertThrows<Exception> {
+                storage.putBlob(BlobId("pdeadbeefcafe0123456789abcdef0123"), ByteArray(16))
+            }
+            assertTrue(
+                failure !is RepositoryUnavailableException,
+                "a 503 must not be reported as a destination that has gone, but was: $failure",
+            )
+        } finally {
+            storage.close()
+        }
+    }
+
+    private companion object {
+        const val HTTP_SERVICE_UNAVAILABLE = 503
+        const val HTTP_MULTI_STATUS = 207
     }
 }

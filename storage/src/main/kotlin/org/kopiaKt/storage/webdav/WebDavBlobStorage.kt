@@ -16,6 +16,7 @@ import org.kopiaKt.core.blob.PutBlobOptions
 import org.kopiaKt.core.blob.RepositoryUnavailableException
 import org.kopiaKt.core.blob.UnsupportedPutOptionException
 import org.kopiaKt.storage.tls.TlsTrust
+import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URI
@@ -392,11 +393,47 @@ class WebDavBlobStorage private constructor(
             throw e
         }
         if (depth == 0) {
-            throw RepositoryUnavailableException(
-                "There is no repository at ${options.url}. The collection may have been deleted or " +
-                    "moved on the server -- reconnect to it and try again.",
-            )
+            throw destinationGone()
         }
+    }
+
+    /**
+     * The typed, TERMINAL answer for "the destination itself is no longer there".
+     *
+     * `BackupWorker.isTerminalFailure` matches on TYPE, so this is what stops a run instead of
+     * retrying it three times against something only the user can restore. [cause] is carried so the
+     * server's own diagnosis -- MKCOL's "a parent collection does not exist", for instance -- is
+     * still in the chain; the user-facing sentence is this one, because it is the one that says what
+     * to do, and `BackupWorker.endRun` persists the primary message.
+     */
+    private fun destinationGone(cause: Throwable? = null) = RepositoryUnavailableException(
+        "There is no repository at ${options.url}. The collection may have been deleted or " +
+            "moved on the server -- reconnect to it and try again.",
+        cause,
+    )
+
+    /**
+     * Whether the configured root collection has gone, asked only after a write has already failed.
+     *
+     * Filesystem and SFTP answer the same question with a local stat before *every* write
+     * (`FilesystemBlobStorage.requireBasePathStillExists`). Over HTTP that would be a round trip per
+     * blob, so this costs nothing on the happy path and one PROPFIND on a path that was failing
+     * anyway.
+     *
+     * Only a 404 counts as evidence. Anything else -- a 503, a dropped connection, a body that will
+     * not parse -- says nothing about whether the collection exists, so the caller keeps its
+     * original failure and therefore its retry classification. Promoting those would make a
+     * transient server error abandon a backup, which is the mistake task-59 documents.
+     */
+    private fun rootCollectionIsGone(): Boolean = try {
+        client.list(normalizeUrl(options.url), 0)
+        false
+    } catch (e: WebDavException) {
+        e.statusCode == HttpURLConnection.HTTP_NOT_FOUND
+    } catch (ignored: IOException) {
+        // Deliberately dropped: the caller is about to report its own failure, which is the one
+        // that matters. A probe that could not reach the server proves nothing either way.
+        false
     }
 
     override suspend fun putBlob(blobId: BlobId, data: ByteArray, options: PutBlobOptions) = withContext(Dispatchers.IO) {
@@ -466,8 +503,23 @@ class WebDavBlobStorage private constructor(
                 client.move(writePath, fileUrl, true)
             }
         } catch (e: WebDavException) {
-            handleWebDavException(e, blobId)
+            reportWriteFailure(e, blobId)
         }
+    }
+
+    /**
+     * What a failed write means, once it is known to have failed.
+     *
+     * task-75: a destination that went away MID-SESSION. The start-of-backup case is already
+     * terminal for every backend -- `DirectRepositoryImpl.newDirectWriter` verifies the format blob
+     * once per write session -- but after that this surfaced as a plain `WebDavException`, a type
+     * `BackupWorker.isTerminalFailure` does not know, so the run was retried three times against a
+     * destination only the user can restore while `ExistingWorkPolicy.KEEP` swallowed their next
+     * "Back Up Now".
+     */
+    private fun reportWriteFailure(e: WebDavException, blobId: BlobId): Nothing {
+        if (rootCollectionIsGone()) throw destinationGone(e)
+        handleWebDavException(e, blobId)
     }
 
     override suspend fun deleteBlob(blobId: BlobId) = withContext(Dispatchers.IO) {

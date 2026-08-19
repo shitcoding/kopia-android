@@ -246,7 +246,7 @@ class BlobAlreadyExistsException(blobId: BlobId) : Exception("Blob already exist
  *
  * @param message written for the user; it is persisted on the source and rendered on the dashboard.
  */
-class RepositoryUnavailableException(message: String) : Exception(message)
+class RepositoryUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * Exception thrown when an invalid blob range is requested.
