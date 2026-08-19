@@ -481,7 +481,7 @@ class DirectRepositoryImpl private constructor(
 
             // Map hash algorithm name to enum
             val hashAlgorithm = HashAlgorithm.fromString(config.hash)
-                ?: throw IllegalArgumentException("Unknown hash algorithm: ${config.hash}")
+                ?: throw IllegalArgumentException(HashAlgorithm.unsupportedMessage(config.hash))
 
             // Map encryption algorithm name to enum
             val encryptionAlgorithm = EncryptionAlgorithm.fromString(config.encryption)

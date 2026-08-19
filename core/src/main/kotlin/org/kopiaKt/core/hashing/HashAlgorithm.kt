@@ -48,6 +48,29 @@ enum class HashAlgorithm(val id: String, val outputSize: Int) {
          * Finds algorithm by ID string (alias for fromId).
          */
         fun fromString(id: String): HashAlgorithm? = fromId(id)
+
+        /**
+         * Why a repository this build cannot open is being refused, written for the person holding
+         * the phone rather than for a stack trace.
+         *
+         * Go kopia offers eleven hash algorithms and this app implements four. **That is a recorded
+         * decision, not an oversight (task-74):** Go's default is `BLAKE2B-256-128`, which is what
+         * desktop Kopia creates unless the user goes looking, so the gap is reachable only for
+         * someone who deliberately chose a non-default algorithm and then wants that repository on a
+         * phone — against seven more byte-exact digests to ship and keep matching Go forever.
+         *
+         * What the decision does oblige is this message. The alternative — a bare "unknown hash
+         * algorithm" — tells a user nothing they can act on, and the thing they can act on is real:
+         * the repository is fine, it simply has to be opened with desktop Kopia, or created again
+         * with an algorithm both implementations have.
+         */
+        fun unsupportedMessage(id: String): String = buildString {
+            append("This repository uses the hash algorithm \"$id\", which this app does not ")
+            append("implement. It supports ${entries.joinToString(", ") { it.id }}. Desktop Kopia ")
+            append("offers several others; a repository created with one of those is not damaged, ")
+            append("but it can only be opened by Kopia itself. Open it on a desktop, or create the ")
+            append("repository with ${DEFAULT.id} — Kopia's own default — to use it here.")
+        }
     }
 }
 
