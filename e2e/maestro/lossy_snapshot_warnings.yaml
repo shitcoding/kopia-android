@@ -1,0 +1,112 @@
+# E2E Test: a snapshot that lost part of its source says so, on a device (task-70)
+#
+# task-63 put a warning on six surfaces for a backup that finished but could not read part of what
+# it was asked to back up. Five of the six were pinned only by unit tests of the predicate plus one
+# component test — no Maestro flow asserted any of them, and this project's convention is that a UI
+# claim is proven on hardware. That matters most here of all, because the defect being guarded
+# against is a snapshot that LOOKS healthy: it is marked complete, it sits at the top of the list as
+# `latest`, and on the phone that found it, it held 945 of 2004 files.
+#
+# **Staged deterministically, and that is a deliberate departure from what task-70 proposed.** The
+# task described the recipe used to find the defect — rename the source folder 6 s into a 16 s walk —
+# which is a race this flow does not control and would have to keep winning on every machine and
+# every build. `setup_lossy_repo.sh` instead has Go snapshot a tree containing three files it cannot
+# open: record-and-continue writes `numFailed: 3` into the root directory summary and still marks the
+# snapshot complete, which is the same manifest the race produces. The fixture script asserts that
+# shape before pushing, so a fixture that quietly came out healthy fails there rather than turning
+# this flow into one that asserts nothing.
+#
+# Requires: e2e/maestro/scripts/setup_lossy_repo.sh
+# Category: ui
+#
+# UI is rendered in WebView (React app).
+
+appId: org.kopiaKt.app
+androidWebViewHierarchy: devtools
+---
+- stopApp
+- stopApp: "com.google.android.documentsui"
+- launchApp
+
+- extendedWaitUntil:
+    visible: "Connect to Repository"
+    timeout: 40000
+- tapOn: "Connect to Repository"
+- extendedWaitUntil:
+    visible: "Connect Repository"
+    timeout: 15000
+
+- tapOn:
+    id: "repo-path-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "/sdcard/lossyrepo"
+- hideKeyboard
+
+- tapOn:
+    id: "repo-password-input"
+- waitForAnimationToEnd
+- eraseText: 1
+- inputText: "test123"
+- hideKeyboard
+
+- tapOn:
+    id: "connect-button"
+# Go-created repositories use scrypt N=65536, which is slow on a software-GPU emulator.
+- extendedWaitUntil:
+    visible: "Snapshots"
+    timeout: 90000
+
+# ===== Surfaces 1 and 2: the source card, then the per-source snapshots screen =====
+#
+# Two files were readable, so the source summary counts those. Tapping it opens the snapshots for
+# this source.
+- extendedWaitUntil:
+    visible:
+      text: ".*2 files.*"
+    timeout: 20000
+
+# Surface 1, the source card on the Snapshots screen. Two files were readable; three were not, and
+# the card says so before the user has tapped anything.
+- assertVisible:
+    text: ".*3 items unreadable.*"
+
+- tapOn:
+    text: ".*2 files.*"
+- extendedWaitUntil:
+    visible:
+      text: ".* snapshots?"
+    timeout: 20000
+
+# The badge. "items", not "files" -- an unreadable DIRECTORY is one failed entry however many files
+# it hid, and snapshotHealth.ts says so in a comment that asks not to be "fixed".
+- assertVisible:
+    text: ".*3 items unreadable.*"
+
+# ===== Surface 3: the file browser =====
+#
+# Tap the row's own summary line, NOT "Select snapshot 1" -- that label belongs to the selection
+# checkbox, and tapping it puts the screen into multi-select ("1 selected") instead of opening
+# anything. Caught by this flow's first run against a device.
+- tapOn:
+    text: ".*2 files.*2 dirs.*"
+
+# Asserted by the sentence the user actually reads rather than by `data-testid`. The hooks exist
+# (`failed-entries-warning`), but no flow in this suite addresses one, and a test id can survive a
+# rewrite that leaves the wording meaningless -- whereas this is the claim itself.
+- extendedWaitUntil:
+    visible:
+      text: ".*3 items could not be read.*"
+    timeout: 20000
+
+# The point of the whole thing: what IS listed looks perfectly ordinary, and the banner is the only
+# thing on screen that says otherwise.
+- assertVisible:
+    text: ".*readable\\.txt.*"
+
+# ===== Surface 4: the restore screen =====
+- tapOn: "Restore"
+- extendedWaitUntil:
+    visible:
+      text: ".*will not include them.*"
+    timeout: 20000

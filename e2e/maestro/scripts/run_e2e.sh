@@ -79,6 +79,8 @@ case "$RETRY_MAX"    in ''|*[!0-9]*) echo "[run_e2e] ERROR: E2E_RETRY_MAX must b
 #  Flow manifest - explicit + ordered. category drives per-flow prerequisites:
 #    local   : test repos pushed (default)
 #    restore : local + reset /sdcard/Download/_kopia_restore before the flow
+#    lossy   : local + a Go-created repository holding one COMPLETE-but-lossy snapshot, rebuilt
+#              before every attempt (host `kopia` required)
 #    backup  : local + a wiped app, a writable repo path and a fresh deterministic source tree,
 #              reset before EVERY attempt; verified afterwards by Go kopia (host `kopia` required)
 #    s3|webdav|sftp : local + Docker backend up & seeded (host `kopia` required)
@@ -99,6 +101,7 @@ MANIFEST=(
   "browse_files_detailed|local"
   "navigate_directories|local"
   "source_snapshots_screen|local"
+  "lossy_snapshot_warnings|lossy"
   "settings_navigation_smoke|local"
   "sources_dashboard_smoke|local"
   "policy_editor|local"
@@ -472,6 +475,13 @@ backup_verify_args() {
         adb -s "$serial" shell am force-stop "$DOCUMENTSUI" >/dev/null 2>&1 || true
         case "$cat" in
             restore|roundtrip) reset_restore_dir "$serial" ;;
+            lossy)
+                if ! "$SCRIPT_DIR/setup_lossy_repo.sh" "$serial" >"$ARTIFACT_DIR/$name.setup.log" 2>&1; then
+                    RESULTS+=("$name|FAIL|lossy fixture setup failed; see $name.setup.log")
+                    warn "FAIL $name - setup_lossy_repo.sh failed; see $ARTIFACT_DIR/$name.setup.log"
+                    return
+                fi
+                ;;
             backup)
                 if ! "$SCRIPT_DIR/setup_backup_env.sh" "$serial" >"$ARTIFACT_DIR/$name.setup.log" 2>&1; then
                     RESULTS+=("$name|FAIL|backup env setup failed; see $name.setup.log")
