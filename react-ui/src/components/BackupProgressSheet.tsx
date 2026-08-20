@@ -75,7 +75,7 @@ const BackupProgressSheet = ({ taskId, onClose }: BackupProgressSheetProps) => {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground text-sm">Backup Progress</h3>
-            <button onClick={onClose} className="btn-icon -mr-2">
+            <button onClick={onClose} className="btn-icon -mr-2" aria-label="Close backup progress">
               <X className="w-5 h-5" />
             </button>
           </div>

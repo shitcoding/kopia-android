@@ -61,7 +61,7 @@ const EstimationDialog = ({ sourceId, onClose }: EstimationDialogProps) => {
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground text-sm">Backup Estimation</h3>
-            <button onClick={handleClose} className="btn-icon -mr-2">
+            <button onClick={handleClose} className="btn-icon -mr-2" aria-label="Close backup estimation">
               <X className="w-5 h-5" />
             </button>
           </div>
