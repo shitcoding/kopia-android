@@ -845,7 +845,17 @@ data class BackupWorkerConfig(
     /** Tags to attach to the snapshot. */
     val tags: Map<String, String> = emptyMap(),
 
-    /** Number of parallel uploads (1-8). */
+    /**
+     * Number of files uploaded at once, capped at **4** — the KDoc said "1-8" for a long time and the
+     * code has always said `coerceIn(1, 4)`.
+     *
+     * The cap is not arbitrary and raising it is not free. On a Nothing Phone (2) the pipeline was
+     * measured sitting at a flat 4.0 cores busy for a whole 1.4 GB backup, so these permits are the
+     * binding constraint (task-66) — but that SoC is 1×X2 + 3×A710 + 4×A510, so the cores a higher
+     * cap would reach are the little ones, worth perhaps +25–30 % rather than 2×, against more
+     * in-flight buffers on a heap that ART clamps to 256 MB and that has already shipped one OOM
+     * (task-59). Measure before changing it.
+     */
     val parallelUploads: Int = Runtime.getRuntime().availableProcessors().coerceIn(1, 4),
 
     /** Percentage of files to force re-hash for validation (0-100). */
