@@ -19,7 +19,7 @@ import kotlin.math.min
  */
 class Buzhash32Splitter(avgSize: Int) : Splitter {
     private val rh = Buzhash32.new()
-    private val mask: UInt = (avgSize - 1).toUInt()
+    private val mask: Int = avgSize - 1
     private val minSize: Int = avgSize / 2
     private val maxSize: Int = avgSize * 2
     private var count: Int = 0
@@ -66,7 +66,7 @@ class Buzhash32Splitter(avgSize: Int) : Splitter {
                 rh.roll(dataAfterFastPath[i])
                 count++
 
-                if (rh.sum32() and mask == 0u) {
+                if (rh.sum32() and mask == 0) {
                     count = 0
                     return fastPathBytes + i + 1
                 }

@@ -14,9 +14,9 @@ package org.kopiaKt.core.splitter
  * @see <a href="https://en.wikipedia.org/wiki/Rolling_hash#Cyclic_polynomial">Cyclic polynomial</a>
  */
 class Buzhash32 private constructor(
-    private val byteHash: UIntArray,
+    private val byteHash: IntArray,
 ) {
-    private var sum: UInt = 0u
+    private var sum: Int = 0
     private var nRotate: Int = 0
     private var nRotateComplement: Int = 32
 
@@ -30,7 +30,7 @@ class Buzhash32 private constructor(
     fun reset() {
         window = ByteArray(0)
         oldest = 0
-        sum = 0u
+        sum = 0
     }
 
     /**
@@ -58,9 +58,9 @@ class Buzhash32 private constructor(
         window = window + data
 
         // Recompute hash over entire window
-        sum = 0u
+        sum = 0
         for (c in window) {
-            sum = (sum shl 1) or (sum shr 31)
+            sum = (sum shl 1) or (sum ushr 31)
             sum = sum xor byteHash[c.toInt() and 0xFF]
         }
 
@@ -73,7 +73,7 @@ class Buzhash32 private constructor(
     /**
      * Returns the current hash value.
      */
-    fun sum32(): UInt = sum
+    fun sum32(): Int = sum
 
     /**
      * Updates the hash by rolling the window: the oldest byte leaves
@@ -98,18 +98,26 @@ class Buzhash32 private constructor(
         // new_sum = rotate_left(sum, 1) XOR rotate_left(h0, nRotate) XOR hn
         // The h0 term removes the leaving byte's contribution
         // The hn term adds the entering byte's contribution
-        sum = ((sum shl 1) or (sum shr 31)) xor
-            ((h0 shl nRotate) or (h0 shr nRotateComplement)) xor
-            hn
+        // Named rather than one expression: every operator here is an infix function, so they all
+        // share one precedence and bind left to right, and a stray pair of parentheses silently
+        // changes the arithmetic instead of failing to compile.
+        val rotatedSum = (sum shl 1) or (sum ushr 31)
+        val rotatedH0 = (h0 shl nRotate) or (h0 ushr nRotateComplement)
+        sum = rotatedSum xor rotatedH0 xor hn
     }
 
+    // The 256-entry table is still written as unsigned literals -- transcribing 256 constants into
+    // their negative Int equivalents by hand would be a transcription bug waiting to happen -- and is
+    // reinterpreted once, at class init, by `asIntArray()`. That is a zero-copy view of the same
+    // backing array, so the bit patterns are identical and nothing pays per operation.
+    @OptIn(ExperimentalUnsignedTypes::class)
     companion object {
         /**
          * Default byte hash table, generated from Go with seed=1.
          * This table is pre-generated to ensure exact compatibility with Go's math/rand.
          */
         @Suppress("ktlint:standard:max-line-length")
-        private val DEFAULT_HASHES = uintArrayOf(
+        private val DEFAULT_HASHES: IntArray = uintArrayOf(
             0x07fcfd52u, 0x5f3f164fu, 0x6695721du, 0x7b4d7c03u, 0x49c6e2d1u, 0x0d1d68d8u, 0x7916001eu, 0x22c4d294u,
             0x392907a0u, 0x189deb99u, 0xf3875d04u, 0x95e94627u, 0xba517936u, 0x83c471d4u, 0x7cb3ad0bu, 0xa42655d9u,
             0x7c4e0b68u, 0xd4491d1bu, 0x25632186u, 0xa9d78d73u, 0x169c1121u, 0xbb158644u, 0xb68e6a3fu, 0x759805f5u,
@@ -142,7 +150,7 @@ class Buzhash32 private constructor(
             0xb648e604u, 0x51180278u, 0x893a310fu, 0x728f5f4cu, 0x37f5198bu, 0x3cc0ea9bu, 0xe39d02dbu, 0x13883142u,
             0xca599392u, 0xc12d154eu, 0xc176163du, 0x5c92e2b8u, 0xf9f95edeu, 0xb802bdfcu, 0x8a928585u, 0xdca6e10bu,
             0x887953e8u, 0x48b9e962u, 0xe533e9a3u, 0x5e0ce6e5u, 0x1dba77aeu, 0xc8214b8au, 0x53b428d7u, 0x4cf20a65u,
-        )
+        ).asIntArray()
 
         /**
          * Creates a new Buzhash32 with the default hash table (seed=1).
@@ -154,7 +162,7 @@ class Buzhash32 private constructor(
          */
         fun newFromUIntArray(b: UIntArray): Buzhash32 {
             require(b.size == 256) { "Hash table must have exactly 256 entries" }
-            return Buzhash32(b)
+            return Buzhash32(b.asIntArray())
         }
     }
 }
