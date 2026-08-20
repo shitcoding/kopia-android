@@ -27,6 +27,7 @@ import org.kopiaKt.core.hashing.HashAlgorithm
 import org.kopiaKt.core.repository.ClientOptions
 import org.kopiaKt.core.repository.DirectRepository
 import org.kopiaKt.core.repository.DirectRepositoryImpl
+import org.kopiaKt.core.splitter.DefaultSplitterFactory
 import org.kopiaKt.storage.filesystem.FilesystemBlobStorage
 import org.kopiaKt.storage.s3.RetryingBlobStorage
 import org.kopiaKt.storage.s3.S3BlobStorage
@@ -47,9 +48,58 @@ class KopiaRepositoryManagerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : KopiaRepositoryManager {
 
-    private companion object {
+    internal companion object {
+        /**
+         * The hash to create with, refusing anything this build cannot produce.
+         *
+         * `KopiaWebBridge.createRepository` passes `request.options.hash` straight through from the
+         * WebView, and the advertised list in `getSupportedAlgorithms` is the only thing that has ever
+         * kept a bad value out — advisory, not enforced. A string that never came from that list
+         * therefore reached repository creation unchecked, and the repository it produced could be
+         * unopenable: task-74 found `HashAlgorithm` declaring `BLAKE2B-256-256`, an id Go kopia does not
+         * have, and Go refused to open a repository created with it. That id is gone, but the hole it
+         * came through was the missing check, not the typo (task-74).
+         */
+        internal fun requireSupportedHash(requested: String?): String {
+            val id = requested ?: return HashAlgorithm.DEFAULT.id
+            require(HashAlgorithm.fromId(id) != null) {
+                "Unsupported hash algorithm \"$id\". This build supports: " +
+                    HashAlgorithm.entries.joinToString(", ") { it.id }
+            }
+            return id
+        }
+
+        /**
+         * The same guard as [requireSupportedHash], for the object splitter, and it became load-bearing
+         * only recently.
+         *
+         * Until task-78 the declared splitter was ignored — every write used `DYNAMIC-4M-BUZHASH`
+         * whatever the format blob said — so an unrecognised value sat in the format blob inertly. Now
+         * it decides the writer, and `DirectRepositoryImpl.splitterFactoryFor` throws on one this build
+         * cannot supply.
+         *
+         * That matters here because of the ORDER in `DirectRepositoryImpl.create`: the format blob is
+         * written to storage FIRST, and the object manager is built after. Without this check a bad
+         * splitter would leave a real repository on disk that this app can never open again — the exact
+         * shape of task-74, arriving through the exact same door (a string from the WebView that the
+         * advertised list only advises about).
+         */
+        internal fun requireSupportedSplitter(requested: String?): String {
+            val id = requested ?: DEFAULT_SPLITTER
+            require(DefaultSplitterFactory.getFactory(id) != null) {
+                "Unsupported object splitter \"$id\". This build supports: " +
+                    DefaultSplitterFactory.supportedAlgorithms().joinToString(", ")
+            }
+            return id
+        }
+
         /** Length in bytes of the repository secret and master key (256-bit). */
         const val REPOSITORY_KEY_SIZE_BYTES = 32
+
+        /** What a repository gets when the caller names no splitter. Go's own default is FIXED-4M;
+         *  this app has always created buzhash repositories and changing that is a separate,
+         *  user-facing decision, not a side effect of adding a guard. */
+        const val DEFAULT_SPLITTER = "DYNAMIC-4M-BUZHASH"
 
         /**
          * Prefix used by [testConnection]'s read probe. Only the repository-level blobs
@@ -344,26 +394,6 @@ class KopiaRepositoryManagerImpl @Inject constructor(
         is ConnectionConfig.SAF -> StorageType.SAF
     }
 
-    /**
-     * The hash to create with, refusing anything this build cannot produce.
-     *
-     * `KopiaWebBridge.createRepository` passes `request.options.hash` straight through from the
-     * WebView, and the advertised list in `getSupportedAlgorithms` is the only thing that has ever
-     * kept a bad value out — advisory, not enforced. A string that never came from that list
-     * therefore reached repository creation unchecked, and the repository it produced could be
-     * unopenable: task-74 found `HashAlgorithm` declaring `BLAKE2B-256-256`, an id Go kopia does not
-     * have, and Go refused to open a repository created with it. That id is gone, but the hole it
-     * came through was the missing check, not the typo (task-74).
-     */
-    private fun requireSupportedHash(requested: String?): String {
-        val id = requested ?: return HashAlgorithm.DEFAULT.id
-        require(HashAlgorithm.fromId(id) != null) {
-            "Unsupported hash algorithm \"$id\". This build supports: " +
-                HashAlgorithm.entries.joinToString(", ") { it.id }
-        }
-        return id
-    }
-
     private fun buildRepositoryConfig(options: RepositoryCreateOptions): RepositoryConfig {
         val random = SecureRandom()
         val secret = ByteArray(REPOSITORY_KEY_SIZE_BYTES).also { random.nextBytes(it) }
@@ -374,7 +404,7 @@ class KopiaRepositoryManagerImpl @Inject constructor(
             encryption = options.encryptionAlgorithm ?: EncryptionAlgorithm.DEFAULT.id,
             secret = secret,
             masterKey = masterKey,
-            splitter = options.splitterAlgorithm ?: "DYNAMIC-4M-BUZHASH",
+            splitter = requireSupportedSplitter(options.splitterAlgorithm),
         )
     }
 }
