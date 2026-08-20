@@ -28,8 +28,8 @@ class Buzhash32RollInvariantTest {
     fun `rolling agrees with recomputing, for windows that make the rotation live`() {
         // 32 and 64 would leave nRotate == 0. These do not: 40 -> 8, 33 -> 1, 63 -> 31.
         for (windowSize in intArrayOf(33, 40, 63)) {
-            val initial = ByteArray(windowSize) { ((it * 37) + 11).toByte() }
-            val incoming = ByteArray(48) { ((it * 53) + 7).toByte() }
+            val initial = ByteArray(windowSize) { (it * 37 + 11).toByte() }
+            val incoming = ByteArray(48) { (it * 53 + 7).toByte() }
 
             val rolled = Buzhash32.new()
             rolled.write(initial)
