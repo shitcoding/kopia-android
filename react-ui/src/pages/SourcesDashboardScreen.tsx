@@ -235,8 +235,18 @@ const SourcesDashboardScreen = () => {
                     {/* Actions menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="btn-icon -mr-2 -mt-1" aria-label="Source options">
+                        {/* The name is a visually-hidden TEXT node, not an aria-label, and that is
+                            load-bearing (task-77). Android's WebView drops `aria-label` on a Radix
+                            menu trigger outright: measured on a Nothing Phone (2) with four
+                            variants on screen at once, `aria-label`, `aria-label` + `title` and
+                            `aria-label` without `asChild` were all exposed as a bare `radix-:r*:`
+                            id with no name, while a text child came through. So TalkBack cannot
+                            announce this button and four E2E flows cannot reach the menu at all.
+                            Every OTHER button here keeps its aria-label -- only Radix triggers are
+                            affected, and this is the app's only one. */}
+                        <button className="btn-icon -mr-2 -mt-1">
                           <MoreVertical className="w-5 h-5" />
+                          <span className="sr-only">Source options</span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
