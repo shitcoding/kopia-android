@@ -458,6 +458,13 @@ class SnapshotUploader(
             val dueByBytes = options.checkpointAfterBytes > 0 &&
                 bytes - bytesAtLastCheckpoint >= options.checkpointAfterBytes
             if (waited >= interval || dueByBytes) {
+                // INFO, and deliberately at the TRIGGER rather than only on a written checkpoint:
+                // this is the line that distinguishes "no checkpoint fired" from "one fired and had
+                // nothing new to write", which produced identical evidence for three sessions of
+                // task-76. FINE would be invisible -- Android's default configuration reports
+                // isLoggable(FINE) == false, on exactly the device where this is needed.
+                val trigger = if (dueByBytes) "$bytes bytes hashed" else "$waited elapsed"
+                logger.log(Level.INFO, "checkpointing after $trigger")
                 checkpointRoot(registry, startTime)
                 waited = Duration.ZERO
                 bytesAtLastCheckpoint = bytes
@@ -542,6 +549,7 @@ class SnapshotUploader(
             // index, so everything the tree above references survives the process dying.
             writer.flush()
             lastCheckpointRoot.set(rootEntry.objectId)
+            logger.log(Level.INFO, "checkpoint written, root ${rootEntry.objectId}")
         } catch (e: CancellationException) {
             throw e // the checkpointer is being stopped; do not report that as a failure
         } catch (e: Exception) {

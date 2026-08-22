@@ -16,6 +16,10 @@ import org.kopiaKt.snapshot.model.SourceInfo
 import org.kopiaKt.snapshot.testutil.MockDirectory
 import org.kopiaKt.snapshot.testutil.SlowMockFile
 import java.time.Duration
+import java.util.logging.Handler
+import java.util.logging.Level
+import java.util.logging.LogRecord
+import java.util.logging.Logger
 
 /**
  * Phase 3.2 — a long upload must leave a real partial tree in the repository, not just at the end.
@@ -174,6 +178,63 @@ class RepositoryCheckpointTest {
         upload(repository, slowTree(fileCount = 1, delayMs = 0), neverFires)
 
         assertThat(snapshots(repository).filter { it.incompleteReason == CHECKPOINT_REASON }).isEmpty()
+        repository.close()
+    }
+
+    /**
+     * task-81: a checkpoint that fires has to leave a record a person can find on a device.
+     *
+     * This is not tidiness. Three sessions hunted task-76's swallowed `OutOfMemoryError` by grepping
+     * a device's logcat, and one recorded a diagnosis on an empty result — while the checkpointer was
+     * incapable of saying it had run at all, so "no checkpoint fired" and "a checkpoint fired
+     * cleanly" produced identical evidence. The logging pipeline itself is fine (verified on an
+     * arm64 AVD: SEVERE/WARNING/INFO all reach logcat through `AndroidHandler`, FINE does not), so
+     * the gap was purely that nothing was ever said.
+     *
+     * INFO, not FINE, and that is the whole point: `Logger.isLoggable(FINE)` is **false** under
+     * Android's default configuration, so a FINE line here would be invisible on exactly the device
+     * where it is needed.
+     */
+    @Test
+    fun `a checkpoint that fires says so at a level a device can see`(): Unit = runBlocking {
+        val (repository, _) = TestRepositoryFactory.createInMemory()
+        val records = mutableListOf<LogRecord>()
+        val handler = object : Handler() {
+            override fun publish(record: LogRecord) {
+                synchronized(records) { records += record }
+            }
+            override fun flush() = Unit
+            override fun close() = Unit
+        }
+        val logger = Logger.getLogger(SnapshotUploader::class.java.name)
+        logger.addHandler(handler)
+        try {
+            // An hour's timer cannot fire inside this test, so anything logged came from the bytes.
+            upload(
+                repository,
+                slowTree(),
+                UploadOptions(
+                    parallelUploads = 1,
+                    checkpointInterval = Duration.ofHours(1),
+                    checkpointAfterBytes = 4096,
+                ),
+            )
+        } finally {
+            logger.removeHandler(handler)
+        }
+
+        // Only what a device would actually show. Filtering by level first is what makes a
+        // downgrade to FINE fail here rather than pass unnoticed.
+        val visible = synchronized(records) {
+            records.filter { it.level.intValue() >= Level.INFO.intValue() }.map { it.message }
+        }
+
+        // Both lines are asserted separately and on purpose. A single "some line says checkpoint"
+        // assertion cannot tell them apart, and survived deleting either one when it was tried.
+        // The TRIGGER line is the one that carries task-76's whole question, because it fires
+        // whether or not the checkpoint found anything new to write.
+        assertThat(visible.any { it.startsWith("checkpointing after") }).isTrue()
+        assertThat(visible.any { it.startsWith("checkpoint written") }).isTrue()
         repository.close()
     }
 
