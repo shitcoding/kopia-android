@@ -2,6 +2,7 @@ package org.kopiaKt.android
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.bouncycastle.crypto.digests.Blake2bDigest
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.Security
@@ -29,15 +30,37 @@ import java.security.Security
 @RunWith(AndroidJUnit4::class)
 class Blake2bArtInvestigationTest {
 
+    /**
+     * The provider list has to be enumerated in the configuration the APP builds, not the one an
+     * instrumentation process happens to start with. `KopiaApp.installBouncyCastleProvider()`
+     * removes Android's *stripped* `BC` and appends the full `BouncyCastleProvider`, and the full
+     * one registers `MessageDigest.BLAKE2B-256` where the stripped one does not.
+     *
+     * A first version of this test omitted that step and reported `NONE`, which was an artefact of
+     * the process it ran in rather than a fact about the platform (Codex caught it). Both lists are
+     * printed so the difference is visible rather than asserted.
+     */
     @Test
     fun q1_isBlake2bAvailableFromAnyPlatformProvider() {
-        val hits = Security.getProviders().flatMap { provider ->
+        fun blake2Services() = Security.getProviders().flatMap { provider ->
             provider.services
                 .filter { it.algorithm.contains("BLAKE", ignoreCase = true) }
                 .map { "${provider.name}/${it.type}/${it.algorithm}" }
         }
-        println("BLAKE2_JCE_SERVICES: ${if (hits.isEmpty()) "NONE" else hits.joinToString()}")
+
+        println("BLAKE2_BEFORE: ${blake2Services().ifEmpty { listOf("NONE") }.joinToString()}")
+
+        // Exactly what the app does at startup.
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+        Security.addProvider(BouncyCastleProvider())
+
+        println("BLAKE2_AFTER: ${blake2Services().ifEmpty { listOf("NONE") }.joinToString()}")
         println("BLAKE2_PROVIDERS: ${Security.getProviders().joinToString { it.name }}")
+
+        // The question that actually decides the option: is anything offering BLAKE2b backed by
+        // something OTHER than the same pure-Java Blake2bDigest this project already calls directly?
+        val md = java.security.MessageDigest.getInstance("BLAKE2B-256")
+        println("BLAKE2_MD_IMPL: provider=${md.provider.name} class=${md.javaClass.name}")
     }
 
     @Test
